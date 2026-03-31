@@ -10,7 +10,7 @@
         "@supabase/mcp-server-supabase@latest"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "sbp_2567607638703d9310243fad94fee95a60723090"
+        "SUPABASE_ACCESS_TOKEN": "sbp_f5bf9ab5fdc7739b428cb43afed804b2017abe95"
       }
     }
   }

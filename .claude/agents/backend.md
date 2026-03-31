@@ -6,6 +6,7 @@ description: >
   features/**/*.repository.ts, Zod schemas, DTOs, LiqPay webhook handling,
   Supabase Auth. Do NOT use for UI components, database migrations, or code review.
 tools: Read, Write, Edit, Bash, Glob, Grep
+model: sonnet
 ---
 
 # Backend Agent
