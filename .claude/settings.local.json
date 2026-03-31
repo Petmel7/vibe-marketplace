@@ -5,5 +5,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

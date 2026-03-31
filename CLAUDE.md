@@ -15,17 +15,17 @@ You MUST:
 
 ## Tech Stack
 
-| Layer       | Technology                        |
-|-------------|-----------------------------------|
-| Framework   | Next.js (App Router, TypeScript)  |
-| Database    | PostgreSQL via Supabase            |
-| ORM         | Prisma                            |
-| Auth        | Supabase Auth                     |
-| Payments    | LiqPay (server-side integration)  |
-| Styling     | Tailwind CSS                      |
-| Validation  | Zod (mandatory for all API input) |
-| State       | Zustand (client UI state only)    |
-| Testing     | Vitest                            |
+| Layer      | Technology                        |
+| ---------- | --------------------------------- |
+| Framework  | Next.js (App Router, TypeScript)  |
+| Database   | PostgreSQL via Supabase           |
+| ORM        | Prisma                            |
+| Auth       | Supabase Auth                     |
+| Payments   | LiqPay (server-side integration)  |
+| Styling    | Tailwind CSS                      |
+| Validation | Zod (mandatory for all API input) |
+| State      | Zustand (client UI state only)    |
+| Testing    | Vitest                            |
 
 ---
 
@@ -62,7 +62,7 @@ prisma/           — Schema, migrations, seed scripts
 public/           — Static assets
 tests/            — Integration and end-to-end tests
 types/            — Global TypeScript types shared across features
-agents/           — Agent instruction files
+.claude/agents/   — Agent instruction files
 ```
 
 ---
