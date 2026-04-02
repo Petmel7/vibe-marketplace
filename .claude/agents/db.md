@@ -52,8 +52,7 @@ You MUST always consider this when designing schema.
 
 ## Technical Rules
 
-- All DB access goes through `features/<name>/<name>.repository.ts`
-- Never write raw SQL outside of migrations
+- Never write raw SQL outside of migrations — migrations are the only exception
 - Always run `prisma generate` after schema changes
 - Validate schema changes against existing migrations before applying
 

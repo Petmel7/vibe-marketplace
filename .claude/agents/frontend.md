@@ -96,6 +96,7 @@ You are a senior frontend engineer working on a marketplace UI (vibe-marketplace
 
 - Use Zod for client-side form validation
 - Reuse schemas from `features/<name>/<name>.schema.ts` where possible — do not duplicate validation logic
+- Do NOT create new Zod schemas in `features/` — reuse existing schemas only
 
 ---
 

@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # vibe-marketplace
 
 A multi-vendor clothing marketplace.

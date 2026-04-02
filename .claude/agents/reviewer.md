@@ -7,8 +7,8 @@ description: >
   N+1 queries, Zustand misuse, and marketplace-specific logic (multi-store,
   variants, LiqPay idempotency). Do NOT use for writing new features or migrations.
   Always returns verdict: Approved or Changes required.
-tools: Read, Write, Edit, Glob, Grep
-model: haiku
+tools: Read, Glob, Grep
+model: sonnet
 ---
 
 # Reviewer Agent
@@ -48,6 +48,7 @@ You are a senior code reviewer for the vibe-marketplace project.
 
 - Is new domain logic placed inside `features/<name>/`?
 - Does the feature have: service, repository, schema (Zod), DTO, types?
+- [ ] Tests co-located at `features/<name>/<name>.service.test.ts`?
 
 ---
 
