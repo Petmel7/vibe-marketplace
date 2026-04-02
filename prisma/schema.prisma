@@ -1,0 +1,192 @@
+// Prisma schema for vibe-marketplace
+// Multi-vendor clothing marketplace — core models (no payments, no cart, no reviews)
+//
+// Datasource URL is provided via prisma.config.ts (reads DATABASE_URL from env).
+// Generator uses Prisma v7 "prisma-client" (not legacy "prisma-client-js").
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  pending
+  paid
+  shipped
+  delivered
+}
+
+// ---------------------------------------------------------------------------
+// User
+//
+// The id is a UUID string that mirrors the Supabase auth.users primary key.
+// Supabase owns authentication; this table holds marketplace-specific profile
+// data and is the owner record for stores.
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stores Store[]
+  orders Order[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Store
+//
+// One user can own multiple stores. isActive allows soft-disabling a store
+// without cascading deletes on its products and order history.
+// ---------------------------------------------------------------------------
+
+model Store {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String   @db.Uuid
+  name        String
+  slug        String   @unique
+  description String?
+  logoUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner      User        @relation(fields: [ownerId], references: [id])
+  products   Product[]
+  orderItems OrderItem[]
+
+  @@index([ownerId])
+  @@index([isActive])
+  @@map("stores")
+}
+
+// ---------------------------------------------------------------------------
+// Product
+//
+// Belongs to exactly one Store. Price is the base/default price; individual
+// variants may override it via ProductVariant.price.
+//
+// searchVector is a PostgreSQL tsvector column used for full-text search.
+// It is populated and kept up-to-date by a database trigger defined in the
+// initial migration. A GIN index on this column enables fast FTS queries.
+//
+// Decimal is used for all monetary values — never Float (precision matters).
+// ---------------------------------------------------------------------------
+
+model Product {
+  id           String                  @id @default(uuid()) @db.Uuid
+  storeId      String                  @db.Uuid
+  name         String
+  description  String?
+  price        Decimal                 @db.Decimal(10, 2)
+  imageUrl     String?
+  isActive     Boolean                 @default(true)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  searchVector Unsupported("tsvector")?
+
+  store    Store            @relation(fields: [storeId], references: [id])
+  variants ProductVariant[]
+
+  @@index([storeId])
+  @@index([isActive])
+  @@index([searchVector], type: Gin)
+  @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// ProductVariant
+//
+// Each variant represents one purchasable unit of a product (e.g. "Blue / M").
+// Attributes are explicit typed columns — not JSON — to keep them queryable.
+// price is nullable: NULL means "use the parent Product's base price".
+// sku must be unique across the entire catalogue to support fulfilment lookup.
+// ---------------------------------------------------------------------------
+
+model ProductVariant {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid
+  sku       String   @unique
+  size      String?
+  color     String?
+  price     Decimal? @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id])
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+// ---------------------------------------------------------------------------
+// Order
+//
+// Belongs to the buying User. An order deliberately has no direct store
+// relation because a single order can contain items from multiple stores.
+// Per-store grouping is done at the OrderItem level.
+//
+// totalAmount is a denormalized snapshot of the order total at checkout time.
+// This avoids re-summing line items for display and preserves the correct
+// total even if prices change later.
+// ---------------------------------------------------------------------------
+
+model Order {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @db.Uuid
+  status      OrderStatus @default(pending)
+  totalAmount Decimal     @db.Decimal(10, 2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+// ---------------------------------------------------------------------------
+// OrderItem
+//
+// Junction between Order and ProductVariant. Stores:
+//   - quantity         — units purchased
+//   - unitPrice        — price snapshot at checkout; critical for order history
+//   - storeId          — denormalized for fast "items by store" queries without
+//                        traversing variant → product → store at query time
+// ---------------------------------------------------------------------------
+
+model OrderItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @db.Uuid
+  variantId String   @db.Uuid
+  storeId   String   @db.Uuid
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  order   Order          @relation(fields: [orderId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+  store   Store          @relation(fields: [storeId], references: [id])
+
+  @@index([orderId])
+  @@index([variantId])
+  @@index([storeId])
+  @@map("order_items")
+}
