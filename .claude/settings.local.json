@@ -10,7 +10,8 @@
       "Bash(npx tsc:*)",
       "Bash(grep -n 'issues\\\\b\\\\|$ZodError\\\\b' /c/vibe-marketplace/node_modules/zod/v4/core/errors.d.ts)",
       "Bash(grep -n 'ZodNumberParams\\\\|$ZodNumberParams' /c/vibe-marketplace/node_modules/zod/v4/core/schemas.d.ts)",
-      "Bash(grep -rn 'ZodNumberParams\\\\|$ZodNumberParams' /c/vibe-marketplace/node_modules/zod/v4/ '--include=*.d.ts')"
+      "Bash(grep -rn 'ZodNumberParams\\\\|$ZodNumberParams' /c/vibe-marketplace/node_modules/zod/v4/ '--include=*.d.ts')",
+      "Bash(xargs grep:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
