@@ -94,6 +94,9 @@ model Product {
   price        Decimal                 @db.Decimal(10, 2)
   imageUrl     String?
   isActive     Boolean                 @default(true)
+  sku          String?
+  isHit        Boolean                 @default(false)
+  isNew        Boolean                 @default(false)
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
   searchVector Unsupported("tsvector")?

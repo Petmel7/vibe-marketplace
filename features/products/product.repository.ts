@@ -87,6 +87,9 @@ type RawProductRow = {
   price: unknown          // Prisma returns Decimal-compatible object from raw
   imageUrl: string | null
   isActive: boolean
+  sku: string | null
+  isHit: boolean
+  isNew: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -115,6 +118,9 @@ async function findProductsWithFullTextSearch(params: {
         price,
         image_url  AS "imageUrl",
         is_active  AS "isActive",
+        sku,
+        is_hit     AS "isHit",
+        is_new     AS "isNew",
         created_at AS "createdAt",
         updated_at AS "updatedAt"
       FROM products

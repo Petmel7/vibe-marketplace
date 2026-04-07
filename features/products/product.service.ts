@@ -41,6 +41,9 @@ function toProductSummaryDto(product: Product): ProductSummaryDto {
     price: product.price.toString(),
     imageUrl: product.imageUrl ?? null,
     isActive: product.isActive,
+    sku: product.sku ?? null,
+    isHit: product.isHit,
+    isNew: product.isNew,
     createdAt: product.createdAt.toISOString(),
   }
 }

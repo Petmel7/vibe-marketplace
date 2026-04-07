@@ -25,6 +25,9 @@ export interface ProductSummaryDto {
   price: string
   imageUrl: string | null
   isActive: boolean
+  sku: string | null
+  isHit: boolean
+  isNew: boolean
   createdAt: string
 }
 
