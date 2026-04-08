@@ -1,26 +1,31 @@
-import ProductCard from "@/components/product/ProductCard";
 
-export default function Home() {
-  const mockProduct = {
-    name: "Футболка Vibe Run",
-    price: 2500.50,
-    imageUrl: "/images/t-shirt.png",
-    sku: "3495",
-    isActive: true,
-    isHit: false,
-    isNew: true,
-  };
+import ProductCard from "@/components/product/ProductCard";
+import { prisma } from "@/lib/prisma";
+
+export default async function Home() {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
   return (
-    <>
-      <ProductCard
-        name={mockProduct.name}
-        price={Number(mockProduct.price)}
-        imageUrl={mockProduct.imageUrl || "/placeholder.png"}
-        sku={mockProduct.sku}
-        isActive={mockProduct.isActive}
-        isHit={mockProduct.isHit}
-        isNew={mockProduct.isNew}
-      />
-    </>
+    <div className="grid grid-cols-1 min-[375px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto">
+      {products.map((product) => (
+        <ProductCard
+          key={product.id}
+          name={product.name}
+          price={Number(product.price)}
+          imageUrl={product.imageUrl || "/placeholder.png"}
+          sku={product.sku || undefined}
+          isActive={product.isActive}
+          isHit={product.isHit}
+          isNew={product.isNew}
+        />
+      ))}
+    </div>
   );
 }

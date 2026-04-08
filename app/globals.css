@@ -5,6 +5,10 @@
   --foreground: #ededed;
 }
 
+@theme {
+  --breakpoint-xs: 480px;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

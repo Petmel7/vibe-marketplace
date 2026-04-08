@@ -11,6 +11,28 @@ interface ProductCardProps {
   isNew?: boolean;
 }
 
+function HeartIcon() {
+  return (
+    <button
+      aria-label="Додати до обраного"
+      className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D2533]"
+    >
+      <Heart size={20} color="#A5A8AD" aria-hidden="true" />
+    </button>
+  );
+}
+
+function ListIcon() {
+  return (
+    <button
+      aria-label="Додати до списку"
+      className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D2533]"
+    >
+      <ListPlus size={20} color="#A5A8AD" aria-hidden="true" />
+    </button>
+  );
+}
+
 export default function ProductCard({
   name,
   price,
@@ -21,116 +43,57 @@ export default function ProductCard({
   isNew,
 }: ProductCardProps) {
   return (
-    <div
-      className="flex flex-col rounded-2xl overflow-hidden"
-      style={{
-        width: "207px",
-        height: "380px",
-        background: "linear-gradient(180deg, #4E5D77 0%, #2A323F 100%)",
-      }}
-    >
+    <div className="flex flex-col rounded-2xl overflow-hidden w-full h-[380px] xs:h-[300px] bg-[linear-gradient(180deg,#4E5D77_0%,#2A323F_100%)]">
       {/* Image area */}
-      <div
-        className="relative flex-1"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, #6B7A94 0%, #2A323F 100%)",
-        }}
-      >
-        {/* Hit / New label */}
+      <div className="relative flex-1 bg-[radial-gradient(ellipse_at_center,#6B7A94_0%,#2A323F_100%)]">
+        {/* Hit / New badge */}
         {(isHit || isNew) && (
-          <span
-            className="absolute top-2 left-2 z-10 px-2 rounded text-white font-medium"
-            style={{
-              fontSize: "13px",
-              lineHeight: "20px",
-              background: "#16D9A6",
-            }}
-          >
+          <span className="absolute top-2 left-2 z-10 px-2 rounded text-white font-medium text-[13px] leading-5 bg-[#16D9A6]">
             {isHit ? "Хіт" : "Новинка"}
           </span>
         )}
 
-        {/* Action icons */}
-        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
-          <button
-            aria-label="Додати до обраного"
-            className="flex items-center justify-center w-8 h-8 rounded-lg"
-            style={{ background: "#1D2533" }}
-          >
-            <Heart size={20} color="#A5A8AD" aria-hidden="true" />
-          </button>
-          <button
-            aria-label="Додати до списку"
-            className="flex items-center justify-center w-8 h-8 rounded-lg"
-            style={{ background: "#1D2533" }}
-          >
-            <ListPlus size={20} color="#A5A8AD" aria-hidden="true" />
-          </button>
+        {/* Action icons — hidden on desktop */}
+        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 xs:hidden">
+          <HeartIcon />
+          <ListIcon />
         </div>
 
-        {/* Product image */}
         <Image
           src={imageUrl}
           alt={name}
           fill
           className="object-contain p-4"
-          sizes="207px"
+          sizes="(min-width: 480px) 25vw, 207px"
         />
       </div>
 
       {/* Info area */}
       <div className="px-3 pb-3 pt-2 flex flex-col gap-1">
-        {/* Name */}
-        <p
-          className="font-bold truncate"
-          style={{ fontSize: "14px", lineHeight: "20px", color: "#A5A8AD" }}
-        >
+        <p className="font-bold truncate text-[14px] leading-5 text-[#A5A8AD]">
           {name}
         </p>
 
-        {/* Availability + article */}
         <div className="flex items-center gap-2">
           {isActive && (
-            <span
-              className="flex items-center gap-1"
-              style={{ fontSize: "10px", lineHeight: "12px", color: "#26DA72" }}
-            >
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: "#26DA72" }}
-              />
-              {isActive ? "В наявності" : "Немає в наявності"}
+            <span className="flex items-center gap-1 text-[10px] leading-3 text-[#26DA72]">
+              <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[#26DA72]" />
+              В наявності
             </span>
           )}
           {sku && (
-            <span
-              style={{ fontSize: "10px", lineHeight: "12px", color: "#A5A8AD" }}
-            >
+            <span className="text-[10px] leading-3 text-[#A5A8AD]">
               Арт.: {sku}
             </span>
           )}
         </div>
 
-        {/* Price */}
-        <p
-          className="font-medium"
-          style={{ fontSize: "20px", lineHeight: "28px", color: "#E8E9EA" }}
-        >
+        <p className="font-medium text-[20px] leading-7 text-[#E8E9EA]">
           {price.toLocaleString("uk-UA")} ₴
         </p>
 
-        {/* Cart button */}
-        <button
-          className="w-full font-medium text-white"
-          style={{
-            borderRadius: "32px",
-            padding: "12px 24px",
-            background: "#9466FF",
-            fontSize: "16px",
-            lineHeight: "24px",
-          }}
-        >
+        {/* Cart button — hidden on desktop */}
+        <button className="w-full font-medium text-white rounded-[32px] py-3 px-4 bg-[#9466FF] text-base leading-6 xs:hidden">
           В кошик
         </button>
       </div>
