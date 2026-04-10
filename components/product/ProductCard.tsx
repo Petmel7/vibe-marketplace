@@ -43,7 +43,7 @@ export default function ProductCard({
   isNew,
 }: ProductCardProps) {
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden w-full h-[380px] xs:h-[300px] bg-[linear-gradient(180deg,#4E5D77_0%,#2A323F_100%)]">
+    <div className="flex flex-col rounded-2xl overflow-hidden w-full h-95 xs:h-75 bg-[linear-gradient(180deg,#4E5D77_0%,#2A323F_100%)]">
       {/* Image area */}
       <div className="relative flex-1 bg-[radial-gradient(ellipse_at_center,#6B7A94_0%,#2A323F_100%)]">
         {/* Hit / New badge */}
@@ -77,7 +77,7 @@ export default function ProductCard({
         <div className="flex items-center gap-2">
           {isActive && (
             <span className="flex items-center gap-1 text-[10px] leading-3 text-[#26DA72]">
-              <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[#26DA72]" />
+              <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0 bg-[#26DA72]" />
               В наявності
             </span>
           )}
@@ -93,7 +93,7 @@ export default function ProductCard({
         </p>
 
         {/* Cart button — hidden on desktop */}
-        <button className="w-full font-medium text-white rounded-[32px] py-3 px-4 bg-[#9466FF] text-base leading-6 xs:hidden">
+        <button className="w-full font-medium text-white rounded-4xl py-3 px-4 bg-[#9466FF] text-base leading-6 xs:hidden">
           В кошик
         </button>
       </div>

@@ -42,6 +42,7 @@ model User {
 
   stores Store[]
   orders Order[]
+  cart   Cart?
 
   @@map("users")
 }
@@ -132,6 +133,7 @@ model ProductVariant {
 
   product    Product     @relation(fields: [productId], references: [id])
   orderItems OrderItem[]
+  cartItems  CartItem[]
 
   @@index([productId])
   @@map("product_variants")
@@ -192,4 +194,50 @@ model OrderItem {
   @@index([variantId])
   @@index([storeId])
   @@map("order_items")
+}
+
+// ---------------------------------------------------------------------------
+// Cart
+//
+// Supports both authenticated users (userId) and guests (sessionId).
+// A user may have at most one cart; a session may have at most one cart.
+// Only one of userId or sessionId will be set on any given cart row.
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @unique @db.Uuid
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id])
+  items CartItem[]
+
+  @@map("carts")
+}
+
+// ---------------------------------------------------------------------------
+// CartItem
+//
+// Junction between Cart and ProductVariant. The unique constraint on
+// (cartId, variantId) prevents duplicate line items — adding the same variant
+// twice increments the existing row's quantity instead.
+// ---------------------------------------------------------------------------
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  cartId    String   @db.Uuid
+  variantId String   @db.Uuid
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, variantId])
+  @@index([cartId])
+  @@index([variantId])
+  @@map("cart_items")
 }
