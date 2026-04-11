@@ -5,17 +5,12 @@ import type { SqlDriverAdapterFactory } from '@prisma/client/runtime/client'
 // ---------------------------------------------------------------------------
 // Postgres.js → Prisma v7 driver adapter
 //
-// Prisma v7 dropped the embedded query engine and now requires a driver
-// adapter that implements SqlDriverAdapterFactory. No official
-// @prisma/adapter-pg package is installed in this project, so we implement
-// the minimal interface directly on top of the `postgres` (v3) package.
-//
-// Column-type mapping follows the convention used by the official adapters:
-//   https://github.com/prisma/prisma/tree/main/packages/adapter-pg
+// Prisma v7 uses the "client" engine type which requires a SqlDriverAdapter.
+// No official @prisma/adapter-pg is installed, so we implement the interface
+// directly on top of the `postgres` (v3) package.
 // ---------------------------------------------------------------------------
 
-// OID → Prisma ColumnTypeEnum numeric values (not re-imported from the module
-// since ColumnTypeEnum is declared but not exported from the runtime client).
+// OID → Prisma ColumnTypeEnum numeric values
 const PrismaColumnType = {
   Int32:    0,
   Int64:    1,
@@ -35,22 +30,22 @@ type PgColumn = { name: string; type: number }
 
 function mapColumnType(pgOid: number): number {
   switch (pgOid) {
-    case 16:   return PrismaColumnType.Boolean   // bool
-    case 17:   return PrismaColumnType.Bytes     // bytea
-    case 20:   return PrismaColumnType.Int64     // int8
-    case 21:   return PrismaColumnType.Int32     // int2
-    case 23:   return PrismaColumnType.Int32     // int4
-    case 25:   return PrismaColumnType.Text      // text
-    case 114:  return PrismaColumnType.Json      // json
-    case 700:  return PrismaColumnType.Float     // float4
-    case 701:  return PrismaColumnType.Double    // float8
-    case 1043: return PrismaColumnType.Text      // varchar
-    case 1082: return PrismaColumnType.Date      // date
-    case 1114: return PrismaColumnType.DateTime  // timestamp
-    case 1184: return PrismaColumnType.DateTime  // timestamptz
-    case 1700: return PrismaColumnType.Numeric   // numeric / decimal
-    case 2950: return PrismaColumnType.Uuid      // uuid
-    case 3802: return PrismaColumnType.Json      // jsonb
+    case 16:   return PrismaColumnType.Boolean
+    case 17:   return PrismaColumnType.Bytes
+    case 20:   return PrismaColumnType.Int64
+    case 21:   return PrismaColumnType.Int32
+    case 23:   return PrismaColumnType.Int32
+    case 25:   return PrismaColumnType.Text
+    case 114:  return PrismaColumnType.Json
+    case 700:  return PrismaColumnType.Float
+    case 701:  return PrismaColumnType.Double
+    case 1043: return PrismaColumnType.Text
+    case 1082: return PrismaColumnType.Date
+    case 1114: return PrismaColumnType.DateTime
+    case 1184: return PrismaColumnType.DateTime
+    case 1700: return PrismaColumnType.Numeric
+    case 2950: return PrismaColumnType.Uuid
+    case 3802: return PrismaColumnType.Json
     default:   return PrismaColumnType.Text
   }
 }
@@ -67,36 +62,109 @@ function buildResultSet(rows: postgres.RowList<PostgresRow[]>) {
   return { columnNames, columnTypes, rows: mapped }
 }
 
+// ---------------------------------------------------------------------------
+// Query helpers shared by both the adapter and transaction objects
+// ---------------------------------------------------------------------------
+
+type SqlLike = Pick<postgres.Sql, 'unsafe'>
+
+async function execQueryRaw(sql: SqlLike, query: { sql: string; args: unknown[] }) {
+  const rows = await sql.unsafe(
+    query.sql,
+    query.args as Parameters<typeof sql.unsafe>[1]
+  )
+  return buildResultSet(rows as unknown as postgres.RowList<PostgresRow[]>)
+}
+
+async function execExecuteRaw(sql: SqlLike, query: { sql: string; args: unknown[] }) {
+  const result = await sql.unsafe(
+    query.sql,
+    query.args as Parameters<typeof sql.unsafe>[1]
+  )
+  return (result as unknown as { count?: number }).count ?? 0
+}
+
+// ---------------------------------------------------------------------------
+// Transaction implementation using a reserved connection
+// ---------------------------------------------------------------------------
+
+type IsolationLevel =
+  | 'READ UNCOMMITTED'
+  | 'READ COMMITTED'
+  | 'REPEATABLE READ'
+  | 'SNAPSHOT'
+  | 'SERIALIZABLE'
+
+function buildTransactionObject(reserved: postgres.ReservedSql) {
+  return {
+    provider: 'postgres' as const,
+    adapterName: '@local/adapter-postgres' as const,
+    options: { usePhantomQuery: false },
+
+    async queryRaw(query: { sql: string; args: unknown[] }) {
+      return execQueryRaw(reserved, query)
+    },
+
+    async executeRaw(query: { sql: string; args: unknown[] }) {
+      return execExecuteRaw(reserved, query)
+    },
+
+    async commit(): Promise<void> {
+      try {
+        await reserved.unsafe('COMMIT')
+      } finally {
+        reserved.release()
+      }
+    },
+
+    async rollback(): Promise<void> {
+      try {
+        await reserved.unsafe('ROLLBACK')
+      } finally {
+        reserved.release()
+      }
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Adapter factory
+// ---------------------------------------------------------------------------
+
 function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
-  // Build a single SqlDriverAdapter-compatible object.
   const adapterImpl = {
     provider: 'postgres' as const,
     adapterName: '@local/adapter-postgres' as const,
 
     async queryRaw(query: { sql: string; args: unknown[] }) {
-      const rows = await sql.unsafe(
-        query.sql,
-        query.args as Parameters<typeof sql.unsafe>[1]
-      )
-      return buildResultSet(rows as unknown as postgres.RowList<PostgresRow[]>)
+      return execQueryRaw(sql, query)
     },
 
     async executeRaw(query: { sql: string; args: unknown[] }) {
-      const result = await sql.unsafe(
-        query.sql,
-        query.args as Parameters<typeof sql.unsafe>[1]
-      )
-      return (result as unknown as { count?: number }).count ?? 0
+      return execExecuteRaw(sql, query)
     },
 
     async executeScript(script: string): Promise<void> {
       await sql.unsafe(script)
     },
 
-    startTransaction(): never {
-      throw new Error(
-        'Transactions not implemented in the minimal postgres adapter'
-      )
+    async startTransaction(isolationLevel?: IsolationLevel) {
+      const reserved = await sql.reserve()
+
+      // SNAPSHOT is SQL Server-only; fall back to default for Postgres.
+      const level = isolationLevel && isolationLevel !== 'SNAPSHOT'
+        ? isolationLevel
+        : null
+      const beginSql = level ? `BEGIN ISOLATION LEVEL ${level}` : 'BEGIN'
+
+      try {
+        await reserved.unsafe(beginSql)
+      } catch (err) {
+        reserved.release()
+        throw err
+      }
+
+      return buildTransactionObject(reserved)
     },
 
     async dispose(): Promise<void> {
@@ -117,10 +185,6 @@ function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
 
 // ---------------------------------------------------------------------------
 // Singleton PrismaClient
-//
-// In Next.js development mode the module cache is cleared on hot-reload,
-// causing multiple PrismaClient instances. We attach the singleton to the
-// global object to prevent that (standard Next.js + Prisma pattern).
 // ---------------------------------------------------------------------------
 
 const globalForPrisma = globalThis as unknown as {

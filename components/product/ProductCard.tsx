@@ -1,7 +1,11 @@
+'use client'
+
 import Image from "next/image";
 import { Heart, ListPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface ProductCardProps {
+  id: string;
   name: string;
   price: number;
   imageUrl: string;
@@ -34,6 +38,7 @@ function ListIcon() {
 }
 
 export default function ProductCard({
+  id,
   name,
   price,
   imageUrl,
@@ -42,8 +47,17 @@ export default function ProductCard({
   isHit,
   isNew,
 }: ProductCardProps) {
+  const router = useRouter();
+
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden w-full h-95 xs:h-75 bg-[linear-gradient(180deg,#4E5D77_0%,#2A323F_100%)]">
+    <div
+      className="flex flex-col rounded-2xl overflow-hidden w-full h-95 xs:h-75 bg-[linear-gradient(180deg,#4E5D77_0%,#2A323F_100%)]"
+      onClick={() => router.push(`/products/${id}`)}
+      onKeyDown={(e) => e.key === 'Enter' && router.push(`/products/${id}`)}
+      role="link"
+      tabIndex={0}
+      style={{ cursor: 'pointer' }}
+    >
       {/* Image area */}
       <div className="relative flex-1 bg-[radial-gradient(ellipse_at_center,#6B7A94_0%,#2A323F_100%)]">
         {/* Hit / New badge */}
@@ -54,7 +68,10 @@ export default function ProductCard({
         )}
 
         {/* Action icons — hidden on desktop */}
-        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 xs:hidden">
+        <div
+          className="absolute top-2 right-2 z-10 flex flex-col gap-1 xs:hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
           <HeartIcon />
           <ListIcon />
         </div>
@@ -91,11 +108,6 @@ export default function ProductCard({
         <p className="font-medium text-[20px] leading-7 text-[#E8E9EA]">
           {price.toLocaleString("uk-UA")} ₴
         </p>
-
-        {/* Cart button — hidden on desktop */}
-        <button className="w-full font-medium text-white rounded-4xl py-3 px-4 bg-[#9466FF] text-base leading-6 xs:hidden">
-          В кошик
-        </button>
       </div>
     </div>
   );

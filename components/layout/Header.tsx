@@ -1,5 +1,28 @@
+'use client'
+
 import Image from "next/image";
+import Link from "next/link";
 import { Search, CircleUser, Menu, Heart, ListPlus, ShoppingCart } from "lucide-react";
+import { useCartStore } from "@/store/cartStore";
+
+function CartIcon() {
+  const itemCount = useCartStore((s) => s.itemCount);
+
+  return (
+    <Link href="/cart" aria-label={`Кошик${itemCount > 0 ? `, ${itemCount} товарів` : ""}`} className="relative flex items-center justify-center">
+      <ShoppingCart size={24} color="#E8E9EA" aria-hidden="true" />
+      {itemCount > 0 && (
+        <span
+          className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full bg-[#9466FF] text-white font-bold flex items-center justify-center leading-none px-0.5"
+          style={{ fontSize: 10 }}
+          aria-hidden="true"
+        >
+          {itemCount > 99 ? "99+" : itemCount}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export default function Header() {
   return (
@@ -49,9 +72,7 @@ export default function Header() {
           <button aria-label="Список бажань" className="flex items-center justify-center">
             <ListPlus size={24} color="#E8E9EA" aria-hidden="true" />
           </button>
-          <button aria-label="Кошик" className="flex items-center justify-center">
-            <ShoppingCart size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
+          <CartIcon />
           <button aria-label="Профіль користувача" className="flex items-center justify-center">
             <CircleUser size={24} color="#E8E9EA" aria-hidden="true" />
           </button>
