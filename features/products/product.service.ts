@@ -1,6 +1,7 @@
 import {
   findProducts,
   findProductById,
+  searchProducts as repositorySearchProducts,
 } from '@/features/products/product.repository'
 import type {
   ProductDetailDto,
@@ -8,7 +9,7 @@ import type {
   ProductSummaryDto,
   ProductVariantDto,
 } from '@/features/products/product.dto'
-import type { ProductListQuery } from '@/features/products/product.schema'
+import type { ProductListQuery, ProductSearchQuery } from '@/features/products/product.schema'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,27 @@ export async function listProducts(
   const { storeId, search, page, limit } = query
 
   const { items, total } = await findProducts({ storeId, search, page, limit })
+
+  return {
+    items: items.map(toProductSummaryDto),
+    total,
+    page,
+    limit,
+  }
+}
+
+/**
+ * Search active products by full-text query, ranked by ts_rank.
+ *
+ * The `q` term is validated upstream by Zod before this runs.
+ * Returns empty items (not an error) when nothing matches.
+ */
+export async function searchProducts(
+  query: ProductSearchQuery
+): Promise<ProductListDto> {
+  const { q, page, limit } = query
+
+  const { items, total } = await repositorySearchProducts({ q, page, limit })
 
   return {
     items: items.map(toProductSummaryDto),

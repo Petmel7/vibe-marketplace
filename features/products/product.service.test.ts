@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { listProducts, getProduct, ProductNotFoundError } from './product.service'
+import { listProducts, getProduct, searchProducts, ProductNotFoundError } from './product.service'
 import * as repository from './product.repository'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 
 vi.mock('./product.repository', () => ({
   findProducts: vi.fn(),
   findProductById: vi.fn(),
+  searchProducts: vi.fn(),
 }))
 
 const mockedRepository = vi.mocked(repository)
@@ -43,6 +44,69 @@ function makeVariant(overrides: Partial<Record<string, unknown>> = {}): ProductV
     ...overrides,
   } as unknown as ProductVariant
 }
+
+// ---------------------------------------------------------------------------
+// searchProducts
+// ---------------------------------------------------------------------------
+
+describe('searchProducts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns mapped product list with pagination metadata', async () => {
+    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [makeProduct()], total: 1 })
+
+    const result = await searchProducts({ q: 'jacket', page: 1, limit: 20 })
+
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'prod-1',
+          storeId: 'store-1',
+          name: 'Test Product',
+          description: 'A test product',
+          price: '99.99',
+          imageUrl: 'https://example.com/img.jpg',
+          isActive: true,
+          sku: 'SKU-001',
+          isHit: false,
+          isNew: true,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    })
+  })
+
+  it('passes q, page, and limit to the repository', async () => {
+    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [], total: 0 })
+
+    await searchProducts({ q: 'hoodie', page: 2, limit: 10 })
+
+    expect(repository.searchProducts).toHaveBeenCalledWith({ q: 'hoodie', page: 2, limit: 10 })
+  })
+
+  it('returns empty items and zero total when nothing matches', async () => {
+    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [], total: 0 })
+
+    const result = await searchProducts({ q: 'xyznotfound', page: 1, limit: 20 })
+
+    expect(result.items).toEqual([])
+    expect(result.total).toBe(0)
+  })
+
+  it('serializes Decimal price to string', async () => {
+    const product = makeProduct({ price: { toString: () => '49.00' } })
+    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [product], total: 1 })
+
+    const result = await searchProducts({ q: 'shirt', page: 1, limit: 20 })
+
+    expect(result.items[0].price).toBe('49.00')
+  })
+})
 
 // ---------------------------------------------------------------------------
 // listProducts

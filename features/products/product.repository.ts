@@ -148,6 +148,29 @@ async function findProductsWithFullTextSearch(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Dedicated search (ts_rank ordered, no storeId filter)
+// ---------------------------------------------------------------------------
+
+interface SearchProductsParams {
+  q: string
+  page: number
+  limit: number
+}
+
+/**
+ * Full-text search across all active products, ranked by ts_rank.
+ * Unlike findProducts this function requires a query term and does not
+ * support store-scoping — it is intended for the /api/products/search route.
+ */
+export async function searchProducts(
+  params: SearchProductsParams
+): Promise<FindProductsResult> {
+  const { q, page, limit } = params
+  const skip = (page - 1) * limit
+  return findProductsWithFullTextSearch({ search: q, skip, limit })
+}
+
+// ---------------------------------------------------------------------------
 // Single product
 // ---------------------------------------------------------------------------
 
