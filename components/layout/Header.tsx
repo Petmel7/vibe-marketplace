@@ -13,7 +13,7 @@ function CartIcon() {
       <ShoppingCart size={24} color="#E8E9EA" aria-hidden="true" />
       {itemCount > 0 && (
         <span
-          className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full bg-[#9466FF] text-white font-bold flex items-center justify-center leading-none px-0.5"
+          className="absolute -top-1.5 -right-1.5 min-w-4 h-4 rounded-full bg-[#9466FF] text-white font-bold flex items-center justify-center leading-none px-0.5"
           style={{ fontSize: 10 }}
           aria-hidden="true"
         >
@@ -28,7 +28,7 @@ export default function Header() {
   return (
     <>
       {/* Mobile header — hidden on md+ */}
-      <header className="md:hidden w-full h-[72px] bg-[#1D2533] border-b border-white/10 flex items-center px-4">
+      <header className="md:hidden w-full h-18 bg-[#1D2533] border-b border-white/10 flex items-center px-4">
         <div className="flex items-center gap-3 flex-1">
           <Image src="/logo.svg" alt="Вайб" width={30} height={50} priority />
           <span className="text-white font-bold text-xl leading-tight" style={{ width: "161px" }}>
@@ -46,7 +46,7 @@ export default function Header() {
       </header>
 
       {/* Desktop header — hidden below md */}
-      <header className="hidden md:flex w-full h-[72px] bg-[#1D2533] border-b border-white/10 items-center px-6 relative">
+      <header className="hidden md:flex w-full h-18 bg-[#1D2533] border-b border-white/10 items-center px-6 relative">
         {/* Left: Menu icon */}
         <div className="flex items-center gap-2">
           <button aria-label="Меню" className="flex items-center gap-2">

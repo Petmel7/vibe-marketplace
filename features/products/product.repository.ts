@@ -125,16 +125,16 @@ async function findProductsWithFullTextSearch(params: {
         updated_at AS "updatedAt"
       FROM products
       WHERE is_active = true
-        AND "search_vector" @@ plainto_tsquery('english', ${search})
+        AND "searchVector" @@ plainto_tsquery('english', ${search})
         ${storeFilter}
-      ORDER BY ts_rank("search_vector", plainto_tsquery('english', ${search})) DESC
+      ORDER BY ts_rank("searchVector", plainto_tsquery('english', ${search})) DESC
       LIMIT ${limit} OFFSET ${skip}
     `,
     prisma.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(*) AS count
       FROM products
       WHERE is_active = true
-        AND "search_vector" @@ plainto_tsquery('english', ${search})
+        AND "searchVector" @@ plainto_tsquery('english', ${search})
         ${storeFilter}
     `,
   ])
