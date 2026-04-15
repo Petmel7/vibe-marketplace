@@ -40,9 +40,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stores Store[]
-  orders Order[]
-  cart   Cart?
+  stores   Store[]
+  orders   Order[]
+  cart     Cart?
+  wishlist Wishlist?
 
   @@map("users")
 }
@@ -102,8 +103,9 @@ model Product {
   updatedAt    DateTime                @updatedAt
   searchVector Unsupported("tsvector")?
 
-  store    Store            @relation(fields: [storeId], references: [id])
-  variants ProductVariant[]
+  store         Store            @relation(fields: [storeId], references: [id])
+  variants      ProductVariant[]
+  wishlistItems WishlistItem[]
 
   @@index([storeId])
   @@index([isActive])
@@ -240,4 +242,46 @@ model CartItem {
   @@index([cartId])
   @@index([variantId])
   @@map("cart_items")
+}
+
+// ---------------------------------------------------------------------------
+// Wishlist
+//
+// One wishlist per authenticated user. Guest carts are session-based but
+// wishlists require authentication — userId is therefore non-nullable.
+// ---------------------------------------------------------------------------
+
+model Wishlist {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id])
+  items WishlistItem[]
+
+  @@map("wishlists")
+}
+
+// ---------------------------------------------------------------------------
+// WishlistItem
+//
+// Junction between Wishlist and Product. Rows are immutable (no updatedAt).
+// The unique constraint on (wishlistId, productId) prevents duplicates.
+// Cascade delete removes items when the wishlist itself is deleted.
+// ---------------------------------------------------------------------------
+
+model WishlistItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  wishlistId String   @db.Uuid @map("wishlist_id")
+  productId  String   @db.Uuid @map("product_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
+  @@index([productId])
+  @@map("wishlist_items")
 }
