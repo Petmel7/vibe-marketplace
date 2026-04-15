@@ -44,6 +44,7 @@ model User {
   orders   Order[]
   cart     Cart?
   wishlist Wishlist?
+  reviews  Review[]
 
   @@map("users")
 }
@@ -106,6 +107,7 @@ model Product {
   store         Store            @relation(fields: [storeId], references: [id])
   variants      ProductVariant[]
   wishlistItems WishlistItem[]
+  reviews       Review[]
 
   @@index([storeId])
   @@index([isActive])
@@ -284,4 +286,31 @@ model WishlistItem {
   @@index([wishlistId])
   @@index([productId])
   @@map("wishlist_items")
+}
+
+// ---------------------------------------------------------------------------
+// Review
+//
+// One review per user per product — enforced by the unique constraint on
+// (productId, userId). rating is stored as a SmallInt (1–5); the CHECK
+// constraint in the DB and the Zod schema at the API boundary both enforce
+// the valid range. comment is optional.
+// ---------------------------------------------------------------------------
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid @map("product_id")
+  userId    String   @db.Uuid @map("user_id")
+  rating    Int      @db.SmallInt
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([userId])
+  @@map("reviews")
 }
