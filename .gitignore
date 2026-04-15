@@ -44,3 +44,5 @@ next-env.d.ts
 
 .mcp.json
 /screenshots
+.claude/settings.local.json
+echo ".claude/settings.local.json" >> .gitignore
