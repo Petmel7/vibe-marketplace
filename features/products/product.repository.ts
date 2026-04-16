@@ -74,26 +74,6 @@ async function findProductsStandard(params: {
 // Full-text search via searchVector
 // ---------------------------------------------------------------------------
 
-/**
- * Raw product row shape returned by the FTS query.
- * We select only scalar columns (no relations) — variants are excluded here
- * because this path returns ProductSummaryDto, not ProductDetailDto.
- */
-type RawProductRow = {
-  id: string
-  storeId: string
-  name: string
-  description: string | null
-  price: unknown          // Prisma returns Decimal-compatible object from raw
-  imageUrl: string | null
-  isActive: boolean
-  sku: string | null
-  isHit: boolean
-  isNew: boolean
-  createdAt: Date
-  updatedAt: Date
-}
-
 async function findProductsWithFullTextSearch(params: {
   storeId?: string
   search: string
@@ -108,8 +88,10 @@ async function findProductsWithFullTextSearch(params: {
     ? Prisma.sql`AND "store_id" = ${storeId}::uuid`
     : Prisma.empty
 
+  // $queryRaw is typed directly as Product[] — the adapter maps all scalar
+  // columns (including Decimal price) to their Prisma types.
   const [items, countResult] = await Promise.all([
-    prisma.$queryRaw<RawProductRow[]>`
+    prisma.$queryRaw<Product[]>`
       SELECT
         id,
         store_id   AS "storeId",
@@ -139,10 +121,8 @@ async function findProductsWithFullTextSearch(params: {
     `,
   ])
 
-  // The raw query returns plain objects, not Prisma model instances, but the
-  // shape is compatible — callers only access scalar fields on the list path.
   return {
-    items: items as unknown as Product[],
+    items,
     total: Number(countResult[0]?.count ?? 0),
   }
 }

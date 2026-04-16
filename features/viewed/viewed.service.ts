@@ -3,28 +3,16 @@ import {
   upsertViewedProduct,
   productExists,
 } from '@/features/viewed/viewed.repository'
-import type { ViewedIdentifier, ViewedProductWithProduct } from '@/features/viewed/viewed.repository'
+import type { ViewedProductWithProduct } from '@/features/viewed/viewed.repository'
+import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
+import type { ViewedProductDto, ViewedListDto } from '@/features/viewed/viewed.dto'
 import type { ViewedRecordInput } from '@/features/viewed/viewed.schema'
 
 // ---------------------------------------------------------------------------
-// Types
+// Re-exports
 // ---------------------------------------------------------------------------
 
 export type { ViewedIdentifier }
-
-interface ViewedProductDto {
-  id: string
-  productId: string
-  name: string
-  /** Product base price, serialized as string. */
-  price: string
-  imageUrl: string | null
-  viewedAt: string
-}
-
-interface ViewedListDto {
-  items: ViewedProductDto[]
-}
 
 // ---------------------------------------------------------------------------
 // Typed application errors

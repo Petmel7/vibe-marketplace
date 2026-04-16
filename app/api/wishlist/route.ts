@@ -1,5 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
+import { verifyBearerToken } from '@/lib/auth'
+import { logError } from '@/lib/logger'
 import { wishlistAddSchema } from '@/features/wishlist/wishlist.schema'
 import {
   getWishlist,
@@ -7,24 +9,6 @@ import {
   ProductNotFoundError,
   ProductAlreadyInWishlistError,
 } from '@/features/wishlist/wishlist.service'
-
-// ---------------------------------------------------------------------------
-// Auth helper
-// ---------------------------------------------------------------------------
-
-function resolveUserId(request: NextRequest): string | null {
-  return request.headers.get('x-user-id')
-}
-
-function unauthorizedResponse(): Response {
-  return Response.json(
-    {
-      success: false,
-      error: { message: 'Authentication required. Supply an x-user-id header.', code: 'UNAUTHORIZED' },
-    },
-    { status: 401 },
-  )
-}
 
 // ---------------------------------------------------------------------------
 // GET /api/wishlist
@@ -36,7 +20,7 @@ function unauthorizedResponse(): Response {
  * Returns the authenticated user's wishlist (created lazily on first request).
  *
  * Headers:
- *   x-user-id  — UUID of the authenticated user (required)
+ *   Authorization: Bearer <token>  — Supabase access token (required)
  *
  * Responses:
  *   200  { success: true,  data: WishlistDto }
@@ -45,13 +29,13 @@ function unauthorizedResponse(): Response {
  */
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    const userId = resolveUserId(request)
-    if (!userId) return unauthorizedResponse()
+    const auth = await verifyBearerToken(request)
+    if (!auth.ok) return auth.response
 
-    const data = await getWishlist(userId)
+    const data = await getWishlist(auth.userId)
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
-    console.error('[GET /api/wishlist] Unexpected error:', error)
+    logError('GET /api/wishlist', error)
     return Response.json(
       { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
       { status: 500 },
@@ -69,12 +53,12 @@ export async function GET(request: NextRequest): Promise<Response> {
  * Add a product to the authenticated user's wishlist.
  *
  * Headers:
- *   x-user-id  — UUID of the authenticated user (required)
+ *   Authorization: Bearer <token>  — Supabase access token (required)
  *
  * Body: { productId: string (UUID) }
  *
  * Responses:
- *   200  { success: true,  data: WishlistDto }
+ *   201  { success: true,  data: WishlistDto }
  *   400  { success: false, error: { message, code: 'VALIDATION_ERROR' } }
  *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   404  { success: false, error: { message, code: 'NOT_FOUND' } }
@@ -83,14 +67,14 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const userId = resolveUserId(request)
-    if (!userId) return unauthorizedResponse()
+    const auth = await verifyBearerToken(request)
+    if (!auth.ok) return auth.response
 
     const body = await request.json()
     const { productId } = wishlistAddSchema.parse(body)
 
-    const data = await addToWishlist(userId, productId)
-    return Response.json({ success: true, data }, { status: 200 })
+    const data = await addToWishlist(auth.userId, productId)
+    return Response.json({ success: true, data }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
       return Response.json(
@@ -119,7 +103,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       )
     }
 
-    console.error('[POST /api/wishlist] Unexpected error:', error)
+    logError('POST /api/wishlist', error)
     return Response.json(
       { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
       { status: 500 },

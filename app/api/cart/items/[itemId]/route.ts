@@ -12,7 +12,6 @@ import {
 } from '@/features/cart/cart.service'
 import {
   resolveCartIdentifier,
-  identifierMissingResponse,
   notFoundResponse,
   conflictResponse,
   internalErrorResponse,
@@ -28,6 +27,7 @@ import {
  * Responses:
  *   200  { success: true,  data: CartDto }
  *   400  { success: false, error: { message, code: 'MISSING_IDENTIFIER' | 'VALIDATION_ERROR' } }
+ *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   404  { success: false, error: { message, code: 'NOT_FOUND' } }
  *   409  { success: false, error: { message, code: 'INSUFFICIENT_STOCK' } }
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
@@ -37,15 +37,15 @@ export async function PATCH(
   { params }: { params: Promise<{ itemId: string }> }
 ): Promise<Response> {
   try {
-    const identifier = resolveCartIdentifier(request)
-    if (!identifier) return identifierMissingResponse()
+    const result = await resolveCartIdentifier(request)
+    if (!result.ok) return result.response
 
     const { itemId } = cartItemIdParamSchema.parse(await params)
 
     const body = await request.json()
     const input = updateCartItemSchema.parse(body)
 
-    const data = await updateItem(identifier, itemId, input)
+    const data = await updateItem(result.identifier, itemId, input)
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -81,6 +81,7 @@ export async function PATCH(
  * Responses:
  *   200  { success: true,  data: CartDto }
  *   400  { success: false, error: { message, code: 'MISSING_IDENTIFIER' | 'VALIDATION_ERROR' } }
+ *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   404  { success: false, error: { message, code: 'NOT_FOUND' } }
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
@@ -89,12 +90,12 @@ export async function DELETE(
   { params }: { params: Promise<{ itemId: string }> }
 ): Promise<Response> {
   try {
-    const identifier = resolveCartIdentifier(request)
-    if (!identifier) return identifierMissingResponse()
+    const result = await resolveCartIdentifier(request)
+    if (!result.ok) return result.response
 
     const { itemId } = cartItemIdParamSchema.parse(await params)
 
-    const data = await removeItem(identifier, itemId)
+    const data = await removeItem(result.identifier, itemId)
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {

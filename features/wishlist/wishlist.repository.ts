@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Wishlist, WishlistItem, Product } from '@/app/generated/prisma/client'
+export { productExists } from '@/lib/db/productExists'
 
 export type WishlistItemWithProduct = WishlistItem & { product: Product }
 export type WishlistWithItems = Wishlist & { items: WishlistItemWithProduct[] }
@@ -83,13 +84,3 @@ async function fetchWishlistWithItems(wishlistId: string): Promise<WishlistWithI
   })
 }
 
-/**
- * Check whether an active product with the given id exists.
- * Used by the service layer to validate before inserting a wishlist item.
- */
-export async function productExists(productId: string): Promise<boolean> {
-  const count = await prisma.product.count({
-    where: { id: productId, isActive: true },
-  })
-  return count > 0
-}

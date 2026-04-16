@@ -1,14 +1,12 @@
 import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
+import { verifyBearerToken } from '@/lib/auth'
+import { logError } from '@/lib/logger'
 import { wishlistProductIdParamSchema } from '@/features/wishlist/wishlist.schema'
 import {
   removeFromWishlist,
   WishlistItemNotFoundError,
 } from '@/features/wishlist/wishlist.service'
-
-function resolveUserId(request: NextRequest): string | null {
-  return request.headers.get('x-user-id')
-}
 
 /**
  * DELETE /api/wishlist/[productId]
@@ -16,7 +14,7 @@ function resolveUserId(request: NextRequest): string | null {
  * Remove a product from the authenticated user's wishlist.
  *
  * Headers:
- *   x-user-id  — UUID of the authenticated user (required)
+ *   Authorization: Bearer <token>  — Supabase access token (required)
  *
  * Responses:
  *   200  { success: true,  data: WishlistDto }
@@ -30,20 +28,12 @@ export async function DELETE(
   { params }: { params: Promise<{ productId: string }> },
 ): Promise<Response> {
   try {
-    const userId = resolveUserId(request)
-    if (!userId) {
-      return Response.json(
-        {
-          success: false,
-          error: { message: 'Authentication required. Supply an x-user-id header.', code: 'UNAUTHORIZED' },
-        },
-        { status: 401 },
-      )
-    }
+    const auth = await verifyBearerToken(request)
+    if (!auth.ok) return auth.response
 
     const { productId } = wishlistProductIdParamSchema.parse(await params)
 
-    const data = await removeFromWishlist(userId, productId)
+    const data = await removeFromWishlist(auth.userId, productId)
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -66,7 +56,7 @@ export async function DELETE(
       )
     }
 
-    console.error('[DELETE /api/wishlist/[productId]] Unexpected error:', error)
+    logError('DELETE /api/wishlist/[productId]', error)
     return Response.json(
       { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
       { status: 500 },

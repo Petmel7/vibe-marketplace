@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Review } from '@/app/generated/prisma/client'
+export { productExists } from '@/lib/db/productExists'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -88,12 +89,3 @@ export async function createReview(
   })
 }
 
-/**
- * Check whether an active product with the given id exists.
- */
-export async function productExists(productId: string): Promise<boolean> {
-  const count = await prisma.product.count({
-    where: { id: productId, isActive: true },
-  })
-  return count > 0
-}

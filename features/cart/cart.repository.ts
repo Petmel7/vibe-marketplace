@@ -51,9 +51,20 @@ export async function findCart(
 }
 
 /**
+ * Find a cart by its primary key, including all items with variant + product.
+ * Returns null when not found.
+ */
+export async function findCartById(id: string): Promise<CartWithItems | null> {
+  return prisma.cart.findUnique({
+    where: { id },
+    include: { items: { include: ITEM_INCLUDE } },
+  }) as Promise<CartWithItems | null>
+}
+
+/**
  * Create a new cart for the given identifier.
  */
-async function createCart(
+export async function createCart(
   identifier: CartIdentifier
 ): Promise<CartWithItems> {
   return prisma.cart.create({
@@ -103,32 +114,22 @@ export async function findVariantById(
 }
 
 /**
- * Upsert a cart item:
+ * Atomically upsert a cart item:
  * - If no item for (cartId, variantId) exists → create with given quantity.
  * - If one exists → increment its quantity by the given amount.
  *
- * Note: Prisma v7's minimal adapter does not support transactions, so we use
- * two sequential queries. The race-condition risk is negligible for a cart.
+ * Uses Prisma's built-in upsert to eliminate the read-then-write race condition.
  */
 export async function upsertCartItem(
   cartId: string,
   variantId: string,
   quantity: number
 ): Promise<void> {
-  const existing = await prisma.cartItem.findUnique({
+  await prisma.cartItem.upsert({
     where: { cartId_variantId: { cartId, variantId } },
+    create: { cartId, variantId, quantity },
+    update: { quantity: { increment: quantity } },
   })
-
-  if (existing) {
-    await prisma.cartItem.update({
-      where: { id: existing.id },
-      data: { quantity: { increment: quantity } },
-    })
-  } else {
-    await prisma.cartItem.create({
-      data: { cartId, variantId, quantity },
-    })
-  }
 }
 
 /**

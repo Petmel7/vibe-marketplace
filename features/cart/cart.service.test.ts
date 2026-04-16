@@ -140,13 +140,31 @@ describe('addItem', () => {
 
   it('adds a new item and returns the updated cart', async () => {
     const item = makeCartItem({ quantity: 1 })
-    mockRepo.findOrCreateCart.mockResolvedValue(makeCart([item]))
+    // findCart: cart exists but is empty (no existing qty for this variant)
+    mockRepo.findCart.mockResolvedValue(makeCart([]))
     mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 5 }))
     mockRepo.upsertCartItem.mockResolvedValue(undefined)
+    // findCartById: cart after mutation has the item
+    mockRepo.findCartById.mockResolvedValue(makeCart([item]))
 
     const result = await addItem(identifier, { variantId: VARIANT_ID, quantity: 1 })
 
     expect(mockRepo.upsertCartItem).toHaveBeenCalledWith(CART_ID, VARIANT_ID, 1)
+    expect(result.items).toHaveLength(1)
+  })
+
+  it('creates the cart when it does not exist yet', async () => {
+    const item = makeCartItem({ quantity: 1 })
+    // findCart: no cart yet
+    mockRepo.findCart.mockResolvedValue(null)
+    mockRepo.createCart.mockResolvedValue(makeCart([]))
+    mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 5 }))
+    mockRepo.upsertCartItem.mockResolvedValue(undefined)
+    mockRepo.findCartById.mockResolvedValue(makeCart([item]))
+
+    const result = await addItem(identifier, { variantId: VARIANT_ID, quantity: 1 })
+
+    expect(mockRepo.createCart).toHaveBeenCalledWith(identifier)
     expect(result.items).toHaveLength(1)
   })
 
@@ -159,8 +177,8 @@ describe('addItem', () => {
 
   it('throws InsufficientStockError when requested qty exceeds stock', async () => {
     mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 2 }))
-    // existing cart has 0 items so current qty for this variant = 0
-    mockRepo.findOrCreateCart.mockResolvedValue(makeCart([]))
+    // no existing cart → currentQty = 0; 0 + 3 > 2
+    mockRepo.findCart.mockResolvedValue(makeCart([]))
 
     await expect(addItem(identifier, { variantId: VARIANT_ID, quantity: 3 }))
       .rejects.toThrow(InsufficientStockError)
@@ -170,10 +188,20 @@ describe('addItem', () => {
     // already 2 in cart, stock = 3, trying to add 2 more → total 4 > 3
     const item = makeCartItem({ quantity: 2 })
     mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 3 }))
-    mockRepo.findOrCreateCart.mockResolvedValue(makeCart([item]))
+    mockRepo.findCart.mockResolvedValue(makeCart([item]))
 
     await expect(addItem(identifier, { variantId: VARIANT_ID, quantity: 2 }))
       .rejects.toThrow(InsufficientStockError)
+  })
+
+  it('does NOT create a cart when the stock check fails', async () => {
+    mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 1 }))
+    mockRepo.findCart.mockResolvedValue(null)
+
+    await expect(addItem(identifier, { variantId: VARIANT_ID, quantity: 5 }))
+      .rejects.toThrow(InsufficientStockError)
+
+    expect(mockRepo.createCart).not.toHaveBeenCalled()
   })
 })
 
@@ -185,11 +213,11 @@ describe('updateItem', () => {
   beforeEach(() => vi.resetAllMocks())
 
   it('updates quantity and returns the updated cart', async () => {
-    const item = makeCartItem({ quantity: 5 })
+    mockRepo.findOrCreateCart.mockResolvedValue(makeCart([]))
     mockRepo.findCartItem.mockResolvedValue(makeCartItem({ quantity: 1 }))
     mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 10 }))
     mockRepo.updateCartItemQuantity.mockResolvedValue(undefined)
-    mockRepo.findOrCreateCart.mockResolvedValue(makeCart([item]))
+    mockRepo.findCartById.mockResolvedValue(makeCart([makeCartItem({ quantity: 5 })]))
 
     const result = await updateItem(identifier, ITEM_ID, { quantity: 5 })
 
@@ -226,6 +254,7 @@ describe('removeItem', () => {
     mockRepo.findOrCreateCart.mockResolvedValue(makeCart([]))
     mockRepo.findCartItem.mockResolvedValue(makeCartItem())
     mockRepo.deleteCartItem.mockResolvedValue(undefined)
+    mockRepo.findCartById.mockResolvedValue(makeCart([]))
 
     const result = await removeItem(identifier, ITEM_ID)
 
@@ -252,6 +281,7 @@ describe('clearCart', () => {
   it('deletes all items and returns empty cart', async () => {
     mockRepo.findOrCreateCart.mockResolvedValue(makeCart([]))
     mockRepo.deleteAllCartItems.mockResolvedValue(undefined)
+    mockRepo.findCartById.mockResolvedValue(makeCart([]))
 
     const result = await clearCart(identifier)
 

@@ -1,5 +1,8 @@
 import Decimal from 'decimal.js'
 import {
+  findCart,
+  findCartById,
+  createCart,
   findOrCreateCart,
   findCartItem,
   findVariantById,
@@ -131,7 +134,7 @@ export async function getCart(identifier: CartIdentifier): Promise<CartDto> {
  * Add a variant to the cart.
  *
  * - Validates the variant exists.
- * - Checks that existing cart quantity + new quantity does not exceed stock.
+ * - Checks stock BEFORE creating the cart to avoid orphaned cart rows on failure.
  * - Increments an existing line item or creates a new one.
  */
 export async function addItem(
@@ -141,20 +144,24 @@ export async function addItem(
   const variant = await findVariantById(input.variantId)
   if (!variant) throw new VariantNotFoundError(input.variantId)
 
-  const cart = await findOrCreateCart(identifier)
-
-  const existingItem = cart.items.find((i) => i.variantId === input.variantId)
-  const currentQty = existingItem?.quantity ?? 0
+  // Fetch existing cart (without creating) so we can include current qty in
+  // the stock check.  The cart is only created after the check passes.
+  const existingCart = await findCart(identifier)
+  const currentQty =
+    existingCart?.items.find((i) => i.variantId === input.variantId)?.quantity ?? 0
   const requestedTotal = currentQty + input.quantity
 
   if (requestedTotal > variant.stock) {
     throw new InsufficientStockError(input.variantId, variant.stock, requestedTotal)
   }
 
+  // Create cart lazily — only after the stock check succeeds.
+  const cart = existingCart ?? await createCart(identifier)
+
   await upsertCartItem(cart.id, input.variantId, input.quantity)
 
-  const updated = await findOrCreateCart(identifier)
-  return toCartDto(updated)
+  const updated = await findCartById(cart.id)
+  return toCartDto(updated!)
 }
 
 /**
@@ -182,8 +189,8 @@ export async function updateItem(
 
   await updateCartItemQuantity(itemId, input.quantity)
 
-  const updated = await findOrCreateCart(identifier)
-  return toCartDto(updated)
+  const updated = await findCartById(cart.id)
+  return toCartDto(updated!)
 }
 
 /**
@@ -202,8 +209,8 @@ export async function removeItem(
 
   await deleteCartItem(itemId)
 
-  const updated = await findOrCreateCart(identifier)
-  return toCartDto(updated)
+  const updated = await findCartById(cart.id)
+  return toCartDto(updated!)
 }
 
 /**
@@ -213,6 +220,6 @@ export async function clearCart(identifier: CartIdentifier): Promise<CartDto> {
   const cart = await findOrCreateCart(identifier)
   await deleteAllCartItems(cart.id)
 
-  const updated = await findOrCreateCart(identifier)
-  return toCartDto(updated)
+  const updated = await findCartById(cart.id)
+  return toCartDto(updated!)
 }

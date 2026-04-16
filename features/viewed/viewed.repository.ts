@@ -1,15 +1,13 @@
 import { prisma } from '@/lib/prisma'
 import type { ViewedProduct, Product } from '@/app/generated/prisma/client'
+import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
+
+export type { ViewedIdentifier }
+export { productExists } from '@/lib/db/productExists'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-/**
- * Discriminated union — exactly one field is set, matching the DB CHECK
- * constraint that enforces one non-null identifier column per row.
- */
-export type ViewedIdentifier = { userId: string } | { sessionId: string }
 
 export type ViewedProductWithProduct = ViewedProduct & { product: Product }
 
@@ -109,15 +107,4 @@ export async function upsertViewedProduct(
       `
     }
   })
-}
-
-/**
- * Check whether an active product with the given id exists.
- * Used by the service layer to validate before recording a view.
- */
-export async function productExists(productId: string): Promise<boolean> {
-  const count = await prisma.product.count({
-    where: { id: productId, isActive: true },
-  })
-  return count > 0
 }

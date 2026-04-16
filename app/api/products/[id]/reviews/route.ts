@@ -1,5 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
+import { verifyBearerToken } from '@/lib/auth'
+import { logError } from '@/lib/logger'
 import { productIdParamSchema } from '@/features/products/product.schema'
 import { reviewCreateSchema, reviewListQuerySchema } from '@/features/review/review.schema'
 import {
@@ -58,7 +60,7 @@ export async function GET(
       )
     }
 
-    console.error('[GET /api/products/[id]/reviews] Unexpected error:', error)
+    logError('GET /api/products/[id]/reviews', error)
     return Response.json(
       { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
       { status: 500 },
@@ -76,7 +78,7 @@ export async function GET(
  * Submit a review for a product. Authenticated users only.
  *
  * Headers:
- *   x-user-id  — UUID of the authenticated user (required)
+ *   Authorization: Bearer <token>  — Supabase access token (required)
  *
  * Body: { rating: number (1–5), comment?: string (max 2000 chars) }
  *
@@ -93,23 +95,15 @@ export async function POST(
   { params }: RouteContext,
 ): Promise<Response> {
   try {
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
-      return Response.json(
-        {
-          success: false,
-          error: { message: 'Authentication required. Supply an x-user-id header.', code: 'UNAUTHORIZED' },
-        },
-        { status: 401 },
-      )
-    }
+    const auth = await verifyBearerToken(request)
+    if (!auth.ok) return auth.response
 
     const { id: productId } = productIdParamSchema.parse(await params)
 
     const body = await request.json()
     const input = reviewCreateSchema.parse(body)
 
-    const data = await createReview(productId, userId, input)
+    const data = await createReview(productId, auth.userId, input)
     return Response.json({ success: true, data }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -139,7 +133,7 @@ export async function POST(
       )
     }
 
-    console.error('[POST /api/products/[id]/reviews] Unexpected error:', error)
+    logError('POST /api/products/[id]/reviews', error)
     return Response.json(
       { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
       { status: 500 },
