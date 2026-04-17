@@ -1,246 +1,157 @@
-// Prisma schema for vibe-marketplace
-// Multi-vendor clothing marketplace — core models (no payments, no cart, no reviews)
-//
-// Datasource URL is provided via prisma.config.ts (reads DATABASE_URL from env).
-// Generator uses Prisma v7 "prisma-client" (not legacy "prisma-client-js").
-
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../app/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// ---------------------------------------------------------------------------
-// Enums
-// ---------------------------------------------------------------------------
-
-enum OrderStatus {
-  pending
-  paid
-  shipped
-  delivered
-}
-
-// ---------------------------------------------------------------------------
-// User
-//
-// The id is a UUID string that mirrors the Supabase auth.users primary key.
-// Supabase owns authentication; this table holds marketplace-specific profile
-// data and is the owner record for stores.
-// ---------------------------------------------------------------------------
-
 model User {
-  id        String   @id @db.Uuid
-  email     String   @unique
-  name      String?
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @db.Uuid
+  email          String   @unique
+  name           String?
+  avatarUrl      String?  @map("avatar_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @map("updated_at")
 
-  stores         Store[]
-  orders         Order[]
   cart           Cart?
-  wishlist       Wishlist?
+  orders         Order[]
   reviews        Review[]
+  stores         Store[]
   viewedProducts ViewedProduct[]
+  wishlist       Wishlist?
 
   @@map("users")
 }
 
-// ---------------------------------------------------------------------------
-// Store
-//
-// One user can own multiple stores. isActive allows soft-disabling a store
-// without cascading deletes on its products and order history.
-// ---------------------------------------------------------------------------
-
 model Store {
   id          String   @id @default(uuid()) @db.Uuid
-  ownerId     String   @db.Uuid
+  ownerId     String   @map("owner_id") @db.Uuid
   name        String
   slug        String   @unique
   description String?
-  logoUrl     String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  logoUrl     String?  @map("logo_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @map("updated_at")
 
-  owner      User        @relation(fields: [ownerId], references: [id])
-  products   Product[]
-  orderItems OrderItem[]
+  owner       User     @relation(fields: [ownerId], references: [id])
+  products    Product[]
+  orderItems  OrderItem[]
 
-  @@index([ownerId])
-  @@index([isActive])
+  @@index([ownerId], map: "stores_ownerId_idx")
+  @@index([isActive], map: "stores_isActive_idx")
   @@map("stores")
 }
 
-// ---------------------------------------------------------------------------
-// Product
-//
-// Belongs to exactly one Store. Price is the base/default price; individual
-// variants may override it via ProductVariant.price.
-//
-// searchVector is a PostgreSQL tsvector column used for full-text search.
-// It is populated and kept up-to-date by a database trigger defined in the
-// initial migration. A GIN index on this column enables fast FTS queries.
-//
-// Decimal is used for all monetary values — never Float (precision matters).
-// ---------------------------------------------------------------------------
-
 model Product {
-  id           String                  @id @default(uuid()) @db.Uuid
-  storeId      String                  @db.Uuid
-  name         String
-  description  String?
-  price        Decimal                 @db.Decimal(10, 2)
-  imageUrl     String?
-  isActive     Boolean                 @default(true)
-  sku          String?
-  isHit        Boolean                 @default(false)
-  isNew        Boolean                 @default(false)
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
-  searchVector Unsupported("tsvector")?
+  id            String   @id @default(uuid()) @db.Uuid
+  storeId       String   @map("store_id") @db.Uuid
+  name          String
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  imageUrl      String?  @map("image_url")
+  isActive      Boolean  @default(true) @map("is_active")
+  sku           String?
+  isHit         Boolean  @default(false) @map("is_hit")
+  isNew         Boolean  @default(false) @map("is_new")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @map("updated_at")
+  searchVector  Unsupported("tsvector")? @map("search_vector")
 
-  store          Store            @relation(fields: [storeId], references: [id])
-  variants       ProductVariant[]
-  wishlistItems  WishlistItem[]
-  reviews        Review[]
+  store         Store    @relation(fields: [storeId], references: [id])
+  variants      ProductVariant[]
+  reviews       Review[]
   viewedProducts ViewedProduct[]
+  wishlistItems WishlistItem[]
 
-  @@index([storeId])
-  @@index([isActive])
-  @@index([searchVector], type: Gin)
+  @@index([storeId], map: "products_storeId_idx")
+  @@index([isActive], map: "products_isActive_idx")
+  @@index([searchVector], map: "products_searchVector_idx", type: Gin)
   @@map("products")
 }
 
-// ---------------------------------------------------------------------------
-// ProductVariant
-//
-// Each variant represents one purchasable unit of a product (e.g. "Blue / M").
-// Attributes are explicit typed columns — not JSON — to keep them queryable.
-// price is nullable: NULL means "use the parent Product's base price".
-// sku must be unique across the entire catalogue to support fulfilment lookup.
-// ---------------------------------------------------------------------------
-
 model ProductVariant {
-  id        String   @id @default(uuid()) @db.Uuid
-  productId String   @db.Uuid
-  sku       String   @unique
-  size      String?
-  color     String?
-  price     Decimal? @db.Decimal(10, 2)
-  stock     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  sku        String   @unique
+  size       String?
+  color      String?
+  price      Decimal? @db.Decimal(10, 2)
+  stock      Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @map("updated_at")
 
-  product    Product     @relation(fields: [productId], references: [id])
-  orderItems OrderItem[]
+  product    Product  @relation(fields: [productId], references: [id])
   cartItems  CartItem[]
+  orderItems OrderItem[]
 
-  @@index([productId])
+  @@index([productId], map: "product_variants_productId_idx")
   @@map("product_variants")
 }
 
-// ---------------------------------------------------------------------------
-// Order
-//
-// Belongs to the buying User. An order deliberately has no direct store
-// relation because a single order can contain items from multiple stores.
-// Per-store grouping is done at the OrderItem level.
-//
-// totalAmount is a denormalized snapshot of the order total at checkout time.
-// This avoids re-summing line items for display and preserves the correct
-// total even if prices change later.
-// ---------------------------------------------------------------------------
-
 model Order {
   id          String      @id @default(uuid()) @db.Uuid
-  userId      String      @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
   status      OrderStatus @default(pending)
-  totalAmount Decimal     @db.Decimal(10, 2)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @map("updated_at")
 
-  user  User        @relation(fields: [userId], references: [id])
-  items OrderItem[]
+  user        User        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
 
-  @@index([userId])
+  @@index([userId], map: "orders_userId_idx")
   @@index([status])
   @@map("orders")
 }
 
-// ---------------------------------------------------------------------------
-// OrderItem
-//
-// Junction between Order and ProductVariant. Stores:
-//   - quantity         — units purchased
-//   - unitPrice        — price snapshot at checkout; critical for order history
-//   - storeId          — denormalized for fast "items by store" queries without
-//                        traversing variant → product → store at query time
-// ---------------------------------------------------------------------------
-
 model OrderItem {
-  id        String   @id @default(uuid()) @db.Uuid
-  orderId   String   @db.Uuid
-  variantId String   @db.Uuid
-  storeId   String   @db.Uuid
-  quantity  Int
-  unitPrice Decimal  @db.Decimal(10, 2)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  orderId    String   @map("order_id") @db.Uuid
+  variantId  String   @map("variant_id") @db.Uuid
+  storeId    String   @map("store_id") @db.Uuid
+  quantity   Int
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  order   Order          @relation(fields: [orderId], references: [id])
-  variant ProductVariant @relation(fields: [variantId], references: [id])
-  store   Store          @relation(fields: [storeId], references: [id])
+  order      Order          @relation(fields: [orderId], references: [id])
+  store      Store          @relation(fields: [storeId], references: [id])
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
 
-  @@index([orderId])
-  @@index([variantId])
-  @@index([storeId])
+  @@index([orderId], map: "order_items_orderId_idx")
+  @@index([variantId], map: "order_items_variantId_idx")
+  @@index([storeId], map: "order_items_storeId_idx")
   @@map("order_items")
 }
 
-// ---------------------------------------------------------------------------
-// Cart
-//
-// Supports both authenticated users (userId) and guests (sessionId).
-// A user may have at most one cart; a session may have at most one cart.
-// Only one of userId or sessionId will be set on any given cart row.
-// ---------------------------------------------------------------------------
-
 model Cart {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String?  @unique @db.Uuid @map("user_id")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @unique @map("user_id") @db.Uuid
   sessionId String?  @unique @map("session_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user  User?      @relation(fields: [userId], references: [id])
-  items CartItem[]
+  user      User?    @relation(fields: [userId], references: [id])
+  items     CartItem[]
 
+  @@index([sessionId])
+  @@index([userId])
   @@map("carts")
 }
 
-// ---------------------------------------------------------------------------
-// CartItem
-//
-// Junction between Cart and ProductVariant. The unique constraint on
-// (cartId, variantId) prevents duplicate line items — adding the same variant
-// twice increments the existing row's quantity instead.
-// ---------------------------------------------------------------------------
-
 model CartItem {
-  id        String   @id @default(uuid()) @db.Uuid
-  cartId    String   @db.Uuid @map("cart_id")
-  variantId String   @db.Uuid @map("variant_id")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId    String   @map("cart_id") @db.Uuid
+  variantId String   @map("variant_id") @db.Uuid
   quantity  Int      @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  variant ProductVariant @relation(fields: [variantId], references: [id])
+  cart      Cart           @relation(fields: [cartId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
 
   @@unique([cartId, variantId])
   @@index([cartId])
@@ -248,68 +159,44 @@ model CartItem {
   @@map("cart_items")
 }
 
-// ---------------------------------------------------------------------------
-// Wishlist
-//
-// One wishlist per authenticated user. Guest carts are session-based but
-// wishlists require authentication — userId is therefore non-nullable.
-// ---------------------------------------------------------------------------
-
 model Wishlist {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @db.Uuid @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user  User           @relation(fields: [userId], references: [id])
-  items WishlistItem[]
+  user      User     @relation(fields: [userId], references: [id])
+  items     WishlistItem[]
 
   @@map("wishlists")
 }
 
-// ---------------------------------------------------------------------------
-// WishlistItem
-//
-// Junction between Wishlist and Product. Rows are immutable (no updatedAt).
-// The unique constraint on (wishlistId, productId) prevents duplicates.
-// Cascade delete removes items when the wishlist itself is deleted.
-// ---------------------------------------------------------------------------
-
 model WishlistItem {
-  id         String   @id @default(uuid()) @db.Uuid
-  wishlistId String   @db.Uuid @map("wishlist_id")
-  productId  String   @db.Uuid @map("product_id")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wishlistId String   @map("wishlist_id") @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id])
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
 
   @@unique([wishlistId, productId])
-  @@index([wishlistId])
   @@index([productId])
+  @@index([wishlistId])
   @@map("wishlist_items")
 }
 
-// ---------------------------------------------------------------------------
-// Review
-//
-// One review per user per product — enforced by the unique constraint on
-// (productId, userId). rating is stored as a SmallInt (1–5); the CHECK
-// constraint in the DB and the Zod schema at the API boundary both enforce
-// the valid range. comment is optional.
-// ---------------------------------------------------------------------------
-
 model Review {
-  id        String   @id @default(uuid()) @db.Uuid
-  productId String   @db.Uuid @map("product_id")
-  userId    String   @db.Uuid @map("user_id")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
   rating    Int      @db.SmallInt
   comment   String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  product Product @relation(fields: [productId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([productId, userId])
   @@index([productId])
@@ -317,27 +204,22 @@ model Review {
   @@map("reviews")
 }
 
-// ---------------------------------------------------------------------------
-// ViewedProduct
-//
-// Tracks recently viewed products for both authenticated users (userId) and
-// guests (sessionId). Exactly one of the two identifier columns is non-null
-// (enforced by DB CHECK constraint). Deduplication and ordering are handled
-// by partial unique indexes and composite (identifier, viewed_at) indexes
-// applied in the migration — these cannot be expressed in the Prisma schema.
-//
-// MAX 20 rows per identifier are enforced in the service layer on every write.
-// ---------------------------------------------------------------------------
-
 model ViewedProduct {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String?  @db.Uuid @map("user_id")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
   sessionId String?  @map("session_id")
-  productId String   @db.Uuid @map("product_id")
-  viewedAt  DateTime @default(now()) @map("viewed_at")
+  productId String   @map("product_id") @db.Uuid
+  viewedAt  DateTime @default(now()) @map("viewed_at") @db.Timestamptz(6)
 
-  user    User?   @relation(fields: [userId],    references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@map("viewed_products")
+}
+
+enum OrderStatus {
+  pending
+  paid
+  shipped
+  delivered
 }

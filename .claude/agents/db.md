@@ -63,7 +63,7 @@ You MUST always consider this when designing schema.
 Add indexes for:
 - All foreign keys
 - Search fields (use GIN indexes for full-text search)
-- Frequently filtered columns (e.g., `status`, `storeId`, `createdAt`)
+- Frequently filtered columns (e.g., `status`, `store_id`, `created_at`)
 
 ---
 
@@ -82,6 +82,28 @@ Example pattern:
 ALTER TABLE "Product" ADD COLUMN search_vector tsvector;
 CREATE INDEX product_search_idx ON "Product" USING GIN(search_vector);
 ```
+
+---
+
+## Naming Convention (MANDATORY)
+
+- All database column names MUST use snake_case
+- All Prisma model fields use camelCase with @map("snake_case")
+- All database table names MUST use snake_case with @@map("snake_case")
+
+Examples:
+```prisma
+model ProductVariant {
+  id        String   @id @default(uuid()) @map("id")
+  productId String   @map("product_id")
+  createdAt DateTime @map("created_at")
+
+  @@map("product_variants")
+}
+```
+
+Never use camelCase directly in the database.
+Always add @map() for every field and @@map() for every model.
 
 ---
 

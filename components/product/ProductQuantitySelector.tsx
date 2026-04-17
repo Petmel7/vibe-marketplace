@@ -10,7 +10,7 @@ export default function ProductQuantitySelector({ quantity, onChange, max = 99 }
   return (
     <div className="flex flex-col gap-2">
       <span className="font-normal text-[14px] text-[#A5A8AD]">Кількість</span>
-      <div className="flex items-center justify-between w-full h-[48px] rounded-[24px] px-4 py-3 bg-[#333A47]">
+      <div className="flex items-center justify-between w-full h-12 rounded-3xl px-4 py-3 bg-[#333A47]">
         <button
           onClick={() => onChange(Math.max(1, quantity - 1))}
           className="w-6 h-6 flex items-center justify-center text-white text-xl leading-none hover:text-[#16D9A6] transition-colors select-none"

@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Search, CircleUser, Menu, Heart, ListPlus, ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import SearchOverlay from "@/components/search/SearchOverlay";
 
 function CartIcon() {
   const itemCount = useCartStore((s) => s.itemCount);
@@ -25,6 +27,8 @@ function CartIcon() {
 }
 
 export default function Header() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   return (
     <>
       {/* Mobile header — hidden on md+ */}
@@ -36,7 +40,11 @@ export default function Header() {
           </span>
         </div>
         <nav aria-label="Utility navigation" className="flex items-center gap-5">
-          <button aria-label="Пошук" className="flex items-center justify-center">
+          <button
+            aria-label="Пошук"
+            className="flex items-center justify-center"
+            onClick={() => setIsSearchOpen(true)}
+          >
             <Search size={24} color="#E8E9EA" aria-hidden="true" />
           </button>
           <button aria-label="Профіль користувача" className="flex items-center justify-center">
@@ -63,7 +71,11 @@ export default function Header() {
 
         {/* Right: utility icons */}
         <nav aria-label="Utility navigation" className="flex items-center gap-5 ml-auto">
-          <button aria-label="Пошук" className="flex items-center justify-center">
+          <button
+            aria-label="Пошук"
+            className="flex items-center justify-center"
+            onClick={() => setIsSearchOpen(true)}
+          >
             <Search size={24} color="#E8E9EA" aria-hidden="true" />
           </button>
           <button aria-label="Обране" className="flex items-center justify-center">
@@ -78,6 +90,8 @@ export default function Header() {
           </button>
         </nav>
       </header>
+
+      <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </>
   );
 }

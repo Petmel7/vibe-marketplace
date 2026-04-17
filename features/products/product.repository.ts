@@ -92,33 +92,33 @@ async function findProductsWithFullTextSearch(params: {
   // columns (including Decimal price) to their Prisma types.
   const [items, countResult] = await Promise.all([
     prisma.$queryRaw<Product[]>`
-      SELECT
-        id,
-        store_id   AS "storeId",
-        name,
-        description,
-        price,
-        image_url  AS "imageUrl",
-        is_active  AS "isActive",
-        sku,
-        is_hit     AS "isHit",
-        is_new     AS "isNew",
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM products
-      WHERE is_active = true
-        AND "searchVector" @@ plainto_tsquery('english', ${search})
-        ${storeFilter}
-      ORDER BY ts_rank("searchVector", plainto_tsquery('english', ${search})) DESC
-      LIMIT ${limit} OFFSET ${skip}
-    `,
+    SELECT
+      id,
+      store_id   AS "storeId",
+      name,
+      description,
+      price,
+      image_url  AS "imageUrl",
+      is_active  AS "isActive",
+      sku,
+      is_hit     AS "isHit",
+      is_new     AS "isNew",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM products
+    WHERE is_active = true
+      AND search_vector @@ plainto_tsquery('english', ${search})
+      ${storeFilter}
+    ORDER BY ts_rank(search_vector, plainto_tsquery('english', ${search})) DESC
+    LIMIT ${limit} OFFSET ${skip}
+  `,
     prisma.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(*) AS count
-      FROM products
-      WHERE is_active = true
-        AND "searchVector" @@ plainto_tsquery('english', ${search})
-        ${storeFilter}
-    `,
+    SELECT COUNT(*) AS count
+    FROM products
+    WHERE is_active = true
+      AND search_vector @@ plainto_tsquery('english', ${search})
+      ${storeFilter}
+  `,
   ])
 
   return {
