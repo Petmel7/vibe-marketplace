@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import BottomNav from "@/components/layout/BottomNav";
@@ -38,6 +39,16 @@ export default function RootLayout({
         </div>
         <Footer />
         <BottomNav />
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              background: '#2A323F',
+              color: '#E8E9EA',
+              border: '1px solid rgba(255,255,255,0.1)',
+            },
+          }}
+        />
       </body>
     </html>
   );

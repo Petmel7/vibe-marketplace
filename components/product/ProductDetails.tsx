@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Heart, Share2 } from 'lucide-react'
+import { Share2 } from 'lucide-react'
 import ProductVariantSelector from './ProductVariantSelector'
+import WishlistToggleButton from './WishlistToggleButton'
 import ProductQuantitySelector from './ProductQuantitySelector'
 import AddToCartButton from './AddToCartButton'
 import ProductDescription from './ProductDescription'
@@ -30,9 +31,7 @@ export default function ProductDetails({ product }: Props) {
           {product.name}
         </h1>
         <div className="flex items-center gap-3 shrink-0 pt-1">
-          <button aria-label="Додати до обраного" className="hover:opacity-70 transition-opacity">
-            <Heart size={24} color="#A5A8AD" />
-          </button>
+          <WishlistToggleButton productId={product.id} />
           <button aria-label="Поділитися" className="hover:opacity-70 transition-opacity">
             <Share2 size={24} color="#A5A8AD" />
           </button>

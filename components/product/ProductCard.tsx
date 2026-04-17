@@ -1,8 +1,9 @@
 'use client'
 
 import Image from "next/image";
-import { Heart, ListPlus } from "lucide-react";
+import { ListPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import WishlistToggleButton from "./WishlistToggleButton";
 
 interface ProductCardProps {
   id: string;
@@ -13,17 +14,6 @@ interface ProductCardProps {
   isActive?: boolean;
   isHit?: boolean;
   isNew?: boolean;
-}
-
-function HeartIcon() {
-  return (
-    <button
-      aria-label="Додати до обраного"
-      className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D2533]"
-    >
-      <Heart size={20} color="#A5A8AD" aria-hidden="true" />
-    </button>
-  );
 }
 
 function ListIcon() {
@@ -72,7 +62,7 @@ export default function ProductCard({
           className="absolute top-2 right-2 z-10 flex flex-col gap-1 xs:hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          <HeartIcon />
+          <WishlistToggleButton productId={id} variant="card" />
           <ListIcon />
         </div>
 
