@@ -46,3 +46,7 @@ next-env.d.ts
 /screenshots
 .claude/settings.local.json
 echo ".claude/settings.local.json" >> .gitignore
+# Local uploads and test images
+public/uploads/
+TASK_TEMPLATE.md
+README_FOR_CODEX.md
