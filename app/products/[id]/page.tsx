@@ -3,6 +3,7 @@ import { getProduct, ProductNotFoundError } from '@/features/products/product.se
 import type { ProductDetailDto } from '@/features/products/product.dto'
 import ProductImageSlider from '@/components/product/ProductImageSlider'
 import ProductDetails from '@/components/product/ProductDetails'
+import RecentlyViewed from '@/components/product/RecentlyViewed'
 import Link from 'next/link'
 
 interface Props {
@@ -45,6 +46,8 @@ export default async function ProductPage({ params }: Props) {
           <ProductDetails product={product} />
         </div>
       </div>
+
+      <RecentlyViewed currentProductId={id} />
     </div>
   )
 }

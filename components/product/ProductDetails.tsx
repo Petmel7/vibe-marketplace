@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Share2 } from 'lucide-react'
 import ProductVariantSelector from './ProductVariantSelector'
 import WishlistToggleButton from './WishlistToggleButton'
@@ -8,6 +8,7 @@ import ProductQuantitySelector from './ProductQuantitySelector'
 import AddToCartButton from './AddToCartButton'
 import ProductDescription from './ProductDescription'
 import ProductCharacteristics from './ProductCharacteristics'
+import { useCartStore } from '@/store/cartStore'
 import type { ProductDetailDto } from '@/features/products/product.dto'
 
 interface Props {
@@ -17,6 +18,15 @@ interface Props {
 export default function ProductDetails({ product }: Props) {
   const firstVariantId = product.variants[0]?.id ?? null
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(firstVariantId)
+
+  useEffect(() => {
+    const sessionId = useCartStore.getState().ensureSessionId()
+    fetch('/api/viewed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-id': sessionId },
+      body: JSON.stringify({ productId: product.id }),
+    }).catch(() => {})
+  }, [product.id])
   const [quantity, setQuantity] = useState(1)
 
   const selectedVariant = product.variants.find((v) => v.id === selectedVariantId) ?? null
