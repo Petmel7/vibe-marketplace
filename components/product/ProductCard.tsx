@@ -4,16 +4,16 @@ import Image from "next/image";
 import { ListPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import WishlistToggleButton from "./WishlistToggleButton";
+import { getProductCardDisplayState, type ProductCardProductLike } from "./productCard.selectors";
 
 interface ProductCardProps {
   id: string;
   name: string;
-  price: number;
   imageUrl: string;
-  sku?: string;
   isActive?: boolean;
   isHit?: boolean;
   isNew?: boolean;
+  product: ProductCardProductLike;
 }
 
 function ListIcon() {
@@ -30,14 +30,14 @@ function ListIcon() {
 export default function ProductCard({
   id,
   name,
-  price,
   imageUrl,
-  sku,
   isActive,
   isHit,
   isNew,
+  product,
 }: ProductCardProps) {
   const router = useRouter();
+  const { price, sku } = getProductCardDisplayState(product)
 
   return (
     <div

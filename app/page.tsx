@@ -4,6 +4,26 @@ import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
   const products = await prisma.product.findMany({
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      imageUrl: true,
+      sku: true,
+      isActive: true,
+      isHit: true,
+      isNew: true,
+      variants: {
+        select: {
+          id: true,
+          sku: true,
+          price: true,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
     where: {
       isActive: true,
     },
@@ -19,12 +39,19 @@ export default async function Home() {
           key={product.id}
           id={product.id}
           name={product.name}
-          price={Number(product.price)}
           imageUrl={product.imageUrl || "/placeholder.png"}
-          sku={product.sku || undefined}
           isActive={product.isActive}
           isHit={product.isHit}
           isNew={product.isNew}
+          product={{
+            price: product.price.toString(),
+            sku: product.sku,
+            variants: product.variants.map((variant) => ({
+              id: variant.id,
+              sku: variant.sku,
+              price: variant.price != null ? variant.price.toString() : null,
+            })),
+          }}
         />
       ))}
     </div>
