@@ -12,9 +12,7 @@ export default function ProductDescription({ description }: Props) {
   return (
     <CollapsibleSection title="Опис товару">
       <div className="mt-3">
-        <p className="font-normal text-[14px] leading-5 text-[#E8E9EA]">
-          {description}
-        </p>
+        <p className="ui-body-primary">{description}</p>
       </div>
     </CollapsibleSection>
   )

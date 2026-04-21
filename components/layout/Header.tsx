@@ -1,24 +1,40 @@
 'use client'
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Search, CircleUser, Menu, Heart, ListPlus, ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import SearchOverlay from "@/components/search/SearchOverlay";
 
+function HeaderIconButton({
+  label,
+  children,
+  onClick,
+}: {
+  label: string;
+  children: ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <button aria-label={label} className="ui-icon-button" onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
 function CartIcon() {
   const itemCount = useCartStore((s) => s.itemCount);
 
   return (
-    <Link href="/cart" aria-label={`Кошик${itemCount > 0 ? `, ${itemCount} товарів` : ""}`} className="relative flex items-center justify-center">
+    <Link
+      href="/cart"
+      aria-label={`Кошик${itemCount > 0 ? `, ${itemCount} товарів` : ""}`}
+      className="relative flex items-center justify-center"
+    >
       <ShoppingCart size={24} color="#E8E9EA" aria-hidden="true" />
       {itemCount > 0 && (
-        <span
-          className="absolute -top-1.5 -right-1.5 min-w-4 h-4 rounded-full bg-[#9466FF] text-white font-bold flex items-center justify-center leading-none px-0.5"
-          style={{ fontSize: 10 }}
-          aria-hidden="true"
-        >
+        <span className="ui-badge-counter" aria-hidden="true">
           {itemCount > 99 ? "99+" : itemCount}
         </span>
       )}
@@ -31,63 +47,52 @@ export default function Header() {
 
   return (
     <>
-      {/* Mobile header — hidden on md+ */}
-      <header className="md:hidden w-full h-18 bg-[#1D2533] border-b border-white/10 flex items-center px-4">
-        <div className="flex items-center gap-3 flex-1">
-          <Image src="/logo.svg" alt="Вайб" width={30} height={50} priority />
-          <span className="text-white font-bold text-xl leading-tight" style={{ width: "161px" }}>
-            Вайб
-          </span>
+      <header className="ui-header-shell md:hidden flex h-18 items-center px-4">
+        <div className="flex flex-1 items-center gap-3">
+          <div className="ui-logo-lockup">
+            <Image src="/logo.svg" alt="Вайб" width={30} height={50} priority />
+            <span className="ui-logo-text" style={{ width: "161px" }}>
+              Вайб
+            </span>
+          </div>
         </div>
         <nav aria-label="Utility navigation" className="flex items-center gap-5">
-          <button
-            aria-label="Пошук"
-            className="flex items-center justify-center"
-            onClick={() => setIsSearchOpen(true)}
-          >
+          <HeaderIconButton label="Пошук" onClick={() => setIsSearchOpen(true)}>
             <Search size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
-          <button aria-label="Профіль користувача" className="flex items-center justify-center">
+          </HeaderIconButton>
+          <HeaderIconButton label="Профіль користувача">
             <CircleUser size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
+          </HeaderIconButton>
         </nav>
       </header>
 
-      {/* Desktop header — hidden below md */}
-      <header className="hidden md:flex w-full h-18 bg-[#1D2533] border-b border-white/10 items-center px-6 relative">
-        {/* Left: Menu icon */}
+      <header className="ui-header-shell relative hidden h-18 items-center px-6 md:flex">
         <div className="flex items-center gap-2">
-          <button aria-label="Меню" className="flex items-center gap-2">
+          <button aria-label="Меню" className="ui-icon-button gap-2">
             <Menu size={24} color="#E8E9EA" aria-hidden="true" />
-            <span className="text-[#E8E9EA] font-medium text-sm">Меню</span>
+            <span className="text-sm font-medium text-[#E8E9EA]">Меню</span>
           </button>
         </div>
 
-        {/* Center: Logo — absolutely centered */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+        <div className="ui-logo-lockup absolute left-1/2 -translate-x-1/2">
           <Image src="/logo.svg" alt="Вайб" width={30} height={50} priority />
-          <span className="text-white font-bold text-xl leading-tight">Вайб</span>
+          <span className="ui-logo-text">Вайб</span>
         </div>
 
-        {/* Right: utility icons */}
-        <nav aria-label="Utility navigation" className="flex items-center gap-5 ml-auto">
-          <button
-            aria-label="Пошук"
-            className="flex items-center justify-center"
-            onClick={() => setIsSearchOpen(true)}
-          >
+        <nav aria-label="Utility navigation" className="ml-auto flex items-center gap-5">
+          <HeaderIconButton label="Пошук" onClick={() => setIsSearchOpen(true)}>
             <Search size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
-          <button aria-label="Обране" className="flex items-center justify-center">
+          </HeaderIconButton>
+          <HeaderIconButton label="Обране">
             <Heart size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
-          <button aria-label="Список бажань" className="flex items-center justify-center">
+          </HeaderIconButton>
+          <HeaderIconButton label="Список бажань">
             <ListPlus size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
+          </HeaderIconButton>
           <CartIcon />
-          <button aria-label="Профіль користувача" className="flex items-center justify-center">
+          <HeaderIconButton label="Профіль користувача">
             <CircleUser size={24} color="#E8E9EA" aria-hidden="true" />
-          </button>
+          </HeaderIconButton>
         </nav>
       </header>
 

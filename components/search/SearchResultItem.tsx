@@ -17,32 +17,27 @@ export default function SearchResultItem({ product, onClose }: SearchResultItemP
     <Link
       href={`/products/${product.id}`}
       onClick={onClose}
-      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9466FF]"
-      aria-label={`${product.name}, ціна ${displayPrice}`}
+      className="ui-search-item"
+      aria-label={`${product.name}, Ціна ${displayPrice}`}
     >
-      <div className="shrink-0 rounded overflow-hidden bg-[#2A3347]">
+      <div className="ui-thumb-frame ui-thumb-frame-sm">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
             alt={product.name}
             width={48}
             height={48}
-            className="object-cover w-12 h-12"
+            className="h-12 w-12 object-cover"
           />
         ) : (
-          <div className="w-12 h-12 flex items-center justify-center text-white/30 text-xs">
+          <div className="flex h-12 w-12 items-center justify-center text-xs text-white/30">
             No img
           </div>
         )}
       </div>
 
-      <span className="flex-1 text-[#E8E9EA] text-sm truncate min-w-0">
-        {product.name}
-      </span>
-
-      <span className="shrink-0 text-sm font-semibold text-[#16D9A6]">
-        {displayPrice}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-sm text-copy-primary">{product.name}</span>
+      <span className="shrink-0 text-sm font-semibold text-brand-accent">{displayPrice}</span>
     </Link>
   )
 }

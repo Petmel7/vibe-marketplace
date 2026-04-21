@@ -9,7 +9,7 @@ interface Props {
   quantity: number
 }
 
-export default function AddToCartButton({ productId: _productId, variantId, quantity }: Props) {
+export default function AddToCartButton({ variantId, quantity }: Props) {
   const [isAdding, setIsAdding] = useState(false)
 
   async function handleAddToCart() {
@@ -45,12 +45,8 @@ export default function AddToCartButton({ productId: _productId, variantId, quan
   }
 
   return (
-    <button
-      onClick={handleAddToCart}
-      disabled={!variantId || isAdding}
-      className="w-full h-12 rounded-[50px] px-8.75 py-3 bg-[#9466FF] font-medium text-[16px] leading-6 text-[#F1F3F5] transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60"
-    >
-      {isAdding ? 'Додаємо...' : 'В кошик'}
+    <button onClick={handleAddToCart} disabled={!variantId || isAdding} className="ui-primary-button w-full">
+      {isAdding ? 'Додаємо...' : 'До кошика'}
     </button>
   )
 }

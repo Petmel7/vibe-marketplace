@@ -17,20 +17,20 @@ export default function ProductCharacteristics({ variants, sku }: Props) {
       <div className="mt-3 flex flex-col gap-2">
         {sku && (
           <div className="flex justify-between gap-4">
-            <span className="text-[14px] text-[#A5A8AD]">Артикул</span>
-            <span className="text-[14px] text-[#E8E9EA]">{sku}</span>
+            <span className="ui-body-muted">Артикул</span>
+            <span className="ui-body-primary">{sku}</span>
           </div>
         )}
         {colors.length > 0 && (
           <div className="flex justify-between gap-4">
-            <span className="text-[14px] text-[#A5A8AD]">Колір</span>
-            <span className="text-[14px] text-[#E8E9EA]">{colors.join(', ')}</span>
+            <span className="ui-body-muted">Колір</span>
+            <span className="ui-body-primary">{colors.join(', ')}</span>
           </div>
         )}
         {sizes.length > 0 && (
           <div className="flex justify-between gap-4">
-            <span className="text-[14px] text-[#A5A8AD]">Розмір</span>
-            <span className="text-[14px] text-[#E8E9EA]">{sizes.join(', ')}</span>
+            <span className="ui-body-muted">Розмір</span>
+            <span className="ui-body-primary">{sizes.join(', ')}</span>
           </div>
         )}
       </div>

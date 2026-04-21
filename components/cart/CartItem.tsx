@@ -14,17 +14,17 @@ interface CartItemProps {
 
 function ProductImage({ src, alt }: { src: string | null; alt: string }) {
   return (
-    <div className="shrink-0 w-33 h-33 rounded-xl overflow-hidden bg-[#2A323F] flex items-center justify-center">
+    <div className="ui-thumb-frame ui-thumb-frame-md">
       {src ? (
         <Image
           src={src}
           alt={alt}
           width={132}
           height={132}
-          className="object-contain w-full h-full p-2"
+          className="h-full w-full object-contain p-2"
         />
       ) : (
-        <span className="text-[#A5A8AD] text-xs">Немає фото</span>
+        <span className="text-xs text-copy-muted">Немає фото</span>
       )}
     </div>
   )
@@ -46,23 +46,23 @@ function QuantityControls({
   onIncrement,
 }: QtyControlsProps) {
   return (
-    <div className="flex items-center justify-between w-29 h-8 rounded-2xl px-1.5 py-1 bg-[#333A47]">
+    <div className="ui-qty-control-compact">
       <button
         aria-label="Зменшити кількість"
         onClick={onDecrement}
         disabled={isLoading || quantity <= 1}
-        className="w-6 h-6 flex items-center justify-center text-white text-base leading-none disabled:opacity-40"
+        className="ui-qty-button-compact"
       >
-        −
+        -
       </button>
-      <span className="text-white text-sm font-medium min-w-4 text-center tabular-nums">
+      <span className="min-w-4 text-center text-sm font-medium tabular-nums text-white">
         {quantity}
       </span>
       <button
         aria-label="Збільшити кількість"
         onClick={onIncrement}
         disabled={isLoading || quantity >= maxQuantity}
-        className="w-6 h-6 flex items-center justify-center text-white text-base leading-none disabled:opacity-40"
+        className="ui-qty-button-compact"
       >
         +
       </button>
@@ -73,10 +73,10 @@ function QuantityControls({
 function RemoveButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
   return (
     <button
-      aria-label="Видалити товар"
+      aria-label="Видалити товар з кошика"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center justify-center disabled:opacity-40"
+      className="ui-icon-button disabled:opacity-40"
     >
       <Trash width={16} height={18} color="#A5A8AD" aria-hidden="true" />
     </button>
@@ -89,24 +89,21 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
   const variantParts: string[] = []
   if (variant.size) variantParts.push(`Розмір: ${variant.size}`)
   if (variant.color) variantParts.push(variant.color)
-  const variantLabel = variantParts.join(' · ')
+  const variantLabel = variantParts.join(' В· ')
 
   return (
-    <article className="py-4 border-b border-white/10">
-      {/* ─── Mobile layout (default, hidden on md+) ─── */}
+    <article className="border-b border-panelBorder py-4">
       <div className="flex gap-3 md:hidden">
         <ProductImage src={variant.product.imageUrl} alt={variant.product.name} />
 
-        <div className="flex flex-col flex-1 gap-1 min-w-0">
-          <p className="font-bold text-[14px] leading-5 text-[#E8E9EA] truncate">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="truncate text-[14px] font-bold leading-5 text-copy-primary">
             {variant.product.name}
           </p>
 
-          {variantLabel && (
-            <p className="text-[14px] leading-5 text-[#E8E9EA]">{variantLabel}</p>
-          )}
+          {variantLabel && <p className="ui-body-primary">{variantLabel}</p>}
 
-          <div className="flex items-center justify-between mt-auto pt-2">
+          <div className="mt-auto flex items-center justify-between pt-2">
             <QuantityControls
               quantity={item.quantity}
               maxQuantity={variant.stock}
@@ -115,7 +112,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
               onIncrement={() => onUpdateQuantity(item.id, item.quantity + 1)}
             />
             <div className="flex items-center gap-3">
-              <span className="text-[13px] leading-5 text-[#E8E9EA]">
+              <span className="text-[13px] leading-5 text-copy-primary">
                 {formatPrice(item.lineTotal)}
               </span>
               <RemoveButton onClick={() => onRemove(item.id)} disabled={isLoading} />
@@ -124,28 +121,22 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
         </div>
       </div>
 
-      {/* ─── Desktop layout (hidden below md) ─── */}
-      <div className="hidden md:flex items-center gap-6">
+      <div className="hidden items-center gap-6 md:flex">
         <ProductImage src={variant.product.imageUrl} alt={variant.product.name} />
 
-        {/* Product name */}
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-[14px] leading-5 text-[#E8E9EA] truncate">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-bold leading-5 text-copy-primary">
             {variant.product.name}
           </p>
         </div>
 
-        {/* Variant */}
         <div className="w-28 shrink-0">
-          {variantLabel && (
-            <p className="text-[14px] leading-5 text-[#E8E9EA]">{variantLabel}</p>
-          )}
+          {variantLabel && <p className="ui-body-primary">{variantLabel}</p>}
         </div>
 
-        {/* Unit price */}
         <div className="w-24 shrink-0">
-          <p className="text-[13px] leading-5 text-[#E8E9EA]">{formatPrice(item.unitPrice)}</p>
-          <p className="text-[11px] leading-4 text-[#A5A8AD]">Ціна за 1 шт.</p>
+          <p className="text-[13px] leading-5 text-copy-primary">{formatPrice(item.unitPrice)}</p>
+          <p className="text-[11px] leading-4 text-copy-muted">Р¦С–РЅР° Р·Р° 1 С€С‚.</p>
         </div>
 
         <QuantityControls
@@ -156,8 +147,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
           onIncrement={() => onUpdateQuantity(item.id, item.quantity + 1)}
         />
 
-        {/* Line total */}
-        <span className="w-20 text-right text-[13px] leading-5 text-[#E8E9EA] shrink-0 tabular-nums">
+        <span className="w-20 shrink-0 text-right text-[13px] leading-5 tabular-nums text-copy-primary">
           {formatPrice(item.lineTotal)}
         </span>
 

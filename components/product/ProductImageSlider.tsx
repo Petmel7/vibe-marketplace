@@ -31,12 +31,7 @@ export default function ProductImageSlider({ images, alt }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className="relative w-full aspect-square rounded-2xl overflow-hidden"
-        style={{ background: 'radial-gradient(circle at 50% 40%, #6B7A94 0%, #2A323F 70%, #1D2533 100%)' }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
+      <div className="ui-gallery-stage" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {hasImages ? (
           <Image
             src={images[currentIndex]}
@@ -47,7 +42,7 @@ export default function ProductImageSlider({ images, alt }: Props) {
             priority
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[#A5A8AD] text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-copy-muted">
             Немає зображення
           </div>
         )}
@@ -59,9 +54,8 @@ export default function ProductImageSlider({ images, alt }: Props) {
             <button
               key={i}
               onClick={() => setCurrentIndex(i)}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                i === currentIndex ? 'bg-[#9466FF]' : 'bg-[#333A47]'
-              }`}
+              className={`h-2 w-2 rounded-full transition-colors ${i === currentIndex ? 'bg-brand' : 'bg-panelAlt'
+                }`}
               aria-label={`Зображення ${i + 1}`}
             />
           ))}

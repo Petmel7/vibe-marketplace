@@ -1,12 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1D2533;
+  --background: #1d2533;
   --foreground: #ededed;
 }
 
 @theme {
   --breakpoint-xs: 480px;
+  --color-canvas: #1d2533;
+  --color-panel: #2a323f;
+  --color-panelAlt: #333a47;
+  --color-panelMuted: #242c39;
+  --color-panelBorder: rgba(255, 255, 255, 0.1);
+  --color-copy-strong: #f1f3f5;
+  --color-copy-primary: #e8e9ea;
+  --color-copy-secondary: #d9d9d9;
+  --color-copy-muted: #a5a8ad;
+  --color-brand: #9466ff;
+  --color-brand-accent: #16d9a6;
+  --color-brand-accent-new: #ff5e2d;
+  --color-brand-success: #26da72;
+  --color-brand-danger: #ff4d6d;
+  --color-icon: #565c66;
+  --color-media: #2a3347;
 }
 
 @theme inline {
@@ -16,9 +32,252 @@
   --font-mono: var(--font-geist-mono);
 }
 
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  .ui-page-shell {
+    @apply min-h-screen bg-canvas px-4 md:px-8 lg:px-16;
+  }
+
+  .ui-header-shell {
+    @apply w-full border-b border-panelBorder bg-canvas;
+  }
+
+  .ui-panel {
+    @apply rounded-2xl bg-panel;
+  }
+
+  .ui-elevated-panel {
+    @apply rounded-2xl border border-panelBorder bg-canvas;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  }
+
+  .ui-card {
+    @apply overflow-hidden rounded-2xl bg-panel;
+  }
+
+  .ui-product-card {
+    background: linear-gradient(180deg, #4e5d77 0%, #2a323f 100%);
+    @apply flex h-95 w-full flex-col overflow-hidden rounded-2xl xs:h-75;
+  }
+
+  .ui-product-card-media {
+    background: radial-gradient(ellipse at center, #6b7a94 0%, #2a323f 100%);
+    @apply relative flex-1;
+  }
+
+  .ui-gallery-stage {
+    background: radial-gradient(circle at 50% 40%, #6b7a94 0%, #2a323f 70%, #1d2533 100%);
+    @apply relative aspect-square w-full overflow-hidden rounded-2xl;
+  }
+
+  .ui-status-badge {
+    @apply flex items-center gap-1 text-[10px] leading-3 text-brand-success;
+  }
+
+  .ui-status-dot {
+    @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand-success;
+  }
+
+  .ui-pill-button {
+    @apply inline-flex h-12 items-center justify-center rounded-full px-9 py-3 text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
+  }
+
+  .ui-primary-button {
+    @apply inline-flex h-12 items-center justify-center rounded-full bg-brand px-9 py-3 text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
+  }
+
+  .ui-icon-button {
+    @apply inline-flex items-center justify-center transition-opacity hover:opacity-70;
+  }
+
+  .ui-icon-button-square {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg bg-canvas transition-opacity hover:opacity-70;
+  }
+
+  .ui-icon-button-card {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg bg-canvas text-copy-muted transition-opacity hover:opacity-70;
+  }
+
+  .ui-link-muted {
+    @apply text-sm leading-5 text-copy-muted transition-colors hover:text-copy-strong;
+  }
+
+  .ui-action-link {
+    @apply text-sm leading-5 text-brand-accent hover:underline;
+  }
+
+  .ui-surface-input {
+    @apply w-full rounded-xl border border-panelBorder bg-panel px-4 py-3 text-sm leading-5 text-copy-secondary placeholder:text-copy-muted outline-none transition-colors focus:border-brand focus:ring-1 focus:ring-brand;
+  }
+
+  .ui-surface-input-plain {
+    @apply w-full bg-transparent px-4 text-sm leading-5 text-copy-secondary placeholder:text-copy-muted outline-none;
+  }
+
+  .ui-thumb-frame {
+    @apply flex items-center justify-center overflow-hidden rounded-xl bg-panel;
+  }
+
+  .ui-thumb-frame-sm {
+    @apply h-12 w-12 shrink-0 rounded bg-media;
+  }
+
+  .ui-thumb-frame-md {
+    @apply h-33 w-33 shrink-0 rounded-xl bg-panel;
+  }
+
+  .ui-scroll-row {
+    @apply flex gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  }
+
+  .ui-scroll-row-snap {
+    @apply flex gap-4 overflow-x-auto [scrollbar-width:none] [scroll-snap-type:x_mandatory] [&::-webkit-scrollbar]:hidden;
+  }
+
+  .ui-meta-text {
+    @apply text-[10px] leading-3 text-copy-muted;
+  }
+
+  .ui-body-muted {
+    @apply text-sm leading-5 text-copy-muted;
+  }
+
+  .ui-body-secondary {
+    @apply text-sm leading-5 text-copy-secondary;
+  }
+
+  .ui-body-primary {
+    @apply text-sm leading-5 text-copy-primary;
+  }
+
+  .ui-heading-section {
+    @apply mb-4 text-[16px] leading-6 font-bold text-copy-strong;
+  }
+
+  .ui-heading-page {
+    @apply text-[24px] leading-8 font-bold text-white;
+  }
+
+  .ui-heading-product {
+    @apply text-[24px] leading-8 font-bold text-copy-strong;
+  }
+
+  .ui-price-hero {
+    @apply text-[28px] leading-8 font-medium text-brand-accent;
+  }
+
+  .ui-price-card {
+    @apply text-[20px] leading-7 font-medium text-copy-primary;
+  }
+
+  .ui-divider-top {
+    @apply border-t border-panelAlt pt-4;
+  }
+
+  .ui-collapsible-trigger {
+    @apply flex w-full items-center justify-between py-1;
+  }
+
+  .ui-qty-control {
+    @apply flex items-center justify-between rounded-3xl bg-panelAlt;
+  }
+
+  .ui-qty-control-compact {
+    @apply flex h-8 w-29 items-center justify-between rounded-3xl bg-panelAlt px-1.5 py-1;
+  }
+
+  .ui-qty-control-md {
+    @apply flex h-12 w-full items-center justify-between rounded-3xl bg-panelAlt px-4 py-3;
+  }
+
+  .ui-qty-button {
+    @apply inline-flex h-6 w-6 items-center justify-center leading-none text-white transition-colors disabled:opacity-40;
+  }
+
+  .ui-qty-button-compact {
+    @apply inline-flex h-6 w-6 items-center justify-center text-base leading-none text-white transition-colors disabled:opacity-40;
+  }
+
+  .ui-qty-button-md {
+    @apply inline-flex h-6 w-6 items-center justify-center text-xl leading-none text-white transition-colors hover:text-brand-accent disabled:opacity-40;
+  }
+
+  .ui-filter-chip {
+    @apply min-w-14.75 rounded-3xl px-3 text-sm leading-5 transition-colors;
+  }
+
+  .ui-filter-chip-selected {
+    @apply bg-brand text-white;
+  }
+
+  .ui-filter-chip-default {
+    @apply bg-panelAlt text-white hover:bg-[#3F4A5A];
+  }
+
+  .ui-filter-chip-disabled {
+    @apply cursor-not-allowed bg-canvas text-copy-muted line-through;
+  }
+
+  .ui-dialog-shell {
+    @apply fixed inset-0 z-50 flex items-start justify-center;
+  }
+
+  .ui-dialog-backdrop {
+    @apply absolute inset-0 bg-black/60 backdrop-blur-sm;
+  }
+
+  .ui-dialog-panel {
+    @apply relative z-50 flex max-h-screen w-full flex-col overflow-hidden border border-panelBorder bg-canvas md:mt-20 md:max-h-[70vh] md:w-150 md:rounded-xl;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  }
+
+  .ui-dialog-header {
+    @apply flex items-center justify-between border-b border-panelBorder px-6 pb-4 pt-5 shrink-0;
+  }
+
+  .ui-dialog-close {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand;
+  }
+
+  .ui-search-item {
+    @apply flex items-center gap-3 rounded-lg px-4 py-3 transition-colors hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand;
+  }
+
+  .ui-search-results {
+    @apply flex-1 overflow-y-auto px-2 pb-4;
+  }
+
+  .ui-mobile-nav {
+    @apply fixed bottom-0 left-0 z-50 w-full bg-canvas md:hidden;
+  }
+
+  .ui-mobile-nav-link {
+    @apply flex flex-col items-center gap-1 px-3 py-2 text-sm leading-5;
+  }
+
+  .ui-badge-counter {
+    @apply absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-0.5 font-bold leading-none text-white;
+    font-size: 10px;
+  }
+
+  .ui-social-link {
+    @apply inline-flex items-center justify-center rounded-full border-2 border-icon bg-panelAlt p-3;
+  }
+
+  .ui-logo-lockup {
+    @apply flex items-center gap-3;
+  }
+
+  .ui-logo-text {
+    @apply text-xl font-bold leading-tight text-white;
+  }
+
+  .ui-summary-card {
+    @apply rounded-2xl bg-panel p-6 space-y-3;
+  }
 }

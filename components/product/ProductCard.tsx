@@ -19,10 +19,7 @@ interface ProductCardProps {
 
 function ListIcon() {
   return (
-    <button
-      aria-label="Додати до списку"
-      className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D2533]"
-    >
+    <button aria-label="Додати до списку" className="ui-icon-button-card">
       <ListPlus size={20} color="#A5A8AD" aria-hidden="true" />
     </button>
   );
@@ -38,31 +35,28 @@ export default function ProductCard({
   product,
 }: ProductCardProps) {
   const router = useRouter();
-  const { price, sku } = getProductCardDisplayState(product)
+  const { price, sku } = getProductCardDisplayState(product);
 
   return (
     <div
-      className="flex flex-col rounded-2xl overflow-hidden w-full h-95 xs:h-75 bg-[linear-gradient(180deg,#4E5D77_0%,#2A323F_100%)]"
+      className="ui-product-card"
       onClick={() => router.push(`/products/${id}`)}
       onKeyDown={(e) => e.key === 'Enter' && router.push(`/products/${id}`)}
       role="link"
       tabIndex={0}
       style={{ cursor: 'pointer' }}
     >
-      {/* Image area */}
-      <div className="relative flex-1 bg-[radial-gradient(ellipse_at_center,#6B7A94_0%,#2A323F_100%)]">
-        {/* Hit / New badge */}
+      <div className="ui-product-card-media">
         {(isHit || isNew) && (
-          <span className="absolute top-2 left-2 z-10 px-2 rounded text-white font-medium text-[13px] leading-5 bg-[#16D9A6]">
+          <span
+            className={`absolute left-2 top-2 z-10 rounded px-2 text-[13px] font-medium leading-5 text-white ${isHit ? 'bg-brand-accent' : 'bg-brand-accent-new'
+              }`}
+          >
             {isHit ? "Хіт" : "Новинка"}
           </span>
         )}
 
-        {/* Action icons — hidden on desktop */}
-        <div
-          className="absolute top-2 right-2 z-10 flex flex-col gap-1 xs:hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="absolute right-2 top-2 z-10 flex flex-col gap-1 xs:hidden" onClick={(e) => e.stopPropagation()}>
           <WishlistToggleButton productId={id} variant="card" />
           <ListIcon />
         </div>
@@ -76,29 +70,20 @@ export default function ProductCard({
         />
       </div>
 
-      {/* Info area */}
-      <div className="px-3 pb-3 pt-2 flex flex-col gap-1">
-        <p className="font-bold truncate text-[14px] leading-5 text-[#A5A8AD]">
-          {name}
-        </p>
+      <div className="flex flex-col gap-1 px-3 pb-3 pt-2">
+        <p className="truncate text-[14px] font-bold leading-5 text-copy-muted">{name}</p>
 
         <div className="flex items-center gap-2">
           {isActive && (
-            <span className="flex items-center gap-1 text-[10px] leading-3 text-[#26DA72]">
-              <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0 bg-[#26DA72]" />
+            <span className="ui-status-badge">
+              <span className="ui-status-dot" />
               В наявності
             </span>
           )}
-          {sku && (
-            <span className="text-[10px] leading-3 text-[#A5A8AD]">
-              Арт.: {sku}
-            </span>
-          )}
+          {sku && <span className="ui-meta-text"> Арт.: {sku}</span>}
         </div>
 
-        <p className="font-medium text-[20px] leading-7 text-[#E8E9EA]">
-          {formatPrice(price)}
-        </p>
+        <p className="ui-price-card">{formatPrice(price)}</p>
       </div>
     </div>
   );

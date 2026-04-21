@@ -13,13 +13,10 @@ export default function RecentlyViewed({ currentProductId }: Props) {
   if (isLoading) {
     return (
       <section className="mt-10">
-        <h2 className="font-bold text-[16px] text-[#F1F3F5] mb-4">Нещодавно переглянуті товари</h2>
-        <div className="flex gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <h2 className="ui-heading-section">Недавно переглянуті товари</h2>
+        <div className="ui-scroll-row">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="shrink-0 w-51.75 h-95 rounded-2xl bg-[#2A323F] animate-pulse"
-            />
+            <div key={i} className="h-95 w-51.75 shrink-0 rounded-2xl bg-panel animate-pulse" />
           ))}
         </div>
       </section>
@@ -30,10 +27,10 @@ export default function RecentlyViewed({ currentProductId }: Props) {
 
   return (
     <section className="mt-10">
-      <h2 className="font-bold text-[16px] text-[#F1F3F5] mb-4">Нещодавно переглянуті товари</h2>
-      <div className="flex gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_mandatory]">
+      <h2 className="ui-heading-section">Недавно переглянуті товари</h2>
+      <div className="ui-scroll-row-snap">
         {items.map((item) => (
-          <div key={item.id} className="shrink-0 w-51.75 snap-start">
+          <div key={item.id} className="w-51.75 shrink-0 snap-start">
             <ProductCard
               id={item.productId}
               name={item.name}

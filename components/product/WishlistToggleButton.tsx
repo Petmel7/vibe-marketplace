@@ -5,8 +5,6 @@ import { useWishlist } from '@/features/wishlist/useWishlist'
 
 interface Props {
   productId: string
-  /** 'card' — compact square button used in ProductCard (20 px icon).
-   *  'detail' — larger icon-only button used in ProductDetails (24 px icon). */
   variant?: 'card' | 'detail'
 }
 
@@ -24,7 +22,7 @@ export default function WishlistToggleButton({ productId, variant = 'detail' }: 
           e.stopPropagation()
           toggle(productId)
         }}
-        className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D2533] transition-opacity hover:opacity-70"
+        className="ui-icon-button-card"
       >
         <Heart
           size={20}
@@ -42,7 +40,7 @@ export default function WishlistToggleButton({ productId, variant = 'detail' }: 
       aria-label={isWishlisted ? 'Видалити з обраного' : 'Додати до обраного'}
       aria-pressed={isWishlisted}
       onClick={() => toggle(productId)}
-      className="transition-opacity hover:opacity-70"
+      className="ui-icon-button"
     >
       <Heart
         size={24}

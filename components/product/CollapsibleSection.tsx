@@ -17,14 +17,14 @@ export default function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (
-    <div className="border-t border-[#333A47] pt-4">
+    <div className="ui-divider-top">
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}
-        className="flex items-center justify-between w-full py-1"
+        className="ui-collapsible-trigger"
         aria-expanded={isOpen}
       >
-        <span className="font-normal text-[14px] text-[#A5A8AD]">{title}</span>
+        <span className="ui-body-muted">{title}</span>
         {isOpen ? <X size={24} color="#A5A8AD" /> : <Plus size={24} color="#A5A8AD" />}
       </button>
       {isOpen && children}

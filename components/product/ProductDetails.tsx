@@ -32,33 +32,25 @@ export default function ProductDetails({ product }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
-        <h1 className="font-bold text-[24px] leading-8 text-[#F1F3F5]">
-          {product.name}
-        </h1>
+        <h1 className="ui-heading-product">{product.name}</h1>
         <div className="flex items-center gap-3 shrink-0 pt-1">
           <WishlistToggleButton productId={product.id} />
-          <button aria-label="РџРѕРґС–Р»РёС‚РёСЃСЏ" className="hover:opacity-70 transition-opacity">
+          <button aria-label="РџРѕРґС–Р»РёС‚РёСЃСЏ" className="ui-icon-button">
             <Share2 size={24} color="#A5A8AD" />
           </button>
         </div>
       </div>
 
-      <p className="font-medium text-[28px] leading-8 text-[#16D9A6]">
-        {formatPrice(presentation.price)}
-      </p>
+      <p className="ui-price-hero">{formatPrice(presentation.price)}</p>
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-wrap items-center gap-3">
         {presentation.isAvailable && (
-          <span className="flex items-center gap-1 font-normal text-[10px] leading-3 text-[#26DA72]">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#26DA72] shrink-0" />
+          <span className="ui-status-badge">
+            <span className="ui-status-dot" />
             В наявності
           </span>
         )}
-        {presentation.sku && (
-          <span className="font-normal text-[10px] leading-3 text-[#A5A8AD]">
-            Арт: {presentation.sku}
-          </span>
-        )}
+        {presentation.sku && <span className="ui-meta-text"> Арт.: {presentation.sku}</span>}
       </div>
 
       <ProductVariantSelector
@@ -67,11 +59,7 @@ export default function ProductDetails({ product }: Props) {
         onSelect={setSelectedVariantId}
       />
 
-      <ProductQuantitySelector
-        quantity={quantity}
-        onChange={setQuantity}
-        max={presentation.maxQty}
-      />
+      <ProductQuantitySelector quantity={quantity} onChange={setQuantity} max={presentation.maxQty} />
 
       <AddToCartButton
         productId={product.id}
