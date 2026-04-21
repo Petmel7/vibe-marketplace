@@ -5,12 +5,9 @@ import Link from 'next/link'
 import CartItem from './CartItem'
 import { useCartStore } from '@/store/cartStore'
 import type { CartDto } from '@/features/cart/cart.dto'
+import { formatPrice } from '@/lib/formatters/price'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function fmt(value: string) {
-  return Number(value).toLocaleString('uk-UA')
-}
 
 function pluralizeItems(count: number): string {
   if (count === 1) return 'Товар'
@@ -313,7 +310,7 @@ export default function CartDrawer() {
                 {cart.itemCount} товар на суму
               </span>
               <span className="font-normal text-[13px] leading-5 text-[#D9D9D9] tabular-nums">
-                {fmt(cart.totalAmount)} ₴
+                {formatPrice(cart.totalAmount)}
               </span>
             </div>
 
@@ -322,7 +319,7 @@ export default function CartDrawer() {
                 Сума зі знижкою
               </span>
               <span className="font-normal text-[13px] leading-5 text-[#D9D9D9] tabular-nums">
-                {fmt(cart.totalAmount)} ₴
+                {formatPrice(cart.totalAmount)}
               </span>
             </div>
 
@@ -330,7 +327,7 @@ export default function CartDrawer() {
             <div className="pt-1">
               <p className="font-bold text-[16px] leading-5 text-[#E8E9EA]">Підсумок</p>
               <p className="font-medium text-[20px] leading-7 text-[#16D9A6] mt-1 tabular-nums">
-                {fmt(cart.totalAmount)} ₴
+                {formatPrice(cart.totalAmount)}
               </p>
             </div>
 

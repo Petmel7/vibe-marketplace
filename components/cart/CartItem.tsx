@@ -3,16 +3,13 @@
 import Image from 'next/image'
 import { Trash } from 'lucide-react'
 import type { CartItemDto } from '@/features/cart/cart.dto'
+import { formatPrice } from '@/lib/formatters/price'
 
 interface CartItemProps {
   item: CartItemDto
   onUpdateQuantity: (itemId: string, newQuantity: number) => void
   onRemove: (itemId: string) => void
   isLoading: boolean
-}
-
-function fmt(value: string) {
-  return Number(value).toLocaleString('uk-UA')
 }
 
 function ProductImage({ src, alt }: { src: string | null; alt: string }) {
@@ -119,7 +116,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
             />
             <div className="flex items-center gap-3">
               <span className="text-[13px] leading-5 text-[#E8E9EA]">
-                {fmt(item.lineTotal)} ₴
+                {formatPrice(item.lineTotal)}
               </span>
               <RemoveButton onClick={() => onRemove(item.id)} disabled={isLoading} />
             </div>
@@ -147,7 +144,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
 
         {/* Unit price */}
         <div className="w-24 shrink-0">
-          <p className="text-[13px] leading-5 text-[#E8E9EA]">{fmt(item.unitPrice)} ₴</p>
+          <p className="text-[13px] leading-5 text-[#E8E9EA]">{formatPrice(item.unitPrice)}</p>
           <p className="text-[11px] leading-4 text-[#A5A8AD]">Ціна за 1 шт.</p>
         </div>
 
@@ -161,7 +158,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
 
         {/* Line total */}
         <span className="w-20 text-right text-[13px] leading-5 text-[#E8E9EA] shrink-0 tabular-nums">
-          {fmt(item.lineTotal)} ₴
+          {formatPrice(item.lineTotal)}
         </span>
 
         <RemoveButton onClick={() => onRemove(item.id)} disabled={isLoading} />

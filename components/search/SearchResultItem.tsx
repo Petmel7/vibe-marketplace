@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { ProductSummaryDto } from '@/features/products/product.dto'
+import { formatPrice } from '@/lib/formatters/price'
 
 interface SearchResultItemProps {
   product: ProductSummaryDto
@@ -10,12 +11,7 @@ interface SearchResultItemProps {
 }
 
 export default function SearchResultItem({ product, onClose }: SearchResultItemProps) {
-  const displayPrice = Number(product.price).toLocaleString('uk-UA', {
-    style: 'currency',
-    currency: 'UAH',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })
+  const displayPrice = formatPrice(product.price)
 
   return (
     <Link

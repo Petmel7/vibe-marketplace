@@ -41,13 +41,13 @@ export default function ProductVariantSelector({ variants, selectedVariantId, on
                   onClick={() => !isOutOfStock && onSelect(variant.id)}
                   disabled={isOutOfStock}
                   className={[
-                    'min-w-[59px] h-[32px] rounded-[24px] px-3',
+                    'min-w-14.75 h-8 rounded-3xl px-3',
                     'font-normal text-[14px] leading-5 text-white transition-colors',
                     isSelected
                       ? 'bg-[#9466FF]'
                       : isOutOfStock
-                      ? 'bg-[#1D2533] text-[#A5A8AD] cursor-not-allowed line-through'
-                      : 'bg-[#333A47] hover:bg-[#3F4A5A]',
+                        ? 'bg-[#1D2533] text-[#A5A8AD] cursor-not-allowed line-through'
+                        : 'bg-[#333A47] hover:bg-[#3F4A5A]',
                   ].join(' ')}
                 >
                   {variant.size}

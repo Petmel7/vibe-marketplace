@@ -5,6 +5,7 @@ import { ListPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import WishlistToggleButton from "./WishlistToggleButton";
 import { getProductCardDisplayState, type ProductCardProductLike } from "./productCard.selectors";
+import { formatPrice } from "@/lib/formatters/price";
 
 interface ProductCardProps {
   id: string;
@@ -96,7 +97,7 @@ export default function ProductCard({
         </div>
 
         <p className="font-medium text-[20px] leading-7 text-[#E8E9EA]">
-          {price.toLocaleString("uk-UA")} ₴
+          {formatPrice(price)}
         </p>
       </div>
     </div>
