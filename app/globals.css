@@ -261,8 +261,7 @@ body {
   }
 
   .ui-badge-counter {
-    @apply absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-0.5 font-bold leading-none text-white;
-    font-size: 10px;
+      @apply absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-0.5 text-[10px] font-bold text-white;
   }
 
   .ui-social-link {
