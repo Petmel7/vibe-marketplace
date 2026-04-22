@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { ListPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import WishlistToggleButton from "./WishlistToggleButton";
+import WishlistToggleButton from "../wishlist/WishlistToggleButton";
 import { getProductCardDisplayState, type ProductCardProductLike } from "./productCard.selectors";
 import { formatPrice } from "@/lib/formatters/price";
 

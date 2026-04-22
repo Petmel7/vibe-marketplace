@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Share2 } from 'lucide-react'
 import ProductVariantSelector from './ProductVariantSelector'
-import WishlistToggleButton from './WishlistToggleButton'
+import WishlistToggleButton from '../wishlist/WishlistToggleButton'
 import ProductQuantitySelector from './ProductQuantitySelector'
 import AddToCartButton from './AddToCartButton'
 import ProductDescription from './ProductDescription'

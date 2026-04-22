@@ -1,7 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { ShoppingCart } from 'lucide-react'
+import IconWithBadge from '@/components/ui/IconWithBadge'
 import { useCartStore } from '@/store/cartStore'
 
 interface Props {
@@ -22,18 +22,16 @@ export default function CartIcon({
   const itemCount = useCartStore((s) => s.itemCount)
 
   return (
-    <Link
+    <IconWithBadge
       href="/cart"
-      aria-label={ariaLabel ?? `Кошик${itemCount > 0 ? `, ${itemCount} товарів` : ''}`}
-      aria-current={ariaCurrent}
-      className={className ?? 'relative flex items-center justify-center'}
-    >
-      <ShoppingCart size={size} aria-hidden="true" className={iconClassName} />
-      {itemCount > 0 && (
-        <span className="ui-badge-counter" aria-hidden="true">
-          {itemCount > 99 ? '99+' : itemCount}
-        </span>
-      )}
-    </Link>
+      icon={ShoppingCart}
+      count={itemCount}
+      size={size}
+      className={className}
+      iconClassName={iconClassName}
+      ariaLabel={ariaLabel ?? `Кошик${itemCount > 0 ? `, ${itemCount} товарів` : ''}`}
+      ariaCurrent={ariaCurrent}
+      variant="count"
+    />
   )
 }

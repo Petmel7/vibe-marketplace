@@ -2,9 +2,10 @@
 
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { Search, CircleUser, Menu, Heart, ListPlus } from 'lucide-react'
+import { Search, CircleUser, Menu, ListPlus } from 'lucide-react'
 import SearchOverlay from '@/components/search/SearchOverlay'
 import CartIcon from '@/components/cart/CartIcon'
+import WishlistIcon from '../wishlist/WishlistIcon'
 
 function HeaderIconButton({
   label,
@@ -63,9 +64,7 @@ export default function Header() {
           <HeaderIconButton label="Пошук" onClick={() => setIsSearchOpen(true)}>
             <Search size={24} color="#E8E9EA" aria-hidden="true" />
           </HeaderIconButton>
-          <HeaderIconButton label="Обране">
-            <Heart size={24} color="#E8E9EA" aria-hidden="true" />
-          </HeaderIconButton>
+          <WishlistIcon />
           <HeaderIconButton label="Список бажань">
             <ListPlus size={24} color="#E8E9EA" aria-hidden="true" />
           </HeaderIconButton>

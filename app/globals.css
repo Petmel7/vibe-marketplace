@@ -264,6 +264,10 @@ body {
       @apply absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-0.5 text-[10px] font-bold text-white;
   }
 
+  .ui-badge-dot {
+      @apply absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-brand;
+  }
+
   .ui-social-link {
     @apply inline-flex items-center justify-center rounded-full border-2 border-icon bg-panelAlt p-3;
   }

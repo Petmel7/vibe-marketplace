@@ -1,13 +1,14 @@
 'use client'
 
-import { House, List, Heart, Ellipsis } from 'lucide-react'
+import { House, List, Ellipsis } from 'lucide-react'
 import CartIcon from '@/components/cart/CartIcon'
+import WishlistIcon from '../wishlist/WishlistIcon'
 import NavItem from '@/components/ui/NavItem'
 
 const NAV_ITEMS = [
   { href: '/', icon: House, label: 'Головна', exact: true },
   { href: '/catalog', icon: List, label: 'Каталог' },
-  { href: '/wishlist', icon: Heart, label: 'Вибране' },
+  { href: '/wishlist', component: WishlistIcon, label: 'Вибране' },
   { href: '/cart', component: CartIcon, label: 'Кошик' },
   { href: '/more', icon: Ellipsis, label: 'Ще' },
 ] as const
