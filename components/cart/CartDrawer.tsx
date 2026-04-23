@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import CartItem from './CartItem'
+import StateView, { CART_EMPTY_STATE } from '@/components/ui/StateView'
 import { useCartStore } from '@/store/cartStore'
 import type { CartDto } from '@/features/cart/cart.dto'
 import { formatPrice } from '@/lib/formatters/price'
@@ -53,14 +54,7 @@ function CartSkeleton() {
 }
 
 function CartEmpty() {
-  return (
-    <main className="ui-page-shell flex flex-col items-center justify-center gap-6">
-      <p className="text-xl text-copy-muted">Кошик порожній</p>
-      <Link href="/" className="ui-primary-button">
-        Перейти до каталогу
-      </Link>
-    </main>
-  )
+  return <StateView {...CART_EMPTY_STATE} />
 }
 
 function Checkbox({

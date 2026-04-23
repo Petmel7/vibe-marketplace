@@ -5,30 +5,26 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Trash, Heart } from 'lucide-react'
 import { toast } from 'sonner'
+import StateView, { WISHLIST_EMPTY_STATE } from '@/components/ui/StateView'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import { useWishlistStore } from '@/store/wishlistStore'
+import { formatPrice } from '@/lib/formatters/price'
 import type { WishlistItemDto } from '@/features/wishlist/wishlist.dto'
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmt(price: string) {
-  return Number(price).toLocaleString('uk-UA')
-}
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
 function WishlistSkeleton() {
   return (
-    <main className="min-h-screen bg-[#1D2533] px-4 md:px-8 lg:px-16 pt-4 pb-24">
+    <main className="ui-page-shell pt-4 pb-24">
       <div className="animate-pulse space-y-4">
-        <div className="h-5 w-36 rounded bg-[#2A323F]" />
-        <div className="h-8 w-52 rounded bg-[#2A323F]" />
+        <div className="h-5 w-36 rounded bg-panel" />
+        <div className="h-8 w-52 rounded bg-panel" />
         {[0, 1, 2].map((i) => (
-          <div key={i} className="flex gap-3 py-4 border-b border-white/10">
-            <div className="w-33 h-33 rounded-xl bg-[#2A323F] shrink-0" />
+          <div key={i} className="flex gap-3 py-4 border-b border-panelBorder">
+            <div className="w-33 h-33 rounded-xl bg-panel shrink-0" />
             <div className="flex-1 space-y-2">
-              <div className="h-5 w-3/4 rounded bg-[#2A323F]" />
-              <div className="h-4 w-1/3 rounded bg-[#2A323F]" />
+              <div className="h-5 w-3/4 rounded bg-panel" />
+              <div className="h-4 w-1/3 rounded bg-panel" />
             </div>
           </div>
         ))}
@@ -40,33 +36,19 @@ function WishlistSkeleton() {
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function WishlistEmpty() {
-  return (
-    <main className="min-h-screen bg-[#1D2533] px-4 flex flex-col items-center justify-center gap-6">
-      <Heart size={48} color="#A5A8AD" aria-hidden="true" />
-      <p className="text-[#A5A8AD] text-xl">Список обраного порожній</p>
-      <Link
-        href="/"
-        className="h-12 rounded-[50px] bg-[#9466FF] text-[#F1F3F5] font-medium text-[16px] leading-6 px-9 flex items-center"
-      >
-        Перейти до каталогу
-      </Link>
-    </main>
-  )
+  return <StateView {...WISHLIST_EMPTY_STATE} />
 }
 
 // ─── Unauthenticated state ────────────────────────────────────────────────────
 
 function WishlistUnauthenticated() {
   return (
-    <main className="min-h-screen bg-[#1D2533] px-4 flex flex-col items-center justify-center gap-6">
-      <Heart size={48} color="#A5A8AD" aria-hidden="true" />
-      <p className="text-[#A5A8AD] text-xl text-center">
+    <main className="ui-page-shell flex flex-col items-center justify-center gap-6">
+      <Heart size={48} className="text-copy-muted" aria-hidden="true" />
+      <p className="ui-body-muted text-xl text-center">
         Увійдіть, щоб переглянути список обраного
       </p>
-      <Link
-        href="/"
-        className="h-12 rounded-[50px] bg-[#9466FF] text-[#F1F3F5] font-medium text-[16px] leading-6 px-9 flex items-center"
-      >
+      <Link href="/" className="ui-primary-button">
         На головну
       </Link>
     </main>
@@ -83,11 +65,10 @@ interface WishlistItemRowProps {
 
 function WishlistItemRow({ item, isRemoving, onRemove }: WishlistItemRowProps) {
   return (
-    <article className="py-4 border-b border-white/10 flex gap-3 items-center">
-      {/* Image */}
+    <article className="py-4 border-b border-panelBorder flex gap-3 items-center">
       <Link
         href={`/products/${item.productId}`}
-        className="shrink-0 w-33 h-33 rounded-xl overflow-hidden bg-[#2A323F] flex items-center justify-center"
+        className="shrink-0 w-33 h-33 rounded-xl overflow-hidden bg-panel flex items-center justify-center"
         tabIndex={-1}
         aria-hidden="true"
       >
@@ -100,24 +81,22 @@ function WishlistItemRow({ item, isRemoving, onRemove }: WishlistItemRowProps) {
             className="object-contain w-full h-full p-2"
           />
         ) : (
-          <span className="text-[#A5A8AD] text-xs">Немає фото</span>
+          <span className="ui-meta-text">Немає фото</span>
         )}
       </Link>
 
-      {/* Details */}
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <Link
           href={`/products/${item.productId}`}
-          className="font-bold text-[14px] leading-5 text-[#E8E9EA] truncate hover:underline"
+          className="font-bold text-[14px] leading-5 text-copy-primary truncate hover:underline"
         >
           {item.name}
         </Link>
-        <p className="font-medium text-[20px] leading-7 text-[#16D9A6]">
-          {fmt(item.price)} ₴
+        <p className="ui-price-card text-brand-accent">
+          {formatPrice(item.price)}
         </p>
       </div>
 
-      {/* Remove */}
       <button
         type="button"
         aria-label={`Видалити ${item.name} з обраного`}
@@ -125,7 +104,7 @@ function WishlistItemRow({ item, isRemoving, onRemove }: WishlistItemRowProps) {
         disabled={isRemoving}
         className="shrink-0 flex items-center justify-center w-10 h-10 disabled:opacity-40"
       >
-        <Trash width={16} height={18} color="#A5A8AD" aria-hidden="true" />
+        <Trash width={16} height={18} className="text-copy-muted" aria-hidden="true" />
       </button>
     </article>
   )
@@ -238,9 +217,9 @@ export default function WishlistPage() {
   if (state.status === 'unauthenticated') return <WishlistUnauthenticated />
   if (state.status === 'error') {
     return (
-      <main className="min-h-screen bg-[#1D2533] px-4 flex flex-col items-center justify-center gap-4">
-        <p className="text-[#A5A8AD] text-xl">Не вдалося завантажити обране</p>
-        <Link href="/" className="text-[#9466FF] hover:underline">
+      <main className="ui-page-shell flex flex-col items-center justify-center gap-4">
+        <p className="ui-body-muted text-xl">Не вдалося завантажити обране</p>
+        <Link href="/" className="text-brand hover:underline">
           На головну
         </Link>
       </main>
@@ -249,20 +228,18 @@ export default function WishlistPage() {
   if (state.items.length === 0) return <WishlistEmpty />
 
   return (
-    <main className="min-h-screen bg-[#1D2533] px-4 md:px-8 lg:px-16 pt-4 pb-24 md:pb-12">
-      {/* Breadcrumb */}
+    <main className="ui-page-shell pt-4 pb-24 md:pb-12">
       <nav aria-label="Хлібні крихти" className="flex items-center gap-1.5 mb-6">
         <Link href="/" className="text-[13px] leading-5 font-medium text-white hover:underline">
           Головна
         </Link>
-        <span className="text-[#A5A8AD] text-[13px]">•</span>
-        <span className="text-[13px] leading-5 font-medium text-[#A5A8AD]">Обране</span>
+        <span className="text-[13px] text-copy-muted">/</span>
+        <span className="text-[13px] leading-5 font-medium text-copy-muted">Обране</span>
       </nav>
 
-      {/* Title */}
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="font-bold text-[24px] leading-8 text-white">Обране</h1>
-        <span className="font-normal text-[13px] leading-5 text-[#A5A8AD]">
+        <h1 className="ui-heading-page">Обране</h1>
+        <span className="ui-body-muted">
           {state.items.length} {state.items.length === 1 ? 'товар' : 'товарів'}
         </span>
       </div>

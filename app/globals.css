@@ -91,6 +91,10 @@ body {
     @apply inline-flex h-12 items-center justify-center rounded-full bg-brand px-9 py-3 text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
   }
 
+  .ui-secondary-button {
+    @apply inline-flex h-12 items-center justify-center rounded-full border-2 border-brand bg-transparent px-9 py-3 text-[16px] leading-6 font-medium text-brand transition-colors hover:bg-brand/10 active:bg-brand/15 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+  }
+
   .ui-icon-button {
     @apply inline-flex items-center justify-center transition-opacity hover:opacity-70;
   }
@@ -282,5 +286,32 @@ body {
 
   .ui-summary-card {
     @apply rounded-2xl bg-panel p-6 space-y-3;
+  }
+}
+
+/* BUTTONS */
+@layer components {
+  .ui-btn {
+    @apply inline-flex items-center justify-center rounded-full font-medium text-center whitespace-nowrap;
+  }
+
+  .ui-btn-sm {
+    @apply h-9 px-4 text-sm;
+  }
+
+  .ui-btn-md {
+    @apply h-12 px-8.75 text-base;
+  }
+
+  .ui-btn-lg {
+    @apply h-14 px-10 text-lg;
+  }
+
+  .ui-btn-primary {
+    @apply bg-brand text-white;
+  }
+
+  .ui-btn-secondary {
+    @apply border-2 border-[#9466FF] bg-transparent text-[#9466FF];
   }
 }
