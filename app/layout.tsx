@@ -34,7 +34,7 @@ export default function RootLayout({
       <body suppressHydrationWarning >
         <Header />
         {/* pb-20 reserves space below content for the fixed BottomNav on mobile */}
-        <div className="pb-20 md:pb-0">
+        <div className="ui-container">
           {children}
         </div>
         <Footer />

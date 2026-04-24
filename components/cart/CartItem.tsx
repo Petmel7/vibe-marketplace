@@ -92,18 +92,39 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
   const variantLabel = variantParts.join(' В· ')
 
   return (
-    <article className="border-b border-panelBorder py-4">
-      <div className="flex gap-3 md:hidden">
-        <ProductImage src={variant.product.imageUrl} alt={variant.product.name} />
+    <article className="border-b border-panelBorder pb-4">
+      <div className="flex gap-3 sm:flex-row sm:items-start">
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {/* IMAGE */}
+        <ProductImage
+          src={variant.product.imageUrl}
+          alt={variant.product.name}
+        />
+
+        {/* CONTENT */}
+        <div className="gap-2 flex-1 min-w-0 flex flex-col">
+
           <p className="truncate text-[14px] font-bold leading-5 text-copy-primary">
             {variant.product.name}
           </p>
 
-          {variantLabel && <p className="ui-body-primary">{variantLabel}</p>}
+          {variantLabel && (
+            <p className="ui-body-primary">{variantLabel}</p>
+          )}
 
-          <div className="mt-auto flex items-center justify-between pt-2">
+          {/* PRICE (tablet+) */}
+          <div className="sm:block">
+            <p className="text-[13px] leading-5 text-copy-primary">
+              {formatPrice(item.unitPrice)}
+            </p>
+            <p className="text-[11px] leading-4 text-copy-muted">
+              Ціна за 1 шт.
+            </p>
+          </div>
+
+          {/* BOTTOM ROW */}
+          <div className="flex flex-wrap items-center gap-2">
+
             <QuantityControls
               quantity={item.quantity}
               maxQuantity={variant.stock}
@@ -111,47 +132,18 @@ export default function CartItem({ item, onUpdateQuantity, onRemove, isLoading }
               onDecrement={() => onUpdateQuantity(item.id, item.quantity - 1)}
               onIncrement={() => onUpdateQuantity(item.id, item.quantity + 1)}
             />
+
             <div className="flex items-center gap-3">
-              <span className="text-[13px] leading-5 text-copy-primary">
+              <span className="text-[13px] leading-5 tabular-nums text-copy-primary">
                 {formatPrice(item.lineTotal)}
               </span>
-              <RemoveButton onClick={() => onRemove(item.id)} disabled={isLoading} />
+              <RemoveButton
+                onClick={() => onRemove(item.id)}
+                disabled={isLoading}
+              />
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="hidden items-center gap-6 md:flex">
-        <ProductImage src={variant.product.imageUrl} alt={variant.product.name} />
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-bold leading-5 text-copy-primary">
-            {variant.product.name}
-          </p>
-        </div>
-
-        <div className="w-28 shrink-0">
-          {variantLabel && <p className="ui-body-primary">{variantLabel}</p>}
-        </div>
-
-        <div className="w-24 shrink-0">
-          <p className="text-[13px] leading-5 text-copy-primary">{formatPrice(item.unitPrice)}</p>
-          <p className="text-[11px] leading-4 text-copy-muted">Р¦С–РЅР° Р·Р° 1 С€С‚.</p>
-        </div>
-
-        <QuantityControls
-          quantity={item.quantity}
-          maxQuantity={variant.stock}
-          isLoading={isLoading}
-          onDecrement={() => onUpdateQuantity(item.id, item.quantity - 1)}
-          onIncrement={() => onUpdateQuantity(item.id, item.quantity + 1)}
-        />
-
-        <span className="w-20 shrink-0 text-right text-[13px] leading-5 tabular-nums text-copy-primary">
-          {formatPrice(item.lineTotal)}
-        </span>
-
-        <RemoveButton onClick={() => onRemove(item.id)} disabled={isLoading} />
       </div>
     </article>
   )

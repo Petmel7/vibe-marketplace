@@ -39,6 +39,12 @@ body {
 }
 
 @layer components {
+  .ui-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+}
+
+@layer components {
   .ui-page-shell {
     @apply min-h-screen bg-canvas px-4 md:px-8 lg:px-16;
   }
@@ -62,7 +68,7 @@ body {
 
   .ui-product-card {
     background: linear-gradient(180deg, #4e5d77 0%, #2a323f 100%);
-    @apply flex h-95 w-full flex-col overflow-hidden rounded-2xl xs:h-75;
+    @apply flex h-95 w-full flex-col overflow-hidden xs:h-75;
   }
 
   .ui-product-card-media {
@@ -72,7 +78,7 @@ body {
 
   .ui-gallery-stage {
     background: radial-gradient(circle at 50% 40%, #6b7a94 0%, #2a323f 70%, #1d2533 100%);
-    @apply relative aspect-square w-full overflow-hidden rounded-2xl;
+    @apply relative aspect-square w-full overflow-hidden;
   }
 
   .ui-status-badge {
@@ -104,7 +110,7 @@ body {
   }
 
   .ui-icon-button-card {
-    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg bg-canvas text-copy-muted transition-opacity hover:opacity-70;
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-copy-muted transition-opacity hover:opacity-70;
   }
 
   .ui-link-muted {
@@ -124,15 +130,15 @@ body {
   }
 
   .ui-thumb-frame {
-    @apply flex items-center justify-center overflow-hidden rounded-xl bg-panel;
+    @apply flex items-center justify-center overflow-hidden bg-panel;
   }
 
   .ui-thumb-frame-sm {
-    @apply h-12 w-12 shrink-0 rounded bg-media;
+    @apply h-12 w-12 shrink-0 bg-media;
   }
 
   .ui-thumb-frame-md {
-    @apply h-33 w-33 shrink-0 rounded-xl bg-panel;
+    @apply h-33 w-33 shrink-0 bg-panel;
   }
 
   .ui-scroll-row {
@@ -285,7 +291,7 @@ body {
   }
 
   .ui-summary-card {
-    @apply rounded-2xl bg-panel p-6 space-y-3;
+    @apply bg-panel p-6 space-y-3;
   }
 }
 

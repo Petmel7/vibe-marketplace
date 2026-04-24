@@ -25,7 +25,7 @@ export default async function ProductPage({ params }: Props) {
   const images = product.imageUrl ? [product.imageUrl] : []
 
   return (
-    <div className="max-w-240 mx-auto px-4 py-6">
+    <div className="max-w-240 mx-auto">
       {/* Breadcrumbs */}
       <nav aria-label="Хлібні крихти" className="flex items-center gap-1 text-[12px] text-[#A5A8AD] mb-6">
         <Link href="/" className="hover:text-[#F1F3F5] transition-colors">Головна</Link>
