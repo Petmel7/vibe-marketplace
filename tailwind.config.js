@@ -12,7 +12,7 @@ module.exports = {
           strong: '#F1F3F5',
           primary: '#E8E9EA',
           secondary: '#D9D9D9',
-          muted: '#A5A8AD',
+          muted: 'var(--color-copy-muted)',
         },
         brand: {
           DEFAULT: '#9466FF',

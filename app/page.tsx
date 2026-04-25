@@ -1,59 +1,29 @@
 
-import ProductCard from "@/components/product/ProductCard";
-import { prisma } from "@/lib/prisma";
+import { Suspense } from 'react'
+import HomeProductSection from '@/components/product/HomeProductSection'
+import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
+
+function HomeSectionSkeleton({ title }: { title: string }) {
+  return (
+    <section className="space-y-4">
+      <h2 className="ui-heading-section mb-0">{title}</h2>
+      <ProductCardSkeleton count={4} />
+    </section>
+  )
+}
 
 export default async function Home() {
-  const products = await prisma.product.findMany({
-    select: {
-      id: true,
-      name: true,
-      price: true,
-      imageUrl: true,
-      sku: true,
-      isActive: true,
-      isHit: true,
-      isNew: true,
-      variants: {
-        select: {
-          id: true,
-          sku: true,
-          price: true,
-        },
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-    },
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-
   return (
-    <div className="grid grid-cols-1 min-[375px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto">
-      {products.map((product) => (
-        <ProductCard
-          key={product.id}
-          id={product.id}
-          name={product.name}
-          imageUrl={product.imageUrl || "/placeholder.png"}
-          isActive={product.isActive}
-          isHit={product.isHit}
-          isNew={product.isNew}
-          product={{
-            price: product.price.toString(),
-            sku: product.sku,
-            variants: product.variants.map((variant) => ({
-              id: variant.id,
-              sku: variant.sku,
-              price: variant.price != null ? variant.price.toString() : null,
-            })),
-          }}
-        />
-      ))}
-    </div>
-  );
+    <main className="pt-4 pb-24 md:pb-12">
+      <div className="space-y-10">
+        <Suspense fallback={<HomeSectionSkeleton title="Новинки" />}>
+          <HomeProductSection type="new" title="Новинки" />
+        </Suspense>
+
+        <Suspense fallback={<HomeSectionSkeleton title="Хіти" />}>
+          <HomeProductSection type="hit" title="Хіти" />
+        </Suspense>
+      </div>
+    </main>
+  )
 }
