@@ -9,7 +9,7 @@ import { searchProducts } from '@/features/products/product.service'
  * Query params:
  *   q      — required, full-text search string (max 100 chars)
  *   page   — integer ≥ 1 (default: 1)
- *   limit  — integer 1–100 (default: 20)
+ *   limit  — integer 1–100 (default: 12)
  *
  * Results are ranked by ts_rank descending (best match first).
  *

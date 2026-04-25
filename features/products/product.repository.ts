@@ -9,6 +9,8 @@ interface FindProductsParams {
   search?: string
   page: number
   limit: number
+  isNew?: boolean
+  isHit?: boolean
 }
 
 interface FindProductsResult {
@@ -31,14 +33,14 @@ interface FindProductsResult {
 export async function findProducts(
   params: FindProductsParams
 ): Promise<FindProductsResult> {
-  const { storeId, search, page, limit } = params
+  const { storeId, search, page, limit, isNew, isHit } = params
   const skip = (page - 1) * limit
 
   if (search) {
-    return findProductsWithFullTextSearch({ storeId, search, skip, limit })
+    return findProductsWithFullTextSearch({ storeId, search, skip, limit, isNew, isHit })
   }
 
-  return findProductsStandard({ storeId, skip, limit })
+  return findProductsStandard({ storeId, skip, limit, isNew, isHit })
 }
 
 // ---------------------------------------------------------------------------
@@ -49,12 +51,16 @@ async function findProductsStandard(params: {
   storeId?: string
   skip: number
   limit: number
+  isNew?: boolean
+  isHit?: boolean
 }): Promise<FindProductsResult> {
-  const { storeId, skip, limit } = params
+  const { storeId, skip, limit, isNew, isHit } = params
 
   const where: Prisma.ProductWhereInput = {
     isActive: true,
     ...(storeId ? { storeId } : {}),
+    ...(isNew !== undefined ? { isNew } : {}),
+    ...(isHit !== undefined ? { isHit } : {}),
   }
 
   const [items, total] = await Promise.all([
@@ -62,7 +68,7 @@ async function findProductsStandard(params: {
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     }),
     prisma.product.count({ where }),
   ])
@@ -79,14 +85,20 @@ async function findProductsWithFullTextSearch(params: {
   search: string
   skip: number
   limit: number
+  isNew?: boolean
+  isHit?: boolean
 }): Promise<FindProductsResult> {
-  const { storeId, search, skip, limit } = params
+  const { storeId, search, skip, limit, isNew, isHit } = params
 
   // Build conditional storeId filter fragment.
   // We use Prisma.sql tagged template so all values are safely parameterized.
   const storeFilter = storeId
     ? Prisma.sql`AND "store_id" = ${storeId}::uuid`
     : Prisma.empty
+  const isNewFilter =
+    isNew !== undefined ? Prisma.sql`AND is_new = ${isNew}` : Prisma.empty
+  const isHitFilter =
+    isHit !== undefined ? Prisma.sql`AND is_hit = ${isHit}` : Prisma.empty
 
   // $queryRaw is typed directly as Product[] — the adapter maps all scalar
   // columns (including Decimal price) to their Prisma types.
@@ -109,7 +121,12 @@ async function findProductsWithFullTextSearch(params: {
     WHERE is_active = true
       AND search_vector @@ plainto_tsquery('english', ${search})
       ${storeFilter}
-    ORDER BY ts_rank(search_vector, plainto_tsquery('english', ${search})) DESC
+      ${isNewFilter}
+      ${isHitFilter}
+    ORDER BY
+      ts_rank(search_vector, plainto_tsquery('english', ${search})) DESC,
+      created_at DESC,
+      id DESC
     LIMIT ${limit} OFFSET ${skip}
   `,
     prisma.$queryRaw<[{ count: bigint }]>`
@@ -118,6 +135,8 @@ async function findProductsWithFullTextSearch(params: {
     WHERE is_active = true
       AND search_vector @@ plainto_tsquery('english', ${search})
       ${storeFilter}
+      ${isNewFilter}
+      ${isHitFilter}
   `,
   ])
 

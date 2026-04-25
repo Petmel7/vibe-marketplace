@@ -35,9 +35,14 @@ export interface ProductDetailDto extends ProductSummaryDto {
   variants: ProductVariantDto[]
 }
 
-export interface ProductListDto {
-  items: ProductSummaryDto[]
-  total: number
+export interface ProductListMetaDto {
   page: number
   limit: number
+  total: number
+  hasNextPage: boolean
+}
+
+export interface ProductListDto {
+  data: ProductSummaryDto[]
+  meta: ProductListMetaDto
 }

@@ -9,7 +9,11 @@ import type {
   ProductSummaryDto,
   ProductVariantDto,
 } from '@/features/products/product.dto'
-import type { ProductListQuery, ProductSearchQuery } from '@/features/products/product.schema'
+import type {
+  ProductListQuery,
+  ProductPaginationQuery,
+  ProductSearchQuery,
+} from '@/features/products/product.schema'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 
 // ---------------------------------------------------------------------------
@@ -64,6 +68,23 @@ function toProductVariantDto(variant: ProductVariant): ProductVariantDto {
   }
 }
 
+function toProductListDto(
+  items: Product[],
+  page: number,
+  limit: number,
+  total: number,
+): ProductListDto {
+  return {
+    data: items.map(toProductSummaryDto),
+    meta: {
+      page,
+      limit,
+      total,
+      hasNextPage: page * limit < total,
+    },
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -83,12 +104,25 @@ export async function listProducts(
 
   const { items, total } = await findProducts({ storeId, search, page, limit })
 
-  return {
-    items: items.map(toProductSummaryDto),
-    total,
-    page,
-    limit,
-  }
+  return toProductListDto(items, page, limit, total)
+}
+
+export async function listNewProducts(
+  query: ProductPaginationQuery,
+): Promise<ProductListDto> {
+  const { page, limit } = query
+  const { items, total } = await findProducts({ page, limit, isNew: true, isHit: false })
+
+  return toProductListDto(items, page, limit, total)
+}
+
+export async function listHitProducts(
+  query: ProductPaginationQuery,
+): Promise<ProductListDto> {
+  const { page, limit } = query
+  const { items, total } = await findProducts({ page, limit, isHit: true })
+
+  return toProductListDto(items, page, limit, total)
 }
 
 /**
@@ -104,12 +138,7 @@ export async function searchProducts(
 
   const { items, total } = await repositorySearchProducts({ q, page, limit })
 
-  return {
-    items: items.map(toProductSummaryDto),
-    total,
-    page,
-    limit,
-  }
+  return toProductListDto(items, page, limit, total)
 }
 
 /**

@@ -6,7 +6,7 @@ import { z } from 'zod'
  * - storeId: optional UUID filter — only return products belonging to this store
  * - search:  optional full-text search string (max 100 chars)
  * - page:    1-based page number (defaults to 1)
- * - limit:   items per page, 1–100 (defaults to 20)
+ * - limit:   items per page, 1–100 (defaults to 12)
  *
  * Note: Zod v4 uses `error` (not `invalid_type_error`) for type-mismatch messages.
  */
@@ -29,17 +29,24 @@ export const productListQuerySchema = z.object({
     .int({ error: 'limit must be an integer' })
     .min(1, { error: 'limit must be at least 1' })
     .max(100, { error: 'limit must not exceed 100' })
-    .default(20),
+    .default(12),
 })
 
 export type ProductListQuery = z.infer<typeof productListQuerySchema>
+
+export const productPaginationQuerySchema = productListQuerySchema.pick({
+  page: true,
+  limit: true,
+})
+
+export type ProductPaginationQuery = z.infer<typeof productPaginationQuerySchema>
 
 /**
  * Query parameters for the dedicated search endpoint.
  *
  * - q:     required search string (1–100 chars), used for FTS
  * - page:  1-based page number (defaults to 1)
- * - limit: items per page, 1–100 (defaults to 20)
+ * - limit: items per page, 1–100 (defaults to 12)
  */
 export const productSearchQuerySchema = z.object({
   q: z
@@ -56,7 +63,7 @@ export const productSearchQuerySchema = z.object({
     .int({ error: 'limit must be an integer' })
     .min(1, { error: 'limit must be at least 1' })
     .max(100, { error: 'limit must not exceed 100' })
-    .default(20),
+    .default(12),
 })
 
 export type ProductSearchQuery = z.infer<typeof productSearchQuerySchema>

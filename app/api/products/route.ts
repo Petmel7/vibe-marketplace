@@ -10,7 +10,7 @@ import { listProducts } from '@/features/products/product.service'
  *   storeId  — UUID, filter by store
  *   search   — string (max 100), full-text search
  *   page     — integer ≥ 1 (default: 1)
- *   limit    — integer 1–100 (default: 20)
+ *   limit    — integer 1–100 (default: 12)
  *
  * Responses:
  *   200  { success: true,  data: ProductListDto }

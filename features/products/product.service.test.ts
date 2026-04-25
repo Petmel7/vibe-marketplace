@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { listProducts, getProduct, searchProducts, ProductNotFoundError } from './product.service'
+import {
+  listProducts,
+  listNewProducts,
+  listHitProducts,
+  getProduct,
+  searchProducts,
+  ProductNotFoundError,
+} from './product.service'
 import * as repository from './product.repository'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 
@@ -57,10 +64,10 @@ describe('searchProducts', () => {
   it('returns mapped product list with pagination metadata', async () => {
     vi.mocked(repository.searchProducts).mockResolvedValue({ items: [makeProduct()], total: 1 })
 
-    const result = await searchProducts({ q: 'jacket', page: 1, limit: 20 })
+    const result = await searchProducts({ q: 'jacket', page: 1, limit: 12 })
 
     expect(result).toEqual({
-      items: [
+      data: [
         {
           id: 'prod-1',
           storeId: 'store-1',
@@ -75,9 +82,12 @@ describe('searchProducts', () => {
           createdAt: '2026-01-01T00:00:00.000Z',
         },
       ],
-      total: 1,
-      page: 1,
-      limit: 20,
+      meta: {
+        total: 1,
+        page: 1,
+        limit: 12,
+        hasNextPage: false,
+      },
     })
   })
 
@@ -92,19 +102,19 @@ describe('searchProducts', () => {
   it('returns empty items and zero total when nothing matches', async () => {
     vi.mocked(repository.searchProducts).mockResolvedValue({ items: [], total: 0 })
 
-    const result = await searchProducts({ q: 'xyznotfound', page: 1, limit: 20 })
+    const result = await searchProducts({ q: 'xyznotfound', page: 1, limit: 12 })
 
-    expect(result.items).toEqual([])
-    expect(result.total).toBe(0)
+    expect(result.data).toEqual([])
+    expect(result.meta.total).toBe(0)
   })
 
   it('serializes Decimal price to string', async () => {
     const product = makeProduct({ price: { toString: () => '49.00' } })
     vi.mocked(repository.searchProducts).mockResolvedValue({ items: [product], total: 1 })
 
-    const result = await searchProducts({ q: 'shirt', page: 1, limit: 20 })
+    const result = await searchProducts({ q: 'shirt', page: 1, limit: 12 })
 
-    expect(result.items[0].price).toBe('49.00')
+    expect(result.data[0].price).toBe('49.00')
   })
 })
 
@@ -120,10 +130,10 @@ describe('listProducts', () => {
   it('returns mapped product list with pagination metadata', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [makeProduct()], total: 1 })
 
-    const result = await listProducts({ page: 1, limit: 20 })
+    const result = await listProducts({ page: 1, limit: 12 })
 
     expect(result).toEqual({
-      items: [
+      data: [
         {
           id: 'prod-1',
           storeId: 'store-1',
@@ -138,9 +148,12 @@ describe('listProducts', () => {
           createdAt: '2026-01-01T00:00:00.000Z',
         },
       ],
-      total: 1,
-      page: 1,
-      limit: 20,
+      meta: {
+        total: 1,
+        page: 1,
+        limit: 12,
+        hasNextPage: false,
+      },
     })
   })
 
@@ -160,20 +173,20 @@ describe('listProducts', () => {
   it('returns empty items list when no products match', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
 
-    const result = await listProducts({ page: 5, limit: 20 })
+    const result = await listProducts({ page: 5, limit: 12 })
 
-    expect(result.items).toEqual([])
-    expect(result.total).toBe(0)
-    expect(result.page).toBe(5)
+    expect(result.data).toEqual([])
+    expect(result.meta.total).toBe(0)
+    expect(result.meta.page).toBe(5)
   })
 
   it('serializes Decimal price to string', async () => {
     const product = makeProduct({ price: { toString: () => '1234.56' } })
     mockedRepository.findProducts.mockResolvedValue({ items: [product], total: 1 })
 
-    const result = await listProducts({ page: 1, limit: 20 })
+    const result = await listProducts({ page: 1, limit: 12 })
 
-    expect(result.items[0].price).toBe('1234.56')
+    expect(result.data[0].price).toBe('1234.56')
   })
 
   it('maps null description correctly', async () => {
@@ -182,9 +195,62 @@ describe('listProducts', () => {
       total: 1,
     })
 
-    const result = await listProducts({ page: 1, limit: 20 })
+    const result = await listProducts({ page: 1, limit: 12 })
 
-    expect(result.items[0].description).toBeNull()
+    expect(result.data[0].description).toBeNull()
+  })
+
+  it('sets hasNextPage to true when more pages exist', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeProduct()],
+      total: 25,
+    })
+
+    const result = await listProducts({ page: 1, limit: 12 })
+
+    expect(result.meta.hasNextPage).toBe(true)
+  })
+
+  it('sets hasNextPage to false on the last page', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeProduct()],
+      total: 24,
+    })
+
+    const result = await listProducts({ page: 2, limit: 12 })
+
+    expect(result.meta.hasNextPage).toBe(false)
+  })
+})
+
+describe('filtered product listings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes isNew=true to the repository for new products', async () => {
+    mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
+
+    await listNewProducts({ page: 1, limit: 12 })
+
+    expect(mockedRepository.findProducts).toHaveBeenCalledWith({
+      page: 1,
+      limit: 12,
+      isNew: true,
+      isHit: false,
+    })
+  })
+
+  it('passes isHit=true to the repository for hit products', async () => {
+    mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
+
+    await listHitProducts({ page: 2, limit: 6 })
+
+    expect(mockedRepository.findProducts).toHaveBeenCalledWith({
+      page: 2,
+      limit: 6,
+      isHit: true,
+    })
   })
 })
 
