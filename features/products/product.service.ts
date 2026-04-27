@@ -111,7 +111,7 @@ export async function listNewProducts(
   query: ProductPaginationQuery,
 ): Promise<ProductListDto> {
   const { page, limit } = query
-  const { items, total } = await findProducts({ page, limit, isNew: true, isHit: false })
+  const { items, total } = await findProducts({ page, limit, isNew: true })
 
   return toProductListDto(items, page, limit, total)
 }

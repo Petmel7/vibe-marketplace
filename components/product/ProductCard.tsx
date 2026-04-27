@@ -14,6 +14,7 @@ interface ProductCardProps {
   isActive?: boolean;
   isHit?: boolean;
   isNew?: boolean;
+  badgeVariant?: 'hit' | 'new';
   product: ProductCardProductLike;
 }
 
@@ -32,10 +33,13 @@ export default function ProductCard({
   isActive,
   isHit,
   isNew,
+  badgeVariant,
   product,
 }: ProductCardProps) {
   const router = useRouter();
   const { price, sku } = getProductCardDisplayState(product);
+  const resolvedBadgeVariant =
+    badgeVariant ?? (isHit ? 'hit' : isNew ? 'new' : null);
 
   return (
     <div
@@ -47,12 +51,12 @@ export default function ProductCard({
       style={{ cursor: 'pointer' }}
     >
       <div className="ui-product-card-media">
-        {(isHit || isNew) && (
+        {resolvedBadgeVariant && (
           <span
-            className={`absolute left-2 top-2 z-10 rounded px-2 text-[13px] font-medium leading-5 text-white ${isHit ? 'bg-brand-accent' : 'bg-brand-accent-new'
+            className={`absolute left-2 top-2 z-10 rounded px-2 text-[13px] font-medium leading-5 text-white ${resolvedBadgeVariant === 'hit' ? 'bg-brand-accent' : 'bg-brand-accent-new'
               }`}
           >
-            {isHit ? "Хіт" : "Новинка"}
+            {resolvedBadgeVariant === 'hit' ? "Хіт" : "Новинка"}
           </span>
         )}
 

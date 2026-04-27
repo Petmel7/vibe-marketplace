@@ -237,7 +237,6 @@ describe('filtered product listings', () => {
       page: 1,
       limit: 12,
       isNew: true,
-      isHit: false,
     })
   })
 

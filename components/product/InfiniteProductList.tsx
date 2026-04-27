@@ -33,7 +33,7 @@ export default function InfiniteProductList({
 
   return (
     <div className="space-y-4">
-      <ProductCardGrid products={products} />
+      <ProductCardGrid products={products} badgeVariant={type} />
 
       {isLoading ? <ProductCardSkeleton count={4} /> : null}
 
