@@ -17,7 +17,7 @@ export default async function HomeProductSection({ type, title }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="ui-heading-section mb-0">{title}</h2>
+        <h2 className="ui-heading-product mb-0">{title}</h2>
         <Link href={type === 'new' ? '/products/new' : '/products/hit'} className="flex items-center gap-1 text-copy-muted hover:text-copy-primary transition-colors text-sm">
           <p>Дивитися все</p>
           <ArrowDownRight />
