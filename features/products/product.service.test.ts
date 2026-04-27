@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   listProducts,
+  listProductsByCategorySlug,
   listNewProducts,
   listHitProducts,
   getProduct,
@@ -12,6 +13,8 @@ import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 
 vi.mock('./product.repository', () => ({
   findProducts: vi.fn(),
+  findCategoryIdBySlug: vi.fn(),
+  findProductsByCategoryId: vi.fn(),
   findProductById: vi.fn(),
   searchProducts: vi.fn(),
 }))
@@ -52,6 +55,16 @@ function makeVariant(overrides: Partial<Record<string, unknown>> = {}): ProductV
   } as unknown as ProductVariant
 }
 
+function makeListProduct(
+  overrides: Partial<Record<string, unknown>> = {},
+  variants: ProductVariant[] = [],
+): repository.ProductListProduct {
+  return {
+    ...makeProduct(overrides),
+    variants,
+  } as repository.ProductListProduct
+}
+
 // ---------------------------------------------------------------------------
 // searchProducts
 // ---------------------------------------------------------------------------
@@ -80,6 +93,7 @@ describe('searchProducts', () => {
           isHit: false,
           isNew: true,
           createdAt: '2026-01-01T00:00:00.000Z',
+          variants: [],
         },
       ],
       meta: {
@@ -146,6 +160,7 @@ describe('listProducts', () => {
           isHit: false,
           isNew: true,
           createdAt: '2026-01-01T00:00:00.000Z',
+          variants: [],
         },
       ],
       meta: {
@@ -250,6 +265,92 @@ describe('filtered product listings', () => {
       limit: 6,
       isHit: true,
     })
+  })
+})
+
+describe('listProductsByCategorySlug', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should return products for a valid category', async () => {
+    mockedRepository.findCategoryIdBySlug.mockResolvedValue('cat-1')
+    mockedRepository.findProductsByCategoryId.mockResolvedValue({
+      items: [makeListProduct({}, [makeVariant()])],
+      total: 1,
+    })
+
+    const result = await listProductsByCategorySlug('clothes', { page: 1, limit: 12 })
+
+    expect(result.data).toEqual([
+      {
+        id: 'prod-1',
+        storeId: 'store-1',
+        name: 'Test Product',
+        description: 'A test product',
+        price: '99.99',
+        imageUrl: 'https://example.com/img.jpg',
+        isActive: true,
+        sku: 'SKU-001',
+        isHit: false,
+        isNew: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        variants: [
+          {
+            id: 'var-1',
+            sku: 'SKU-001-S-RED',
+            size: 'S',
+            color: 'Red',
+            price: null,
+            stock: 10,
+          },
+        ],
+      },
+    ])
+  })
+
+  it('should return empty array for unknown slug', async () => {
+    mockedRepository.findCategoryIdBySlug.mockResolvedValue(null)
+
+    const result = await listProductsByCategorySlug('unknown', { page: 1, limit: 12 })
+
+    expect(result).toEqual({
+      data: [],
+      meta: {
+        page: 1,
+        limit: 12,
+        total: 0,
+        hasNextPage: false,
+      },
+    })
+  })
+
+  it('should paginate correctly', async () => {
+    mockedRepository.findCategoryIdBySlug.mockResolvedValue('cat-2')
+    mockedRepository.findProductsByCategoryId.mockResolvedValue({
+      items: [],
+      total: 40,
+    })
+
+    await listProductsByCategorySlug('souvenirs', { page: 2, limit: 10 })
+
+    expect(mockedRepository.findProductsByCategoryId).toHaveBeenCalledWith({
+      categoryId: 'cat-2',
+      page: 2,
+      limit: 10,
+    })
+  })
+
+  it('should set hasNextPage correctly', async () => {
+    mockedRepository.findCategoryIdBySlug.mockResolvedValue('cat-3')
+    mockedRepository.findProductsByCategoryId.mockResolvedValue({
+      items: [makeListProduct()],
+      total: 13,
+    })
+
+    const result = await listProductsByCategorySlug('accessories', { page: 1, limit: 12 })
+
+    expect(result.meta.hasNextPage).toBe(true)
   })
 })
 

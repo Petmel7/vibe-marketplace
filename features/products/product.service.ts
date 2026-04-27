@@ -1,5 +1,7 @@
 import {
   findProducts,
+  findCategoryIdBySlug,
+  findProductsByCategoryId,
   findProductById,
   searchProducts as repositorySearchProducts,
 } from '@/features/products/product.repository'
@@ -11,10 +13,12 @@ import type {
 } from '@/features/products/product.dto'
 import type {
   ProductListQuery,
+  ProductCategoryPaginationQuery,
   ProductPaginationQuery,
   ProductSearchQuery,
 } from '@/features/products/product.schema'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
+import type { ProductListProduct } from '@/features/products/product.repository'
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -37,7 +41,10 @@ export class ProductNotFoundError extends Error {
  * Map a Prisma Product row to ProductSummaryDto.
  * Decimal price is serialized to string to preserve precision in JSON.
  */
-function toProductSummaryDto(product: Product): ProductSummaryDto {
+function toProductSummaryDto(
+  product: Product,
+  variants: ProductVariant[] = [],
+): ProductSummaryDto {
   return {
     id: product.id,
     storeId: product.storeId,
@@ -50,6 +57,7 @@ function toProductSummaryDto(product: Product): ProductSummaryDto {
     isHit: product.isHit,
     isNew: product.isNew,
     createdAt: product.createdAt.toISOString(),
+    variants: variants.map(toProductVariantDto),
   }
 }
 
@@ -69,13 +77,15 @@ function toProductVariantDto(variant: ProductVariant): ProductVariantDto {
 }
 
 function toProductListDto(
-  items: Product[],
+  items: Array<Product | ProductListProduct>,
   page: number,
   limit: number,
   total: number,
 ): ProductListDto {
   return {
-    data: items.map(toProductSummaryDto),
+    data: items.map((item) =>
+      toProductSummaryDto(item, 'variants' in item ? item.variants : []),
+    ),
     meta: {
       page,
       limit,
@@ -121,6 +131,30 @@ export async function listHitProducts(
 ): Promise<ProductListDto> {
   const { page, limit } = query
   const { items, total } = await findProducts({ page, limit, isHit: true })
+
+  return toProductListDto(items, page, limit, total)
+}
+
+export async function listProductsByCategorySlug(
+  slug: string,
+  query: ProductCategoryPaginationQuery,
+): Promise<ProductListDto> {
+  const { page, limit } = query
+  const categoryId = await findCategoryIdBySlug(slug)
+
+  if (!categoryId) {
+    return {
+      data: [],
+      meta: {
+        page,
+        limit,
+        total: 0,
+        hasNextPage: false,
+      },
+    }
+  }
+
+  const { items, total } = await findProductsByCategoryId({ categoryId, page, limit })
 
   return toProductListDto(items, page, limit, total)
 }

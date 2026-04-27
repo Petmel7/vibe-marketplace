@@ -41,6 +41,22 @@ export const productPaginationQuerySchema = productListQuerySchema.pick({
 
 export type ProductPaginationQuery = z.infer<typeof productPaginationQuerySchema>
 
+export const productCategoryPaginationQuerySchema = z.object({
+  page: z.coerce
+    .number({ error: 'page must be a number' })
+    .int({ error: 'page must be an integer' })
+    .min(1, { error: 'page must be at least 1' })
+    .default(1),
+  limit: z.coerce
+    .number({ error: 'limit must be a number' })
+    .int({ error: 'limit must be an integer' })
+    .min(1, { error: 'limit must be at least 1' })
+    .max(50, { error: 'limit must not exceed 50' })
+    .default(12),
+})
+
+export type ProductCategoryPaginationQuery = z.infer<typeof productCategoryPaginationQuerySchema>
+
 /**
  * Query parameters for the dedicated search endpoint.
  *
@@ -78,3 +94,12 @@ export const productIdParamSchema = z.object({
 })
 
 export type ProductIdParam = z.infer<typeof productIdParamSchema>
+
+export const productCategorySlugParamSchema = z.object({
+  slug: z
+    .string({ error: 'slug is required' })
+    .trim()
+    .min(1, { error: 'slug must not be empty' }),
+})
+
+export type ProductCategorySlugParam = z.infer<typeof productCategorySlugParamSchema>

@@ -29,6 +29,7 @@ export interface ProductSummaryDto {
   isHit: boolean
   isNew: boolean
   createdAt: string
+  variants: ProductVariantDto[]
 }
 
 export interface ProductDetailDto extends ProductSummaryDto {

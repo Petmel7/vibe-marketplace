@@ -3,6 +3,7 @@ import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import { Prisma } from '@/app/generated/prisma/client'
 
 export type ProductWithVariants = Product & { variants: ProductVariant[] }
+export type ProductListProduct = Product & { variants: ProductVariant[] }
 
 interface FindProductsParams {
   storeId?: string
@@ -156,6 +157,12 @@ interface SearchProductsParams {
   limit: number
 }
 
+interface FindProductsByCategoryIdParams {
+  categoryId: string
+  page: number
+  limit: number
+}
+
 /**
  * Full-text search across all active products, ranked by ts_rank.
  * Unlike findProducts this function requires a query term and does not
@@ -167,6 +174,86 @@ export async function searchProducts(
   const { q, page, limit } = params
   const skip = (page - 1) * limit
   return findProductsWithFullTextSearch({ search: q, skip, limit })
+}
+
+async function attachVariants(products: Product[]): Promise<ProductListProduct[]> {
+  if (products.length === 0) {
+    return []
+  }
+
+  const variants = await prisma.productVariant.findMany({
+    where: {
+      productId: {
+        in: products.map((product) => product.id),
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  })
+
+  const variantsByProductId = new Map<string, ProductVariant[]>()
+
+  for (const variant of variants) {
+    const current = variantsByProductId.get(variant.productId) ?? []
+    current.push(variant)
+    variantsByProductId.set(variant.productId, current)
+  }
+
+  return products.map((product) => ({
+    ...product,
+    variants: variantsByProductId.get(product.id) ?? [],
+  }))
+}
+
+export async function findCategoryIdBySlug(slug: string): Promise<string | null> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id
+    FROM categories
+    WHERE slug = ${slug}
+    LIMIT 1
+  `
+
+  return rows[0]?.id ?? null
+}
+
+export async function findProductsByCategoryId(
+  params: FindProductsByCategoryIdParams,
+): Promise<{ items: ProductListProduct[]; total: number }> {
+  const { categoryId, page, limit } = params
+  const skip = (page - 1) * limit
+
+  const [items, countResult] = await Promise.all([
+    prisma.$queryRaw<Product[]>`
+      SELECT
+        id,
+        store_id   AS "storeId",
+        name,
+        description,
+        price,
+        image_url  AS "imageUrl",
+        is_active  AS "isActive",
+        sku,
+        is_hit     AS "isHit",
+        is_new     AS "isNew",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+      FROM products
+      WHERE is_active = true
+        AND category_id = ${categoryId}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${limit} OFFSET ${skip}
+    `,
+    prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count
+      FROM products
+      WHERE is_active = true
+        AND category_id = ${categoryId}
+    `,
+  ])
+
+  return {
+    items: await attachVariants(items),
+    total: Number(countResult[0]?.count ?? 0),
+  }
 }
 
 // ---------------------------------------------------------------------------
