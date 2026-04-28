@@ -1,16 +1,14 @@
-import Image from "next/image";
+
 import { FiFacebook, FiYoutube } from "react-icons/fi";
 import { FaInstagram } from "react-icons/fa";
+import Logo from "../ui/Logo";
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-canvas">
-      <div className="px-6 py-8">
+    <footer className="w-full bg-panelMuted">
+      <div className="ui-container py-8">
         <div className="flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-between md:gap-0">
-          <div className="ui-logo-lockup">
-            <Image src="/logo.svg" alt="Вайб" width={30} height={50} />
-            <span className="ui-logo-text">Вайб</span>
-          </div>
+          <Logo />
 
           <div className="flex flex-col items-center gap-1 md:items-start">
             <p className="text-base leading-6 text-[#F4F4F5]">+380 969998283</p>
@@ -40,8 +38,8 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="w-full bg-panelMuted px-6 py-3">
-        <div className="flex flex-col items-center gap-1 md:flex-row md:justify-between md:gap-0">
+      <div className="w-full bg-canvas py-3">
+        <div className="ui-container flex flex-col items-center gap-1 md:flex-row md:justify-between md:gap-0">
           <p className="text-xs leading-4 text-copy-muted">
             © 2025 Вайб. Всі права захищені.
           </p>

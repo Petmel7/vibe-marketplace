@@ -77,7 +77,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         return
       }
 
-      setSearchState({ status: 'success', items: json.data.items })
+      setSearchState({ status: 'success', items: json.data.data })
     } catch {
       setSearchState({ status: 'error', message: 'Помилка мережі' })
     }

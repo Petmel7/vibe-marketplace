@@ -5,7 +5,7 @@ export default async function CategoriesPage() {
   const categories = await fetchCategories()
 
   return (
-    <main className="ui-page-shell pt-4 pb-24 md:pb-12">
+    <main className="pt-4 pb-24 md:pb-12">
       <section className="space-y-6">
         {categories.length > 0 ? (
           <CategoryCards categories={categories} layout="grid" />

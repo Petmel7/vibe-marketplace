@@ -110,7 +110,7 @@ body {
   }
 
   .ui-icon-button-card {
-    @apply inline-flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-copy-muted transition-opacity hover:opacity-70;
+    @apply inline-flex p-2 items-center justify-center rounded-full bg-canvas text-copy-muted transition-opacity hover:opacity-70;
   }
 
   .ui-link-muted {
@@ -287,7 +287,7 @@ body {
   }
 
   .ui-logo-text {
-    @apply text-xl font-bold leading-tight text-white;
+    @apply text-[24px] font-bold leading-tight text-white;
   }
 
   .ui-summary-card {

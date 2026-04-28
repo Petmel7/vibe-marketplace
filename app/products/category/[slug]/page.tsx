@@ -21,7 +21,7 @@ export default async function CategoryProductsPage({ params }: Props) {
   }
 
   return (
-    <main className="ui-page-shell pt-4 pb-24 md:pb-12">
+    <main className="pt-4 pb-24 md:pb-12">
       <section className="space-y-6">
         <h1 className="ui-heading-page">{category.name}</h1>
 

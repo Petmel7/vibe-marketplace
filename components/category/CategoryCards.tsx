@@ -22,8 +22,8 @@ function CategoryCard({ category }: { category: CategoryListItem }) {
         className="object-cover"
         sizes="(max-width: 767px) 357px, 25vw"
       />
-      <span className="absolute bottom-0 right-0 bg-[#565C66] px-6 py-2 text-[16px] font-normal text-copy-primary rounded-tl-[18px] rounded-br-[18px]">
-        {category.name}
+      <span className="absolute top-0 left-0 flex items-center justify-center bg-[#565C66] w-[130px] h-[40px] text-[16px] font-normal text-copy-primary rounded-tl-[18px] rounded-br-[18px]">
+        <span className="truncate px-2">{category.name}</span>
       </span>
     </Link>
   )
