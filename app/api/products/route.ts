@@ -7,10 +7,14 @@ import { listProducts } from '@/features/products/product.service'
  * GET /api/products
  *
  * Query params (all optional):
- *   storeId  — UUID, filter by store
- *   search   — string (max 100), full-text search
- *   page     — integer ≥ 1 (default: 1)
- *   limit    — integer 1–100 (default: 12)
+ *   storeId   — UUID, filter by store
+ *   category  — category slug; includes descendant categories
+ *   size      — product variant size
+ *   priceMin  — minimum product price
+ *   priceMax  — maximum product price
+ *   sort      — price_asc | price_desc | newest
+ *   page      — integer >= 1 (default: 1)
+ *   limit     — integer 1–100 (default: 12)
  *
  * Responses:
  *   200  { success: true,  data: ProductListDto }
@@ -23,13 +27,16 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const rawQuery = {
       storeId: searchParams.get('storeId') ?? undefined,
-      search: searchParams.get('search') ?? undefined,
+      category: searchParams.get('category') ?? undefined,
+      size: searchParams.get('size') ?? undefined,
+      priceMin: searchParams.get('priceMin') ?? undefined,
+      priceMax: searchParams.get('priceMax') ?? undefined,
+      sort: searchParams.get('sort') ?? undefined,
       page: searchParams.get('page') ?? undefined,
       limit: searchParams.get('limit') ?? undefined,
     }
 
     const query = productListQuerySchema.parse(rawQuery)
-
     const data = await listProducts(query)
 
     return Response.json({ success: true, data }, { status: 200 })

@@ -1,75 +1,51 @@
 import { prisma } from '@/lib/prisma'
-import type { Product, ProductVariant } from '@/app/generated/prisma/client'
+import type {
+  Category,
+  Product,
+  ProductVariant,
+} from '@/app/generated/prisma/client'
 import { Prisma } from '@/app/generated/prisma/client'
 
 export type ProductWithVariants = Product & { variants: ProductVariant[] }
 export type ProductListProduct = Product & { variants: ProductVariant[] }
+export type CategoryNode = Pick<Category, 'id' | 'parentId'>
 
 interface FindProductsParams {
-  storeId?: string
-  search?: string
+  where: Prisma.ProductWhereInput
+  orderBy: Prisma.ProductOrderByWithRelationInput[]
   page: number
   limit: number
-  isNew?: boolean
-  isHit?: boolean
 }
 
 interface FindProductsResult {
-  items: Product[]
+  items: ProductListProduct[]
   total: number
 }
 
 /**
- * Return a paginated list of active products.
+ * Return a paginated list of active products using service-composed filters.
  *
- * When `search` is provided the query uses PostgreSQL full-text search via
- * `searchVector @@ plainto_tsquery('english', ?)`. This requires `$queryRaw`
- * because Prisma has no native operator for `tsvector @@`.
- *
- * When there is no search term a standard `findMany` is used so Prisma can
- * apply its own query optimisations.
- *
- * N+1 note: count and items are fetched in parallel with Promise.all.
+ * The service owns business decisions like category-tree resolution,
+ * filter composition, and sort mapping. The repository only executes Prisma
+ * queries using those prepared Prisma inputs.
  */
 export async function findProducts(
   params: FindProductsParams
 ): Promise<FindProductsResult> {
-  const { storeId, search, page, limit, isNew, isHit } = params
+  const { where, orderBy, page, limit } = params
   const skip = (page - 1) * limit
-
-  if (search) {
-    return findProductsWithFullTextSearch({ storeId, search, skip, limit, isNew, isHit })
-  }
-
-  return findProductsStandard({ storeId, skip, limit, isNew, isHit })
-}
-
-// ---------------------------------------------------------------------------
-// Standard (no full-text search)
-// ---------------------------------------------------------------------------
-
-async function findProductsStandard(params: {
-  storeId?: string
-  skip: number
-  limit: number
-  isNew?: boolean
-  isHit?: boolean
-}): Promise<FindProductsResult> {
-  const { storeId, skip, limit, isNew, isHit } = params
-
-  const where: Prisma.ProductWhereInput = {
-    isActive: true,
-    ...(storeId ? { storeId } : {}),
-    ...(isNew !== undefined ? { isNew } : {}),
-    ...(isHit !== undefined ? { isHit } : {}),
-  }
 
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
       skip,
       take: limit,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy,
+      include: {
+        variants: {
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+      },
     }),
     prisma.product.count({ where }),
   ])
@@ -82,24 +58,11 @@ async function findProductsStandard(params: {
 // ---------------------------------------------------------------------------
 
 async function findProductsWithFullTextSearch(params: {
-  storeId?: string
   search: string
   skip: number
   limit: number
-  isNew?: boolean
-  isHit?: boolean
 }): Promise<FindProductsResult> {
-  const { storeId, search, skip, limit, isNew, isHit } = params
-
-  // Build conditional storeId filter fragment.
-  // We use Prisma.sql tagged template so all values are safely parameterized.
-  const storeFilter = storeId
-    ? Prisma.sql`AND "store_id" = ${storeId}::uuid`
-    : Prisma.empty
-  const isNewFilter =
-    isNew !== undefined ? Prisma.sql`AND is_new = ${isNew}` : Prisma.empty
-  const isHitFilter =
-    isHit !== undefined ? Prisma.sql`AND is_hit = ${isHit}` : Prisma.empty
+  const { search, skip, limit } = params
 
   // $queryRaw is typed directly as Product[] — the adapter maps all scalar
   // columns (including Decimal price) to their Prisma types.
@@ -108,6 +71,7 @@ async function findProductsWithFullTextSearch(params: {
     SELECT
       id,
       store_id   AS "storeId",
+      category_id AS "categoryId",
       name,
       description,
       price,
@@ -121,9 +85,6 @@ async function findProductsWithFullTextSearch(params: {
     FROM products
     WHERE is_active = true
       AND search_vector @@ plainto_tsquery('english', ${search})
-      ${storeFilter}
-      ${isNewFilter}
-      ${isHitFilter}
     ORDER BY
       ts_rank(search_vector, plainto_tsquery('english', ${search})) DESC,
       created_at DESC,
@@ -135,14 +96,11 @@ async function findProductsWithFullTextSearch(params: {
     FROM products
     WHERE is_active = true
       AND search_vector @@ plainto_tsquery('english', ${search})
-      ${storeFilter}
-      ${isNewFilter}
-      ${isHitFilter}
   `,
   ])
 
   return {
-    items,
+    items: await attachVariants(items),
     total: Number(countResult[0]?.count ?? 0),
   }
 }
@@ -157,16 +115,10 @@ interface SearchProductsParams {
   limit: number
 }
 
-interface FindProductsByCategoryIdParams {
-  categoryId: string
-  page: number
-  limit: number
-}
-
 /**
  * Full-text search across all active products, ranked by ts_rank.
- * Unlike findProducts this function requires a query term and does not
- * support store-scoping — it is intended for the /api/products/search route.
+ * Unlike catalog listing, this function is dedicated to the
+ * /api/products/search route.
  */
 export async function searchProducts(
   params: SearchProductsParams
@@ -204,56 +156,38 @@ async function attachVariants(products: Product[]): Promise<ProductListProduct[]
   }))
 }
 
-export async function findCategoryIdBySlug(slug: string): Promise<string | null> {
-  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id
-    FROM categories
-    WHERE slug = ${slug}
-    LIMIT 1
-  `
-
-  return rows[0]?.id ?? null
+export async function findCategoryBySlug(slug: string): Promise<CategoryNode | null> {
+  return prisma.category.findFirst({
+    where: {
+      slug,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      parentId: true,
+    },
+  })
 }
 
-export async function findProductsByCategoryId(
-  params: FindProductsByCategoryIdParams,
-): Promise<{ items: ProductListProduct[]; total: number }> {
-  const { categoryId, page, limit } = params
-  const skip = (page - 1) * limit
-
-  const [items, countResult] = await Promise.all([
-    prisma.$queryRaw<Product[]>`
-      SELECT
-        id,
-        store_id   AS "storeId",
-        name,
-        description,
-        price,
-        image_url  AS "imageUrl",
-        is_active  AS "isActive",
-        sku,
-        is_hit     AS "isHit",
-        is_new     AS "isNew",
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM products
-      WHERE is_active = true
-        AND category_id = ${categoryId}
-      ORDER BY created_at DESC, id DESC
-      LIMIT ${limit} OFFSET ${skip}
-    `,
-    prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) AS count
-      FROM products
-      WHERE is_active = true
-        AND category_id = ${categoryId}
-    `,
-  ])
-
-  return {
-    items: await attachVariants(items),
-    total: Number(countResult[0]?.count ?? 0),
+export async function findCategoriesByParentIds(
+  parentIds: string[],
+): Promise<CategoryNode[]> {
+  if (parentIds.length === 0) {
+    return []
   }
+
+  return prisma.category.findMany({
+    where: {
+      parentId: {
+        in: parentIds,
+      },
+      isActive: true,
+    },
+    select: {
+      id: true,
+      parentId: true,
+    },
+  })
 }
 
 // ---------------------------------------------------------------------------

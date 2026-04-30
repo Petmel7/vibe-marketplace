@@ -1,5 +1,19 @@
 import { z } from 'zod'
 
+const optionalQueryNumber = (fieldName: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === '' || value == null) {
+        return undefined
+      }
+
+      return value
+    },
+    z.coerce.number({ error: `${fieldName} must be a number` }).nonnegative({
+      error: `${fieldName} must be greater than or equal to 0`,
+    }).optional(),
+  )
+
 /**
  * Query parameters for listing products.
  *
@@ -15,10 +29,19 @@ export const productListQuerySchema = z.object({
     .string()
     .uuid({ error: 'storeId must be a valid UUID' })
     .optional(),
-  search: z
+  category: z
     .string()
-    .max(100, { error: 'search must not exceed 100 characters' })
+    .trim()
+    .min(1, { error: 'category must not be empty' })
     .optional(),
+  size: z
+    .string()
+    .trim()
+    .min(1, { error: 'size must not be empty' })
+    .optional(),
+  priceMin: optionalQueryNumber('priceMin'),
+  priceMax: optionalQueryNumber('priceMax'),
+  sort: z.enum(['price_asc', 'price_desc', 'newest']).default('newest'),
   page: z.coerce
     .number({ error: 'page must be a number' })
     .int({ error: 'page must be an integer' })
@@ -30,6 +53,18 @@ export const productListQuerySchema = z.object({
     .min(1, { error: 'limit must be at least 1' })
     .max(100, { error: 'limit must not exceed 100' })
     .default(12),
+}).superRefine((query, ctx) => {
+  if (
+    query.priceMin !== undefined &&
+    query.priceMax !== undefined &&
+    query.priceMin > query.priceMax
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'priceMin must be less than or equal to priceMax',
+      path: ['priceMin'],
+    })
+  }
 })
 
 export type ProductListQuery = z.infer<typeof productListQuerySchema>

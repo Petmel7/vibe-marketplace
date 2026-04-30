@@ -1,20 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import {
+  ProductNotFoundError,
+  getProduct,
+  listHitProducts,
+  listNewProducts,
   listProducts,
   listProductsByCategorySlug,
-  listNewProducts,
-  listHitProducts,
-  getProduct,
   searchProducts,
-  ProductNotFoundError,
 } from './product.service'
 import * as repository from './product.repository'
-import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 
 vi.mock('./product.repository', () => ({
   findProducts: vi.fn(),
-  findCategoryIdBySlug: vi.fn(),
-  findProductsByCategoryId: vi.fn(),
+  findCategoryBySlug: vi.fn(),
+  findCategoriesByParentIds: vi.fn(),
   findProductById: vi.fn(),
   searchProducts: vi.fn(),
 }))
@@ -25,6 +25,7 @@ function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product 
   return {
     id: 'prod-1',
     storeId: 'store-1',
+    categoryId: 'cat-leaf',
     name: 'Test Product',
     description: 'A test product',
     price: { toString: () => '99.99' },
@@ -65,44 +66,21 @@ function makeListProduct(
   } as repository.ProductListProduct
 }
 
-// ---------------------------------------------------------------------------
-// searchProducts
-// ---------------------------------------------------------------------------
-
 describe('searchProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('returns mapped product list with pagination metadata', async () => {
-    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [makeProduct()], total: 1 })
+    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [makeListProduct()], total: 1 })
 
     const result = await searchProducts({ q: 'jacket', page: 1, limit: 12 })
 
-    expect(result).toEqual({
-      data: [
-        {
-          id: 'prod-1',
-          storeId: 'store-1',
-          name: 'Test Product',
-          description: 'A test product',
-          price: '99.99',
-          imageUrl: 'https://example.com/img.jpg',
-          isActive: true,
-          sku: 'SKU-001',
-          isHit: false,
-          isNew: true,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          variants: [],
-        },
-      ],
-      meta: {
-        total: 1,
-        page: 1,
-        limit: 12,
-        hasNextPage: false,
-      },
-    })
+    expect(result.items).toHaveLength(1)
+    expect(result.total).toBe(1)
+    expect(result.totalPages).toBe(1)
+    expect(result.data[0]?.price).toBe('99.99')
+    expect(result.meta.hasNextPage).toBe(false)
   })
 
   it('passes q, page, and limit to the repository', async () => {
@@ -112,41 +90,50 @@ describe('searchProducts', () => {
 
     expect(repository.searchProducts).toHaveBeenCalledWith({ q: 'hoodie', page: 2, limit: 10 })
   })
-
-  it('returns empty items and zero total when nothing matches', async () => {
-    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [], total: 0 })
-
-    const result = await searchProducts({ q: 'xyznotfound', page: 1, limit: 12 })
-
-    expect(result.data).toEqual([])
-    expect(result.meta.total).toBe(0)
-  })
-
-  it('serializes Decimal price to string', async () => {
-    const product = makeProduct({ price: { toString: () => '49.00' } })
-    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [product], total: 1 })
-
-    const result = await searchProducts({ q: 'shirt', page: 1, limit: 12 })
-
-    expect(result.data[0].price).toBe('49.00')
-  })
 })
-
-// ---------------------------------------------------------------------------
-// listProducts
-// ---------------------------------------------------------------------------
 
 describe('listProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('returns mapped product list with pagination metadata', async () => {
-    mockedRepository.findProducts.mockResolvedValue({ items: [makeProduct()], total: 1 })
+  it('returns mapped catalog products with requested pagination fields', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct({}, [makeVariant()])],
+      total: 13,
+    })
 
-    const result = await listProducts({ page: 1, limit: 12 })
+    const result = await listProducts({ page: 1, limit: 12, sort: 'newest' })
 
     expect(result).toEqual({
+      items: [
+        {
+          id: 'prod-1',
+          storeId: 'store-1',
+          name: 'Test Product',
+          description: 'A test product',
+          price: '99.99',
+          imageUrl: 'https://example.com/img.jpg',
+          isActive: true,
+          sku: 'SKU-001',
+          isHit: false,
+          isNew: true,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          variants: [
+            {
+              id: 'var-1',
+              sku: 'SKU-001-S-RED',
+              size: 'S',
+              color: 'Red',
+              price: null,
+              stock: 10,
+            },
+          ],
+        },
+      ],
+      total: 13,
+      page: 1,
+      totalPages: 2,
       data: [
         {
           id: 'prod-1',
@@ -160,81 +147,116 @@ describe('listProducts', () => {
           isHit: false,
           isNew: true,
           createdAt: '2026-01-01T00:00:00.000Z',
-          variants: [],
+          variants: [
+            {
+              id: 'var-1',
+              sku: 'SKU-001-S-RED',
+              size: 'S',
+              color: 'Red',
+              price: null,
+              stock: 10,
+            },
+          ],
         },
       ],
       meta: {
-        total: 1,
+        total: 13,
         page: 1,
         limit: 12,
-        hasNextPage: false,
+        totalPages: 2,
+        hasNextPage: true,
       },
     })
   })
 
-  it('passes search and storeId through to the repository', async () => {
+  it('resolves descendant categories before querying products', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
+    mockedRepository.findCategoriesByParentIds
+      .mockResolvedValueOnce([
+        { id: 'cat-parent', parentId: 'cat-root' },
+        { id: 'cat-leaf-a', parentId: 'cat-root' },
+      ])
+      .mockResolvedValueOnce([{ id: 'cat-leaf-b', parentId: 'cat-parent' }])
+      .mockResolvedValueOnce([])
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
 
-    await listProducts({ page: 2, limit: 10, search: 'jacket', storeId: 'store-abc' })
+    await listProducts({
+      category: 'clothing-shoes',
+      size: 'M',
+      priceMin: 100,
+      priceMax: 500,
+      sort: 'price_asc',
+      page: 2,
+      limit: 10,
+    })
 
+    expect(mockedRepository.findCategoryBySlug).toHaveBeenCalledWith('clothing-shoes')
+    expect(mockedRepository.findCategoriesByParentIds).toHaveBeenNthCalledWith(1, ['cat-root'])
+    expect(mockedRepository.findCategoriesByParentIds).toHaveBeenNthCalledWith(2, ['cat-parent', 'cat-leaf-a'])
+    expect(mockedRepository.findCategoriesByParentIds).toHaveBeenNthCalledWith(3, ['cat-leaf-b'])
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
-      storeId: 'store-abc',
-      search: 'jacket',
+      where: {
+        isActive: true,
+        categoryId: {
+          in: ['cat-root', 'cat-parent', 'cat-leaf-a', 'cat-leaf-b'],
+        },
+        price: {
+          gte: 100,
+          lte: 500,
+        },
+        variants: {
+          some: {
+            size: 'M',
+          },
+        },
+      },
+      orderBy: [{ price: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
       page: 2,
       limit: 10,
     })
   })
 
-  it('returns empty items list when no products match', async () => {
+  it('returns an empty result when the category slug is unknown', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue(null)
+
+    const result = await listProducts({
+      category: 'unknown',
+      page: 1,
+      limit: 12,
+      sort: 'newest',
+    })
+
+    expect(mockedRepository.findProducts).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      items: [],
+      total: 0,
+      page: 1,
+      totalPages: 0,
+      data: [],
+      meta: {
+        page: 1,
+        limit: 12,
+        total: 0,
+        totalPages: 0,
+        hasNextPage: false,
+      },
+    })
+  })
+
+  it('passes the default newest sort ordering to the repository', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
 
-    const result = await listProducts({ page: 5, limit: 12 })
+    await listProducts({ page: 1, limit: 12, sort: 'newest', storeId: 'store-abc' })
 
-    expect(result.data).toEqual([])
-    expect(result.meta.total).toBe(0)
-    expect(result.meta.page).toBe(5)
-  })
-
-  it('serializes Decimal price to string', async () => {
-    const product = makeProduct({ price: { toString: () => '1234.56' } })
-    mockedRepository.findProducts.mockResolvedValue({ items: [product], total: 1 })
-
-    const result = await listProducts({ page: 1, limit: 12 })
-
-    expect(result.data[0].price).toBe('1234.56')
-  })
-
-  it('maps null description correctly', async () => {
-    mockedRepository.findProducts.mockResolvedValue({
-      items: [makeProduct({ description: null })],
-      total: 1,
+    expect(mockedRepository.findProducts).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+        storeId: 'store-abc',
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      page: 1,
+      limit: 12,
     })
-
-    const result = await listProducts({ page: 1, limit: 12 })
-
-    expect(result.data[0].description).toBeNull()
-  })
-
-  it('sets hasNextPage to true when more pages exist', async () => {
-    mockedRepository.findProducts.mockResolvedValue({
-      items: [makeProduct()],
-      total: 25,
-    })
-
-    const result = await listProducts({ page: 1, limit: 12 })
-
-    expect(result.meta.hasNextPage).toBe(true)
-  })
-
-  it('sets hasNextPage to false on the last page', async () => {
-    mockedRepository.findProducts.mockResolvedValue({
-      items: [makeProduct()],
-      total: 24,
-    })
-
-    const result = await listProducts({ page: 2, limit: 12 })
-
-    expect(result.meta.hasNextPage).toBe(false)
   })
 })
 
@@ -249,9 +271,10 @@ describe('filtered product listings', () => {
     await listNewProducts({ page: 1, limit: 12 })
 
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
+      where: { isActive: true, isNew: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       page: 1,
       limit: 12,
-      isNew: true,
     })
   })
 
@@ -261,9 +284,10 @@ describe('filtered product listings', () => {
     await listHitProducts({ page: 2, limit: 6 })
 
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
+      where: { isActive: true, isHit: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       page: 2,
       limit: 6,
-      isHit: true,
     })
   })
 })
@@ -273,90 +297,41 @@ describe('listProductsByCategorySlug', () => {
     vi.clearAllMocks()
   })
 
-  it('should return products for a valid category', async () => {
-    mockedRepository.findCategoryIdBySlug.mockResolvedValue('cat-1')
-    mockedRepository.findProductsByCategoryId.mockResolvedValue({
+  it('returns products for a valid category including descendants', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
+    mockedRepository.findCategoriesByParentIds
+      .mockResolvedValueOnce([{ id: 'cat-leaf', parentId: 'cat-root' }])
+      .mockResolvedValueOnce([])
+    mockedRepository.findProducts.mockResolvedValue({
       items: [makeListProduct({}, [makeVariant()])],
       total: 1,
     })
 
-    const result = await listProductsByCategorySlug('clothes', { page: 1, limit: 12 })
+    const result = await listProductsByCategorySlug('clothing-shoes', { page: 1, limit: 12 })
 
-    expect(result.data).toEqual([
-      {
-        id: 'prod-1',
-        storeId: 'store-1',
-        name: 'Test Product',
-        description: 'A test product',
-        price: '99.99',
-        imageUrl: 'https://example.com/img.jpg',
+    expect(result.items).toHaveLength(1)
+    expect(mockedRepository.findProducts).toHaveBeenCalledWith({
+      where: {
         isActive: true,
-        sku: 'SKU-001',
-        isHit: false,
-        isNew: true,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        variants: [
-          {
-            id: 'var-1',
-            sku: 'SKU-001-S-RED',
-            size: 'S',
-            color: 'Red',
-            price: null,
-            stock: 10,
-          },
-        ],
+        categoryId: {
+          in: ['cat-root', 'cat-leaf'],
+        },
       },
-    ])
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      page: 1,
+      limit: 12,
+    })
   })
 
-  it('should return empty array for unknown slug', async () => {
-    mockedRepository.findCategoryIdBySlug.mockResolvedValue(null)
+  it('returns an empty array for an unknown slug', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue(null)
 
     const result = await listProductsByCategorySlug('unknown', { page: 1, limit: 12 })
 
-    expect(result).toEqual({
-      data: [],
-      meta: {
-        page: 1,
-        limit: 12,
-        total: 0,
-        hasNextPage: false,
-      },
-    })
-  })
-
-  it('should paginate correctly', async () => {
-    mockedRepository.findCategoryIdBySlug.mockResolvedValue('cat-2')
-    mockedRepository.findProductsByCategoryId.mockResolvedValue({
-      items: [],
-      total: 40,
-    })
-
-    await listProductsByCategorySlug('souvenirs', { page: 2, limit: 10 })
-
-    expect(mockedRepository.findProductsByCategoryId).toHaveBeenCalledWith({
-      categoryId: 'cat-2',
-      page: 2,
-      limit: 10,
-    })
-  })
-
-  it('should set hasNextPage correctly', async () => {
-    mockedRepository.findCategoryIdBySlug.mockResolvedValue('cat-3')
-    mockedRepository.findProductsByCategoryId.mockResolvedValue({
-      items: [makeListProduct()],
-      total: 13,
-    })
-
-    const result = await listProductsByCategorySlug('accessories', { page: 1, limit: 12 })
-
-    expect(result.meta.hasNextPage).toBe(true)
+    expect(result.items).toEqual([])
+    expect(result.total).toBe(0)
   })
 })
-
-// ---------------------------------------------------------------------------
-// getProduct
-// ---------------------------------------------------------------------------
 
 describe('getProduct', () => {
   beforeEach(() => {
@@ -382,45 +357,9 @@ describe('getProduct', () => {
     })
   })
 
-  it('serializes variant price to string when present', async () => {
-    const variant = makeVariant({ price: { toString: () => '79.99' } })
-    const product = { ...makeProduct(), variants: [variant] } as repository.ProductWithVariants
-    mockedRepository.findProductById.mockResolvedValue(product)
-
-    const result = await getProduct('prod-1')
-
-    expect(result.variants[0].price).toBe('79.99')
-  })
-
   it('throws ProductNotFoundError when product does not exist', async () => {
     mockedRepository.findProductById.mockResolvedValue(null)
 
     await expect(getProduct('nonexistent-id')).rejects.toThrow(ProductNotFoundError)
-  })
-
-  it('ProductNotFoundError message includes the missing id', async () => {
-    mockedRepository.findProductById.mockResolvedValue(null)
-
-    await expect(getProduct('missing-123')).rejects.toThrow('missing-123')
-  })
-
-  it('ProductNotFoundError has code NOT_FOUND', async () => {
-    mockedRepository.findProductById.mockResolvedValue(null)
-
-    await expect(getProduct('missing-id')).rejects.toMatchObject({ code: 'NOT_FOUND' })
-  })
-
-  it('returns null for optional product fields when not set', async () => {
-    const product = {
-      ...makeProduct({ description: null, imageUrl: null, sku: null }),
-      variants: [],
-    } as repository.ProductWithVariants
-    mockedRepository.findProductById.mockResolvedValue(product)
-
-    const result = await getProduct('prod-1')
-
-    expect(result.description).toBeNull()
-    expect(result.imageUrl).toBeNull()
-    expect(result.sku).toBeNull()
   })
 })

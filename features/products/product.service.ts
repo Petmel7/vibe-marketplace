@@ -1,24 +1,28 @@
-import {
-  findProducts,
-  findCategoryIdBySlug,
-  findProductsByCategoryId,
-  findProductById,
-  searchProducts as repositorySearchProducts,
-} from '@/features/products/product.repository'
+import { Prisma } from '@/app/generated/prisma/client'
+import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import type {
   ProductDetailDto,
   ProductListDto,
   ProductSummaryDto,
   ProductVariantDto,
 } from '@/features/products/product.dto'
+import {
+  findCategoriesByParentIds,
+  findCategoryBySlug,
+  findProductById,
+  findProducts,
+  searchProducts as repositorySearchProducts,
+} from '@/features/products/product.repository'
 import type {
-  ProductListQuery,
+  CategoryNode,
+  ProductListProduct,
+} from '@/features/products/product.repository'
+import type {
   ProductCategoryPaginationQuery,
+  ProductListQuery,
   ProductPaginationQuery,
   ProductSearchQuery,
 } from '@/features/products/product.schema'
-import type { Product, ProductVariant } from '@/app/generated/prisma/client'
-import type { ProductListProduct } from '@/features/products/product.repository'
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -82,37 +86,156 @@ function toProductListDto(
   limit: number,
   total: number,
 ): ProductListDto {
+  const mappedItems = items.map((item) =>
+    toProductSummaryDto(item, 'variants' in item ? item.variants : []),
+  )
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit)
+
   return {
-    data: items.map((item) =>
-      toProductSummaryDto(item, 'variants' in item ? item.variants : []),
-    ),
+    items: mappedItems,
+    total,
+    page,
+    totalPages,
+    data: mappedItems,
     meta: {
       page,
       limit,
       total,
+      totalPages,
       hasNextPage: page * limit < total,
     },
   }
+}
+
+function emptyProductListDto(page: number, limit: number): ProductListDto {
+  return {
+    items: [],
+    total: 0,
+    page,
+    totalPages: 0,
+    data: [],
+    meta: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 0,
+      hasNextPage: false,
+    },
+  }
+}
+
+function buildCatalogWhereInput(params: {
+  categoryIds?: string[]
+  size?: string
+  priceMin?: number
+  priceMax?: number
+  storeId?: string
+  isNew?: boolean
+  isHit?: boolean
+}): Prisma.ProductWhereInput {
+  const { categoryIds, size, priceMin, priceMax, storeId, isNew, isHit } = params
+
+  const priceFilter: Prisma.DecimalFilter<'Product'> | undefined =
+    priceMin !== undefined || priceMax !== undefined
+      ? {
+          ...(priceMin !== undefined ? { gte: priceMin } : {}),
+          ...(priceMax !== undefined ? { lte: priceMax } : {}),
+        }
+      : undefined
+
+  return {
+    isActive: true,
+    ...(storeId ? { storeId } : {}),
+    ...(isNew !== undefined ? { isNew } : {}),
+    ...(isHit !== undefined ? { isHit } : {}),
+    ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
+    ...(priceFilter ? { price: priceFilter } : {}),
+    ...(size
+      ? {
+          variants: {
+            some: {
+              size,
+            },
+          },
+        }
+      : {}),
+  }
+}
+
+function mapSortToOrderBy(
+  sort: 'price_asc' | 'price_desc' | 'newest',
+): Prisma.ProductOrderByWithRelationInput[] {
+  if (sort === 'price_asc') {
+    return [{ price: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }]
+  }
+
+  if (sort === 'price_desc') {
+    return [{ price: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }]
+  }
+
+  return [{ createdAt: 'desc' }, { id: 'desc' }]
+}
+
+async function resolveCategoryTreeIds(rootCategoryId: string): Promise<string[]> {
+  const resolvedIds = new Set<string>([rootCategoryId])
+  let frontier = [rootCategoryId]
+
+  while (frontier.length > 0) {
+    const children: CategoryNode[] = await findCategoriesByParentIds(frontier)
+    frontier = []
+
+    for (const child of children) {
+      if (resolvedIds.has(child.id)) {
+        continue
+      }
+
+      resolvedIds.add(child.id)
+      frontier.push(child.id)
+    }
+  }
+
+  return [...resolvedIds]
 }
 
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
 
-/**
- * List active products with optional filtering and pagination.
- *
- * Edge cases handled:
- * - Invalid storeId / search are validated upstream by Zod before this runs.
- * - When page exceeds the available data an empty items array is returned
- *   (not an error), total still reflects the real count.
- */
 export async function listProducts(
   query: ProductListQuery
 ): Promise<ProductListDto> {
-  const { storeId, search, page, limit } = query
+  const {
+    category,
+    size,
+    priceMin,
+    priceMax,
+    sort,
+    page,
+    limit,
+    storeId,
+  } = query
 
-  const { items, total } = await findProducts({ storeId, search, page, limit })
+  let categoryIds: string[] | undefined
+
+  if (category) {
+    const categoryNode = await findCategoryBySlug(category)
+
+    if (!categoryNode) {
+      return emptyProductListDto(page, limit)
+    }
+
+    categoryIds = await resolveCategoryTreeIds(categoryNode.id)
+  }
+
+  const where = buildCatalogWhereInput({
+    categoryIds,
+    size,
+    priceMin,
+    priceMax,
+    storeId,
+  })
+  const orderBy = mapSortToOrderBy(sort)
+  const { items, total } = await findProducts({ where, orderBy, page, limit })
 
   return toProductListDto(items, page, limit, total)
 }
@@ -121,7 +244,9 @@ export async function listNewProducts(
   query: ProductPaginationQuery,
 ): Promise<ProductListDto> {
   const { page, limit } = query
-  const { items, total } = await findProducts({ page, limit, isNew: true })
+  const where = buildCatalogWhereInput({ isNew: true })
+  const orderBy = mapSortToOrderBy('newest')
+  const { items, total } = await findProducts({ where, orderBy, page, limit })
 
   return toProductListDto(items, page, limit, total)
 }
@@ -130,7 +255,9 @@ export async function listHitProducts(
   query: ProductPaginationQuery,
 ): Promise<ProductListDto> {
   const { page, limit } = query
-  const { items, total } = await findProducts({ page, limit, isHit: true })
+  const where = buildCatalogWhereInput({ isHit: true })
+  const orderBy = mapSortToOrderBy('newest')
+  const { items, total } = await findProducts({ where, orderBy, page, limit })
 
   return toProductListDto(items, page, limit, total)
 }
@@ -140,21 +267,16 @@ export async function listProductsByCategorySlug(
   query: ProductCategoryPaginationQuery,
 ): Promise<ProductListDto> {
   const { page, limit } = query
-  const categoryId = await findCategoryIdBySlug(slug)
+  const categoryNode = await findCategoryBySlug(slug)
 
-  if (!categoryId) {
-    return {
-      data: [],
-      meta: {
-        page,
-        limit,
-        total: 0,
-        hasNextPage: false,
-      },
-    }
+  if (!categoryNode) {
+    return emptyProductListDto(page, limit)
   }
 
-  const { items, total } = await findProductsByCategoryId({ categoryId, page, limit })
+  const categoryIds = await resolveCategoryTreeIds(categoryNode.id)
+  const where = buildCatalogWhereInput({ categoryIds })
+  const orderBy = mapSortToOrderBy('newest')
+  const { items, total } = await findProducts({ where, orderBy, page, limit })
 
   return toProductListDto(items, page, limit, total)
 }

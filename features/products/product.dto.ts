@@ -40,10 +40,15 @@ export interface ProductListMetaDto {
   page: number
   limit: number
   total: number
+  totalPages: number
   hasNextPage: boolean
 }
 
 export interface ProductListDto {
+  items: ProductSummaryDto[]
+  total: number
+  page: number
+  totalPages: number
   data: ProductSummaryDto[]
   meta: ProductListMetaDto
 }
