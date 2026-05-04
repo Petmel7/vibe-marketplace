@@ -1,5 +1,3 @@
-import { headers } from 'next/headers'
-
 export interface CategoryListItem {
   id: string
   name: string
@@ -7,39 +5,73 @@ export interface CategoryListItem {
   imageUrl: string | null
 }
 
-interface CategoriesApiResponse {
-  success: boolean
-  data: CategoryListItem[]
+export interface CategoryTreeApiNode {
+  id: string
+  name: string
+  slug: string
+  image: string | null
+  children: CategoryTreeApiNode[]
+}
+
+export interface CategoryTreeNode extends CategoryTreeApiNode {
+  href: string
+  pathSegments: string[]
+  children: CategoryTreeNode[]
 }
 
 const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
-  clothes: '/uploads/category1.png',
+  'clothing-shoes': '/uploads/category1.png',
   accessories: '/uploads/category2.png',
   souvenirs: '/uploads/category3.png',
   stationery: '/uploads/category4.png',
+  clothes: '/uploads/category1.png',
 }
 
 export function getCategoryImage(slug: string, imageUrl: string | null) {
   return imageUrl ?? CATEGORY_IMAGE_BY_SLUG[slug] ?? '/placeholder.png'
 }
 
-export async function fetchCategories(): Promise<CategoryListItem[]> {
-  const headerStore = await headers()
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host')
+export function decorateCategoryTree(
+  nodes: CategoryTreeApiNode[] = [],
+  fullAncestors: string[] = [],
+  hrefAncestors: string[] = [],
+): CategoryTreeNode[] {
+  return nodes.map((node) => {
+    const nextFullAncestors = [...fullAncestors, node.slug]
+    const pathSegments =
+      fullAncestors.length === 0 ? [node.slug] : [...hrefAncestors, node.slug]
 
-  if (!host) {
-    return []
-  }
-
-  const protocol = headerStore.get('x-forwarded-proto') ?? 'http'
-  const response = await fetch(`${protocol}://${host}/api/categories`, {
-    next: { revalidate: 60 },
+    return {
+      ...node,
+      href: `/catalog/${pathSegments.join('/')}`,
+      pathSegments,
+      children: decorateCategoryTree(
+        node.children ?? [],
+        nextFullAncestors,
+        fullAncestors.length === 0 ? [node.slug] : pathSegments,
+      ),
+    }
   })
+}
 
-  if (!response.ok) {
-    return []
+export function findCategoryTreeNodeBySlugPath(
+  nodes: CategoryTreeNode[],
+  slugPath: string[],
+): CategoryTreeNode | null {
+  for (const node of nodes) {
+    if (
+      node.pathSegments.length === slugPath.length &&
+      node.pathSegments.every((segment, index) => segment === slugPath[index])
+    ) {
+      return node
+    }
+
+    const childMatch = findCategoryTreeNodeBySlugPath(node.children, slugPath)
+
+    if (childMatch) {
+      return childMatch
+    }
   }
 
-  const json = (await response.json()) as CategoriesApiResponse
-  return json.success ? json.data : []
+  return null
 }

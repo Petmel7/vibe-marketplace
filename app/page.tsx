@@ -1,6 +1,4 @@
-
 import { Suspense } from 'react'
-import CategorySection from '@/components/category/CategorySection'
 import HomeProductSection from '@/components/product/HomeProductSection'
 import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
 
@@ -17,8 +15,6 @@ export default async function Home() {
   return (
     <main className="pt-4 pb-15 md:pb-12">
       <div className="space-y-10">
-        <CategorySection />
-
         <Suspense fallback={<HomeSectionSkeleton title="Новинки" />}>
           <HomeProductSection type="new" title="Новинки" />
         </Suspense>

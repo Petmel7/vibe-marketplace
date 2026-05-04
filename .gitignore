@@ -50,3 +50,6 @@ echo ".claude/settings.local.json" >> .gitignore
 public/uploads/
 TASK_TEMPLATE.md
 README_FOR_CODEX.md
+test.json
+TEST.md
+test.csv

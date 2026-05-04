@@ -1,5 +1,5 @@
 import CategoryCards from '@/components/category/CategoryCards'
-import { fetchCategories } from '@/components/category/category.data'
+import { fetchCategories } from '@/components/category/category.server'
 
 export default async function CategoriesPage() {
   const categories = await fetchCategories()

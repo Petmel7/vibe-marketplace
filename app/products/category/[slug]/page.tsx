@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import ProductCardGrid from '@/components/product/ProductCardGrid'
-import { fetchCategories } from '@/components/category/category.data'
+import { fetchCategories } from '@/components/category/category.server'
 import { listProductsByCategorySlug } from '@/features/products/product.service'
 
 interface Props {
