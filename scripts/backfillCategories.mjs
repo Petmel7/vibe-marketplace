@@ -285,11 +285,7 @@ async function fetchCategoryMap() {
   const rows = await sql`
     SELECT id, slug
     FROM categories
-    WHERE NOT EXISTS (
-      SELECT 1
-      FROM categories AS child
-      WHERE child.parent_id = categories.id
-    )
+    WHERE level = 2
   `
 
   const categoryMap = new Map(rows.map((row) => [row.slug, row.id]))
@@ -313,11 +309,7 @@ async function fetchBatch() {
     LEFT JOIN categories AS c
       ON c.id = p.category_id
     WHERE p.category_id IS NULL
-       OR EXISTS (
-         SELECT 1
-         FROM categories AS child
-         WHERE child.parent_id = p.category_id
-       )
+       OR c.level != 2
     ORDER BY p.created_at ASC, p.id ASC
     LIMIT ${BATCH_SIZE}
   `
@@ -467,12 +459,9 @@ async function verifyNoUnassignedProducts() {
   const [{ count }] = await sql`
     SELECT COUNT(*)::int AS count
     FROM products AS p
+    LEFT JOIN categories AS c ON c.id = p.category_id
     WHERE p.category_id IS NULL
-       OR EXISTS (
-         SELECT 1
-         FROM categories AS child
-         WHERE child.parent_id = p.category_id
-       )
+       OR c.level != 2
   `
 
   if (count > 0) {

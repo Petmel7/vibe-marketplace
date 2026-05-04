@@ -210,7 +210,7 @@ const CATALOG_TREE = [
   },
 ]
 
-function flattenCatalog(nodes, parentSlug = null, level = 1) {
+function flattenCatalog(nodes, parentSlug = null, level = 0) {
   return nodes.flatMap((node) => {
     const current = {
       id: node.id,
