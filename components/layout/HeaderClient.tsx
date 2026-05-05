@@ -28,6 +28,7 @@ function HeaderIconButton({
 
 export default function HeaderClient({ categories }: { categories: CategoryTreeNode[] }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const pathname = usePathname()
 
   return (
     <>
@@ -37,6 +38,7 @@ export default function HeaderClient({ categories }: { categories: CategoryTreeN
 
       <HeaderBase className="relative hidden md:block">
         <DesktopHeader
+          key={pathname} // <-- reset state on route change
           categories={categories}
           onSearch={() => setIsSearchOpen(true)}
         />
@@ -87,13 +89,11 @@ function DesktopHeader({
   categories: CategoryTreeNode[]
   onSearch: () => void
 }) {
-  const pathname = usePathname()
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
   const [activeRootSlug, setActiveRootSlug] = useState<string | null>(null)
 
-  // ✅ derived instead of effect
   const currentRootSlug = useMemo(() => {
     if (!categories.length) return null
 
@@ -103,13 +103,6 @@ function DesktopHeader({
 
     return categories[0].slug
   }, [activeRootSlug, categories])
-
-  // close on route change
-  useEffect(() => {
-    if (isCatalogOpen) {
-      setIsCatalogOpen(false)
-    }
-  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleCatalog = useCallback(() => {
     if (!categories.length) return
