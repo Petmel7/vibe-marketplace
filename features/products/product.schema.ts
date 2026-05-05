@@ -14,6 +14,22 @@ const optionalQueryNumber = (fieldName: string) =>
     }).optional(),
   )
 
+export const productPaginationQuerySchema = z.object({
+  page: z.coerce
+    .number({ error: 'page must be a number' })
+    .int({ error: 'page must be an integer' })
+    .min(1, { error: 'page must be at least 1' })
+    .default(1),
+  limit: z.coerce
+    .number({ error: 'limit must be a number' })
+    .int({ error: 'limit must be an integer' })
+    .min(1, { error: 'limit must be at least 1' })
+    .max(100, { error: 'limit must not exceed 100' })
+    .default(12),
+})
+
+export type ProductPaginationQuery = z.infer<typeof productPaginationQuerySchema>
+
 /**
  * Query parameters for listing products.
  *
@@ -24,7 +40,7 @@ const optionalQueryNumber = (fieldName: string) =>
  *
  * Note: Zod v4 uses `error` (not `invalid_type_error`) for type-mismatch messages.
  */
-export const productListQuerySchema = z.object({
+export const productListQuerySchema = productPaginationQuerySchema.extend({
   storeId: z
     .string()
     .uuid({ error: 'storeId must be a valid UUID' })
@@ -42,17 +58,6 @@ export const productListQuerySchema = z.object({
   priceMin: optionalQueryNumber('priceMin'),
   priceMax: optionalQueryNumber('priceMax'),
   sort: z.enum(['price_asc', 'price_desc', 'newest']).default('newest'),
-  page: z.coerce
-    .number({ error: 'page must be a number' })
-    .int({ error: 'page must be an integer' })
-    .min(1, { error: 'page must be at least 1' })
-    .default(1),
-  limit: z.coerce
-    .number({ error: 'limit must be a number' })
-    .int({ error: 'limit must be an integer' })
-    .min(1, { error: 'limit must be at least 1' })
-    .max(100, { error: 'limit must not exceed 100' })
-    .default(12),
 }).superRefine((query, ctx) => {
   if (
     query.priceMin !== undefined &&
@@ -68,13 +73,6 @@ export const productListQuerySchema = z.object({
 })
 
 export type ProductListQuery = z.infer<typeof productListQuerySchema>
-
-export const productPaginationQuerySchema = productListQuerySchema.pick({
-  page: true,
-  limit: true,
-})
-
-export type ProductPaginationQuery = z.infer<typeof productPaginationQuerySchema>
 
 export const productCategoryPaginationQuerySchema = z.object({
   page: z.coerce
