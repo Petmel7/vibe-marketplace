@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
 import { verifyBearerToken } from '@/lib/auth'
-import { logError } from '@/lib/logger'
+import { logError } from '@/utils/logger'
 import { wishlistProductIdParamSchema } from '@/features/wishlist/wishlist.schema'
 import {
   removeFromWishlist,

@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import { useWishlistStore } from '@/store/wishlistStore'
-import type { WishlistDto } from '../../features/wishlist/wishlist.dto'
+import type { WishlistDto } from '../../../features/wishlist/wishlist.dto'
 
 // ---------------------------------------------------------------------------
 // Internal helpers

@@ -1,7 +1,7 @@
 'use client'
 
-import ProductCard from './ProductCard'
-import { useViewedProducts } from './useViewedProducts'
+import ProductCard from '../product/ProductCard'
+import { useViewedProducts } from './hooks/useViewedProducts'
 
 interface Props {
   currentProductId: string

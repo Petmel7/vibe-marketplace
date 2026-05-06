@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import StateView, { WISHLIST_EMPTY_STATE } from '@/components/ui/StateView'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import { useWishlistStore } from '@/store/wishlistStore'
-import { formatPrice } from '@/lib/formatters/price'
+import { formatPrice } from '@/utils/formatters/price'
 import type { WishlistItemDto } from '@/features/wishlist/wishlist.dto'
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 'use client'
 
 import { Heart } from 'lucide-react'
-import { useWishlist } from '@/components/wishlist/useWishlist'
+import { useWishlist } from '@/components/wishlist/hooks/useWishlist'
 
 interface Props {
   productId: string

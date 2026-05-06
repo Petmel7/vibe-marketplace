@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { ProductSummaryDto } from '@/features/products/product.dto'
-import { formatPrice } from '@/lib/formatters/price'
+import { formatPrice } from '@/utils/formatters/price'
 
 interface SearchResultItemProps {
   product: ProductSummaryDto

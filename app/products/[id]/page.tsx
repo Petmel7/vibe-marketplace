@@ -3,7 +3,7 @@ import { getProduct, ProductNotFoundError } from '@/features/products/product.se
 import type { ProductDetailDto } from '@/features/products/product.dto'
 import ProductImageSlider from '@/components/product/ProductImageSlider'
 import ProductDetails from '@/components/product/ProductDetails'
-import RecentlyViewed from '@/components/product/RecentlyViewed'
+import RecentlyViewed from '@/components/viewed/RecentlyViewed'
 import Link from 'next/link'
 
 interface Props {

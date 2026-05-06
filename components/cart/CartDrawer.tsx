@@ -6,7 +6,7 @@ import CartItem from './CartItem'
 import StateView, { CART_EMPTY_STATE } from '@/components/ui/StateView'
 import { useCartStore } from '@/store/cartStore'
 import type { CartDto } from '@/features/cart/cart.dto'
-import { formatPrice } from '@/lib/formatters/price'
+import { formatPrice } from '@/utils/formatters/price'
 
 function pluralizeItems(count: number): string {
   if (count === 1) return 'Товари'

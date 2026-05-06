@@ -2,7 +2,7 @@
 
 import { Heart } from 'lucide-react'
 import IconWithBadge from '@/components/ui/IconWithBadge'
-import { useWishlist } from '@/components/wishlist/useWishlist'
+import { useWishlist } from '@/components/wishlist/hooks/useWishlist'
 
 interface Props {
   size?: number

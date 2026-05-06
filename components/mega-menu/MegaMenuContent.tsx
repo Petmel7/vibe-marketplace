@@ -4,7 +4,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
-import { getCategoryImage } from '@/utils/getCategoryImage'
+import { getImageUrl } from '@/utils/getImageUrl'
 
 type Category = {
     id: string
@@ -112,7 +112,7 @@ function CategoryCard({
         >
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-media">
                 <Image
-                    src={getCategoryImage(item.image)}
+                    src={getImageUrl(item.image)}
                     alt={item.name}
                     fill
                     className="object-cover transition-transform duration-200 group-hover:scale-105"

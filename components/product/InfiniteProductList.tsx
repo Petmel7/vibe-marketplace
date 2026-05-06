@@ -3,7 +3,7 @@
 import ProductCardGrid from '@/components/product/ProductCardGrid'
 import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
 import type { ProductListItem } from '@/components/product/productListItem'
-import { useInfiniteProducts } from '@/components/product/useInfiniteProducts'
+import { useInfiniteProducts } from '@/components/product/hooks/useInfiniteProducts'
 
 interface Props {
   type: 'new' | 'hit'

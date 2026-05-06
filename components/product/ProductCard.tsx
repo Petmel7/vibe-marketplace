@@ -5,7 +5,7 @@ import { Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import WishlistToggleButton from "../wishlist/WishlistToggleButton";
 import { getProductCardDisplayState, type ProductCardProductLike } from "./productCard.selectors";
-import { formatPrice } from "@/lib/formatters/price";
+import { formatPrice } from "@/utils/formatters/price";
 
 interface ProductCardProps {
   id: string;

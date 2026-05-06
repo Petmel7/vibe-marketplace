@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Trash } from 'lucide-react'
 import type { CartItemDto } from '@/features/cart/cart.dto'
-import { formatPrice } from '@/lib/formatters/price'
+import { formatPrice } from '@/utils/formatters/price'
 
 interface CartItemProps {
   item: CartItemDto

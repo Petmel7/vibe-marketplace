@@ -5,16 +5,16 @@ import { Share2 } from 'lucide-react'
 import ProductVariantSelector from './ProductVariantSelector'
 import WishlistToggleButton from '../wishlist/WishlistToggleButton'
 import ProductQuantitySelector from './ProductQuantitySelector'
-import AddToCartButton from './AddToCartButton'
+import AddToCartButton from '../cart/AddToCartButton'
 import ProductDescription from './ProductDescription'
 import ProductCharacteristics from './ProductCharacteristics'
 import {
   getDefaultProductVariantId,
   getProductPresentationState,
 } from './productCard.selectors'
-import { useRecordViewedProduct } from './useRecordViewedProduct'
+import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
 import type { ProductDetailDto } from '@/features/products/product.dto'
-import { formatPrice } from '@/lib/formatters/price'
+import { formatPrice } from '@/utils/formatters/price'
 
 interface Props {
   product: ProductDetailDto

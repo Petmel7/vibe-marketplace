@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { verifyBearerToken } from '@/lib/auth'
-import { logError } from '@/lib/logger'
+import { logError } from '@/utils/logger'
 import type { CartIdentifier } from '@/features/cart/cart.repository'
 
 // ---------------------------------------------------------------------------
