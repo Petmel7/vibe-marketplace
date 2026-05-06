@@ -8,7 +8,7 @@ import SearchOverlay from '@/components/search/SearchOverlay'
 import CartIcon from '@/components/cart/CartIcon'
 import WishlistIcon from '../wishlist/WishlistIcon'
 import Logo from '../ui/Logo'
-import MegaMenu from './MegaMenu'
+import MegaMenu from '../mega-menu/MegaMenu'
 
 function HeaderIconButton({
   label,

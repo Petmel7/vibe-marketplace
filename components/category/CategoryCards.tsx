@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { CategoryListItem } from '@/components/category/category.data'
-import { getCategoryImage } from '@/components/category/category.data'
+import { getCategoryImage } from '@/utils/getCategoryImage'
 
 interface Props {
   categories: CategoryListItem[]
@@ -16,7 +16,7 @@ function CategoryCard({ category }: { category: CategoryListItem }) {
       className="relative block aspect-square overflow-hidden rounded-tl-[18px] rounded-br-[18px]"
     >
       <Image
-        src={getCategoryImage(category.slug, category.imageUrl)}
+        src={getCategoryImage(category.imageUrl)}
         alt={category.name}
         fill
         className="object-cover"

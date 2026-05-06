@@ -19,18 +19,6 @@ export interface CategoryTreeNode extends CategoryTreeApiNode {
   children: CategoryTreeNode[]
 }
 
-const CATEGORY_IMAGE_BY_SLUG: Record<string, string> = {
-  'clothing-shoes': '/uploads/category1.png',
-  accessories: '/uploads/category2.png',
-  souvenirs: '/uploads/category3.png',
-  stationery: '/uploads/category4.png',
-  clothes: '/uploads/category1.png',
-}
-
-export function getCategoryImage(slug: string, imageUrl: string | null) {
-  return imageUrl ?? CATEGORY_IMAGE_BY_SLUG[slug] ?? '/placeholder.png'
-}
-
 export function decorateCategoryTree(
   nodes: CategoryTreeApiNode[] = [],
   fullAncestors: string[] = [],
