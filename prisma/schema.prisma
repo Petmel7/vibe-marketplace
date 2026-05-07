@@ -129,29 +129,37 @@ model ProductVariant {
 }
 
 model Order {
-  id          String      @id @default(uuid()) @db.Uuid
-  userId      String      @map("user_id") @db.Uuid
-  status      OrderStatus @default(pending)
-  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @map("updated_at")
+  id                String      @id @default(uuid()) @db.Uuid
+  userId            String      @map("user_id") @db.Uuid
+  status            OrderStatus @default(pending)
+  totalAmount       Decimal     @map("total_amount") @db.Decimal(10, 2)
+  shippingAddressId String?     @map("shipping_address_id") @db.Uuid
+  note              String?
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @map("updated_at")
 
   user        User        @relation(fields: [userId], references: [id])
   items       OrderItem[]
 
   @@index([userId], map: "orders_userId_idx")
   @@index([status])
+  @@index([shippingAddressId], map: "orders_shippingAddressId_idx")
   @@map("orders")
 }
 
 model OrderItem {
-  id         String   @id @default(uuid()) @db.Uuid
-  orderId    String   @map("order_id") @db.Uuid
-  variantId  String   @map("variant_id") @db.Uuid
-  storeId    String   @map("store_id") @db.Uuid
-  quantity   Int
-  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id                  String   @id @default(uuid()) @db.Uuid
+  orderId             String   @map("order_id") @db.Uuid
+  variantId           String   @map("variant_id") @db.Uuid
+  storeId             String   @map("store_id") @db.Uuid
+  quantity            Int
+  unitPrice           Decimal  @map("unit_price") @db.Decimal(10, 2)
+  productNameSnapshot String   @map("product_name_snapshot")
+  variantSnapshot     String?  @map("variant_snapshot")
+  imageSnapshot       String?  @map("image_snapshot")
+  storeNameSnapshot   String   @map("store_name_snapshot")
+  unitPriceSnapshot   Decimal  @map("unit_price_snapshot") @db.Decimal(10, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
 
   order      Order          @relation(fields: [orderId], references: [id])
   store      Store          @relation(fields: [storeId], references: [id])
@@ -261,9 +269,13 @@ model ViewedProduct {
 
 enum OrderStatus {
   pending
+  confirmed
   paid
+  processing
   shipped
   delivered
+  cancelled
+  refunded
 }
 
 enum UserRole {
