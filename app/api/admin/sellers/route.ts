@@ -1,18 +1,18 @@
 import { type NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/session/getSession'
-import { orderOversightFilterSchema } from '@/features/admin/oversight/admin-oversight.schema'
-import { getAllOrders } from '@/features/admin/oversight/admin-oversight.service'
+import { sellerOversightFilterSchema } from '@/features/admin/oversight/admin-oversight.schema'
+import { getAllSellers } from '@/features/admin/oversight/admin-oversight.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
 
 /**
- * GET /api/admin/orders
+ * GET /api/admin/sellers
  *
- * Returns all orders with full buyer and store info (admin only), paginated.
+ * Returns all sellers with store counts and verification status (admin only), paginated.
  *
- * Query params: status, page, limit, dateFrom, dateTo
+ * Query params: page, limit, status
  *
  * Responses:
- *   200  { success: true, data: { items: AdminOrderDto[], total, page, limit } }
+ *   200  { success: true, data: { items: AdminSellerDto[], total, page, limit } }
  *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   403  { success: false, error: { message, code: 'FORBIDDEN' } }
  */
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
     const { searchParams } = new URL(request.url)
-    const parsed = orderOversightFilterSchema.safeParse(Object.fromEntries(searchParams.entries()))
+    const parsed = sellerOversightFilterSchema.safeParse(Object.fromEntries(searchParams.entries()))
     if (!parsed.success) {
       return Response.json(
         {
@@ -30,9 +30,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         { status: 400 },
       )
     }
-    const data = await getAllOrders(user, parsed.data)
+    const data = await getAllSellers(user, parsed.data)
     return Response.json({ success: true, data })
   } catch (err) {
-    return toErrorResponse('GET /api/admin/orders', err)
+    return toErrorResponse('GET /api/admin/sellers', err)
   }
 }

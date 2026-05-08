@@ -34,6 +34,13 @@ import {
   InvalidFulfillmentTransitionError,
   InvalidInventoryError,
 } from './seller'
+import {
+  AdminAccessError,
+  SelfModerationError,
+  AlreadyModeratedError,
+  ModerationReasonRequiredError,
+  InvalidModerationTransitionError as AdminInvalidModerationTransitionError,
+} from './admin'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -49,7 +56,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof OrderAccessError ||
     err instanceof StoreOwnershipError ||
     err instanceof ProductOwnershipError ||
-    err instanceof UnverifiedSellerError
+    err instanceof UnverifiedSellerError ||
+    err instanceof AdminAccessError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -73,7 +81,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
   if (
     err instanceof SellerAlreadyOnboardedError ||
     err instanceof SlugConflictError ||
-    err instanceof AlreadyVerifiedError
+    err instanceof AlreadyVerifiedError ||
+    err instanceof AlreadyModeratedError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -87,8 +96,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidShippingAddressError ||
     err instanceof InvalidStatusTransitionError ||
     err instanceof InvalidModerationTransitionError ||
+    err instanceof AdminInvalidModerationTransitionError ||
     err instanceof InvalidFulfillmentTransitionError ||
-    err instanceof InvalidInventoryError
+    err instanceof InvalidInventoryError ||
+    err instanceof SelfModerationError ||
+    err instanceof ModerationReasonRequiredError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

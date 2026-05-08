@@ -1,18 +1,18 @@
 import { type NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/session/getSession'
-import { orderOversightFilterSchema } from '@/features/admin/oversight/admin-oversight.schema'
-import { getAllOrders } from '@/features/admin/oversight/admin-oversight.service'
+import { productOversightFilterSchema } from '@/features/admin/oversight/admin-oversight.schema'
+import { getAllProducts } from '@/features/admin/oversight/admin-oversight.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
 
 /**
- * GET /api/admin/orders
+ * GET /api/admin/products
  *
- * Returns all orders with full buyer and store info (admin only), paginated.
+ * Returns all products with store and moderation info (admin only), paginated.
  *
- * Query params: status, page, limit, dateFrom, dateTo
+ * Query params: page, limit, status, search
  *
  * Responses:
- *   200  { success: true, data: { items: AdminOrderDto[], total, page, limit } }
+ *   200  { success: true, data: { items: AdminProductDto[], total, page, limit } }
  *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   403  { success: false, error: { message, code: 'FORBIDDEN' } }
  */
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
     const { searchParams } = new URL(request.url)
-    const parsed = orderOversightFilterSchema.safeParse(Object.fromEntries(searchParams.entries()))
+    const parsed = productOversightFilterSchema.safeParse(Object.fromEntries(searchParams.entries()))
     if (!parsed.success) {
       return Response.json(
         {
@@ -30,9 +30,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         { status: 400 },
       )
     }
-    const data = await getAllOrders(user, parsed.data)
+    const data = await getAllProducts(user, parsed.data)
     return Response.json({ success: true, data })
   } catch (err) {
-    return toErrorResponse('GET /api/admin/orders', err)
+    return toErrorResponse('GET /api/admin/products', err)
   }
 }
