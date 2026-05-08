@@ -41,6 +41,7 @@ model Store {
   slug        String   @unique
   description String?
   logoUrl     String?  @map("logo_url")
+  bannerUrl   String?  @map("banner_url")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @map("updated_at")
@@ -80,20 +81,23 @@ model Category {
 }
 
 model Product {
-  id            String   @id @default(uuid()) @db.Uuid
-  storeId       String   @map("store_id") @db.Uuid
-  categoryId    String?  @map("category_id")
-  name          String
-  description   String?
-  price         Decimal  @db.Decimal(10, 2)
-  imageUrl      String?  @map("image_url")
-  isActive      Boolean  @default(true) @map("is_active")
-  sku           String?
-  isHit         Boolean  @default(false) @map("is_hit")
-  isNew         Boolean  @default(false) @map("is_new")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @map("updated_at")
-  searchVector  Unsupported("tsvector")? @map("search_vector")
+  id              String        @id @default(uuid()) @db.Uuid
+  storeId         String        @map("store_id") @db.Uuid
+  categoryId      String?       @map("category_id")
+  name            String
+  description     String?
+  price           Decimal       @db.Decimal(10, 2)
+  imageUrl        String?       @map("image_url")
+  isActive        Boolean       @default(true) @map("is_active")
+  sku             String?
+  isHit           Boolean       @default(false) @map("is_hit")
+  isNew           Boolean       @default(false) @map("is_new")
+  status          ProductStatus @default(DRAFT) @map("status")
+  rejectionReason String?       @map("rejection_reason")
+  publishedAt     DateTime?     @map("published_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @map("updated_at")
+  searchVector    Unsupported("tsvector")? @map("search_vector")
 
   store         Store    @relation(fields: [storeId], references: [id])
   category      Category? @relation(fields: [categoryId], references: [id])
@@ -105,6 +109,7 @@ model Product {
   @@index([categoryId], map: "products_categoryId_idx")
   @@index([storeId], map: "products_storeId_idx")
   @@index([isActive], map: "products_isActive_idx")
+  @@index([status], map: "products_status_idx")
   @@index([searchVector], map: "products_searchVector_idx", type: Gin)
   @@map("products")
 }
@@ -148,18 +153,19 @@ model Order {
 }
 
 model OrderItem {
-  id                  String   @id @default(uuid()) @db.Uuid
-  orderId             String   @map("order_id") @db.Uuid
-  variantId           String   @map("variant_id") @db.Uuid
-  storeId             String   @map("store_id") @db.Uuid
+  id                  String                @id @default(uuid()) @db.Uuid
+  orderId             String                @map("order_id") @db.Uuid
+  variantId           String                @map("variant_id") @db.Uuid
+  storeId             String                @map("store_id") @db.Uuid
   quantity            Int
-  unitPrice           Decimal  @map("unit_price") @db.Decimal(10, 2)
-  productNameSnapshot String   @map("product_name_snapshot")
-  variantSnapshot     String?  @map("variant_snapshot")
-  imageSnapshot       String?  @map("image_snapshot")
-  storeNameSnapshot   String   @map("store_name_snapshot")
-  unitPriceSnapshot   Decimal  @map("unit_price_snapshot") @db.Decimal(10, 2)
-  createdAt           DateTime @default(now()) @map("created_at")
+  unitPrice           Decimal               @map("unit_price") @db.Decimal(10, 2)
+  productNameSnapshot String                @map("product_name_snapshot")
+  variantSnapshot     String?               @map("variant_snapshot")
+  imageSnapshot       String?               @map("image_snapshot")
+  storeNameSnapshot   String                @map("store_name_snapshot")
+  unitPriceSnapshot   Decimal               @map("unit_price_snapshot") @db.Decimal(10, 2)
+  fulfillmentStatus   ItemFulfillmentStatus @default(PENDING) @map("fulfillment_status")
+  createdAt           DateTime              @default(now()) @map("created_at")
 
   order      Order          @relation(fields: [orderId], references: [id])
   store      Store          @relation(fields: [storeId], references: [id])
@@ -168,6 +174,7 @@ model OrderItem {
   @@index([orderId], map: "order_items_orderId_idx")
   @@index([variantId], map: "order_items_variantId_idx")
   @@index([storeId], map: "order_items_storeId_idx")
+  @@index([fulfillmentStatus], map: "order_items_fulfillmentStatus_idx")
   @@map("order_items")
 }
 
@@ -276,6 +283,21 @@ enum OrderStatus {
   delivered
   cancelled
   refunded
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ItemFulfillmentStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
 }
 
 enum UserRole {

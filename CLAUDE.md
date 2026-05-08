@@ -1,4 +1,5 @@
-@AGENTS.md
+> Note: AGENTS.md contains instructions for Codex and other agents.
+> Claude should use CLAUDE.md as the primary instruction source.
 
 # vibe-marketplace
 
@@ -232,3 +233,4 @@ After writing code, verify:
 - [ ] API response matches `{ success, data/error }` format?
 
 Fix any issues before submitting.
+
