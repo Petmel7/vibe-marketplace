@@ -4,11 +4,27 @@ import { createMiddlewareClient } from '@/lib/supabase/server'
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request })
   const supabase = createMiddlewareClient(request, response)
+  const pathname = request.nextUrl.pathname
 
-  // Refresh session cookie if expired — required by @supabase/ssr.
-  // This does NOT block unauthenticated requests. Per-route auth enforcement
-  // is done via requireAuth() in individual handlers.
-  await supabase.auth.getUser()
+  // Refresh session cookies for SSR and gate protected route entry points.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const isProtectedRoute =
+    pathname === '/profile' ||
+    pathname.startsWith('/profile/') ||
+    pathname === '/seller' ||
+    pathname.startsWith('/seller/') ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/')
+
+  if (isProtectedRoute && !user) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('notice', 'auth-required')
+    loginUrl.searchParams.set('next', `${pathname}${request.nextUrl.search}`)
+    return NextResponse.redirect(loginUrl)
+  }
 
   return response
 }

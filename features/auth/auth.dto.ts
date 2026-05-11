@@ -1,10 +1,6 @@
-import type { UserRole } from '@/app/generated/prisma/client'
+import type { SessionUser } from '@/types/auth'
 
-export type SessionUser = {
-  id: string
-  email: string
-  roles: UserRole[]
-}
+export type { SessionUser } from '@/types/auth'
 
 export type AuthSyncResponse = {
   user: SessionUser
