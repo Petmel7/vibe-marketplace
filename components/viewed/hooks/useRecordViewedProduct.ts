@@ -1,19 +1,26 @@
+
 'use client'
 
 import { useEffect } from 'react'
-import { useCartStore } from '@/store/cartStore'
 
-export function useRecordViewedProduct(productId: string) {
+export function useRecordViewedProduct(
+  productId: string,
+) {
   useEffect(() => {
-    const sessionId = useCartStore.getState().ensureSessionId()
-    const controller = new AbortController()
+    const controller =
+      new AbortController()
 
     fetch('/api/viewed', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-session-id': sessionId },
-      body: JSON.stringify({ productId }),
+      headers: {
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify({
+        productId,
+      }),
       signal: controller.signal,
-    }).catch(() => {})
+    }).catch(() => { })
 
     return () => controller.abort()
   }, [productId])
