@@ -12,6 +12,27 @@ import {
 import { getPostAuthRedirectPath } from '@/lib/auth/redirects'
 import { getDefaultAuthenticatedHref } from '@/lib/auth/navigation'
 
+import { mergeGuestViewedProducts } from '@/features/viewed/viewed.repository'
+import { getVisitorId } from '@/lib/visitor/visitor.server'
+import { logError } from '@/utils/logger'
+
+/**
+ * Best-effort: transfer the guest visitor's viewed-product history onto the
+ * just-authenticated user. We deliberately swallow errors — failing here must
+ * never block sign-in / sign-up. The visitor cookie is left in place so it
+ * expires naturally; we do not clear it (a follow-up request as the now-auth'd
+ * user will simply ignore it because the API prefers the user identifier).
+ */
+async function mergeGuestViewsAfterAuth(userId: string): Promise<void> {
+  try {
+    const visitorId = await getVisitorId()
+    if (!visitorId) return
+    await mergeGuestViewedProducts(visitorId, userId)
+  } catch (error) {
+    logError('mergeGuestViewsAfterAuth', error)
+  }
+}
+
 function mapSupabaseAuthError(code?: string, message?: string): string {
   switch (code) {
     case 'invalid_credentials':
@@ -82,16 +103,30 @@ export async function signInWithPasswordAction(
   }
 
   const { email, password, next } = validated.data
+
   const supabase = await createServerClient()
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  console.log('SIGN IN RESULT:', { data, error })
 
   if (error || !data.session) {
-    return { formError: mapSupabaseAuthError(error?.code, error?.message) }
+    return {
+      formError: mapSupabaseAuthError(error?.code, error?.message),
+    }
   }
 
-  const sessionUser = await syncAuthenticatedUser(data.session.access_token)
+  const sessionUser = await syncAuthenticatedUser(
+    data.session.access_token
+  )
+
+  await mergeGuestViewsAfterAuth(sessionUser.id)
 
   revalidatePath('/', 'layout')
+
   redirect(getPostAuthRedirectPath(sessionUser, next))
 }
 
@@ -122,6 +157,7 @@ export async function signUpWithPasswordAction(
 
   if (data.session?.access_token) {
     const sessionUser = await syncAuthenticatedUser(data.session.access_token)
+    await mergeGuestViewsAfterAuth(sessionUser.id)
     revalidatePath('/', 'layout')
     redirect(getPostAuthRedirectPath(sessionUser, next))
   }

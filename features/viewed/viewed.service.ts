@@ -52,6 +52,7 @@ function toDto(row: ViewedProductWithProduct): ViewedProductDto {
  */
 export async function getRecentlyViewed(identifier: ViewedIdentifier): Promise<ViewedListDto> {
   const rows = await findRecentlyViewed(identifier)
+  console.log("ROWS:", rows)
   return { items: rows.map(toDto) }
 }
 

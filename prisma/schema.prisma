@@ -268,12 +268,12 @@ model ViewedProduct {
   product   Product  @relation(fields: [productId], references: [id])
   user      User?    @relation(fields: [userId], references: [id])
 
-  // Partial unique indexes are created via raw migration SQL because Prisma DSL
-  // does not support WHERE predicates on indexes.
-  // idx_viewed_session_product: UNIQUE (session_id, product_id) WHERE session_id IS NOT NULL
-  // idx_viewed_user_product:    UNIQUE (user_id,    product_id) WHERE user_id    IS NOT NULL
-  @@index([sessionId, productId], map: "idx_viewed_session_product")
-  @@index([userId, productId], map: "idx_viewed_user_product")
+  // Full unique constraints; NULL values are distinct by default, so guest
+  // rows (user_id IS NULL) and authenticated rows (session_id IS NULL) coexist
+  // correctly. A CHECK constraint at the DB level still enforces that exactly
+  // one of (user_id, session_id) is non-null per row.
+  @@unique([userId, productId])
+  @@unique([sessionId, productId])
   @@map("viewed_products")
 }
 

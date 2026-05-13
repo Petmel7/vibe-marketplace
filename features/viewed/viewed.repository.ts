@@ -51,60 +51,138 @@ export async function findRecentlyViewed(
 // ---------------------------------------------------------------------------
 
 /**
- * Upsert a viewed-product record and trim the list to MAX_VIEWED, atomically.
+ * Upsert a viewed-product record, then trim the list to MAX_VIEWED.
  *
- * ON CONFLICT targets the partial unique indexes created in the migration:
- *   idx_viewed_user_product    (user_id, product_id)    WHERE user_id IS NOT NULL
- *   idx_viewed_session_product (session_id, product_id) WHERE session_id IS NOT NULL
- *
- * Re-viewing an already-viewed product updates viewed_at to now(), which
- * moves it to the top of the list without creating a duplicate row.
+ * The upsert uses Prisma's typed `upsert` (single `INSERT ... ON CONFLICT`
+ * statement) against the composite unique constraint declared on the model.
+ * The trim is a separate auto-commit statement — we deliberately do not wrap
+ * the two in `prisma.$transaction`, because interactive transactions can
+ * misbehave under transaction-mode connection pooling (Supabase/PgBouncer)
+ * and surface a "no transaction in progress" (25P01) warning when the
+ * implicit COMMIT lands on a connection that no longer holds the
+ * transaction. Atomicity is not required here: if the trim fails the next
+ * view triggers another trim, so the list is self-healing.
  */
 export async function upsertViewedProduct(
   identifier: ViewedIdentifier,
   productId: string,
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    if (isUser(identifier)) {
-      const userId = identifier.userId
+  const now = new Date()
 
-      await tx.$executeRaw`
-        INSERT INTO viewed_products (id, user_id, product_id, viewed_at)
-        VALUES (gen_random_uuid(), ${userId}::uuid, ${productId}::uuid, now())
-        ON CONFLICT (user_id, product_id) WHERE user_id IS NOT NULL
-        DO UPDATE SET viewed_at = now()
-      `
+  if (isUser(identifier)) {
+    const userId = identifier.userId
 
-      await tx.$executeRaw`
-        DELETE FROM viewed_products
-        WHERE user_id = ${userId}::uuid
-          AND id NOT IN (
-            SELECT id FROM viewed_products
-            WHERE user_id = ${userId}::uuid
-            ORDER BY viewed_at DESC
-            LIMIT ${MAX_VIEWED}
-          )
-      `
-    } else {
-      const sessionId = identifier.sessionId
+    await prisma.viewedProduct.upsert({
+      where: { userId_productId: { userId, productId } },
+      create: { userId, productId, viewedAt: now },
+      update: { viewedAt: now },
+    })
 
-      await tx.$executeRaw`
-        INSERT INTO viewed_products (id, session_id, product_id, viewed_at)
-        VALUES (gen_random_uuid(), ${sessionId}, ${productId}::uuid, now())
-        ON CONFLICT (session_id, product_id) WHERE session_id IS NOT NULL
-        DO UPDATE SET viewed_at = now()
-      `
+    await prisma.$executeRaw`
+      DELETE FROM viewed_products
+      WHERE user_id = ${userId}::uuid
+        AND id NOT IN (
+          SELECT id FROM viewed_products
+          WHERE user_id = ${userId}::uuid
+          ORDER BY viewed_at DESC
+          LIMIT ${MAX_VIEWED}
+        )
+    `
+  } else {
+    const sessionId = identifier.sessionId
 
-      await tx.$executeRaw`
-        DELETE FROM viewed_products
-        WHERE session_id = ${sessionId}
-          AND id NOT IN (
-            SELECT id FROM viewed_products
-            WHERE session_id = ${sessionId}
-            ORDER BY viewed_at DESC
-            LIMIT ${MAX_VIEWED}
-          )
-      `
-    }
+    await prisma.viewedProduct.upsert({
+      where: { sessionId_productId: { sessionId, productId } },
+      create: { sessionId, productId, viewedAt: now },
+      update: { viewedAt: now },
+    })
+
+    await prisma.$executeRaw`
+      DELETE FROM viewed_products
+      WHERE session_id = ${sessionId}
+        AND id NOT IN (
+          SELECT id FROM viewed_products
+          WHERE session_id = ${sessionId}
+          ORDER BY viewed_at DESC
+          LIMIT ${MAX_VIEWED}
+        )
+    `
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Merge
+// ---------------------------------------------------------------------------
+
+/**
+ * Move a guest session's viewed-product rows onto an authenticated user.
+ *
+ * Strategy (sequential Prisma calls, no interactive transaction):
+ *   1. Read all guest rows for the session, newest first.
+ *   2. For each guest row:
+ *        - If the user already has a row for the same product, keep the more
+ *          recent `viewedAt` on the user row and leave the guest row to be
+ *          swept up below.
+ *        - Otherwise rewrite the guest row in place (userId set, sessionId
+ *          cleared) so we don't churn primary keys or break product joins.
+ *   3. Delete any remaining guest rows for the session (these are the
+ *      duplicates that conflicted in step 2).
+ *   4. Trim the user's list to MAX_VIEWED to mirror upsertViewedProduct.
+ *
+ * We deliberately avoid `prisma.$transaction` here: under transaction-mode
+ * connection pooling (Supabase / PgBouncer) interactive transactions emit a
+ * spurious 25P01 "no transaction in progress" warning when the COMMIT lands
+ * on a recycled connection. Merge is idempotent and self-healing: a partial
+ * failure leaves at most some untransferred guest rows, which are harmless
+ * (they won't be visible to the now-authenticated user) and can be retried.
+ */
+export async function mergeGuestViewedProducts(
+  sessionId: string,
+  userId: string,
+): Promise<void> {
+  const guestViews = await prisma.viewedProduct.findMany({
+    where: { sessionId },
+    orderBy: { viewedAt: 'desc' },
   })
+
+  if (guestViews.length === 0) return
+
+  for (const guest of guestViews) {
+    const existing = await prisma.viewedProduct.findUnique({
+      where: { userId_productId: { userId, productId: guest.productId } },
+      select: { id: true, viewedAt: true },
+    })
+
+    if (existing) {
+      if (guest.viewedAt > existing.viewedAt) {
+        await prisma.viewedProduct.update({
+          where: { id: existing.id },
+          data: { viewedAt: guest.viewedAt },
+        })
+      }
+      continue
+    }
+
+    await prisma.viewedProduct.update({
+      where: { id: guest.id },
+      data: { userId, sessionId: null },
+    })
+  }
+
+  await prisma.viewedProduct.deleteMany({
+    where: { sessionId },
+  })
+
+  const overflow = await prisma.viewedProduct.findMany({
+    where: { userId },
+    orderBy: { viewedAt: 'desc' },
+    skip: MAX_VIEWED,
+    select: { id: true },
+  })
+
+  if (overflow.length > 0) {
+    await prisma.viewedProduct.deleteMany({
+      where: { id: { in: overflow.map((row) => row.id) } },
+    })
+  }
 }
