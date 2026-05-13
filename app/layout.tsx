@@ -5,7 +5,9 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import BottomNav from "@/components/layout/BottomNav";
 import AuthSessionProvider from "@/components/auth/AuthSessionProvider";
+import WishlistAuthBridge from "@/components/wishlist/WishlistAuthBridge";
 import { getCurrentUser } from "@/lib/session/getSession";
+import { VisitorProvider } from "@/components/providers/VisitorProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +39,8 @@ export default async function RootLayout({
     >
       <body suppressHydrationWarning >
         <AuthSessionProvider initialUser={currentUser}>
+          <VisitorProvider />
+          <WishlistAuthBridge />
           <Header />
           {/* pb-20 reserves space below content for the fixed BottomNav on mobile */}
           <div className="ui-container">
