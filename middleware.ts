@@ -4,6 +4,8 @@ import { createMiddlewareClient } from '@/lib/supabase/server'
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request })
   const supabase = createMiddlewareClient(request, response)
+  // const { data } = await supabase.auth.getSession()
+  // console.log('data.session?.access_token:', data.session?.access_token)
   const pathname = request.nextUrl.pathname
 
   // Refresh session cookies for SSR and gate protected route entry points.
@@ -17,7 +19,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/seller' ||
     pathname.startsWith('/seller/') ||
     pathname === '/admin' ||
-    pathname.startsWith('/admin/')
+    pathname.startsWith('/admin/') ||
+    pathname === '/wishlist' ||
+    pathname.startsWith('/wishlist/')
 
   if (isProtectedRoute && !user) {
     const loginUrl = new URL('/login', request.url)
@@ -25,7 +29,6 @@ export async function middleware(request: NextRequest) {
     loginUrl.searchParams.set('next', `${pathname}${request.nextUrl.search}`)
     return NextResponse.redirect(loginUrl)
   }
-
   return response
 }
 

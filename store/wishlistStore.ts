@@ -11,6 +11,8 @@ interface WishlistState {
   remove: (productId: string) => void
   has: (productId: string) => boolean
   setLoading: (loading: boolean) => void
+  /** Reset wishlist state (e.g. on sign-out). */
+  clear: () => void
 }
 
 export const useWishlistStore = create<WishlistState>((set, get) => ({
@@ -32,4 +34,6 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   has: (productId) => get().productIds.has(productId),
 
   setLoading: (loading) => set({ isLoading: loading }),
+
+  clear: () => set({ productIds: new Set(), isLoading: false }),
 }))
