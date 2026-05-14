@@ -13,7 +13,7 @@ function HomeSectionSkeleton({ title }: { title: string }) {
 
 export default async function Home() {
   return (
-    <main className="pt-4 pb-15 md:pb-12">
+    <main>
       <div className="space-y-10">
         <Suspense fallback={<HomeSectionSkeleton title="Новинки" />}>
           <HomeProductSection type="new" title="Новинки" />

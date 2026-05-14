@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   const currentUser = await getCurrentUser()
 
@@ -37,29 +37,38 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body suppressHydrationWarning >
+      <body
+        suppressHydrationWarning
+        className="min-h-screen bg-canvas"
+      >
         <AuthSessionProvider initialUser={currentUser}>
           <VisitorProvider />
           <WishlistAuthBridge />
-          <Header />
-          {/* pb-20 reserves space below content for the fixed BottomNav on mobile */}
-          <div className="ui-container">
-            {children}
+
+          <div className="flex min-h-screen flex-col">
+            <Header />
+
+            {/* pb-20 reserves space for BottomNav */}
+            <main className="ui-container flex-1">
+              {children}
+            </main>
+
+            <Footer />
+            <BottomNav />
+
+            <Toaster
+              position="bottom-center"
+              toastOptions={{
+                style: {
+                  background: '#2A323F',
+                  color: '#E8E9EA',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                },
+              }}
+            />
           </div>
-          <Footer />
-          <BottomNav />
-          <Toaster
-            position="bottom-center"
-            toastOptions={{
-              style: {
-                background: '#2A323F',
-                color: '#E8E9EA',
-                border: '1px solid rgba(255,255,255,0.1)',
-              },
-            }}
-          />
         </AuthSessionProvider>
       </body>
     </html>
-  );
+  )
 }

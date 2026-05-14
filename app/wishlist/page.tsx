@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/session/getSession'
-import WishlistPageClient from './WishlistPageClient'
+import WishlistPageClient from '../../components/wishlist/WishlistPageClient'
 
 export default async function WishlistPage() {
   const user = await getCurrentUser()

@@ -4,7 +4,8 @@ import type { ProductDetailDto } from '@/features/products/product.dto'
 import ProductImageSlider from '@/components/product/ProductImageSlider'
 import ProductDetails from '@/components/product/ProductDetails'
 import RecentlyViewed from '@/components/viewed/RecentlyViewed'
-import Link from 'next/link'
+import { PageContainer } from '@/components/layout/PageContainer'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -25,15 +26,22 @@ export default async function ProductPage({ params }: Props) {
   const images = product.imageUrl ? [product.imageUrl] : []
 
   return (
-    <div className="max-w-240 mx-auto">
-      {/* Breadcrumbs */}
-      <nav aria-label="Хлібні крихти" className="flex items-center gap-1 text-[12px] text-[#A5A8AD] mb-6">
-        <Link href="/" className="hover:text-[#F1F3F5] transition-colors">Головна</Link>
-        <span aria-hidden="true">/</span>
-        <Link href="/" className="hover:text-[#F1F3F5] transition-colors">Каталог</Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-[#F1F3F5] truncate max-w-50">{product.name}</span>
-      </nav>
+    <PageContainer>
+      <Breadcrumbs
+        items={[
+          {
+            label: 'Головна',
+            href: '/',
+          },
+          {
+            label: 'Каталог',
+            href: '/catalog',
+          },
+          {
+            label: `${product.name}`,
+          },
+        ]}
+      />
 
       {/* Two-column on desktop, stacked on mobile */}
       <div className="flex flex-col md:flex-row md:gap-8 md:items-start">
@@ -48,6 +56,6 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <RecentlyViewed currentProductId={id} />
-    </div>
+    </PageContainer>
   )
 }
