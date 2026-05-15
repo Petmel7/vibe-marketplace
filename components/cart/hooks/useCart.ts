@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-import {
-    fetchCart,
-    removeCartItem,
-    updateCartItem,
-} from '../api/cart.api'
+import { cartApi } from '../api/cart.api'
 
 import {
     withItemRemoved,
@@ -31,11 +26,11 @@ export function useCart() {
 
         async function loadCart() {
             try {
-                const json = await fetchCart(sessionIdRef.current)
+                const json = await cartApi.get(sessionIdRef.current)
 
-                if (!cancelled && json.success) {
-                    setCart(json.data)
-                    setItemCount(json.data.itemCount)
+                if (!cancelled && json) {
+                    setCart(json)
+                    setItemCount(json.itemCount)
                 }
             } finally {
                 if (!cancelled) {
@@ -64,15 +59,15 @@ export function useCart() {
             setLoadingItemIds((ids) => new Set([...ids, itemId]))
 
             try {
-                const json = await updateCartItem(
+                const json = await cartApi.updateItem(
                     sessionIdRef.current,
                     itemId,
                     quantity,
                 )
 
-                if (json.success) {
-                    setCart(json.data)
-                    setItemCount(json.data.itemCount)
+                if (json) {
+                    setCart(json)
+                    setItemCount(json.itemCount)
                 } else {
                     setCart(prevCart)
                     setItemCount(prevCart.itemCount)
@@ -106,14 +101,14 @@ export function useCart() {
             setLoadingItemIds((ids) => new Set([...ids, itemId]))
 
             try {
-                const json = await removeCartItem(
+                const json = await cartApi.removeItem(
                     sessionIdRef.current,
                     itemId,
                 )
 
-                if (json.success) {
-                    setCart(json.data)
-                    setItemCount(json.data.itemCount)
+                if (json) {
+                    setCart(json)
+                    setItemCount(json.itemCount)
                 } else {
                     setCart(prevCart)
                     setItemCount(prevCart.itemCount)

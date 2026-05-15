@@ -10,6 +10,7 @@ import CartCheckbox from './CartCheckbox'
 import { pluralizeItems } from '@/utils/pluralize'
 import { useCart } from './hooks/useCart'
 import { Breadcrumbs } from '../ui/Breadcrumbs'
+import { PageTitle } from '../ui/PageTitle'
 
 function CartEmpty() {
   return <StateView {...CART_EMPTY_STATE} />
@@ -44,12 +45,12 @@ export default function CartDrawer() {
         ]}
       />
 
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="ui-heading-page">Кошик</h1>
-        <span className="text-[13px] leading-5 text-copy-muted">
-          {cart.itemCount} {pluralizeItems(cart.itemCount)}
-        </span>
-      </div>
+      <PageTitle
+        title="Кошик"
+        count={cart.itemCount}
+        countLabel={pluralizeItems(cart.itemCount)}
+      />
+
       {/* CartItem */}
       <div className="md:flex md:items-start md:gap-8">
         <div className="min-w-0 flex-1">

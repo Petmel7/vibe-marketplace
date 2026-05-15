@@ -3,6 +3,9 @@
 
 import { useEffect } from 'react'
 
+import { recordViewedProduct }
+  from '../api/viewed.api'
+
 export function useRecordViewedProduct(
   productId: string,
 ) {
@@ -10,17 +13,10 @@ export function useRecordViewedProduct(
     const controller =
       new AbortController()
 
-    fetch('/api/viewed', {
-      method: 'POST',
-      headers: {
-        'Content-Type':
-          'application/json',
-      },
-      body: JSON.stringify({
-        productId,
-      }),
-      signal: controller.signal,
-    }).catch(() => { })
+    recordViewedProduct(
+      productId,
+      controller.signal,
+    ).catch(() => { })
 
     return () => controller.abort()
   }, [productId])

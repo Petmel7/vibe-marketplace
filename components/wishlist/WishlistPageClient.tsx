@@ -1,8 +1,8 @@
 
 'use client'
 
-import Link from 'next/link'
 import StateView, {
+  WISHLIST_ERROR_STATE,
   WISHLIST_EMPTY_STATE,
 } from '@/components/ui/StateView'
 import Loading from '@/app/wishlist/loading'
@@ -10,6 +10,14 @@ import { PageContainer } from '@/components/layout/PageContainer'
 import WishlistItemRow from '@/components/wishlist/WishlistItemRow'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { useWishlistPage } from './hooks/useWishlistPage'
+import { PageTitle } from '@/components/ui/PageTitle'
+import { pluralizeItems } from '@/utils/pluralize'
+
+function WishlistError() {
+  return (
+    <StateView {...WISHLIST_ERROR_STATE} />
+  )
+}
 
 function WishlistEmpty() {
   return (
@@ -29,20 +37,7 @@ export default function WishlistPageClient() {
   }
 
   if (state.status === 'error') {
-    return (
-      <main className="ui-page-shell flex flex-col items-center justify-center gap-4">
-        <p className="ui-body-muted text-xl">
-          Не вдалося завантажити обране
-        </p>
-
-        <Link
-          href="/"
-          className="text-brand hover:underline"
-        >
-          На головну
-        </Link>
-      </main>
-    )
+    return <WishlistError />
   }
 
   if (state.items.length === 0) {
@@ -63,15 +58,11 @@ export default function WishlistPageClient() {
         ]}
       />
 
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="ui-heading-page">
-          Обране
-        </h1>
-
-        <span className="ui-body-muted">
-          {state.items.length} товарів
-        </span>
-      </div>
+      <PageTitle
+        title="Обране"
+        count={state.items.length}
+        countLabel={pluralizeItems(state.items.length)}
+      />
 
       <div>
         {state.items.map((item) => (

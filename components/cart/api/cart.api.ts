@@ -1,41 +1,48 @@
-import type { CartDto } from "@/features/cart/cart.dto"
 
-export async function fetchCart(sessionId: string) {
-    const res = await fetch('/api/cart', {
-        headers: { 'x-session-id': sessionId },
-    })
+import { apiClient } from '@/shared/api/api.client'
+import type { CartDto } from '@/features/cart/cart.dto'
 
-    return res.json() as Promise<{
-        success: boolean
-        data: CartDto
-    }>
-}
+export const cartApi = {
+    get(sessionId: string) {
+        return apiClient.get<CartDto>(
+            '/api/cart',
+            {
+                headers: {
+                    'x-session-id': sessionId,
+                },
+            },
+        )
+    },
 
-export async function updateCartItem(
-    sessionId: string,
-    itemId: string,
-    quantity: number,
-) {
-    const res = await fetch(`/api/cart/items/${itemId}`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-session-id': sessionId,
-        },
-        body: JSON.stringify({ quantity }),
-    })
+    updateItem(
+        sessionId: string,
+        itemId: string,
+        quantity: number,
+    ) {
+        return apiClient.patch<CartDto>(
+            `/api/cart/items/${itemId}`,
+            {
+                quantity,
+            },
+            {
+                headers: {
+                    'x-session-id': sessionId,
+                },
+            },
+        )
+    },
 
-    return res.json()
-}
-
-export async function removeCartItem(
-    sessionId: string,
-    itemId: string,
-) {
-    const res = await fetch(`/api/cart/items/${itemId}`, {
-        method: 'DELETE',
-        headers: { 'x-session-id': sessionId },
-    })
-
-    return res.json()
+    removeItem(
+        sessionId: string,
+        itemId: string,
+    ) {
+        return apiClient.delete<CartDto>(
+            `/api/cart/items/${itemId}`,
+            {
+                headers: {
+                    'x-session-id': sessionId,
+                },
+            },
+        )
+    },
 }

@@ -1,66 +1,42 @@
-import { supabaseBrowser } from '@/lib/supabase-browser'
 
-import {
-    UnauthorizedError,
-    WishlistApiError,
-} from '../errors/wishlist.errors'
+import { apiClient }
+    from '@/shared/api/api.client'
 
-async function getAccessToken() {
-    const {
-        data: { session },
-    } = await supabaseBrowser.auth.getSession()
+import type { WishlistDto }
+    from '@/features/wishlist/wishlist.dto'
 
-    if (!session?.access_token) {
-        throw new UnauthorizedError()
-    }
-
-    return session.access_token
-}
-
-async function request<T>(
-    path: string,
-    options?: RequestInit,
-): Promise<T> {
-    const token = await getAccessToken()
-
-    const res = await fetch(path, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            ...options?.headers,
-        },
-    })
-
-    const json = await res.json()
-
-    if (!json.success) {
-        throw new WishlistApiError(
-            json.error?.message ??
-            'Wishlist request failed',
-        )
-    }
-
-    return json.data
+interface WishlistItemsData {
+    items: WishlistDto[]
 }
 
 export const wishlistApi = {
     add(productId: string) {
-        return request('/api/wishlist', {
-            method: 'POST',
-            body: JSON.stringify({
+        return apiClient.post<void>(
+            '/api/wishlist',
+            {
                 productId,
-            }),
-        })
+            },
+            {
+                auth: true,
+            },
+        )
     },
 
     remove(productId: string) {
-        return request(`/api/wishlist/${productId}`, {
-            method: 'DELETE',
-        })
+        return apiClient.delete<void>(
+            `/api/wishlist/${productId}`,
+            {
+                auth: true,
+            },
+        )
     },
 
     getAll() {
-        return request('/api/wishlist')
+        return apiClient.get<WishlistItemsData>(
+            '/api/wishlist',
+            {
+                auth: true,
+            },
+        )
     },
 }

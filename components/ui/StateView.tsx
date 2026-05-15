@@ -42,6 +42,13 @@ export const CART_EMPTY_STATE = createState({
   imageSrc: '/uploads/cart.png',
 });
 
+export const WISHLIST_ERROR_STATE = createState({
+  title: 'Не вдалося завантажити обране',
+  // subtitle: 'В обраному нічого немає',
+  // description: 'Ми впевнені, що в нашому каталогу знайдете...',
+  imageSrc: '/uploads/heart.png',
+});
+
 export const WISHLIST_EMPTY_STATE = createState({
   title: 'Ой ... Здається тут ще пусто ...',
   subtitle: 'В обраному нічого немає',

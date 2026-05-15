@@ -44,7 +44,9 @@ export function useWishlistPage() {
 
         async function loadWishlist() {
             try {
-                const data = await wishlistApi.getAll() as { items: WishlistItemDto[] }
+                const data =
+                    await wishlistApi.getAll() as unknown as
+                    { items: WishlistItemDto[] }
 
                 if (cancelled) return
 
