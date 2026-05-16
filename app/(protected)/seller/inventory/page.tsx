@@ -4,21 +4,20 @@ import SellerInventoryManager from '@/components/seller/SellerInventoryManager'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { getSellerInventoryPageData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerInventoryPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerInventoryPage() {
   const user = await getCurrentUser()
   if (!user) return null
 
   const data = await getSellerInventoryPageData(user)
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
-  if (!data.sellerProfile) {
-    redirect('/seller/store?setup=profile')
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
   }
 
-  if (!data.store) {
-    redirect('/seller/store?setup=store')
-  }
+  const sellerProfile = data.sellerProfile!
 
   return (
     <SellerSection
@@ -27,7 +26,7 @@ export default async function SellerInventoryPage() {
       description="Update per-variant stock levels, review low-stock risks, and keep SKU availability current."
     >
       <SellerVerificationNotice
-        status={data.sellerProfile.verificationStatus}
+        status={sellerProfile.verificationStatus}
       />
 
       {data.products.length === 0 ? (
@@ -52,7 +51,7 @@ export default async function SellerInventoryPage() {
               stock: variant.stock,
             })),
           }))}
-          isReadOnly={data.sellerProfile.verificationStatus === 'SUSPENDED'}
+          isReadOnly={sellerProfile.verificationStatus === 'SUSPENDED'}
         />
       )}
     </SellerSection>

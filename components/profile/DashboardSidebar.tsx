@@ -57,15 +57,15 @@ export default function DashboardSidebar({
 
       <section className="ui-panel p-5">
         <h3 className="text-base font-semibold text-copy-strong">
-          {sellerEnabled ? 'Seller workspace' : 'Grow into selling'}
+          {sellerEnabled ? 'Seller workspace' : 'Become a seller'}
         </h3>
         <p className="mt-2 text-sm text-copy-muted">
           {sellerEnabled
             ? 'Your account is already ready for seller tools and storefront management.'
-            : 'This dashboard is ready for future seller onboarding, payouts, and storefront controls.'}
+            : 'Upgrade from buyer to seller with a dedicated onboarding flow, verification awareness, and a future-ready storefront setup path.'}
         </p>
-        <Link href={sellerEnabled ? '/seller' : '/profile/settings'} className="ui-secondary-button mt-4 w-full">
-          {sellerEnabled ? 'Open seller area' : 'Prepare account'}
+        <Link href={sellerEnabled ? '/seller' : '/seller/onboarding'} className="ui-secondary-button mt-4 w-full">
+          {sellerEnabled ? 'Open seller area' : 'Start selling'}
         </Link>
       </section>
     </aside>

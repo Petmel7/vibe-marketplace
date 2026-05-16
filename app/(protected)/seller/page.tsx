@@ -10,21 +10,20 @@ import SellerVerificationNotice from '@/components/seller/SellerVerificationNoti
 import { getCurrentUser } from '@/lib/session/getSession'
 import type { SellerFulfillmentStatus } from '@/types/seller'
 import { formatPrice } from '@/utils/formatters/price'
-import { getSellerOverviewData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerOverviewData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerOverviewPage() {
   const user = await getCurrentUser()
   if (!user) return null
 
   const data = await getSellerOverviewData(user)
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
-  if (!data.sellerProfile) {
-    redirect('/seller/store?setup=profile')
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
   }
 
-  if (!data.store) {
-    redirect('/seller/store?setup=store')
-  }
+  const sellerProfile = data.sellerProfile!
 
   const processingCount = data.orderItems.filter((item) => item.fulfillmentStatus === 'PROCESSING').length
   const shippedCount = data.orderItems.filter((item) => item.fulfillmentStatus === 'SHIPPED').length
@@ -37,7 +36,7 @@ export default async function SellerOverviewPage() {
       description="Monitor revenue, fulfillment, catalog health, and store readiness from one operational workspace."
     >
       <SellerVerificationNotice
-        status={data.sellerProfile.verificationStatus}
+        status={sellerProfile.verificationStatus}
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

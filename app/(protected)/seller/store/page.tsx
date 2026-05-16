@@ -1,8 +1,9 @@
+import { redirect } from 'next/navigation'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerStoreSettingsForm from '@/components/seller/SellerStoreSettingsForm'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { getSellerStorePageData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerStorePageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerStorePage({
   searchParams,
@@ -14,6 +15,11 @@ export default async function SellerStorePage({
 
   const { setup } = await searchParams
   const data = await getSellerStorePageData(user)
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
+
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
+  }
 
   return (
     <SellerSection

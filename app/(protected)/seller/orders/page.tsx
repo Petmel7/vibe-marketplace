@@ -8,23 +8,21 @@ import SellerVerificationNotice from '@/components/seller/SellerVerificationNoti
 import { getCurrentUser } from '@/lib/session/getSession'
 import type { SellerFulfillmentStatus } from '@/types/seller'
 import { formatPrice } from '@/utils/formatters/price'
-import { getSellerOrdersPageData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerOrdersPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerOrdersPage() {
   const user = await getCurrentUser()
   if (!user) return null
 
   const data = await getSellerOrdersPageData(user)
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
-  if (!data.sellerProfile) {
-    redirect('/seller/store?setup=profile')
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
   }
 
-  if (!data.store) {
-    redirect('/seller/store?setup=store')
-  }
-
-  const isReadOnly = data.sellerProfile.verificationStatus === 'SUSPENDED'
+  const sellerProfile = data.sellerProfile!
+  const isReadOnly = sellerProfile.verificationStatus === 'SUSPENDED'
 
   return (
     <SellerSection
@@ -33,7 +31,7 @@ export default async function SellerOrdersPage() {
       description="Handle seller-scoped line items, shipping summaries, and allowed fulfillment transitions."
     >
       <SellerVerificationNotice
-        status={data.sellerProfile.verificationStatus}
+        status={sellerProfile.verificationStatus}
       />
 
       <SellerTable

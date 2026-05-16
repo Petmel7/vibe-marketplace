@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@/lib/supabase/server'
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request })
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
   const supabase = createMiddlewareClient(request, response)
   // const { data } = await supabase.auth.getSession()
   // console.log('data.session?.access_token:', data.session?.access_token)

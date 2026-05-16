@@ -3,7 +3,7 @@ import SellerProductForm from '@/components/seller/SellerProductForm'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { getSellerProductEditorData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerProductEditorData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerProductDetailPage({
   params,
@@ -15,14 +15,13 @@ export default async function SellerProductDetailPage({
 
   const { id } = await params
   const data = await getSellerProductEditorData(user, id)
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
-  if (!data.sellerProfile) {
-    redirect('/seller/store?setup=profile')
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
   }
 
-  if (!data.store) {
-    redirect('/seller/store?setup=store')
-  }
+  const sellerProfile = data.sellerProfile!
 
   if (!data.product) {
     notFound()
@@ -35,7 +34,7 @@ export default async function SellerProductDetailPage({
       description="Update listing details, moderation readiness, and variant-level product structure."
     >
       <SellerVerificationNotice
-        status={data.sellerProfile.verificationStatus}
+        status={sellerProfile.verificationStatus}
       />
       <SellerProductForm mode="edit" initialProduct={data.product} />
     </SellerSection>

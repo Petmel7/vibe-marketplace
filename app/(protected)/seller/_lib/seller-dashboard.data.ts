@@ -1,11 +1,13 @@
-import { SellerProfileNotFoundError } from '@/lib/errors/profile'
+import { ProfileNotFoundError, SellerProfileNotFoundError } from '@/lib/errors/profile'
 import { ProductNotFoundError, StoreNotFoundError } from '@/lib/errors/seller'
+import { getMyProfile } from '@/features/profile/profile.service'
 import { getMySellerProfile } from '@/features/seller/seller.service'
 import { getMyStore } from '@/features/store/store.service'
 import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.service'
 import { getMyProducts, getMyProductById } from '@/features/seller/products/seller-product.service'
 import { getMyOrderItems } from '@/features/seller/orders/seller-order.service'
 import type { SessionUser } from '@/types/auth'
+import { getSellerOnboardingState } from '@/types/seller'
 
 export async function getSellerLayoutData(user: SessionUser) {
   let sellerProfile = null
@@ -183,4 +185,58 @@ export async function getSellerInventoryPageData(user: SessionUser) {
     ...layout,
     products,
   }
+}
+
+export async function getSellerOnboardingPageData(user: SessionUser) {
+  const layout = await getSellerLayoutData(user)
+  let profile = null
+
+  try {
+    profile = await getMyProfile(user)
+  } catch (error) {
+    if (!(error instanceof ProfileNotFoundError)) {
+      throw error
+    }
+  }
+
+  const moderationReason = layout.sellerProfile
+    ? extractModerationReason(layout.sellerProfile)
+    : null
+
+  return {
+    ...layout,
+    profile,
+    moderationReason,
+    onboardingState: getSellerOnboardingState(layout.sellerProfile?.verificationStatus),
+  }
+}
+
+export function getSellerWorkspaceRedirect(data: {
+  sellerProfile: { verificationStatus: string } | null
+  store: unknown | null
+}) {
+  if (!data.sellerProfile) {
+    return '/seller/onboarding'
+  }
+
+  if (data.sellerProfile.verificationStatus !== 'VERIFIED') {
+    return '/seller/onboarding'
+  }
+
+  if (!data.store) {
+    return '/seller/onboarding'
+  }
+
+  return null
+}
+
+function extractModerationReason(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const maybeRecord = value as Record<string, unknown>
+  const reason = maybeRecord.moderationReason ?? maybeRecord.rejectionReason
+
+  return typeof reason === 'string' && reason.trim() ? reason : null
 }

@@ -7,7 +7,7 @@ import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
-import { getSellerProductsPageData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerProductsPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 const FILTERS = [
   { label: 'All', value: undefined },
@@ -28,14 +28,13 @@ export default async function SellerProductsPage({
 
   const { status } = await searchParams
   const data = await getSellerProductsPageData(user, { status, page: 1, limit: 20 })
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
-  if (!data.sellerProfile) {
-    redirect('/seller/store?setup=profile')
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
   }
 
-  if (!data.store) {
-    redirect('/seller/store?setup=store')
-  }
+  const sellerProfile = data.sellerProfile!
 
   return (
     <SellerSection
@@ -44,7 +43,7 @@ export default async function SellerProductsPage({
       description="Review moderation states, inventory health, and draft readiness across your storefront products."
     >
       <SellerVerificationNotice
-        status={data.sellerProfile.verificationStatus}
+        status={sellerProfile.verificationStatus}
       />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

@@ -6,21 +6,20 @@ import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
-import { getSellerAnalyticsPageData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { getSellerAnalyticsPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerAnalyticsPage() {
   const user = await getCurrentUser()
   if (!user) return null
 
   const data = await getSellerAnalyticsPageData(user)
+  const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
-  if (!data.sellerProfile) {
-    redirect('/seller/store?setup=profile')
+  if (onboardingRedirect) {
+    redirect(onboardingRedirect)
   }
 
-  if (!data.store) {
-    redirect('/seller/store?setup=store')
-  }
+  const sellerProfile = data.sellerProfile!
 
   const pendingItems = data.orderItems.filter((item) => item.fulfillmentStatus === 'PENDING').length
   const shippedItems = data.orderItems.filter((item) => item.fulfillmentStatus === 'SHIPPED').length
@@ -32,7 +31,7 @@ export default async function SellerAnalyticsPage() {
       description="Track revenue direction, order flow, and top-performing products with a layout ready for future charts."
     >
       <SellerVerificationNotice
-        status={data.sellerProfile.verificationStatus}
+        status={sellerProfile.verificationStatus}
       />
 
       {data.analytics ? (
