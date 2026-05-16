@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/session/getSession'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
+import SellerDashboardShell from '@/components/seller/SellerDashboardShell'
 import { ROLE_VALUES, hasRole } from '@/lib/constants/roles'
+import { getCurrentUser } from '@/lib/session/getSession'
+import { getSellerLayoutData } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 export default async function SellerLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser()
@@ -24,5 +26,11 @@ export default async function SellerLayout({ children }: { children: ReactNode }
     )
   }
 
-  return children
+  const { sellerProfile, store } = await getSellerLayoutData(user)
+
+  return (
+    <SellerDashboardShell user={user} sellerProfile={sellerProfile} store={store}>
+      {children}
+    </SellerDashboardShell>
+  )
 }
