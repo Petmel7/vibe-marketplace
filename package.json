@@ -9,7 +9,8 @@
     "db:seed": "prisma db seed",
     "lint": "eslint",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
@@ -39,6 +40,7 @@
     "jsdom": "^29.0.1",
     "prisma": "^7.6.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.1",
     "typescript": "^5",
     "vitest": "^4.1.2"
   }

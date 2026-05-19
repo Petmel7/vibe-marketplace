@@ -8,24 +8,29 @@ import { getMyProducts, getMyProductById } from '@/features/seller/products/sell
 import { getMyOrderItems } from '@/features/seller/orders/seller-order.service'
 import type { SessionUser } from '@/types/auth'
 import { getSellerOnboardingState } from '@/types/seller'
+import { hasRole } from '@/lib/rbac/guards'
 
 export async function getSellerLayoutData(user: SessionUser) {
   let sellerProfile = null
   let store = null
 
-  try {
-    sellerProfile = await getMySellerProfile(user)
-  } catch (error) {
-    if (!(error instanceof SellerProfileNotFoundError)) {
-      throw error
-    }
-  }
+  const isSeller = hasRole(user, 'SELLER')
 
-  try {
-    store = await getMyStore(user)
-  } catch (error) {
-    if (!(error instanceof StoreNotFoundError)) {
-      throw error
+  if (isSeller) {
+    try {
+      sellerProfile = await getMySellerProfile(user)
+    } catch (error) {
+      if (!(error instanceof SellerProfileNotFoundError)) {
+        throw error
+      }
+    }
+
+    try {
+      store = await getMyStore(user)
+    } catch (error) {
+      if (!(error instanceof StoreNotFoundError)) {
+        throw error
+      }
     }
   }
 

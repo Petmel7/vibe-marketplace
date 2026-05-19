@@ -96,3 +96,39 @@ export class OrderItemNotFoundError extends Error {
     this.name = 'OrderItemNotFoundError'
   }
 }
+
+export class StoreAlreadyExistsError extends Error {
+  readonly code = 'STORE_ALREADY_EXISTS'
+  readonly statusCode = 409
+  constructor(msg = 'A store already exists for this seller') {
+    super(msg)
+    this.name = 'StoreAlreadyExistsError'
+  }
+}
+
+export class SellerNotVerifiedError extends Error {
+  readonly code = 'SELLER_NOT_VERIFIED'
+  readonly statusCode = 403
+  constructor(msg = 'Seller account must be verified before provisioning a store') {
+    super(msg)
+    this.name = 'SellerNotVerifiedError'
+  }
+}
+
+export class StoreProvisioningRequiredError extends Error {
+  readonly code = 'STORE_PROVISIONING_REQUIRED'
+  readonly statusCode = 403
+  constructor(msg = 'Store has not been provisioned yet') {
+    super(msg)
+    this.name = 'StoreProvisioningRequiredError'
+  }
+}
+
+export class InvalidStoreSlugError extends Error {
+  readonly code = 'INVALID_STORE_SLUG'
+  readonly statusCode = 400
+  constructor(msg = 'Store slug is already taken or invalid') {
+    super(msg)
+    this.name = 'InvalidStoreSlugError'
+  }
+}

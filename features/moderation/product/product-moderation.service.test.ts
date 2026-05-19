@@ -39,6 +39,7 @@ const mockStore: Store = {
   logoUrl: null,
   bannerUrl: null,
   isActive: true,
+  isPrimary: false,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 }

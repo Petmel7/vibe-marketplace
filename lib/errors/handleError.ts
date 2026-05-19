@@ -33,6 +33,10 @@ import {
   InvalidModerationTransitionError,
   InvalidFulfillmentTransitionError,
   InvalidInventoryError,
+  StoreAlreadyExistsError,
+  SellerNotVerifiedError,
+  StoreProvisioningRequiredError,
+  InvalidStoreSlugError,
 } from './seller'
 import {
   AdminAccessError,
@@ -57,7 +61,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof StoreOwnershipError ||
     err instanceof ProductOwnershipError ||
     err instanceof UnverifiedSellerError ||
-    err instanceof AdminAccessError
+    err instanceof AdminAccessError ||
+    err instanceof SellerNotVerifiedError ||
+    err instanceof StoreProvisioningRequiredError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -82,7 +88,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof SellerAlreadyOnboardedError ||
     err instanceof SlugConflictError ||
     err instanceof AlreadyVerifiedError ||
-    err instanceof AlreadyModeratedError
+    err instanceof AlreadyModeratedError ||
+    err instanceof StoreAlreadyExistsError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -100,7 +107,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidFulfillmentTransitionError ||
     err instanceof InvalidInventoryError ||
     err instanceof SelfModerationError ||
-    err instanceof ModerationReasonRequiredError
+    err instanceof ModerationReasonRequiredError ||
+    err instanceof InvalidStoreSlugError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
