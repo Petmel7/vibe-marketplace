@@ -4,8 +4,19 @@ const priceString = z
   .string()
   .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid positive decimal')
 
+const storagePathString = z.string().min(1).max(512)
+const skuString = z.string().trim().min(1).max(100)
+
+export const sellerProductImageSchema = z.object({
+  url: z.string().url(),
+  storagePath: storagePathString,
+  altText: z.string().max(200).nullable().optional(),
+  position: z.number().int().min(0).optional(),
+  isPrimary: z.boolean().optional(),
+})
+
 export const createVariantSchema = z.object({
-  sku: z.string().max(100).optional(),
+  sku: skuString.optional(),
   size: z.string().max(50).nullable().optional(),
   color: z.string().max(50).nullable().optional(),
   price: priceString.nullable().optional(),
@@ -17,10 +28,11 @@ export const createSellerProductSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   price: priceString,
   imageUrl: z.string().url().nullable().optional(),
-  sku: z.string().max(100).nullable().optional(),
+  sku: skuString.nullable().optional(),
   isHit: z.boolean().optional(),
   isNew: z.boolean().optional(),
-  categoryId: z.string().uuid().nullable().optional(),
+  categoryId: z.string().min(1).max(191).nullable().optional(),
+  images: z.array(sellerProductImageSchema).max(10).optional(),
   variants: z.array(createVariantSchema).optional(),
 })
 

@@ -132,3 +132,66 @@ export class InvalidStoreSlugError extends Error {
     this.name = 'InvalidStoreSlugError'
   }
 }
+
+export class UploadFailedError extends Error {
+  readonly code = 'UPLOAD_FAILED'
+  readonly statusCode = 500
+  constructor(msg = 'Image upload failed') {
+    super(msg)
+    this.name = 'UploadFailedError'
+  }
+}
+
+export class InvalidImageFileError extends Error {
+  readonly code = 'INVALID_IMAGE_FILE'
+  readonly statusCode = 400
+  constructor(msg = 'Image file is invalid or unsupported') {
+    super(msg)
+    this.name = 'InvalidImageFileError'
+  }
+}
+
+export class StoragePathConflictError extends Error {
+  readonly code = 'STORAGE_PATH_CONFLICT'
+  readonly statusCode = 409
+  constructor(msg = 'A storage asset already exists at this path') {
+    super(msg)
+    this.name = 'StoragePathConflictError'
+  }
+}
+
+export class SlugAlreadyTakenError extends Error {
+  readonly code = 'SLUG_ALREADY_TAKEN'
+  readonly statusCode = 409
+  constructor(msg = 'Store slug is already taken') {
+    super(msg)
+    this.name = 'SlugAlreadyTakenError'
+  }
+}
+
+export class InvalidSkuError extends Error {
+  readonly code = 'INVALID_SKU'
+  readonly statusCode = 400
+  constructor(msg = 'SKU is invalid or unavailable') {
+    super(msg)
+    this.name = 'InvalidSkuError'
+  }
+}
+
+export class CategoryNotFoundError extends Error {
+  readonly code = 'CATEGORY_NOT_FOUND'
+  readonly statusCode = 404
+  constructor(msg = 'Category not found') {
+    super(msg)
+    this.name = 'CategoryNotFoundError'
+  }
+}
+
+export class ProductImageLimitExceededError extends Error {
+  readonly code = 'PRODUCT_IMAGE_LIMIT_EXCEEDED'
+  readonly statusCode = 400
+  constructor(msg = 'Product image limit exceeded') {
+    super(msg)
+    this.name = 'ProductImageLimitExceededError'
+  }
+}

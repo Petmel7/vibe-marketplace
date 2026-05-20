@@ -12,6 +12,18 @@ export type SellerVariantDto = {
   updatedAt: Date
 }
 
+export type ProductImageDto = {
+  id: string
+  productId: string
+  url: string
+  storagePath: string
+  altText: string | null
+  position: number
+  isPrimary: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
 export type SellerProductDto = {
   id: string
   storeId: string
@@ -28,6 +40,7 @@ export type SellerProductDto = {
   publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
+  images: ProductImageDto[]
   variants: SellerVariantDto[]
 }
 
@@ -49,6 +62,13 @@ export type CreateSellerProductDto = {
   isHit?: boolean
   isNew?: boolean
   categoryId?: string | null
+  images?: Array<{
+    url: string
+    storagePath: string
+    altText?: string | null
+    position?: number
+    isPrimary?: boolean
+  }>
   variants?: Array<{
     sku?: string
     size?: string | null
@@ -69,3 +89,11 @@ export type CreateVariantDto = {
 }
 
 export type UpdateVariantDto = Partial<CreateVariantDto>
+
+export type SellerCategoryOptionDto = {
+  id: string
+  name: string
+  slug: string
+  parentId: string | null
+  level: number
+}

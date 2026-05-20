@@ -6,6 +6,7 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 // Mock all repositories
 vi.mock('@/features/storefront/storefront.repository')
 vi.mock('@/features/seller/seller.repository')
+vi.mock('@/features/media/media.service')
 
 // Mock the requireSeller guard
 vi.mock('@/lib/auth/guards', () => ({
@@ -14,23 +15,34 @@ vi.mock('@/lib/auth/guards', () => ({
 
 // Mock slugify utility so slug generation is deterministic in tests
 vi.mock('@/lib/utils/slugify', () => ({
-  generateSlug: vi.fn((name: string) => name.toLowerCase().replace(/\s+/g, '-')),
+  generateSlug: vi.fn((name: string) =>
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 100),
+  ),
 }))
 
 import * as storefrontRepo from '@/features/storefront/storefront.repository'
 import * as sellerRepo from '@/features/seller/seller.repository'
+import * as mediaService from '@/features/media/media.service'
 import * as guards from '@/lib/auth/guards'
 import {
   getOnboardingStatus,
   provisionStorefront,
   updateStoreSettings,
   checkSlugAvailability,
+  uploadStorefrontAsset,
 } from '@/features/storefront/storefront.service'
 import {
   StoreAlreadyExistsError,
   SellerNotVerifiedError,
   StoreProvisioningRequiredError,
-  InvalidStoreSlugError,
+  SlugAlreadyTakenError,
 } from '@/lib/errors/seller'
 import { SellerProfileNotFoundError } from '@/lib/errors/profile'
 import type { SessionUser } from '@/features/auth/auth.dto'
@@ -38,6 +50,7 @@ import type { StorefrontDto } from '@/features/storefront/storefront.dto'
 
 const mockStorefrontRepo = vi.mocked(storefrontRepo)
 const mockSellerRepo = vi.mocked(sellerRepo)
+const mockMediaService = vi.mocked(mediaService)
 const mockGuards = vi.mocked(guards)
 
 const mockUser: SessionUser = {
@@ -170,7 +183,7 @@ describe('provisionStorefront', () => {
 
     await expect(
       provisionStorefront(mockUser, { name: 'Test Shop', slug: 'taken-slug' }),
-    ).rejects.toThrow(InvalidStoreSlugError)
+    ).rejects.toThrow(SlugAlreadyTakenError)
 
     expect(mockStorefrontRepo.createStore).not.toHaveBeenCalled()
   })
@@ -185,6 +198,21 @@ describe('provisionStorefront', () => {
     const result = await provisionStorefront(mockUser, { name: 'Test Shop', slug: 'test-shop' })
 
     expect(result.isPrimary).toBe(true)
+  })
+
+  it('normalizes provided slug candidates before persisting', async () => {
+    const storeRow = makeStoreRow({ slug: 'test-shop' })
+    mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
+    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(true)
+    mockStorefrontRepo.createStore.mockResolvedValue(storeRow)
+
+    await provisionStorefront(mockUser, { name: 'Test Shop', slug: ' Test Shop!! ' })
+
+    expect(mockStorefrontRepo.createStore).toHaveBeenCalledWith(
+      mockUser.id,
+      expect.objectContaining({ slug: 'test-shop' }),
+    )
   })
 })
 
@@ -250,10 +278,10 @@ describe('checkSlugAvailability', () => {
       .mockResolvedValueOnce(false)   // primary slug is taken
       .mockResolvedValueOnce(true)    // suggestion is available
 
-    const result = await checkSlugAvailability('taken-slug')
+    const result = await checkSlugAvailability('Taken Slug')
 
     expect(result.available).toBe(false)
-    expect(result.suggestion).toMatch(/^taken-slug-\d{4}$/)
+    expect(result.suggestion).toBe('taken-slug-2')
   })
 })
 
@@ -281,5 +309,36 @@ describe('updateStoreSettings', () => {
 
     expect(mockStorefrontRepo.updateStoreSettings).toHaveBeenCalledWith(original.id, { name: 'New Name' })
     expect(result.name).toBe('New Name')
+  })
+})
+
+describe('uploadStorefrontAsset', () => {
+  it('uploads the store logo and persists the returned URL', async () => {
+    const original = makeStoreRow()
+    const updated = makeStoreRow({ logoUrl: 'https://cdn.example.com/logo.png' })
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'logo.png', { type: 'image/png' })
+
+    mockStorefrontRepo.findPrimaryStoreByUserId.mockResolvedValue(original)
+    mockMediaService.uploadStoreAssetBinary.mockResolvedValue({
+      bucket: 'store-assets',
+      url: 'https://cdn.example.com/logo.png',
+      storagePath: 'stores/store-uuid-001/logo/hash.png',
+      contentType: 'image/png',
+      size: 4,
+    })
+    mockStorefrontRepo.updateStoreSettings.mockResolvedValue(updated)
+
+    const result = await uploadStorefrontAsset(mockUser, 'logo', file)
+
+    expect(mockMediaService.uploadStoreAssetBinary).toHaveBeenCalledWith({
+      file,
+      kind: 'logo',
+      storeId: original.id,
+    })
+    expect(mockStorefrontRepo.updateStoreSettings).toHaveBeenCalledWith(original.id, {
+      logoUrl: 'https://cdn.example.com/logo.png',
+    })
+    expect(result.asset.storagePath).toBe('stores/store-uuid-001/logo/hash.png')
+    expect(result.store.logoUrl).toBe('https://cdn.example.com/logo.png')
   })
 })

@@ -5,19 +5,26 @@ import {
   SellerNotVerifiedError,
   StoreProvisioningRequiredError,
   InvalidStoreSlugError,
+  SlugAlreadyTakenError,
 } from '@/lib/errors/seller'
 import { generateSlug } from '@/lib/utils/slugify'
+import { uploadStoreAssetBinary } from '@/features/media/media.service'
+import type { StoreAssetKind } from '@/features/media/media.dto'
 import { findSellerByUserId } from '@/features/seller/seller.repository'
 import {
   findStoreByUserId,
   findPrimaryStoreByUserId,
-  findStoreBySlug,
   createStore,
   updateStoreSettings as repoUpdateStoreSettings,
   checkSlugAvailable,
 } from './storefront.repository'
 import type { SessionUser } from '@/features/auth/auth.dto'
-import type { StorefrontDto, OnboardingStatusDto, SlugAvailabilityDto } from './storefront.dto'
+import type {
+  StorefrontDto,
+  OnboardingStatusDto,
+  SlugAvailabilityDto,
+  StorefrontAssetUploadDto,
+} from './storefront.dto'
 import type { CreateStoreInput, UpdateStoreSettingsInput } from './storefront.schema'
 import { SellerVerificationStatus } from '@/app/generated/prisma/client'
 
@@ -48,6 +55,40 @@ function toStorefrontDto(store: {
     createdAt: store.createdAt,
     updatedAt: store.updatedAt,
   }
+}
+
+function normalizeStoreSlug(value: string) {
+  const slug = generateSlug(value)
+  if (!slug || slug.length < 2) {
+    throw new InvalidStoreSlugError('Store slug must contain at least 2 alphanumeric characters')
+  }
+  return slug
+}
+
+async function resolveUniqueStoreSlug(params: {
+  name: string
+  requestedSlug?: string
+}) {
+  const baseSlug = normalizeStoreSlug(params.requestedSlug ?? params.name)
+  const available = await checkSlugAvailable(baseSlug)
+
+  if (available) {
+    return baseSlug
+  }
+
+  if (params.requestedSlug) {
+    throw new SlugAlreadyTakenError(`Slug "${baseSlug}" is already taken`)
+  }
+
+  for (let index = 2; index <= 99; index += 1) {
+    const candidate = normalizeStoreSlug(`${baseSlug}-${index}`)
+    const free = await checkSlugAvailable(candidate)
+    if (free) {
+      return candidate
+    }
+  }
+
+  throw new SlugAlreadyTakenError(`Could not generate a unique slug for "${params.name}"`)
 }
 
 export async function getOnboardingStatus(user: SessionUser): Promise<OnboardingStatusDto> {
@@ -85,27 +126,10 @@ export async function provisionStorefront(
   const existingStore = await findStoreByUserId(user.id)
   if (existingStore) throw new StoreAlreadyExistsError()
 
-  let resolvedSlug: string
-
-  if (data.slug) {
-    const available = await checkSlugAvailable(data.slug)
-    if (!available) throw new InvalidStoreSlugError(`Slug "${data.slug}" is already taken`)
-    resolvedSlug = data.slug
-  } else {
-    resolvedSlug = generateSlug(data.name)
-    const available = await checkSlugAvailable(resolvedSlug)
-    if (!available) {
-      // Append a random 4-digit number to make it unique
-      const suffix = Math.floor(1000 + Math.random() * 9000)
-      resolvedSlug = `${resolvedSlug}-${suffix}`.slice(0, 100)
-      const stillAvailable = await checkSlugAvailable(resolvedSlug)
-      if (!stillAvailable) {
-        throw new InvalidStoreSlugError(
-          `Could not generate a unique slug for "${data.name}". Please provide a custom slug.`,
-        )
-      }
-    }
-  }
+  const resolvedSlug = await resolveUniqueStoreSlug({
+    name: data.name,
+    requestedSlug: data.slug,
+  })
 
   const store = await createStore(user.id, { ...data, slug: resolvedSlug })
   return toStorefrontDto(store)
@@ -125,19 +149,50 @@ export async function updateStoreSettings(
 }
 
 export async function checkSlugAvailability(slug: string): Promise<SlugAvailabilityDto> {
-  const available = await checkSlugAvailable(slug)
+  const normalized = normalizeStoreSlug(slug)
+  const available = await checkSlugAvailable(normalized)
 
   if (available) {
     return { available: true, suggestion: null }
   }
 
-  // Generate a suggestion by appending a random 4-digit number
-  const suffix = Math.floor(1000 + Math.random() * 9000)
-  const suggestion = `${slug}-${suffix}`.slice(0, 100)
-  const suggestionAvailable = await checkSlugAvailable(suggestion)
+  for (let index = 2; index <= 99; index += 1) {
+    const suggestion = normalizeStoreSlug(`${normalized}-${index}`)
+    const suggestionAvailable = await checkSlugAvailable(suggestion)
+    if (suggestionAvailable) {
+      return {
+        available: false,
+        suggestion,
+      }
+    }
+  }
+
+  return { available: false, suggestion: null }
+}
+
+export async function uploadStorefrontAsset(
+  user: SessionUser,
+  kind: StoreAssetKind,
+  file: File,
+): Promise<StorefrontAssetUploadDto> {
+  requireSeller(user)
+
+  const store = await findPrimaryStoreByUserId(user.id)
+  if (!store) throw new StoreProvisioningRequiredError()
+
+  const asset = await uploadStoreAssetBinary({
+    storeId: store.id,
+    kind,
+    file,
+  })
+
+  const updatedStore = await repoUpdateStoreSettings(store.id, {
+    ...(kind === 'logo' ? { logoUrl: asset.url } : {}),
+    ...(kind === 'banner' ? { bannerUrl: asset.url } : {}),
+  })
 
   return {
-    available: false,
-    suggestion: suggestionAvailable ? suggestion : null,
+    asset,
+    store: toStorefrontDto(updatedStore),
   }
 }

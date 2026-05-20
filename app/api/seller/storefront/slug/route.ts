@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/session/getSession'
 import { requireSeller } from '@/lib/auth/guards'
-import { slugSchema } from '@/features/storefront/storefront.schema'
+import { slugCandidateSchema } from '@/features/storefront/storefront.schema'
 import { checkSlugAvailability } from '@/features/storefront/storefront.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     requireSeller(user)
 
     const slug = request.nextUrl.searchParams.get('slug') ?? ''
-    const parsed = slugSchema.safeParse(slug)
+    const parsed = slugCandidateSchema.safeParse(slug)
     if (!parsed.success) {
       return Response.json(
         {

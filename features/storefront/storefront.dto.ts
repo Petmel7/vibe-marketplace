@@ -1,4 +1,5 @@
 import type { SellerVerificationStatus } from '@/app/generated/prisma/client'
+import type { UploadedMediaAssetDto } from '@/features/media/media.dto'
 
 export type StorefrontDto = {
   id: string
@@ -25,4 +26,9 @@ export type OnboardingStatusDto = {
 export type SlugAvailabilityDto = {
   available: boolean
   suggestion: string | null
+}
+
+export type StorefrontAssetUploadDto = {
+  asset: UploadedMediaAssetDto
+  store: StorefrontDto
 }

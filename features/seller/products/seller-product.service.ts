@@ -1,5 +1,4 @@
 import { ProductStatus } from '@/app/generated/prisma/client'
-import { prisma } from '@/lib/prisma'
 import { requireSeller } from '@/lib/auth/guards'
 import { assertSellerOwnsStore, assertSellerOwnsProduct } from '@/lib/auth/sellerGuards'
 import {
@@ -7,8 +6,12 @@ import {
   ProductNotFoundError,
   InvalidModerationTransitionError,
   InvalidInventoryError,
+  InvalidSkuError,
+  CategoryNotFoundError,
+  ProductImageLimitExceededError,
 } from '@/lib/errors/seller'
 import { findStoreByUserId } from '@/features/store/store.repository'
+import { uploadProductImageBinary, deleteProductImageBinary } from '@/features/media/media.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type {
   SellerProductDto,
@@ -18,6 +21,8 @@ import type {
   UpdateSellerProductDto,
   CreateVariantDto,
   UpdateVariantDto,
+  ProductImageDto,
+  SellerCategoryOptionDto,
 } from './seller-product.dto'
 import type { ProductFilters } from './seller-product.repository'
 import {
@@ -31,11 +36,23 @@ import {
   deleteVariant as repoDeleteVariant,
   updateVariantStock as repoUpdateVariantStock,
   archiveProduct as repoArchiveProduct,
+  findCategoryById,
+  listActiveCategories,
+  findProductBySkuInStore,
+  findVariantBySku,
+  findVariantByIdWithProduct,
+  createProductImages as repoCreateProductImages,
+  listProductImages as repoListProductImages,
+  countProductImages,
+  findProductImageById,
+  deleteProductImage as repoDeleteProductImage,
+  updateProductPrimaryImage,
+  reorderProductImages as repoReorderProductImages,
+  setPrimaryProductImage as repoSetPrimaryProductImage,
 } from './seller-product.repository'
+import { generateBaseSku, generateVariantSku, normalizeSku } from './seller-product.utils'
 
-// ---------------------------------------------------------------------------
-// DTO mappers
-// ---------------------------------------------------------------------------
+const MAX_PRODUCT_IMAGES = 10
 
 function toSellerVariantDto(variant: {
   id: string
@@ -61,6 +78,30 @@ function toSellerVariantDto(variant: {
   }
 }
 
+function toProductImageDto(image: {
+  id: string
+  productId: string
+  url: string
+  storagePath: string
+  altText: string | null
+  position: number
+  isPrimary: boolean
+  createdAt: Date
+  updatedAt: Date
+}): ProductImageDto {
+  return {
+    id: image.id,
+    productId: image.productId,
+    url: image.url,
+    storagePath: image.storagePath,
+    altText: image.altText,
+    position: image.position,
+    isPrimary: image.isPrimary,
+    createdAt: image.createdAt,
+    updatedAt: image.updatedAt,
+  }
+}
+
 function toSellerProductDto(product: {
   id: string
   storeId: string
@@ -77,7 +118,18 @@ function toSellerProductDto(product: {
   publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
-  variants: Array<{
+  images?: Array<{
+    id: string
+    productId: string
+    url: string
+    storagePath: string
+    altText: string | null
+    position: number
+    isPrimary: boolean
+    createdAt: Date
+    updatedAt: Date
+  }>
+  variants?: Array<{
     id: string
     productId: string
     sku: string
@@ -105,31 +157,156 @@ function toSellerProductDto(product: {
     publishedAt: product.publishedAt,
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
-    variants: product.variants.map(toSellerVariantDto),
+    images: (product.images ?? []).map(toProductImageDto),
+    variants: (product.variants ?? []).map(toSellerVariantDto),
   }
 }
 
-// ---------------------------------------------------------------------------
-// Service functions
-// ---------------------------------------------------------------------------
+async function getOwnedStore(user: SessionUser) {
+  const store = await findStoreByUserId(user.id)
+  if (!store) throw new StoreNotFoundError()
+  assertSellerOwnsStore(user, store)
+  return store
+}
+
+async function getOwnedProduct(user: SessionUser, productId: string) {
+  const store = await getOwnedStore(user)
+  const product = await findProductByIdAndStoreId(productId, store.id)
+  if (!product) throw new ProductNotFoundError()
+  assertSellerOwnsProduct(product, store.id)
+  return { store, product }
+}
+
+async function ensureCategoryExists(categoryId: string | null | undefined) {
+  if (!categoryId) {
+    return
+  }
+
+  const category = await findCategoryById(categoryId)
+  if (!category) {
+    throw new CategoryNotFoundError()
+  }
+}
+
+async function resolveProductSku(params: {
+  storeId: string
+  storeSlug: string
+  productName: string
+  manualSku?: string | null
+  excludeProductId?: string
+}) {
+  const baseSku = params.manualSku
+    ? normalizeSku(params.manualSku)
+    : generateBaseSku(params.productName, params.storeSlug)
+
+  if (!baseSku) {
+    throw new InvalidSkuError('Product SKU cannot be empty after normalization')
+  }
+
+  const existing = await findProductBySkuInStore(params.storeId, baseSku, params.excludeProductId)
+  if (!existing) {
+    return baseSku
+  }
+
+  if (params.manualSku) {
+    throw new InvalidSkuError('Product SKU is already used in this store')
+  }
+
+  for (let index = 2; index <= 99; index += 1) {
+    const candidate = normalizeSku(`${baseSku}-${index}`)
+    if (!candidate) {
+      continue
+    }
+
+    const conflict = await findProductBySkuInStore(params.storeId, candidate, params.excludeProductId)
+    if (!conflict) {
+      return candidate
+    }
+  }
+
+  throw new InvalidSkuError('Unable to generate a unique product SKU')
+}
+
+async function resolveVariantSku(params: {
+  baseSku: string
+  variant: CreateVariantDto | UpdateVariantDto
+  index: number
+  manualSku?: string
+  excludeVariantId?: string
+}) {
+  const baseCandidate = params.manualSku
+    ? normalizeSku(params.manualSku)
+    : generateVariantSku(params.baseSku, params.variant, params.index)
+
+  if (!baseCandidate) {
+    throw new InvalidSkuError('Variant SKU cannot be empty after normalization')
+  }
+
+  const existing = await findVariantBySku(baseCandidate, params.excludeVariantId)
+  if (!existing) {
+    return baseCandidate
+  }
+
+  if (params.manualSku) {
+    throw new InvalidSkuError('Variant SKU is already in use')
+  }
+
+  for (let index = 2; index <= 99; index += 1) {
+    const candidate = normalizeSku(`${baseCandidate}-${index}`)
+    if (!candidate) {
+      continue
+    }
+
+    const conflict = await findVariantBySku(candidate, params.excludeVariantId)
+    if (!conflict) {
+      return candidate
+    }
+  }
+
+  throw new InvalidSkuError('Unable to generate a unique variant SKU')
+}
+
+function normalizeImagePayload(
+  images: NonNullable<CreateSellerProductDto['images']>,
+) {
+  const hasExplicitPrimary = images.some((image: NonNullable<CreateSellerProductDto['images']>[number]) => image.isPrimary)
+
+  return images.map((image: NonNullable<CreateSellerProductDto['images']>[number], index) => ({
+    url: image.url,
+    storagePath: image.storagePath,
+    altText: image.altText ?? null,
+    position: image.position ?? index,
+    isPrimary: hasExplicitPrimary ? Boolean(image.isPrimary) : index === 0,
+  }))
+}
+
+async function synchronizeProductPrimaryImage(productId: string) {
+  const images = await repoListProductImages(productId)
+  const primary = images.find((image: { isPrimary: boolean }) => image.isPrimary) ?? images[0] ?? null
+
+  if (primary && !primary.isPrimary) {
+    await repoSetPrimaryProductImage(productId, primary.id)
+  }
+
+  await updateProductPrimaryImage(productId, primary?.url ?? null)
+  return repoListProductImages(productId)
+}
 
 export async function getMyProducts(
   user: SessionUser,
   filters: ProductFilters,
 ): Promise<SellerProductSummaryDto[]> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-  assertSellerOwnsStore(user, store)
+  const store = await getOwnedStore(user)
 
   const products = await findProductsByStoreId(store.id, filters)
-  return products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    price: p.price.toString(),
-    status: p.status,
-    totalStock: p.variants.reduce((sum, v) => sum + v.stock, 0),
-    createdAt: p.createdAt,
+  return products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price.toString(),
+    status: product.status,
+    totalStock: product.variants.reduce((sum, variant) => sum + variant.stock, 0),
+    createdAt: product.createdAt,
   }))
 }
 
@@ -138,13 +315,12 @@ export async function getMyProductById(
   productId: string,
 ): Promise<SellerProductDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
-  const product = await findProductByIdAndStoreId(productId, store.id)
-  if (!product) throw new ProductNotFoundError()
-
+  const { product } = await getOwnedProduct(user, productId)
   return toSellerProductDto(product)
+}
+
+export async function listSellerProductCategories(): Promise<SellerCategoryOptionDto[]> {
+  return listActiveCategories()
 }
 
 export async function createProduct(
@@ -152,18 +328,44 @@ export async function createProduct(
   data: CreateSellerProductDto,
 ): Promise<SellerProductDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-  assertSellerOwnsStore(user, store)
+  const store = await getOwnedStore(user)
+  await ensureCategoryExists(data.categoryId)
 
-  const product = await repoCreateProduct(store.id, data)
+  const productSku = await resolveProductSku({
+    storeId: store.id,
+    storeSlug: store.slug,
+    productName: data.name,
+    manualSku: data.sku,
+  })
+
+  const normalizedImages = data.images ? normalizeImagePayload(data.images) : []
+  if (normalizedImages.length > MAX_PRODUCT_IMAGES) {
+    throw new ProductImageLimitExceededError(`A product can have at most ${MAX_PRODUCT_IMAGES} images`)
+  }
+
+  const product = await repoCreateProduct(store.id, {
+    ...data,
+    sku: productSku,
+    imageUrl: normalizedImages.find((image) => image.isPrimary)?.url ?? data.imageUrl ?? null,
+  })
 
   if (data.variants && data.variants.length > 0) {
-    for (let i = 0; i < data.variants.length; i++) {
-      const v = data.variants[i]
-      const generatedSku = v.sku ?? `${product.id.slice(0, 8)}-${Date.now()}-${i}`
-      await repoCreateVariant(product.id, { ...v, generatedSku })
+    for (let index = 0; index < data.variants.length; index += 1) {
+      const variant = data.variants[index]
+      const resolvedSku = await resolveVariantSku({
+        baseSku: productSku,
+        variant,
+        index,
+        manualSku: variant.sku,
+      })
+
+      await repoCreateVariant(product.id, { ...variant, generatedSku: resolvedSku })
     }
+  }
+
+  if (normalizedImages.length > 0) {
+    await repoCreateProductImages(product.id, normalizedImages)
+    await synchronizeProductPrimaryImage(product.id)
   }
 
   const refreshed = await findProductByIdAndStoreId(product.id, store.id)
@@ -177,14 +379,28 @@ export async function updateProduct(
   data: UpdateSellerProductDto,
 ): Promise<SellerProductDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
+  const { store, product } = await getOwnedProduct(user, productId)
 
-  const product = await findProductByIdAndStoreId(productId, store.id)
-  if (!product) throw new ProductNotFoundError()
-  assertSellerOwnsProduct(product, store.id)
+  if (data.categoryId !== undefined) {
+    await ensureCategoryExists(data.categoryId)
+  }
 
-  const updated = await repoUpdateProduct(productId, data)
+  const resolvedSku = data.sku !== undefined
+    ? data.sku === null
+      ? null
+      : await resolveProductSku({
+          storeId: store.id,
+          storeSlug: store.slug,
+          productName: data.name ?? product.name,
+          manualSku: data.sku,
+          excludeProductId: product.id,
+        })
+    : undefined
+
+  const updated = await repoUpdateProduct(productId, {
+    ...data,
+    ...(resolvedSku !== undefined ? { sku: resolvedSku } : {}),
+  })
   return toSellerProductDto(updated)
 }
 
@@ -193,11 +409,7 @@ export async function submitForReview(
   productId: string,
 ): Promise<SellerProductDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
-  const product = await findProductByIdAndStoreId(productId, store.id)
-  if (!product) throw new ProductNotFoundError()
+  const { store, product } = await getOwnedProduct(user, productId)
   assertSellerOwnsProduct(product, store.id)
 
   if (product.status !== ProductStatus.DRAFT) {
@@ -213,17 +425,10 @@ export async function archiveProduct(
   productId: string,
 ): Promise<SellerProductDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
-  const product = await findProductByIdAndStoreId(productId, store.id)
-  if (!product) throw new ProductNotFoundError()
+  const { store, product } = await getOwnedProduct(user, productId)
   assertSellerOwnsProduct(product, store.id)
 
-  if (
-    product.status !== ProductStatus.PUBLISHED &&
-    product.status !== ProductStatus.REJECTED
-  ) {
+  if (product.status !== ProductStatus.PUBLISHED && product.status !== ProductStatus.REJECTED) {
     throw new InvalidModerationTransitionError(product.status, 'ARCHIVED')
   }
 
@@ -237,15 +442,17 @@ export async function addVariant(
   data: CreateVariantDto,
 ): Promise<SellerVariantDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
-  const product = await findProductByIdAndStoreId(productId, store.id)
-  if (!product) throw new ProductNotFoundError()
+  const { store, product } = await getOwnedProduct(user, productId)
   assertSellerOwnsProduct(product, store.id)
 
-  const generatedSku = data.sku ?? `${productId.slice(0, 8)}-${Date.now()}`
-  const variant = await repoCreateVariant(productId, { ...data, generatedSku })
+  const resolvedSku = await resolveVariantSku({
+    baseSku: product.sku ?? generateBaseSku(product.name, store.slug),
+    variant: data,
+    index: product.variants?.length ?? 0,
+    manualSku: data.sku,
+  })
+
+  const variant = await repoCreateVariant(productId, { ...data, generatedSku: resolvedSku })
   return toSellerVariantDto(variant)
 }
 
@@ -255,29 +462,39 @@ export async function updateVariant(
   data: UpdateVariantDto,
 ): Promise<SellerVariantDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
+  const store = await getOwnedStore(user)
+  const variant = await findVariantByIdWithProduct(variantId)
 
-  const variant = await prisma.productVariant.findUnique({
-    where: { id: variantId },
-    include: { product: true },
-  })
   if (!variant) throw new ProductNotFoundError('Variant not found')
   assertSellerOwnsProduct(variant.product, store.id)
 
-  const updated = await repoUpdateVariant(variantId, data)
+  const resolvedSku = data.sku !== undefined
+    ? await resolveVariantSku({
+        baseSku: variant.product.sku ?? generateBaseSku(variant.product.name, store.slug),
+        variant: {
+          size: data.size ?? variant.size,
+          color: data.color ?? variant.color,
+          price: data.price ?? (variant.price ? variant.price.toString() : null),
+          stock: data.stock ?? variant.stock,
+        },
+        index: 0,
+        manualSku: data.sku,
+        excludeVariantId: variant.id,
+      })
+    : undefined
+
+  const updated = await repoUpdateVariant(variantId, {
+    ...data,
+    ...(resolvedSku !== undefined ? { sku: resolvedSku } : {}),
+  })
   return toSellerVariantDto(updated)
 }
 
 export async function removeVariant(user: SessionUser, variantId: string): Promise<void> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
+  const store = await getOwnedStore(user)
+  const variant = await findVariantByIdWithProduct(variantId)
 
-  const variant = await prisma.productVariant.findUnique({
-    where: { id: variantId },
-    include: { product: true },
-  })
   if (!variant) throw new ProductNotFoundError('Variant not found')
   assertSellerOwnsProduct(variant.product, store.id)
 
@@ -292,16 +509,116 @@ export async function updateInventory(
   if (stock < 0) throw new InvalidInventoryError()
 
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
+  const store = await getOwnedStore(user)
+  const variant = await findVariantByIdWithProduct(variantId)
 
-  const variant = await prisma.productVariant.findUnique({
-    where: { id: variantId },
-    include: { product: true },
-  })
   if (!variant) throw new ProductNotFoundError('Variant not found')
   assertSellerOwnsProduct(variant.product, store.id)
 
   const updated = await repoUpdateVariantStock(variantId, stock)
   return toSellerVariantDto(updated)
+}
+
+export async function listProductImages(user: SessionUser, productId: string): Promise<ProductImageDto[]> {
+  requireSeller(user)
+  await getOwnedProduct(user, productId)
+
+  const images = await repoListProductImages(productId)
+  return images.map(toProductImageDto)
+}
+
+export async function uploadProductImage(
+  user: SessionUser,
+  productId: string,
+  params: { file: File; altText?: string; position?: number; isPrimary?: boolean },
+): Promise<ProductImageDto> {
+  requireSeller(user)
+  await getOwnedProduct(user, productId)
+
+  const existingCount = await countProductImages(productId)
+  if (existingCount >= MAX_PRODUCT_IMAGES) {
+    throw new ProductImageLimitExceededError(`A product can have at most ${MAX_PRODUCT_IMAGES} images`)
+  }
+
+  const uploaded = await uploadProductImageBinary({ productId, file: params.file })
+  const desiredPosition = params.position ?? existingCount
+  const shouldBecomePrimary = existingCount === 0 || Boolean(params.isPrimary)
+
+  const [created] = await repoCreateProductImages(productId, [
+    {
+      url: uploaded.url,
+      storagePath: uploaded.storagePath,
+      altText: params.altText ?? null,
+      position: desiredPosition,
+      isPrimary: existingCount === 0,
+    },
+  ])
+
+  if (shouldBecomePrimary && !created.isPrimary) {
+    await repoSetPrimaryProductImage(productId, created.id)
+  }
+
+  const images = await synchronizeProductPrimaryImage(productId)
+  const image = images.find((entry: { id: string }) => entry.id === created.id)
+  if (!image) throw new ProductNotFoundError('Product image not found after upload')
+
+  return toProductImageDto(image)
+}
+
+export async function removeProductImage(user: SessionUser, productId: string, imageId: string): Promise<void> {
+  requireSeller(user)
+  await getOwnedProduct(user, productId)
+
+  const image = await findProductImageById(productId, imageId)
+  if (!image) {
+    throw new ProductNotFoundError('Product image not found')
+  }
+
+  await repoDeleteProductImage(image.id)
+  await deleteProductImageBinary(image.storagePath)
+
+  const remaining = await repoListProductImages(productId)
+  if (remaining.length > 0 && !remaining.some((entry: { isPrimary: boolean }) => entry.isPrimary)) {
+    await repoSetPrimaryProductImage(productId, remaining[0].id)
+  }
+
+  await synchronizeProductPrimaryImage(productId)
+}
+
+export async function reorderProductImages(
+  user: SessionUser,
+  productId: string,
+  items: Array<{ id: string; position: number }>,
+): Promise<ProductImageDto[]> {
+  requireSeller(user)
+  await getOwnedProduct(user, productId)
+
+  const existingImages = await repoListProductImages(productId)
+  const existingIds = new Set(existingImages.map((image: { id: string }) => image.id))
+
+  if (items.some((item) => !existingIds.has(item.id))) {
+    throw new ProductNotFoundError('One or more product images could not be found')
+  }
+
+  await repoReorderProductImages(productId, items)
+  const images = await synchronizeProductPrimaryImage(productId)
+  return images.map(toProductImageDto)
+}
+
+export async function setPrimaryProductImage(
+  user: SessionUser,
+  productId: string,
+  imageId: string,
+): Promise<ProductImageDto[]> {
+  requireSeller(user)
+  await getOwnedProduct(user, productId)
+
+  const image = await findProductImageById(productId, imageId)
+  if (!image) {
+    throw new ProductNotFoundError('Product image not found')
+  }
+
+  await repoSetPrimaryProductImage(productId, image.id)
+  const images = await synchronizeProductPrimaryImage(productId)
+  return images.map(toProductImageDto)
 }

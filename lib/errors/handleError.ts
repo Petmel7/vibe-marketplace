@@ -37,6 +37,13 @@ import {
   SellerNotVerifiedError,
   StoreProvisioningRequiredError,
   InvalidStoreSlugError,
+  UploadFailedError,
+  InvalidImageFileError,
+  StoragePathConflictError,
+  SlugAlreadyTakenError,
+  InvalidSkuError,
+  CategoryNotFoundError,
+  ProductImageLimitExceededError,
 } from './seller'
 import {
   AdminAccessError,
@@ -78,7 +85,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CheckoutVariantNotFoundError ||
     err instanceof StoreNotFoundError ||
     err instanceof ProductNotFoundError ||
-    err instanceof OrderItemNotFoundError
+    err instanceof OrderItemNotFoundError ||
+    err instanceof CategoryNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -87,9 +95,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
   if (
     err instanceof SellerAlreadyOnboardedError ||
     err instanceof SlugConflictError ||
+    err instanceof SlugAlreadyTakenError ||
     err instanceof AlreadyVerifiedError ||
     err instanceof AlreadyModeratedError ||
-    err instanceof StoreAlreadyExistsError
+    err instanceof StoreAlreadyExistsError ||
+    err instanceof StoragePathConflictError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -108,11 +118,19 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidInventoryError ||
     err instanceof SelfModerationError ||
     err instanceof ModerationReasonRequiredError ||
-    err instanceof InvalidStoreSlugError
+    err instanceof InvalidStoreSlugError ||
+    err instanceof InvalidImageFileError ||
+    err instanceof InvalidSkuError ||
+    err instanceof ProductImageLimitExceededError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 400 },
+    )
+  if (err instanceof UploadFailedError)
+    return Response.json(
+      { success: false, error: { message: err.message, code: err.code } },
+      { status: 500 },
     )
   logError(label, err)
   return Response.json(

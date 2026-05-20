@@ -8,9 +8,11 @@ export const slugSchema = z
   .max(100)
   .regex(slugRegex, 'Slug must contain only lowercase letters, numbers, and hyphens')
 
+export const slugCandidateSchema = z.string().trim().min(1).max(100)
+
 export const createStoreSchema = z.object({
   name: z.string().min(2).max(100),
-  slug: slugSchema.optional(),
+  slug: slugCandidateSchema.optional(),
   description: z.string().max(1000).optional(),
   logoUrl: z.string().url().optional(),
   bannerUrl: z.string().url().optional(),

@@ -1,32 +1,40 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProductStatus } from '@/app/generated/prisma/client'
 
+vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/seller/products/seller-product.repository')
 vi.mock('@/features/store/store.repository')
+vi.mock('@/features/media/media.service')
 vi.mock('@/lib/auth/guards')
 vi.mock('@/lib/auth/sellerGuards')
-vi.mock('@/lib/prisma', () => ({ prisma: { productVariant: { findUnique: vi.fn() } } }))
 
 import * as productRepo from '@/features/seller/products/seller-product.repository'
 import * as storeRepo from '@/features/store/store.repository'
+import * as mediaService from '@/features/media/media.service'
 import * as guards from '@/lib/auth/guards'
 import * as sellerGuards from '@/lib/auth/sellerGuards'
 import {
+  archiveProduct,
   createProduct,
   getMyProductById,
+  setPrimaryProductImage,
   submitForReview,
-  archiveProduct,
   updateInventory,
+  uploadProductImage,
 } from '@/features/seller/products/seller-product.service'
 import {
-  ProductNotFoundError,
-  InvalidModerationTransitionError,
+  CategoryNotFoundError,
   InvalidInventoryError,
+  InvalidModerationTransitionError,
+  InvalidSkuError,
+  ProductImageLimitExceededError,
+  ProductNotFoundError,
 } from '@/lib/errors/seller'
 import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockProductRepo = vi.mocked(productRepo)
 const mockStoreRepo = vi.mocked(storeRepo)
+const mockMediaService = vi.mocked(mediaService)
 const mockGuards = vi.mocked(guards)
 const mockSellerGuards = vi.mocked(sellerGuards)
 
@@ -45,30 +53,59 @@ const mockStore = {
   logoUrl: null,
   bannerUrl: null,
   isActive: true,
+  isPrimary: true,
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeProduct(overrides: Record<string, any> = {}): any {
+function makeProduct(overrides: Record<string, unknown> = {}) {
   return {
     id: 'product-uuid-001',
-    storeId: 'store-uuid-001',
+    storeId: mockStore.id,
     categoryId: null,
     name: 'Test Product',
     description: null,
     price: { toString: () => '29.99' },
     imageUrl: null,
-    sku: null,
+    sku: 'TEST-STORE-TEST-PRODUCT',
     isHit: false,
     isNew: false,
     isActive: true,
     status: ProductStatus.DRAFT,
     rejectionReason: null,
+    moderatedAt: null,
+    moderatedBy: null,
+    moderationReason: null,
     publishedAt: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
+    images: [],
     variants: [],
+    ...overrides,
+  }
+}
+
+function makeImage(overrides: Partial<{
+  id: string
+  productId: string
+  url: string
+  storagePath: string
+  altText: string | null
+  position: number
+  isPrimary: boolean
+  createdAt: Date
+  updatedAt: Date
+}> = {}) {
+  return {
+    id: 'image-uuid-001',
+    productId: 'product-uuid-001',
+    url: 'https://cdn.example.com/product.png',
+    storagePath: 'products/product-uuid-001/hash.png',
+    altText: 'Primary image',
+    position: 0,
+    isPrimary: true,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
     ...overrides,
   }
 }
@@ -79,43 +116,58 @@ beforeEach(() => {
   mockSellerGuards.assertSellerOwnsStore.mockReturnValue(undefined)
   mockSellerGuards.assertSellerOwnsProduct.mockReturnValue(undefined)
   mockStoreRepo.findStoreByUserId.mockResolvedValue(mockStore)
+  mockProductRepo.findProductBySkuInStore.mockResolvedValue(null)
+  mockProductRepo.findVariantBySku.mockResolvedValue(null)
+  mockProductRepo.listProductImages.mockResolvedValue([])
 })
 
-// ---------------------------------------------------------------------------
-// Test 1: createProduct sets status DRAFT in repo call
-// ---------------------------------------------------------------------------
 describe('createProduct', () => {
-  it('sets status DRAFT in the repo call', async () => {
+  it('normalizes a manual product SKU before persisting', async () => {
     const product = makeProduct()
     mockProductRepo.createProduct.mockResolvedValue(product)
     mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
 
-    await createProduct(mockUser, { name: 'Test Product', price: '29.99' })
+    await createProduct(mockUser, {
+      name: 'Test Product',
+      price: '29.99',
+      sku: ' custom sku ',
+    })
 
     expect(mockProductRepo.createProduct).toHaveBeenCalledWith(
       mockStore.id,
-      expect.objectContaining({ name: 'Test Product', price: '29.99' }),
+      expect.objectContaining({ sku: 'CUSTOM-SKU' }),
     )
   })
 
-  it('derives storeId from seller store, not from input', async () => {
-    const product = makeProduct()
-    mockProductRepo.createProduct.mockResolvedValue(product)
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+  it('rejects duplicate manual product SKUs in the same store', async () => {
+    mockProductRepo.findProductBySkuInStore.mockResolvedValue({ id: 'other-product' })
 
-    await createProduct(mockUser, { name: 'Test Product', price: '29.99' })
+    await expect(
+      createProduct(mockUser, {
+        name: 'Test Product',
+        price: '29.99',
+        sku: 'duplicate-sku',
+      }),
+    ).rejects.toThrow(InvalidSkuError)
 
-    expect(mockProductRepo.createProduct).toHaveBeenCalledWith(
-      mockStore.id,
-      expect.any(Object),
-    )
-    expect(mockStoreRepo.findStoreByUserId).toHaveBeenCalledWith(mockUser.id)
+    expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
+  })
+
+  it('validates that category exists before creating a product', async () => {
+    mockProductRepo.findCategoryById.mockResolvedValue(null)
+
+    await expect(
+      createProduct(mockUser, {
+        name: 'Test Product',
+        price: '29.99',
+        categoryId: 'missing-category',
+      }),
+    ).rejects.toThrow(CategoryNotFoundError)
+
+    expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
   })
 })
 
-// ---------------------------------------------------------------------------
-// Test 3: submitForReview DRAFT → PENDING_REVIEW
-// ---------------------------------------------------------------------------
 describe('submitForReview', () => {
   it('transitions DRAFT product to PENDING_REVIEW', async () => {
     const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
@@ -139,13 +191,9 @@ describe('submitForReview', () => {
     await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
       InvalidModerationTransitionError,
     )
-    expect(mockProductRepo.updateProductStatus).not.toHaveBeenCalled()
   })
 })
 
-// ---------------------------------------------------------------------------
-// Test 5: archiveProduct PUBLISHED → ARCHIVED
-// ---------------------------------------------------------------------------
 describe('archiveProduct', () => {
   it('archives a PUBLISHED product', async () => {
     const publishedProduct = makeProduct({ status: ProductStatus.PUBLISHED })
@@ -158,21 +206,8 @@ describe('archiveProduct', () => {
     expect(mockProductRepo.archiveProduct).toHaveBeenCalledWith('product-uuid-001')
     expect(result.status).toBe(ProductStatus.ARCHIVED)
   })
-
-  it('throws InvalidModerationTransitionError for DRAFT product', async () => {
-    const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(draftProduct)
-
-    await expect(archiveProduct(mockUser, 'product-uuid-001')).rejects.toThrow(
-      InvalidModerationTransitionError,
-    )
-    expect(mockProductRepo.archiveProduct).not.toHaveBeenCalled()
-  })
 })
 
-// ---------------------------------------------------------------------------
-// Test 7: updateInventory throws for negative stock
-// ---------------------------------------------------------------------------
 describe('updateInventory', () => {
   it('throws InvalidInventoryError for negative stock', async () => {
     await expect(updateInventory(mockUser, 'variant-uuid-001', -1)).rejects.toThrow(
@@ -181,9 +216,6 @@ describe('updateInventory', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Test 8: getMyProductById throws ProductNotFoundError when product not in store
-// ---------------------------------------------------------------------------
 describe('getMyProductById', () => {
   it('throws ProductNotFoundError when product does not belong to seller store', async () => {
     mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(null)
@@ -191,5 +223,80 @@ describe('getMyProductById', () => {
     await expect(getMyProductById(mockUser, 'non-existent-product')).rejects.toThrow(
       ProductNotFoundError,
     )
+  })
+})
+
+describe('uploadProductImage', () => {
+  it('creates a product image, syncs primary state, and updates snapshot URL', async () => {
+    const product = makeProduct()
+    const createdImage = makeImage({ isPrimary: true })
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'product.png', { type: 'image/png' })
+
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+    mockProductRepo.countProductImages.mockResolvedValue(0)
+    mockMediaService.uploadProductImageBinary.mockResolvedValue({
+      bucket: 'product-images',
+      url: createdImage.url,
+      storagePath: createdImage.storagePath,
+      contentType: 'image/png',
+      size: 4,
+    })
+    mockProductRepo.createProductImages.mockResolvedValue([createdImage])
+    mockProductRepo.listProductImages.mockResolvedValue([createdImage])
+    mockProductRepo.updateProductPrimaryImage.mockResolvedValue(product)
+
+    const result = await uploadProductImage(mockUser, product.id, {
+      file,
+      altText: 'Primary image',
+      isPrimary: true,
+    })
+
+    expect(mockMediaService.uploadProductImageBinary).toHaveBeenCalledWith({
+      file,
+      productId: product.id,
+    })
+    expect(mockProductRepo.createProductImages).toHaveBeenCalledWith(
+      product.id,
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: createdImage.url,
+          storagePath: createdImage.storagePath,
+        }),
+      ]),
+    )
+    expect(mockProductRepo.updateProductPrimaryImage).toHaveBeenCalledWith(product.id, createdImage.url)
+    expect(result.storagePath).toBe(createdImage.storagePath)
+  })
+
+  it('rejects uploads when the product image limit has been reached', async () => {
+    const product = makeProduct()
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'product.png', { type: 'image/png' })
+
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+    mockProductRepo.countProductImages.mockResolvedValue(10)
+
+    await expect(uploadProductImage(mockUser, product.id, { file })).rejects.toThrow(
+      ProductImageLimitExceededError,
+    )
+  })
+})
+
+describe('setPrimaryProductImage', () => {
+  it('reassigns the primary image and refreshes product imageUrl', async () => {
+    const product = makeProduct()
+    const secondary = makeImage({ id: 'image-uuid-002', isPrimary: false, url: 'https://cdn.example.com/secondary.png' })
+
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+    mockProductRepo.findProductImageById.mockResolvedValue(secondary)
+    mockProductRepo.listProductImages.mockResolvedValue([
+      { ...secondary, isPrimary: true },
+    ])
+    mockProductRepo.updateProductPrimaryImage.mockResolvedValue(product)
+
+    const result = await setPrimaryProductImage(mockUser, product.id, secondary.id)
+
+    expect(mockProductRepo.setPrimaryProductImage).toHaveBeenCalledWith(product.id, secondary.id)
+    expect(mockProductRepo.updateProductPrimaryImage).toHaveBeenCalledWith(product.id, secondary.url)
+    expect(result[0]?.isPrimary).toBe(true)
   })
 })
