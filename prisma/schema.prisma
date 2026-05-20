@@ -34,21 +34,21 @@ model User {
 }
 
 model Store {
-  id          String      @id @default(uuid()) @db.Uuid
-  ownerId     String      @map("owner_id") @db.Uuid
-  name        String
-  slug        String      @unique
-  description String?
-  logoUrl     String?     @map("logo_url")
-  isActive    Boolean     @default(true) @map("is_active")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @map("updated_at")
-  bannerUrl      String?        @map("banner_url")
-  isPrimary      Boolean        @default(false) @map("is_primary")
-  orderItems     OrderItem[]
-  products       Product[]
-  owner          User           @relation(fields: [ownerId], references: [id], map: "stores_owner_id_user_fkey")
-  sellerProfile  SellerProfile? @relation("SellerStores", fields: [ownerId], references: [userId], map: "stores_owner_id_seller_fkey")
+  id            String         @id @default(uuid()) @db.Uuid
+  ownerId       String         @map("owner_id") @db.Uuid
+  name          String
+  slug          String         @unique
+  description   String?
+  logoUrl       String?        @map("logo_url")
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @map("updated_at")
+  bannerUrl     String?        @map("banner_url")
+  isPrimary     Boolean        @default(false) @map("is_primary")
+  orderItems    OrderItem[]
+  products      Product[]
+  owner         User           @relation(fields: [ownerId], references: [id], map: "stores_owner_id_user_fkey")
+  sellerProfile SellerProfile? @relation("SellerStores", fields: [ownerId], references: [userId], map: "stores_owner_id_seller_fkey")
 
   @@index([ownerId], map: "stores_ownerId_idx")
   @@index([isActive], map: "stores_isActive_idx")
@@ -102,6 +102,7 @@ model Product {
   moderatedBy      String?                  @map("moderated_by")
   moderationReason String?                  @map("moderation_reason")
   variants         ProductVariant[]
+  images           ProductImage[]
   category         Category?                @relation(fields: [categoryId], references: [id])
   store            Store                    @relation(fields: [storeId], references: [id])
   reviews          Review[]
@@ -114,6 +115,24 @@ model Product {
   @@index([status])
   @@index([searchVector], map: "products_searchVector_idx", type: Gin)
   @@map("products")
+}
+
+model ProductImage {
+  id          String   @id @default(uuid()) @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  url         String
+  storagePath String   @map("storage_path")
+  altText     String?  @map("alt_text")
+  position    Int      @default(0)
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId], map: "product_images_productId_idx")
+  @@index([productId, position], map: "product_images_productId_position_idx")
+  @@index([productId, isPrimary], map: "product_images_productId_isPrimary_idx")
+  @@map("product_images")
 }
 
 model ProductVariant {
