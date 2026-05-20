@@ -75,7 +75,7 @@ export default function SellerSidebar({
         <p className="mt-2 text-sm text-copy-muted">
           {store
             ? `Your storefront is connected at /${store.slug} and ${store.isActive ? 'currently active' : 'currently paused'}.`
-            : 'Store provisioning is not complete yet. Finish setup to unlock product, order, and inventory workflows.'}
+            : 'Your seller verification is complete, but storefront provisioning still needs to be finished before product, order, and inventory workflows can open.'}
         </p>
         <Link href="/seller/store" className="ui-secondary-button mt-4 w-full">
           Open store settings

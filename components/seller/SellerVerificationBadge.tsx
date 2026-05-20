@@ -7,7 +7,8 @@ const BADGE_COPY: Record<
 > = {
   BUYER: { label: 'Buyer account', tone: 'info' },
   PENDING_VERIFICATION: { label: 'Pending verification', tone: 'warning' },
-  VERIFIED: { label: 'Verified seller', tone: 'success' },
+  VERIFIED_NO_STORE: { label: 'Verified, store setup needed', tone: 'warning' },
+  STORE_READY: { label: 'Store ready', tone: 'success' },
   REJECTED: { label: 'Application rejected', tone: 'danger' },
   SUSPENDED: { label: 'Seller suspended', tone: 'danger' },
 }

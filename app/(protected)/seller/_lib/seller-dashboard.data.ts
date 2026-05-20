@@ -2,10 +2,10 @@ import { ProfileNotFoundError, SellerProfileNotFoundError } from '@/lib/errors/p
 import { ProductNotFoundError, StoreNotFoundError } from '@/lib/errors/seller'
 import { getMyProfile } from '@/features/profile/profile.service'
 import { getMySellerProfile } from '@/features/seller/seller.service'
-import { getMyStore } from '@/features/store/store.service'
 import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.service'
 import { getMyProducts, getMyProductById } from '@/features/seller/products/seller-product.service'
 import { getMyOrderItems } from '@/features/seller/orders/seller-order.service'
+import { getOnboardingStatus } from '@/features/storefront/storefront.service'
 import type { SessionUser } from '@/types/auth'
 import { getSellerOnboardingState } from '@/types/seller'
 import { hasRole } from '@/lib/rbac/guards'
@@ -25,11 +25,14 @@ export async function getSellerLayoutData(user: SessionUser) {
       }
     }
 
-    try {
-      store = await getMyStore(user)
-    } catch (error) {
-      if (!(error instanceof StoreNotFoundError)) {
-        throw error
+    if (sellerProfile) {
+      try {
+        const onboardingStatus = await getOnboardingStatus(user)
+        store = onboardingStatus.store
+      } catch (error) {
+        if (!(error instanceof StoreNotFoundError) && !(error instanceof SellerProfileNotFoundError)) {
+          throw error
+        }
       }
     }
   }
@@ -39,6 +42,46 @@ export async function getSellerLayoutData(user: SessionUser) {
     sellerProfile,
     store,
   }
+}
+
+export function getSellerStorefrontState(data: {
+  sellerProfile: { verificationStatus: string } | null
+  store: unknown | null
+}) {
+  return getSellerOnboardingState(
+    data.sellerProfile?.verificationStatus as Parameters<typeof getSellerOnboardingState>[0],
+    data.store !== null,
+  )
+}
+
+export function getSellerWorkspaceRedirect(data: {
+  sellerProfile: { verificationStatus: string } | null
+  store: unknown | null
+}) {
+  const state = getSellerStorefrontState(data)
+
+  if (state === 'BUYER' || state === 'PENDING_VERIFICATION' || state === 'REJECTED' || state === 'SUSPENDED') {
+    return '/seller/onboarding'
+  }
+
+  if (state === 'VERIFIED_NO_STORE') {
+    return '/seller/store?setup=storefront'
+  }
+
+  return null
+}
+
+export function getSellerStorefrontRedirect(data: {
+  sellerProfile: { verificationStatus: string } | null
+  store: unknown | null
+}) {
+  const state = getSellerStorefrontState(data)
+
+  if (state === 'BUYER' || state === 'PENDING_VERIFICATION' || state === 'REJECTED' || state === 'SUSPENDED') {
+    return '/seller/onboarding'
+  }
+
+  return null
 }
 
 export async function getSellerOverviewData(user: SessionUser) {
@@ -133,7 +176,7 @@ export async function getSellerOrdersPageData(user: SessionUser) {
     }
   }
 
-  const orderItems = await getMyOrderItems(user, { page: 1, limit: 30 })
+  const orderItems = await getMyOrderItems(user, { page: 1, limit: 20 })
 
   return {
     ...layout,
@@ -155,7 +198,7 @@ export async function getSellerAnalyticsPageData(user: SessionUser) {
 
   const [analytics, products, orderItems] = await Promise.all([
     getMyAnalytics(user),
-    getMyProducts(user, { page: 1, limit: 12 }),
+    getMyProducts(user, { page: 1, limit: 20 }),
     getMyOrderItems(user, { page: 1, limit: 20 }),
   ])
 
@@ -181,9 +224,8 @@ export async function getSellerInventoryPageData(user: SessionUser) {
     }
   }
 
-  const productSummaries = await getMyProducts(user, { page: 1, limit: 20 })
   const products = await Promise.all(
-    productSummaries.map((product) => getMyProductById(user, product.id)),
+    (await getMyProducts(user, { page: 1, limit: 50 })).map((product) => getMyProductById(user, product.id)),
   )
 
   return {
@@ -212,27 +254,8 @@ export async function getSellerOnboardingPageData(user: SessionUser) {
     ...layout,
     profile,
     moderationReason,
-    onboardingState: getSellerOnboardingState(layout.sellerProfile?.verificationStatus),
+    onboardingState: getSellerStorefrontState(layout),
   }
-}
-
-export function getSellerWorkspaceRedirect(data: {
-  sellerProfile: { verificationStatus: string } | null
-  store: unknown | null
-}) {
-  if (!data.sellerProfile) {
-    return '/seller/onboarding'
-  }
-
-  if (data.sellerProfile.verificationStatus !== 'VERIFIED') {
-    return '/seller/onboarding'
-  }
-
-  if (!data.store) {
-    return '/seller/onboarding'
-  }
-
-  return null
 }
 
 function extractModerationReason(value: unknown) {

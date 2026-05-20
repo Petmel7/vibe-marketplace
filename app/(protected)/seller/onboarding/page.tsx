@@ -13,7 +13,7 @@ export default async function SellerOnboardingPage() {
 
   const data = await getSellerOnboardingPageData(user)
 
-  if (data.onboardingState === 'VERIFIED' && data.store) {
+  if (data.onboardingState === 'STORE_READY') {
     redirect('/seller')
   }
 
@@ -30,22 +30,26 @@ export default async function SellerOnboardingPage() {
           ? 'Become a seller'
           : data.onboardingState === 'PENDING_VERIFICATION'
             ? 'Seller verification in progress'
+            : data.onboardingState === 'VERIFIED_NO_STORE'
+              ? 'Set up your storefront'
             : data.onboardingState === 'REJECTED'
               ? 'Seller application needs attention'
               : data.onboardingState === 'SUSPENDED'
                 ? 'Seller account is suspended'
-                : 'Seller setup in progress'
+                : 'Seller storefront is ready'
       }
       description={
         data.onboardingState === 'BUYER'
           ? 'Upgrade your buyer account into a marketplace seller experience with a reviewed storefront identity and a clear verification path.'
           : data.onboardingState === 'PENDING_VERIFICATION'
             ? 'Your seller application is already under review. Buyer tools remain active while we prepare the next seller setup steps.'
+            : data.onboardingState === 'VERIFIED_NO_STORE'
+              ? 'Your seller profile is approved. The last step is provisioning your storefront so catalog, order, inventory, and analytics tools can open without restrictions.'
             : data.onboardingState === 'REJECTED'
               ? 'Review the feedback below, update your seller context when needed, and coordinate the next verification attempt.'
-              : data.onboardingState === 'SUSPENDED'
-                ? 'Seller operations are currently paused. You can still review account context and buyer tools while moderation resolves the suspension.'
-                : 'Your seller profile is verified. We are preparing the final storefront provisioning steps before the full seller workspace opens.'
+            : data.onboardingState === 'SUSPENDED'
+              ? 'Seller operations are currently paused. You can still review account context and buyer tools while moderation resolves the suspension.'
+                : 'Your seller profile and storefront are both ready. We will hand you off to the seller workspace automatically.'
       }
       badge={<SellerVerificationBadge state={data.onboardingState} />}
       aside={
@@ -109,12 +113,12 @@ export default async function SellerOnboardingPage() {
         />
       ) : null}
 
-      {data.onboardingState === 'VERIFIED' && !data.store ? (
+      {data.onboardingState === 'VERIFIED_NO_STORE' ? (
         <OnboardingEmptyState
-          title="Storefront provisioning is underway"
-          description="Your seller identity is approved, but the storefront record is not ready yet. As soon as provisioning finishes, the full seller dashboard will open automatically from this same entry point."
-          actionHref="/profile"
-          actionLabel="Continue in buyer dashboard"
+          title="Storefront setup is ready"
+          description="Your seller identity is approved and the marketplace can now provision your storefront. Finish store settings to unlock the full seller workspace without any redirect loops."
+          actionHref="/seller/store?setup=storefront"
+          actionLabel="Open store settings"
         />
       ) : null}
     </SellerOnboardingShell>

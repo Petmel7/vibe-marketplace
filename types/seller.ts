@@ -1,5 +1,12 @@
 export const SELLER_VERIFICATION_STATUSES = ['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'] as const
-export const SELLER_ONBOARDING_STATES = ['BUYER', 'PENDING_VERIFICATION', 'VERIFIED', 'REJECTED', 'SUSPENDED'] as const
+export const SELLER_ONBOARDING_STATES = [
+  'BUYER',
+  'PENDING_VERIFICATION',
+  'VERIFIED_NO_STORE',
+  'STORE_READY',
+  'REJECTED',
+  'SUSPENDED',
+] as const
 export const SELLER_PRODUCT_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED', 'ARCHIVED'] as const
 export const SELLER_FULFILLMENT_STATUSES = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED'] as const
 export const MARKETPLACE_ORDER_STATUSES = [
@@ -21,6 +28,7 @@ export type MarketplaceOrderStatus = (typeof MARKETPLACE_ORDER_STATUSES)[number]
 
 export function getSellerOnboardingState(
   status: SellerVerificationStatus | null | undefined,
+  hasStore = false,
 ): SellerOnboardingState {
   if (!status) {
     return 'BUYER'
@@ -28,6 +36,10 @@ export function getSellerOnboardingState(
 
   if (status === 'PENDING') {
     return 'PENDING_VERIFICATION'
+  }
+
+  if (status === 'VERIFIED') {
+    return hasStore ? 'STORE_READY' : 'VERIFIED_NO_STORE'
   }
 
   return status
