@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, useEffect, useMemo, useState, useTransition } from 'react'
+import { createContext, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
+import { API_ROUTES } from '@/lib/constants/apiRoutes'
 import type { SessionUser } from '@/types/auth'
 
 type AuthSessionContextValue = {
@@ -17,12 +18,13 @@ type AuthSessionContextValue = {
 export const AuthSessionContext = createContext<AuthSessionContextValue | null>(null)
 
 async function fetchCurrentUser(): Promise<SessionUser | null> {
-  const response = await fetch('/api/auth/me', {
+  const response = await fetch(API_ROUTES.authMe, {
     credentials: 'include',
     cache: 'no-store',
   })
 
   if (response.status === 401) return null
+  if (response.status === 404) throw new Error('AUTH_ROUTE_UNAVAILABLE')
   if (!response.ok) throw new Error('Failed to refresh auth session')
 
   const payload = (await response.json()) as
@@ -45,10 +47,16 @@ export default function AuthSessionProvider({
     initialUser ? pathname : null
   )
   const [isRefreshing, startTransition] = useTransition()
+  const inFlightPathRef = useRef<string | null>(null)
   const isHydrated = hydratedPathname === pathname
 
   useEffect(() => {
+    if (hydratedPathname === pathname || inFlightPathRef.current === pathname) {
+      return
+    }
+
     let isCancelled = false
+    inFlightPathRef.current = pathname
 
     startTransition(() => {
       fetchCurrentUser()
@@ -57,16 +65,27 @@ export default function AuthSessionProvider({
           setUser(nextUser)
           setHydratedPathname(pathname)
         })
-        .catch(() => {
+        .catch((error) => {
           if (isCancelled) return
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[AuthSessionProvider] unable to refresh current user', {
+              pathname,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          }
           setHydratedPathname(pathname)
+        })
+        .finally(() => {
+          if (!isCancelled && inFlightPathRef.current === pathname) {
+            inFlightPathRef.current = null
+          }
         })
     })
 
     return () => {
       isCancelled = true
     }
-  }, [pathname])
+  }, [hydratedPathname, pathname])
 
   const value = useMemo<AuthSessionContextValue>(
     () => ({
@@ -77,6 +96,12 @@ export default function AuthSessionProvider({
       setUser,
       refreshUser: () =>
         new Promise<SessionUser | null>((resolve, reject) => {
+          if (inFlightPathRef.current === pathname) {
+            resolve(user)
+            return
+          }
+
+          inFlightPathRef.current = pathname
           startTransition(() => {
             fetchCurrentUser()
               .then((nextUser) => {
@@ -84,7 +109,20 @@ export default function AuthSessionProvider({
                 setHydratedPathname(pathname)
                 resolve(nextUser)
               })
-              .catch(reject)
+              .catch((error) => {
+                if (process.env.NODE_ENV !== 'production') {
+                  console.warn('[AuthSessionProvider] manual refresh failed', {
+                    pathname,
+                    error: error instanceof Error ? error.message : String(error),
+                  })
+                }
+                reject(error)
+              })
+              .finally(() => {
+                if (inFlightPathRef.current === pathname) {
+                  inFlightPathRef.current = null
+                }
+              })
           })
         }),
     }),
