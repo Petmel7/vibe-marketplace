@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import Decimal from 'decimal.js'
 import { ProductStatus } from '@/app/generated/prisma/client'
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
@@ -31,6 +32,7 @@ import {
   ProductNotFoundError,
 } from '@/lib/errors/seller'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { createSellerProductSchema, updateSellerProductSchema } from './seller-product.schema'
 
 const mockProductRepo = vi.mocked(productRepo)
 const mockStoreRepo = vi.mocked(storeRepo)
@@ -65,7 +67,7 @@ function makeProduct(overrides: Record<string, unknown> = {}) {
     categoryId: null,
     name: 'Test Product',
     description: null,
-    price: { toString: () => '29.99' },
+    price: new Decimal('29.99'),
     imageUrl: null,
     sku: 'TEST-STORE-TEST-PRODUCT',
     isHit: false,
@@ -122,6 +124,20 @@ beforeEach(() => {
 })
 
 describe('createProduct', () => {
+  it('rejects seller-controlled marketplace badge flags at the validation boundary', () => {
+    const createResult = createSellerProductSchema.safeParse({
+      name: 'Test Product',
+      price: '29.99',
+      isHit: true,
+    })
+    const updateResult = updateSellerProductSchema.safeParse({
+      isNew: true,
+    })
+
+    expect(createResult.success).toBe(false)
+    expect(updateResult.success).toBe(false)
+  })
+
   it('normalizes a manual product SKU before persisting', async () => {
     const product = makeProduct()
     mockProductRepo.createProduct.mockResolvedValue(product)

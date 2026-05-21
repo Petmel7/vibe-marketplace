@@ -10,6 +10,7 @@ import {
   searchProducts,
 } from './product.service'
 import * as repository from './product.repository'
+import * as productBadgeService from './product-badge.service'
 
 vi.mock('./product.repository', () => ({
   findProducts: vi.fn(),
@@ -18,8 +19,13 @@ vi.mock('./product.repository', () => ({
   findProductById: vi.fn(),
   searchProducts: vi.fn(),
 }))
+vi.mock('./product-badge.service', () => ({
+  recalculateProductMetricsAndBadges: vi.fn(),
+  resolveMarketplaceFlagsForProducts: vi.fn(),
+}))
 
 const mockedRepository = vi.mocked(repository)
+const mockedBadgeService = vi.mocked(productBadgeService)
 
 function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product {
   return {
@@ -34,6 +40,8 @@ function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product 
     sku: 'SKU-001',
     isHit: false,
     isNew: true,
+    status: 'PUBLISHED',
+    publishedAt: new Date('2026-01-01T00:00:00.000Z'),
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     searchVector: null,
@@ -69,6 +77,14 @@ function makeListProduct(
 describe('searchProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedBadgeService.resolveMarketplaceFlagsForProducts.mockImplementation(async (products) =>
+      new Map(
+        products.map((product) => [
+          product.id,
+          { isHit: product.id === 'prod-hit', isNew: true },
+        ]),
+      ),
+    )
   })
 
   it('returns mapped product list with pagination metadata', async () => {
@@ -197,6 +213,7 @@ describe('listProducts', () => {
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
       where: {
         isActive: true,
+        status: 'PUBLISHED',
         categoryId: {
           in: ['cat-root', 'cat-parent', 'cat-leaf-a', 'cat-leaf-b'],
         },
@@ -251,6 +268,7 @@ describe('listProducts', () => {
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
       where: {
         isActive: true,
+        status: 'PUBLISHED',
         storeId: 'store-abc',
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -271,7 +289,13 @@ describe('filtered product listings', () => {
     await listNewProducts({ page: 1, limit: 12 })
 
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
-      where: { isActive: true, isNew: true },
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        publishedAt: {
+          gte: expect.any(Date),
+        },
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       page: 1,
       limit: 12,
@@ -283,8 +307,19 @@ describe('filtered product listings', () => {
 
     await listHitProducts({ page: 2, limit: 6 })
 
+    expect(mockedBadgeService.recalculateProductMetricsAndBadges).toHaveBeenCalledTimes(1)
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
-      where: { isActive: true, isHit: true },
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        badges: {
+          some: {
+            type: 'HIT',
+            OR: [{ startsAt: null }, { startsAt: { lte: expect.any(Date) } }],
+            AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: expect.any(Date) } }] }],
+          },
+        },
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       page: 2,
       limit: 6,
@@ -313,6 +348,7 @@ describe('listProductsByCategorySlug', () => {
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
       where: {
         isActive: true,
+        status: 'PUBLISHED',
         categoryId: {
           in: ['cat-root', 'cat-leaf'],
         },
@@ -347,6 +383,14 @@ describe('getProduct', () => {
 
     expect(result.id).toBe('prod-1')
     expect(result.variants).toHaveLength(1)
+    expect(mockedBadgeService.resolveMarketplaceFlagsForProducts).toHaveBeenCalledWith([
+      {
+        id: 'prod-1',
+        status: 'PUBLISHED',
+        publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+        isActive: true,
+      },
+    ])
     expect(result.variants[0]).toEqual({
       id: 'var-1',
       sku: 'SKU-001-S-RED',

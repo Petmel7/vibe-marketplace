@@ -29,16 +29,15 @@ export const createSellerProductSchema = z.object({
   price: priceString,
   imageUrl: z.string().url().nullable().optional(),
   sku: skuString.nullable().optional(),
-  isHit: z.boolean().optional(),
-  isNew: z.boolean().optional(),
   categoryId: z.string().min(1).max(191).nullable().optional(),
   images: z.array(sellerProductImageSchema).max(10).optional(),
   variants: z.array(createVariantSchema).optional(),
-})
+}).strict()
 
 export const updateSellerProductSchema = createSellerProductSchema
   .omit({ variants: true })
   .partial()
+  .strict()
 
 export const updateVariantSchema = createVariantSchema.partial()
 

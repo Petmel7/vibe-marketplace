@@ -59,8 +59,6 @@ export type CreateSellerProductDto = {
   price: string
   imageUrl?: string | null
   sku?: string | null
-  isHit?: boolean
-  isNew?: boolean
   categoryId?: string | null
   images?: Array<{
     url: string

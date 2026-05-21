@@ -52,6 +52,12 @@ import {
   ModerationReasonRequiredError,
   InvalidModerationTransitionError as AdminInvalidModerationTransitionError,
 } from './admin'
+import {
+  InvalidBadgeTransitionError,
+  ProductBadgeConflictError,
+  ProductMetricsCalculationError,
+  UnauthorizedBadgeMutationError,
+} from './product'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -70,7 +76,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof UnverifiedSellerError ||
     err instanceof AdminAccessError ||
     err instanceof SellerNotVerifiedError ||
-    err instanceof StoreProvisioningRequiredError
+    err instanceof StoreProvisioningRequiredError ||
+    err instanceof UnauthorizedBadgeMutationError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -99,7 +106,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AlreadyVerifiedError ||
     err instanceof AlreadyModeratedError ||
     err instanceof StoreAlreadyExistsError ||
-    err instanceof StoragePathConflictError
+    err instanceof StoragePathConflictError ||
+    err instanceof ProductBadgeConflictError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -121,13 +129,14 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidStoreSlugError ||
     err instanceof InvalidImageFileError ||
     err instanceof InvalidSkuError ||
-    err instanceof ProductImageLimitExceededError
+    err instanceof ProductImageLimitExceededError ||
+    err instanceof InvalidBadgeTransitionError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 400 },
     )
-  if (err instanceof UploadFailedError)
+  if (err instanceof UploadFailedError || err instanceof ProductMetricsCalculationError)
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 500 },

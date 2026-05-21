@@ -14,6 +14,7 @@ import {
   updateProductModerationStatus,
 } from './product-moderation.repository'
 import type { Product, Store } from '@/app/generated/prisma/client'
+import { syncSystemNewBadgeForProduct } from '@/features/products/product-badge.service'
 
 // ---------------------------------------------------------------------------
 // DTO mapper
@@ -80,6 +81,7 @@ export async function approveProduct(
 
   // Pass publishedAt via the extra data handled in repository
   const updated = await updateProductModerationStatus(productId, 'PUBLISHED', admin.id)
+  await syncSystemNewBadgeForProduct(updated)
   return toProductModerationDto(updated)
 }
 
@@ -98,6 +100,7 @@ export async function rejectProduct(
   }
 
   const updated = await updateProductModerationStatus(productId, 'REJECTED', admin.id, reason)
+  await syncSystemNewBadgeForProduct(updated)
   return toProductModerationDto(updated)
 }
 
@@ -116,6 +119,7 @@ export async function archiveProduct(
   }
 
   const updated = await updateProductModerationStatus(productId, 'ARCHIVED', admin.id, reason)
+  await syncSystemNewBadgeForProduct(updated)
   return toProductModerationDto(updated)
 }
 
@@ -133,5 +137,6 @@ export async function restoreProduct(
   }
 
   const updated = await updateProductModerationStatus(productId, 'DRAFT', admin.id)
+  await syncSystemNewBadgeForProduct(updated)
   return toProductModerationDto(updated)
 }

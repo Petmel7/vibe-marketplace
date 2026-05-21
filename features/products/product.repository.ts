@@ -80,10 +80,13 @@ async function findProductsWithFullTextSearch(params: {
       sku,
       is_hit     AS "isHit",
       is_new     AS "isNew",
+      status,
+      published_at AS "publishedAt",
       created_at AS "createdAt",
       updated_at AS "updatedAt"
     FROM products
     WHERE is_active = true
+      AND status = 'PUBLISHED'
       AND search_vector @@ plainto_tsquery('english', ${search})
     ORDER BY
       ts_rank(search_vector, plainto_tsquery('english', ${search})) DESC,
@@ -202,7 +205,7 @@ export async function findProductById(
   id: string
 ): Promise<ProductWithVariants | null> {
   return prisma.product.findFirst({
-    where: { id, isActive: true },
+    where: { id, isActive: true, status: 'PUBLISHED' },
     include: { variants: true },
   })
 }
