@@ -14,6 +14,7 @@ export async function POST(
 
     const { kind } = await params
     const parsedKind = storeAssetKindSchema.safeParse(kind)
+
     if (!parsedKind.success) {
       return Response.json(
         {
