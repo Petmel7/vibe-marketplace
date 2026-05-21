@@ -1,32 +1,32 @@
 'use client'
 
-import Image from "next/image";
-import { Share2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import WishlistToggleButton from "../wishlist/WishlistToggleButton";
-import { getProductCardDisplayState, type ProductCardProductLike } from "./productCard.selectors";
-import { formatPrice } from "@/utils/formatters/price";
+import Image from 'next/image'
+import { Share2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import WishlistToggleButton from '../wishlist/WishlistToggleButton'
+import { getProductCardDisplayState, type ProductCardProductLike } from './productCard.selectors'
+import { resolveProductBadgeChips } from './productBadges'
+import { formatPrice } from '@/utils/formatters/price'
+import type { MarketplaceProductBadge } from '@/types/product-badges'
 
 interface ProductCardProps {
-  id: string;
-  name: string;
-  imageUrl: string;
-  isActive?: boolean;
-  isHit?: boolean;
-  isNew?: boolean;
-  badgeVariant?: 'hit' | 'new';
-  product: ProductCardProductLike;
+  id: string
+  name: string
+  imageUrl: string
+  isActive?: boolean
+  isHit?: boolean
+  isNew?: boolean
+  badgeVariant?: 'hit' | 'new'
+  badges?: MarketplaceProductBadge[]
+  product: ProductCardProductLike
 }
 
 function ShareIcon() {
   return (
     <button aria-label="Поширити" className="ui-icon-button-card">
-      <Share2
-        size={20}
-        color="#A5A8AD"
-        aria-hidden="true" />
+      <Share2 size={20} color="#A5A8AD" aria-hidden="true" />
     </button>
-  );
+  )
 }
 
 export default function ProductCard({
@@ -37,12 +37,17 @@ export default function ProductCard({
   isHit,
   isNew,
   badgeVariant,
+  badges,
   product,
 }: ProductCardProps) {
-  const router = useRouter();
-  const { price, sku } = getProductCardDisplayState(product);
-  const resolvedBadgeVariant =
-    badgeVariant ?? (isHit ? 'hit' : isNew ? 'new' : null);
+  const router = useRouter()
+  const { price, sku } = getProductCardDisplayState(product)
+  const badgeChips = resolveProductBadgeChips({
+    badges,
+    isHit,
+    isNew,
+    badgeVariant,
+  })
 
   return (
     <div
@@ -54,16 +59,23 @@ export default function ProductCard({
       style={{ cursor: 'pointer' }}
     >
       <div className="ui-product-card-media">
-        {resolvedBadgeVariant && (
-          <span
-            className={`absolute left-2 top-2 z-10 rounded px-2 text-[13px] font-medium leading-5 text-white ${resolvedBadgeVariant === 'hit' ? 'bg-brand-accent' : 'bg-brand-accent-new'
-              }`}
-          >
-            {resolvedBadgeVariant === 'hit' ? "Хіт" : "Новинка"}
-          </span>
-        )}
+        {badgeChips.length > 0 ? (
+          <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-2" aria-label="Marketplace badges">
+            {badgeChips.map((badge) => (
+              <span
+                key={badge.type}
+                className={`rounded px-2 text-[13px] font-medium leading-5 ${badge.className}`}
+              >
+                {badge.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
 
-        <div className="absolute right-2 top-2 z-10 flex flex-col gap-1 xs:hidden" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="absolute right-2 top-2 z-10 flex flex-col gap-1 xs:hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
           <WishlistToggleButton productId={id} variant="card" />
           <ShareIcon />
         </div>
@@ -93,5 +105,5 @@ export default function ProductCard({
         <p className="ui-price-card">{formatPrice(price)}</p>
       </div>
     </div>
-  );
+  )
 }

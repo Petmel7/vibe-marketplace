@@ -1,7 +1,10 @@
 import type { ProductSummaryDto } from '@/features/products/product.dto'
+import type { MarketplaceProductBadge } from '@/types/product-badges'
 import { getImageUrl } from '@/utils/getImageUrl'
 
-export type ProductListItem = ProductSummaryDto
+export type ProductListItem = ProductSummaryDto & {
+  badges?: MarketplaceProductBadge[]
+}
 
 export function toProductCardProps(
   product: ProductListItem,
@@ -15,6 +18,7 @@ export function toProductCardProps(
     isHit: product.isHit,
     isNew: product.isNew,
     badgeVariant,
+    badges: product.badges,
     product: {
       price: product.price,
       sku: product.sku,

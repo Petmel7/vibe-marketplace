@@ -12,12 +12,16 @@ import {
   getDefaultProductVariantId,
   getProductPresentationState,
 } from './productCard.selectors'
+import { resolveProductBadgeChips } from './productBadges'
 import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
 import type { ProductDetailDto } from '@/features/products/product.dto'
+import type { MarketplaceProductBadge } from '@/types/product-badges'
 import { formatPrice } from '@/utils/formatters/price'
 
 interface Props {
-  product: ProductDetailDto
+  product: ProductDetailDto & {
+    badges?: MarketplaceProductBadge[]
+  }
 }
 
 export default function ProductDetails({ product }: Props) {
@@ -26,6 +30,11 @@ export default function ProductDetails({ product }: Props) {
   )
   const [quantity, setQuantity] = useState(1)
   const presentation = getProductPresentationState(product, selectedVariantId)
+  const badgeChips = resolveProductBadgeChips({
+    badges: product.badges,
+    isHit: product.isHit,
+    isNew: product.isNew,
+  })
 
   useRecordViewedProduct(product.id)
 
@@ -42,6 +51,19 @@ export default function ProductDetails({ product }: Props) {
       </div>
 
       <p className="ui-price-hero">{formatPrice(presentation.price)}</p>
+
+      {badgeChips.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2" aria-label="Marketplace badges">
+          {badgeChips.map((badge) => (
+            <span
+              key={badge.type}
+              className={`rounded-full px-3 py-1 text-sm font-medium ${badge.className}`}
+            >
+              {badge.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         {presentation.isAvailable && (

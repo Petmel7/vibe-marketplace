@@ -39,8 +39,6 @@ type ProductEditorValue = {
   price: string
   imageUrl: string | null
   sku: string | null
-  isHit: boolean
-  isNew: boolean
   categoryId: string | null
   status: SellerProductStatus
   rejectionReason: string | null
@@ -124,8 +122,6 @@ export default function SellerProductForm({
     price: initialProduct?.price ?? '',
     sku: initialProduct?.sku ?? '',
     categoryId: initialProduct?.categoryId ?? '',
-    isHit: initialProduct?.isHit ?? false,
-    isNew: initialProduct?.isNew ?? false,
   })
   const [isBaseSkuManual, setIsBaseSkuManual] = useState(mode === 'edit' || Boolean(initialProduct?.sku))
   const [productImages, setProductImages] = useState<ProductImageDraft[]>(
@@ -322,8 +318,6 @@ export default function SellerProductForm({
         price: formState.price,
         sku: formState.sku || null,
         categoryId: formState.categoryId || null,
-        isHit: formState.isHit,
-        isNew: formState.isNew,
         variants: createVariants.map((variant) => ({
           sku: variant.sku || undefined,
           size: variant.size || null,
@@ -360,8 +354,6 @@ export default function SellerProductForm({
       price: formState.price,
       sku: formState.sku || null,
       categoryId: formState.categoryId || null,
-      isHit: formState.isHit,
-      isNew: formState.isNew,
     })
 
     if (!parsed.success) {
@@ -648,25 +640,8 @@ export default function SellerProductForm({
               </div>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex items-center gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-3">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-panelBorder text-brand focus:ring-brand"
-                checked={formState.isHit}
-                onChange={(event) => setFormState((current) => ({ ...current, isHit: event.target.checked }))}
-              />
-              <span className="text-sm text-copy-primary">Mark as marketplace hit</span>
-            </label>
-            <label className="flex items-center gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-3">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-panelBorder text-brand focus:ring-brand"
-                checked={formState.isNew}
-                onChange={(event) => setFormState((current) => ({ ...current, isNew: event.target.checked }))}
-              />
-              <span className="text-sm text-copy-primary">Highlight as new arrival</span>
-            </label>
+          <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
+            Marketplace badges are assigned automatically based on publication date, sales, and platform analytics.
           </div>
 
           <MultiImageUploadField
