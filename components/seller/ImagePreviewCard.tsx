@@ -1,21 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-
-function usePreviewSrc(file?: File | null, src?: string | null) {
-  const objectUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
-
-  useEffect(() => {
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl)
-      }
-    }
-  }, [objectUrl])
-
-  return objectUrl ?? src ?? null
-}
+import { useState, type ReactNode } from 'react'
 
 function PreviewMedia({
   src,
@@ -65,7 +51,6 @@ export default function ImagePreviewCard({
   title,
   alt,
   src,
-  file,
   isPrimary = false,
   statusLabel,
   helperText,
@@ -74,19 +59,16 @@ export default function ImagePreviewCard({
   title: string
   alt: string
   src?: string | null
-  file?: File | null
   isPrimary?: boolean
   statusLabel?: string
   helperText?: string
   children?: ReactNode
 }) {
-  const previewSrc = usePreviewSrc(file, src)
-
   return (
     <article className="rounded-3xl border border-panelBorder bg-panel p-4">
       <div className="relative h-40 overflow-hidden rounded-2xl border border-dashed border-panelBorder bg-panelAlt">
-        {previewSrc ? (
-          <PreviewMedia key={previewSrc} src={previewSrc} alt={alt} />
+        {src ? (
+          <PreviewMedia key={src} src={src} alt={alt} />
         ) : (
           <div className="flex h-full items-center justify-center px-4 text-center text-sm text-copy-muted">
             No image selected

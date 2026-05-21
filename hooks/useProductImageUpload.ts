@@ -7,6 +7,7 @@ export type ProductImageDraft = {
   id: string
   file?: File
   url: string
+  previewUrl?: string | null
   storagePath?: string | null
   altText: string
   isPrimary: boolean
@@ -36,6 +37,7 @@ export function normalizeProductImage(image: ProductImageResponse): ProductImage
   return {
     id: image.id,
     url: image.url,
+    previewUrl: null,
     storagePath: image.storagePath,
     altText: image.altText ?? '',
     isPrimary: image.isPrimary,

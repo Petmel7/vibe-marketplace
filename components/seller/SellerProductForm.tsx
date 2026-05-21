@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import MultiImageUploadField from '@/components/seller/MultiImageUploadField'
 import ProductStatusBadge from '@/components/seller/ProductStatusBadge'
@@ -70,6 +70,12 @@ function createImageDraftId() {
   return `draft-${crypto.randomUUID()}`
 }
 
+function revokePreviewUrl(image: ProductImageDraft | undefined) {
+  if (image?.previewUrl && image.previewUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(image.previewUrl)
+  }
+}
+
 function normalizeImageDrafts(images: ProductImageDraft[]) {
   const ordered = images.map((image, index) => ({ ...image, position: index }))
   if (ordered.length === 0) return ordered
@@ -127,6 +133,7 @@ export default function SellerProductForm({
       initialProduct?.images.map((image) => ({
         id: image.id,
         url: image.url,
+        previewUrl: null,
         storagePath: image.storagePath,
         altText: image.altText ?? '',
         isPrimary: image.isPrimary,
@@ -165,6 +172,19 @@ export default function SellerProductForm({
     syncVariantSku(initialProduct?.sku ?? '', createVariantState(), initialProduct?.variants.length ?? 0),
   )
   const isBusy = isPending || isUploading
+  const productImagesRef = useRef(productImages)
+
+  useEffect(() => {
+    productImagesRef.current = productImages
+  }, [productImages])
+
+  useEffect(() => {
+    return () => {
+      for (const image of productImagesRef.current) {
+        revokePreviewUrl(image)
+      }
+    }
+  }, [])
 
   const selectedCategoryIsValid = !formState.categoryId || categories.some((category) => category.id === formState.categoryId)
 
@@ -215,6 +235,7 @@ export default function SellerProductForm({
         id: createImageDraftId(),
         file,
         url: '',
+        previewUrl: URL.createObjectURL(file),
         storagePath: null,
         altText: formState.name ? `${formState.name} product image` : '',
         isPrimary: false,
@@ -251,6 +272,9 @@ export default function SellerProductForm({
         })),
       )
       if (!uploaded) return false
+      for (const image of localImages) {
+        revokePreviewUrl(image)
+      }
       uploadedMap = new Map(localImages.map((image, index) => [image.id, uploaded[index]]))
     }
 
@@ -259,6 +283,9 @@ export default function SellerProductForm({
       .filter((image): image is ProductImageDraft => Boolean(image))
 
     if (finalImages.length === 0) {
+      for (const image of normalized) {
+        revokePreviewUrl(image)
+      }
       setProductImages([])
       setPersistedImageIds([])
       return true
@@ -650,7 +677,11 @@ export default function SellerProductForm({
             errorMessage={productImageError ?? progress.errorMessage}
             onFilesSelected={handleFilesSelected}
             onRemove={(id) => {
-              setProductImages((current) => normalizeImageDrafts(current.filter((image) => image.id !== id)))
+              setProductImages((current) => {
+                const removed = current.find((image) => image.id === id)
+                revokePreviewUrl(removed)
+                return normalizeImageDrafts(current.filter((image) => image.id !== id))
+              })
             }}
             onMove={(id, direction) => {
               setProductImages((current) => moveImageDraft(current, id, direction))

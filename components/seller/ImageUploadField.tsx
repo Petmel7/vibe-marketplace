@@ -1,7 +1,21 @@
 'use client'
 
-import { useId } from 'react'
+import { useEffect, useId, useMemo } from 'react'
 import ImagePreviewCard from '@/components/seller/ImagePreviewCard'
+
+function useStablePreviewUrl(file: File | null) {
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
+
+  return previewUrl
+}
 
 export default function ImageUploadField({
   label,
@@ -31,6 +45,7 @@ export default function ImageUploadField({
   const inputId = useId()
   const descriptionId = `${inputId}-description`
   const errorId = `${inputId}-error`
+  const previewUrl = useStablePreviewUrl(file)
 
   return (
     <div className="space-y-3">
@@ -64,8 +79,7 @@ export default function ImageUploadField({
       <ImagePreviewCard
         title={label}
         alt={alt}
-        src={imageUrl}
-        file={file}
+        src={previewUrl ?? imageUrl}
         statusLabel={statusLabel}
         helperText={file ? file.name : imageUrl ? 'Current uploaded asset' : 'Select an image to preview it here.'}
       >

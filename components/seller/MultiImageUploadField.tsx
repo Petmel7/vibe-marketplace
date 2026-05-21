@@ -60,8 +60,7 @@ export default function MultiImageUploadField({
               <ImagePreviewCard
                 title={`Image ${index + 1}`}
                 alt={item.altText || `Product image ${index + 1}`}
-                src={item.source === 'server' ? item.url : undefined}
-                file={item.file}
+                src={item.source === 'server' ? item.url : item.previewUrl}
                 isPrimary={item.isPrimary}
                 statusLabel={item.source === 'server' ? 'Uploaded' : 'Ready to upload'}
                 helperText={item.source === 'server' ? 'Saved to your gallery' : item.file?.name ?? 'Selected file'}
