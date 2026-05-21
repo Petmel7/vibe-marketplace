@@ -101,6 +101,8 @@ model Product {
   moderatedAt      DateTime?                @map("moderated_at")
   moderatedBy      String?                  @map("moderated_by")
   moderationReason String?                  @map("moderation_reason")
+  badges           ProductBadge[]
+  metrics          ProductMetrics?
   variants         ProductVariant[]
   images           ProductImage[]
   category         Category?                @relation(fields: [categoryId], references: [id])
@@ -115,6 +117,43 @@ model Product {
   @@index([status])
   @@index([searchVector], map: "products_searchVector_idx", type: Gin)
   @@map("products")
+}
+
+model ProductBadge {
+  id        String             @id @default(uuid()) @db.Uuid
+  productId String             @map("product_id") @db.Uuid
+  type      ProductBadgeType
+  source    ProductBadgeSource
+  score     Decimal?           @db.Decimal(10, 4)
+  startsAt  DateTime?          @map("starts_at")
+  endsAt    DateTime?          @map("ends_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  product   Product            @relation(fields: [productId], references: [id])
+
+  @@index([type], map: "product_badges_type_idx")
+  @@index([startsAt, endsAt], map: "product_badges_active_window_idx")
+  @@index([productId, type], map: "product_badges_productId_type_idx")
+  @@map("product_badges")
+}
+
+model ProductMetrics {
+  productId        String    @id @map("product_id") @db.Uuid
+  viewCount        Int       @default(0) @map("view_count")
+  wishlistCount    Int       @default(0) @map("wishlist_count")
+  soldCount        Int       @default(0) @map("sold_count")
+  revenueAmount    Decimal   @default(0) @map("revenue_amount") @db.Decimal(12, 2)
+  ratingAvg        Decimal   @default(0) @map("rating_avg") @db.Decimal(3, 2)
+  reviewCount      Int       @default(0) @map("review_count")
+  hitScore         Decimal   @default(0) @map("hit_score") @db.Decimal(12, 4)
+  lastCalculatedAt DateTime? @map("last_calculated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  product          Product   @relation(fields: [productId], references: [id])
+
+  @@index([hitScore], map: "product_metrics_hitScore_idx")
+  @@index([soldCount], map: "product_metrics_soldCount_idx")
+  @@map("product_metrics")
 }
 
 model ProductImage {
@@ -396,6 +435,17 @@ enum ProductStatus {
   PUBLISHED
   REJECTED
   ARCHIVED
+}
+
+enum ProductBadgeType {
+  NEW
+  HIT
+  FEATURED
+}
+
+enum ProductBadgeSource {
+  SYSTEM
+  ADMIN
 }
 
 enum ItemFulfillmentStatus {
