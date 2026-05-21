@@ -36,7 +36,7 @@ export default async function SellerProductDetailPage({
       <SellerVerificationNotice
         status={sellerProfile.verificationStatus}
       />
-      <SellerProductForm mode="edit" initialProduct={data.product} />
+      <SellerProductForm mode="edit" storeSlug={data.store?.slug ?? ''} initialProduct={data.product} />
     </SellerSection>
   )
 }

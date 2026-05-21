@@ -1,8 +1,9 @@
 'use client'
 
-import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ImageUploadField from '@/components/seller/ImageUploadField'
+import UploadProgress from '@/components/seller/UploadProgress'
 import { sellerOnboardingSchema } from '@/features/seller/seller.schema'
 import {
   createStoreSchema,
@@ -10,24 +11,57 @@ import {
   updateStoreSettingsSchema,
 } from '@/features/storefront/storefront.schema'
 import { useSellerMutation } from '@/hooks/useSellerMutation'
+import { useSlugAvailability } from '@/hooks/useSlugAvailability'
+import { useStoreAssetUpload } from '@/hooks/useStoreAssetUpload'
+import { generateStoreSlugDraft, validateStoreAssetFile } from '@/lib/utils/sellerForm'
 import type { SellerVerificationStatus } from '@/types/seller'
 
-type SlugAvailabilityState =
-  | { status: 'idle'; message: string | null; suggestion: null }
-  | { status: 'checking'; message: string; suggestion: null }
-  | { status: 'available'; message: string; suggestion: null }
-  | { status: 'invalid'; message: string; suggestion: null }
-  | { status: 'unavailable'; message: string; suggestion: string | null }
+type PendingAssetState = {
+  file: File | null
+  errorMessage: string | null
+}
 
-type SlugLookupState = {
+type AssetProgressState = {
+  active: boolean
+  current: number
+  total: number
+  label: string
+}
+
+type StoreState = {
+  name: string
   slug: string
-  status: 'idle' | 'checking' | 'available' | 'unavailable' | 'error'
-  suggestion: string | null
+  description: string
+  logoUrl: string
+  bannerUrl: string
 }
 
 function toOptionalString(value: string) {
   const trimmed = value.trim()
   return trimmed ? trimmed : undefined
+}
+
+function createPendingAssetState(): PendingAssetState {
+  return {
+    file: null,
+    errorMessage: null,
+  }
+}
+
+function createStoreState(store: {
+  name: string
+  slug: string
+  description: string | null
+  logoUrl: string | null
+  bannerUrl: string | null
+} | null): StoreState {
+  return {
+    name: store?.name ?? '',
+    slug: store?.slug ?? '',
+    description: store?.description ?? '',
+    logoUrl: store?.logoUrl ?? '',
+    bannerUrl: store?.bannerUrl ?? '',
+  }
 }
 
 export default function SellerStoreSettingsForm({
@@ -53,71 +87,200 @@ export default function SellerStoreSettingsForm({
 }) {
   const router = useRouter()
   const { execute, isPending, errorMessage, setErrorMessage } = useSellerMutation()
+  const { uploadAsset, isUploading } = useStoreAssetUpload()
   const [onboardingState, setOnboardingState] = useState({
     businessName: sellerProfile?.businessName ?? '',
     taxId: sellerProfile?.taxId ?? '',
   })
-  const [storeState, setStoreState] = useState({
-    name: store?.name ?? '',
-    slug: store?.slug ?? '',
-    description: store?.description ?? '',
-    logoUrl: store?.logoUrl ?? '',
-    bannerUrl: store?.bannerUrl ?? '',
+  const [storeState, setStoreState] = useState<StoreState>(() => createStoreState(store))
+  const [logoAsset, setLogoAsset] = useState<PendingAssetState>(createPendingAssetState())
+  const [bannerAsset, setBannerAsset] = useState<PendingAssetState>(createPendingAssetState())
+  const [isSlugManual, setIsSlugManual] = useState(Boolean(store))
+  const [assetProgress, setAssetProgress] = useState<AssetProgressState>({
+    active: false,
+    current: 0,
+    total: 0,
+    label: '',
   })
-  const [slugLookupState, setSlugLookupState] = useState<SlugLookupState>({
-    slug: '',
-    status: 'idle',
-    suggestion: null,
-  })
+
   const slugValue = storeState.slug.trim()
   const parsedSlug = slugSchema.safeParse(slugValue)
+  const slugAvailability = useSlugAvailability(
+    slugValue,
+    !store && Boolean(slugValue) && parsedSlug.success,
+  )
 
-  useEffect(() => {
-    if (store || !slugValue || !parsedSlug.success) {
+  const slugStatus = useMemo(() => {
+    if (store) {
+      return {
+        tone: 'text-copy-muted',
+        message: 'Your storefront URL is locked after provisioning to keep links stable.',
+      }
+    }
+
+    if (!slugValue) {
+      return {
+        tone: 'text-copy-muted',
+        message: 'Choose a public storefront URL for your marketplace presence.',
+      }
+    }
+
+    if (!parsedSlug.success) {
+      return {
+        tone: 'text-brand-danger',
+        message: parsedSlug.error.issues[0]?.message ?? 'Enter a valid slug.',
+      }
+    }
+
+    if (slugAvailability.status === 'available') {
+      return {
+        tone: 'text-emerald-300',
+        message: slugAvailability.message,
+      }
+    }
+
+    if (slugAvailability.status === 'unavailable') {
+      return {
+        tone: 'text-brand-danger',
+        message: `${slugAvailability.message}${slugAvailability.suggestion ? ` Try ${slugAvailability.suggestion}.` : ''}`,
+      }
+    }
+
+    if (slugAvailability.status === 'error') {
+      return {
+        tone: 'text-brand-danger',
+        message: slugAvailability.message,
+      }
+    }
+
+    return {
+      tone: 'text-copy-muted',
+      message: slugAvailability.message,
+    }
+  }, [parsedSlug, slugAvailability, slugValue, store])
+
+  const canSubmitProvisioning =
+    Boolean(storeState.name.trim()) &&
+    parsedSlug.success &&
+    slugAvailability.status !== 'checking' &&
+    slugAvailability.status !== 'unavailable' &&
+    slugAvailability.status !== 'error'
+
+  const isBusy = isPending || isUploading || assetProgress.active
+
+  function applyStoreState(partialStore: {
+    name?: string
+    slug?: string
+    description?: string | null
+    logoUrl?: string | null
+    bannerUrl?: string | null
+  }) {
+    setStoreState((current) => ({
+      ...current,
+      ...(partialStore.name !== undefined ? { name: partialStore.name } : {}),
+      ...(partialStore.slug !== undefined ? { slug: partialStore.slug } : {}),
+      ...(partialStore.description !== undefined ? { description: partialStore.description ?? '' } : {}),
+      ...(partialStore.logoUrl !== undefined ? { logoUrl: partialStore.logoUrl ?? '' } : {}),
+      ...(partialStore.bannerUrl !== undefined ? { bannerUrl: partialStore.bannerUrl ?? '' } : {}),
+    }))
+  }
+
+  async function uploadSelectedAssets() {
+    const assets = [
+      logoAsset.file ? { kind: 'logo' as const, file: logoAsset.file } : null,
+      bannerAsset.file ? { kind: 'banner' as const, file: bannerAsset.file } : null,
+    ].filter((asset): asset is { kind: 'logo' | 'banner'; file: File } => asset !== null)
+
+    if (assets.length === 0) {
+      return {
+        logoUrl: undefined,
+        bannerUrl: undefined,
+      }
+    }
+
+    setAssetProgress({
+      active: true,
+      current: 0,
+      total: assets.length,
+      label: 'Uploading store assets...',
+    })
+
+    const resolvedStore = {
+      logoUrl: storeState.logoUrl || null,
+      bannerUrl: storeState.bannerUrl || null,
+    }
+
+    for (let index = 0; index < assets.length; index += 1) {
+      const asset = assets[index]
+      const result = await uploadAsset(asset.kind, asset.file)
+
+      if (!result) {
+        setErrorMessage('Store asset upload failed. Please try again.')
+        setAssetProgress({
+          active: false,
+          current: 0,
+          total: 0,
+          label: '',
+        })
+        return null
+      }
+
+      applyStoreState(result.store)
+      resolvedStore.logoUrl = result.store.logoUrl
+      resolvedStore.bannerUrl = result.store.bannerUrl
+
+      if (asset.kind === 'logo') {
+        setLogoAsset(createPendingAssetState())
+      } else {
+        setBannerAsset(createPendingAssetState())
+      }
+
+      setAssetProgress({
+        active: true,
+        current: index + 1,
+        total: assets.length,
+        label: 'Uploading store assets...',
+      })
+    }
+
+    setAssetProgress({
+      active: false,
+      current: assets.length,
+      total: assets.length,
+      label: 'Store assets uploaded.',
+    })
+
+    return {
+      logoUrl: assets.some((asset) => asset.kind === 'logo') ? resolvedStore.logoUrl ?? undefined : undefined,
+      bannerUrl: assets.some((asset) => asset.kind === 'banner') ? resolvedStore.bannerUrl ?? undefined : undefined,
+    }
+  }
+
+  function handleAssetSelection(
+    file: File | null,
+    kind: 'logo' | 'banner',
+  ) {
+    const setter = kind === 'logo' ? setLogoAsset : setBannerAsset
+
+    if (!file) {
+      setter(createPendingAssetState())
       return
     }
 
-    const controller = new AbortController()
-    const timeout = window.setTimeout(async () => {
-      setSlugLookupState({ slug: slugValue, status: 'checking', suggestion: null })
-
-      try {
-        const response = await fetch(`/api/seller/storefront/slug?slug=${encodeURIComponent(slugValue)}`, {
-          signal: controller.signal,
-        })
-        const json = (await response.json()) as
-          | { success: true; data: { available: boolean; suggestion: string | null } }
-          | { success: false; error?: { message?: string } }
-
-        if (!response.ok || !json.success) {
-          setSlugLookupState({ slug: slugValue, status: 'error', suggestion: null })
-          return
-        }
-
-        if (json.data.available) {
-          setSlugLookupState({ slug: slugValue, status: 'available', suggestion: null })
-          return
-        }
-
-        setSlugLookupState({
-          slug: slugValue,
-          status: 'unavailable',
-          suggestion: json.data.suggestion,
-        })
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return
-        }
-
-        setSlugLookupState({ slug: slugValue, status: 'error', suggestion: null })
-      }
-    }, 350)
-
-    return () => {
-      controller.abort()
-      window.clearTimeout(timeout)
+    const validationError = validateStoreAssetFile(file)
+    if (validationError) {
+      setter({
+        file: null,
+        errorMessage: validationError,
+      })
+      return
     }
-  }, [parsedSlug.success, slugValue, store])
+
+    setter({
+      file,
+      errorMessage: null,
+    })
+  }
 
   if (!sellerProfile) {
     return (
@@ -177,8 +340,8 @@ export default function SellerStoreSettingsForm({
             />
           </label>
           <div className="sm:col-span-2">
-            <button type="submit" className="ui-primary-button" disabled={isPending}>
-              {isPending ? 'Saving...' : 'Create seller profile'}
+            <button type="submit" className="ui-primary-button" disabled={isBusy}>
+              {isBusy ? 'Saving...' : 'Create seller profile'}
             </button>
           </div>
         </form>
@@ -190,45 +353,6 @@ export default function SellerStoreSettingsForm({
 
   if (!store) {
     const slugPreview = slugValue ? `/${slugValue}` : '/your-store'
-    const slugAvailability: SlugAvailabilityState = !slugValue
-      ? {
-          status: 'idle',
-          message: 'Choose a public storefront URL for your marketplace presence.',
-          suggestion: null,
-        }
-      : !parsedSlug.success
-        ? {
-            status: 'invalid',
-            message: parsedSlug.error.issues[0]?.message ?? 'Enter a valid slug.',
-            suggestion: null,
-          }
-        : slugLookupState.slug !== slugValue || slugLookupState.status === 'checking'
-          ? {
-              status: 'checking',
-              message: 'Checking availability...',
-              suggestion: null,
-            }
-          : slugLookupState.status === 'available'
-            ? {
-                status: 'available',
-                message: 'This storefront URL is available.',
-                suggestion: null,
-              }
-            : slugLookupState.status === 'unavailable'
-              ? {
-                  status: 'unavailable',
-                  message: 'This storefront URL is already in use.',
-                  suggestion: slugLookupState.suggestion,
-                }
-              : {
-                  status: 'invalid',
-                  message: 'Unable to validate slug right now.',
-                  suggestion: null,
-                }
-    const canSubmitProvisioning =
-      slugAvailability.status !== 'checking' &&
-      slugAvailability.status !== 'invalid' &&
-      slugAvailability.status !== 'unavailable'
 
     return (
       <section className="ui-elevated-panel p-5 sm:p-6">
@@ -251,8 +375,6 @@ export default function SellerStoreSettingsForm({
               name: storeState.name.trim(),
               slug: toOptionalString(storeState.slug),
               description: toOptionalString(storeState.description),
-              logoUrl: toOptionalString(storeState.logoUrl),
-              bannerUrl: toOptionalString(storeState.bannerUrl),
             })
 
             if (!parsed.success) {
@@ -265,16 +387,24 @@ export default function SellerStoreSettingsForm({
               return
             }
 
-            await execute({
+            const data = await execute<{ id: string }>({
               url: '/api/seller/storefront/provision',
               method: 'POST',
               body: parsed.data,
               successMessage: 'Storefront provisioned.',
               refresh: false,
-              onSuccess: async () => {
-                router.push('/seller')
-              },
             })
+
+            if (!data) {
+              return
+            }
+
+            const uploadedAssets = await uploadSelectedAssets()
+            if (uploadedAssets === null) {
+              return
+            }
+
+            router.push('/seller')
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -283,7 +413,14 @@ export default function SellerStoreSettingsForm({
               <input
                 className="ui-surface-input"
                 value={storeState.name}
-                onChange={(event) => setStoreState((current) => ({ ...current, name: event.target.value }))}
+                onChange={(event) => {
+                  const nextName = event.target.value
+                  setStoreState((current) => ({
+                    ...current,
+                    name: nextName,
+                    slug: !store && !isSlugManual ? generateStoreSlugDraft(nextName) : current.slug,
+                  }))
+                }}
                 required
               />
             </label>
@@ -292,14 +429,15 @@ export default function SellerStoreSettingsForm({
               <input
                 className="ui-surface-input"
                 value={storeState.slug}
-                onChange={(event) =>
+                onChange={(event) => {
+                  setIsSlugManual(true)
                   setStoreState((current) => ({
                     ...current,
-                    slug: event.target.value.trim().toLowerCase().replace(/\s+/g, '-'),
+                    slug: event.target.value,
                   }))
-                }
+                }}
                 required
-                aria-invalid={slugAvailability.status === 'invalid' || slugAvailability.status === 'unavailable'}
+                aria-invalid={!parsedSlug.success || slugAvailability.status === 'unavailable' || slugAvailability.status === 'error'}
                 aria-describedby="storefront-slug-hint"
               />
             </label>
@@ -308,21 +446,21 @@ export default function SellerStoreSettingsForm({
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
             <p className="font-medium text-copy-strong">Storefront URL preview</p>
             <p className="mt-1">{slugPreview}</p>
-            <p
-              id="storefront-slug-hint"
-              className={`mt-2 ${
-                slugAvailability.status === 'available'
-                  ? 'text-emerald-300'
-                  : slugAvailability.status === 'invalid' || slugAvailability.status === 'unavailable'
-                    ? 'text-brand-danger'
-                    : 'text-copy-muted'
-              }`}
-            >
-              {slugAvailability.message}
-              {slugAvailability.status === 'unavailable' && slugAvailability.suggestion
-                ? ` Try ${slugAvailability.suggestion}.`
-                : ''}
+            <p id="storefront-slug-hint" className={`mt-2 ${slugStatus.tone}`}>
+              {slugStatus.message}
             </p>
+            {!store && slugAvailability.status === 'unavailable' && slugAvailability.suggestion ? (
+              <button
+                type="button"
+                className="mt-3 ui-secondary-button h-10 px-4 py-2 text-sm"
+                onClick={() => {
+                  setIsSlugManual(true)
+                  setStoreState((current) => ({ ...current, slug: slugAvailability.suggestion ?? current.slug }))
+                }}
+              >
+                Use suggestion
+              </button>
+            ) : null}
           </div>
 
           <label className="space-y-2">
@@ -337,61 +475,43 @@ export default function SellerStoreSettingsForm({
           </label>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Logo URL</span>
-              <input
-                className="ui-surface-input"
-                value={storeState.logoUrl}
-                onChange={(event) => setStoreState((current) => ({ ...current, logoUrl: event.target.value }))}
-                placeholder="https://example.com/logo.png"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Banner URL</span>
-              <input
-                className="ui-surface-input"
-                value={storeState.bannerUrl}
-                onChange={(event) =>
-                  setStoreState((current) => ({ ...current, bannerUrl: event.target.value }))
-                }
-                placeholder="https://example.com/banner.png"
-              />
-            </label>
+            <ImageUploadField
+              label="Store logo"
+              description="Optional square brand asset. JPG, PNG, WEBP, or SVG up to 5MB."
+              file={logoAsset.file}
+              imageUrl={null}
+              alt="Store logo preview"
+              accept=".jpg,.jpeg,.png,.webp,.svg"
+              errorMessage={logoAsset.errorMessage}
+              onFileSelect={(file) => handleAssetSelection(file, 'logo')}
+              onClear={() => setLogoAsset(createPendingAssetState())}
+            />
+            <ImageUploadField
+              label="Store banner"
+              description="Optional wide storefront cover image. JPG, PNG, WEBP, or SVG up to 5MB."
+              file={bannerAsset.file}
+              imageUrl={null}
+              alt="Store banner preview"
+              accept=".jpg,.jpeg,.png,.webp,.svg"
+              errorMessage={bannerAsset.errorMessage}
+              onFileSelect={(file) => handleAssetSelection(file, 'banner')}
+              onClear={() => setBannerAsset(createPendingAssetState())}
+            />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Logo preview</span>
-              <div className="relative h-32 overflow-hidden rounded-3xl border border-dashed border-panelBorder bg-panel">
-                {storeState.logoUrl ? (
-                  <Image src={storeState.logoUrl} alt="Store logo preview" fill className="object-contain p-4" sizes="320px" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-copy-muted">
-                    Logo upload integration placeholder
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Banner preview</span>
-              <div className="relative h-32 overflow-hidden rounded-3xl border border-dashed border-panelBorder bg-panel">
-                {storeState.bannerUrl ? (
-                  <Image src={storeState.bannerUrl} alt="Store banner preview" fill className="object-cover" sizes="640px" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-copy-muted">
-                    Banner upload integration placeholder
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <UploadProgress
+            label={assetProgress.label}
+            current={assetProgress.current}
+            total={assetProgress.total}
+            isActive={assetProgress.active}
+          />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="submit" className="ui-primary-button" disabled={isPending || !canSubmitProvisioning}>
-              {isPending ? 'Provisioning...' : 'Provision storefront'}
+            <button type="submit" className="ui-primary-button" disabled={isBusy || !canSubmitProvisioning}>
+              {isBusy ? 'Provisioning...' : 'Provision storefront'}
             </button>
             <p className="text-sm text-copy-muted">
-              Store activation controls will appear after provisioning completes.
+              Store assets will upload automatically right after the storefront is created.
             </p>
           </div>
         </form>
@@ -419,24 +539,45 @@ export default function SellerStoreSettingsForm({
             event.preventDefault()
             setErrorMessage(null)
 
-            const parsed = updateStoreSettingsSchema.safeParse({
+            const uploadedAssets = await uploadSelectedAssets()
+            if (uploadedAssets === null) {
+              return
+            }
+
+            const payload = {
               name: storeState.name.trim(),
               description: toOptionalString(storeState.description),
-              logoUrl: toOptionalString(storeState.logoUrl),
-              bannerUrl: toOptionalString(storeState.bannerUrl),
-            })
+              logoUrl: toOptionalString(uploadedAssets.logoUrl ?? storeState.logoUrl),
+              bannerUrl: toOptionalString(uploadedAssets.bannerUrl ?? storeState.bannerUrl),
+            }
+
+            const parsed = updateStoreSettingsSchema.safeParse(payload)
 
             if (!parsed.success) {
               setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the store fields.')
               return
             }
 
-            await execute({
+            const saved = await execute<{
+              name: string
+              slug: string
+              description: string | null
+              logoUrl: string | null
+              bannerUrl: string | null
+            }>({
               url: '/api/seller/storefront/settings',
               method: 'PATCH',
               body: parsed.data,
               successMessage: 'Store settings saved.',
+              refresh: false,
             })
+
+            if (!saved) {
+              return
+            }
+
+            applyStoreState(saved)
+            router.refresh()
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -476,63 +617,49 @@ export default function SellerStoreSettingsForm({
           </label>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Logo URL</span>
-              <input
-                className="ui-surface-input"
-                value={storeState.logoUrl}
-                onChange={(event) => setStoreState((current) => ({ ...current, logoUrl: event.target.value }))}
-                placeholder="https://example.com/logo.png"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Banner URL</span>
-              <input
-                className="ui-surface-input"
-                value={storeState.bannerUrl}
-                onChange={(event) =>
-                  setStoreState((current) => ({ ...current, bannerUrl: event.target.value }))
-                }
-                placeholder="https://example.com/banner.png"
-              />
-            </label>
+            <ImageUploadField
+              label="Store logo"
+              description="Replace your uploaded store logo. JPG, PNG, WEBP, or SVG up to 5MB."
+              file={logoAsset.file}
+              imageUrl={storeState.logoUrl || null}
+              alt="Store logo preview"
+              accept=".jpg,.jpeg,.png,.webp,.svg"
+              errorMessage={logoAsset.errorMessage}
+              statusLabel={logoAsset.file ? 'Ready to upload' : storeState.logoUrl ? 'Uploaded' : undefined}
+              disabled={isBusy}
+              onFileSelect={(file) => handleAssetSelection(file, 'logo')}
+              onClear={() => setLogoAsset(createPendingAssetState())}
+            />
+            <ImageUploadField
+              label="Store banner"
+              description="Replace your uploaded store banner. JPG, PNG, WEBP, or SVG up to 5MB."
+              file={bannerAsset.file}
+              imageUrl={storeState.bannerUrl || null}
+              alt="Store banner preview"
+              accept=".jpg,.jpeg,.png,.webp,.svg"
+              errorMessage={bannerAsset.errorMessage}
+              statusLabel={bannerAsset.file ? 'Ready to upload' : storeState.bannerUrl ? 'Uploaded' : undefined}
+              disabled={isBusy}
+              onFileSelect={(file) => handleAssetSelection(file, 'banner')}
+              onClear={() => setBannerAsset(createPendingAssetState())}
+            />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Logo preview</span>
-              <div className="relative h-32 overflow-hidden rounded-3xl border border-dashed border-panelBorder bg-panel">
-                {storeState.logoUrl ? (
-                  <Image src={storeState.logoUrl} alt="Store logo preview" fill className="object-contain p-4" sizes="320px" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-copy-muted">
-                    Logo upload integration placeholder
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Banner preview</span>
-              <div className="relative h-32 overflow-hidden rounded-3xl border border-dashed border-panelBorder bg-panel">
-                {storeState.bannerUrl ? (
-                  <Image src={storeState.bannerUrl} alt="Store banner preview" fill className="object-cover" sizes="640px" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-copy-muted">
-                    Banner upload integration placeholder
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <UploadProgress
+            label={assetProgress.label}
+            current={assetProgress.current}
+            total={assetProgress.total}
+            isActive={assetProgress.active}
+          />
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="submit" className="ui-primary-button" disabled={isPending}>
-              {isPending ? 'Saving...' : 'Save store'}
+            <button type="submit" className="ui-primary-button" disabled={isBusy}>
+              {isBusy ? 'Saving...' : 'Save store'}
             </button>
             <button
               type="button"
               className="ui-secondary-button"
-              disabled={isPending || !isVerified || store.isActive}
+              disabled={isBusy || !isVerified || store.isActive}
               onClick={() =>
                 execute({
                   url: '/api/seller/store/activate',
@@ -545,7 +672,7 @@ export default function SellerStoreSettingsForm({
             <button
               type="button"
               className="ui-secondary-button"
-              disabled={isPending || !store.isActive}
+              disabled={isBusy || !store.isActive}
               onClick={() =>
                 execute({
                   url: '/api/seller/store/deactivate',

@@ -27,7 +27,7 @@ export default async function SellerNewProductPage() {
       <SellerVerificationNotice
         status={sellerProfile.verificationStatus}
       />
-      <SellerProductForm mode="create" />
+      <SellerProductForm mode="create" storeSlug={data.store?.slug ?? ''} />
     </SellerSection>
   )
 }
