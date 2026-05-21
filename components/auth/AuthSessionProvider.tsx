@@ -3,7 +3,7 @@
 import { createContext, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { API_ROUTES } from '@/lib/constants/apiRoutes'
+import { API_ROUTES, isAuthPagePath } from '@/lib/constants/apiRoutes'
 import type { SessionUser } from '@/types/auth'
 
 type AuthSessionContextValue = {
@@ -16,6 +16,14 @@ type AuthSessionContextValue = {
 }
 
 export const AuthSessionContext = createContext<AuthSessionContextValue | null>(null)
+
+function shouldRefreshSessionForPathname(pathname: string | null) {
+  if (!pathname) {
+    return false
+  }
+
+  return !isAuthPagePath(pathname)
+}
 
 async function fetchCurrentUser(): Promise<SessionUser | null> {
   const response = await fetch(API_ROUTES.authMe, {
@@ -48,9 +56,13 @@ export default function AuthSessionProvider({
   )
   const [isRefreshing, startTransition] = useTransition()
   const inFlightPathRef = useRef<string | null>(null)
-  const isHydrated = hydratedPathname === pathname
+  const isHydrated = !shouldRefreshSessionForPathname(pathname) || hydratedPathname === pathname
 
   useEffect(() => {
+    if (!shouldRefreshSessionForPathname(pathname)) {
+      return
+    }
+
     if (hydratedPathname === pathname || inFlightPathRef.current === pathname) {
       return
     }
@@ -70,6 +82,7 @@ export default function AuthSessionProvider({
           if (process.env.NODE_ENV !== 'production') {
             console.warn('[AuthSessionProvider] unable to refresh current user', {
               pathname,
+              route: API_ROUTES.authMe,
               error: error instanceof Error ? error.message : String(error),
             })
           }
@@ -96,6 +109,11 @@ export default function AuthSessionProvider({
       setUser,
       refreshUser: () =>
         new Promise<SessionUser | null>((resolve, reject) => {
+          if (!shouldRefreshSessionForPathname(pathname)) {
+            resolve(user)
+            return
+          }
+
           if (inFlightPathRef.current === pathname) {
             resolve(user)
             return
@@ -113,6 +131,7 @@ export default function AuthSessionProvider({
                 if (process.env.NODE_ENV !== 'production') {
                   console.warn('[AuthSessionProvider] manual refresh failed', {
                     pathname,
+                    route: API_ROUTES.authMe,
                     error: error instanceof Error ? error.message : String(error),
                   })
                 }

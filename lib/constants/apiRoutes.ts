@@ -3,4 +3,10 @@ export const API_ROUTES = {
   visitorInit: '/api/visitor/init',
 } as const
 
+export const AUTH_PAGE_PATHS = ['/login', '/register'] as const
+
 export type ApiRouteKey = keyof typeof API_ROUTES
+
+export function isAuthPagePath(pathname: string | null | undefined) {
+  return Boolean(pathname && AUTH_PAGE_PATHS.includes(pathname as (typeof AUTH_PAGE_PATHS)[number]))
+}
