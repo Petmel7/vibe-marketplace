@@ -3,10 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/moderation/product/product-moderation.repository')
 vi.mock('@/lib/auth/adminGuards')
+vi.mock('@/features/products/product-badge.service', () => ({
+  syncSystemNewBadgeForProduct: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/product/product-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
+import * as productBadgeService from '@/features/products/product-badge.service'
 import {
+  getPendingProductQueue,
   approveProduct,
   rejectProduct,
   archiveProduct,
@@ -19,6 +24,7 @@ import type { Product, ProductStatus, Store } from '@/app/generated/prisma/clien
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
+const mockBadgeService = vi.mocked(productBadgeService)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -86,6 +92,22 @@ beforeEach(() => {
   mockGuards.assertNotSelfModeration.mockReturnValue(undefined)
 })
 
+describe('getPendingProductQueue', () => {
+  it('returns only products already prepared by the PENDING_REVIEW repository query', async () => {
+    const pendingProduct = makeProduct({ status: 'PENDING_REVIEW' as ProductStatus })
+    mockRepo.findPendingProductApprovals.mockResolvedValue({
+      items: [pendingProduct],
+      total: 1,
+    })
+
+    const result = await getPendingProductQueue(mockAdmin, { page: 1, limit: 20 })
+
+    expect(mockRepo.findPendingProductApprovals).toHaveBeenCalledWith({ page: 1, limit: 20 })
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.status).toBe('PENDING_REVIEW')
+  })
+})
+
 // ---------------------------------------------------------------------------
 // approveProduct
 // ---------------------------------------------------------------------------
@@ -93,7 +115,11 @@ beforeEach(() => {
 describe('approveProduct', () => {
   it('PENDING_REVIEW → PUBLISHED succeeds and returns ProductModerationDto', async () => {
     const product = makeProduct({ status: 'PENDING_REVIEW' as ProductStatus })
-    const updated = makeUpdatedProduct({ status: 'PUBLISHED' as ProductStatus })
+    const publishedAt = new Date('2026-05-22T08:00:00.000Z')
+    const updated = makeUpdatedProduct({
+      status: 'PUBLISHED' as ProductStatus,
+      publishedAt,
+    })
 
     mockRepo.findProductByIdWithStore.mockResolvedValue(product)
     mockRepo.updateProductModerationStatus.mockResolvedValue(updated)
@@ -108,8 +134,10 @@ describe('approveProduct', () => {
     )
     expect(result.id).toBe(PRODUCT_ID)
     expect(result.status).toBe('PUBLISHED')
+    expect(result.publishedAt).toBe(publishedAt)
     expect(result.storeName).toBe('Test Store')
     expect(result.moderatedBy).toBe(ADMIN_ID)
+    expect(mockBadgeService.syncSystemNewBadgeForProduct).toHaveBeenCalledWith(updated)
   })
 
   it('throws InvalidModerationTransitionError on wrong state', async () => {
@@ -139,6 +167,7 @@ describe('rejectProduct', () => {
     const updated = makeUpdatedProduct({
       status: 'REJECTED' as ProductStatus,
       moderationReason: 'Violates content policy',
+      rejectionReason: 'Violates content policy',
     })
 
     mockRepo.findProductByIdWithStore.mockResolvedValue(product)
@@ -154,6 +183,8 @@ describe('rejectProduct', () => {
     )
     expect(result.status).toBe('REJECTED')
     expect(result.moderationReason).toBe('Violates content policy')
+    expect(result.rejectionReason).toBe('Violates content policy')
+    expect(mockBadgeService.syncSystemNewBadgeForProduct).toHaveBeenCalledWith(updated)
   })
 
   it('throws InvalidModerationTransitionError when product is not PENDING_REVIEW', async () => {

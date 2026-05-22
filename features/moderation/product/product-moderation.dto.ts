@@ -1,10 +1,14 @@
+import type { ProductStatus } from '@/app/generated/prisma/client'
+
 export interface ProductModerationDto {
   id: string
   name: string
   storeId: string
   storeName: string
-  status: string
+  status: ProductStatus
   moderationReason: string | null
+  rejectionReason: string | null
+  publishedAt: Date | null
   moderatedAt: Date | null
   moderatedBy: string | null
   createdAt: Date

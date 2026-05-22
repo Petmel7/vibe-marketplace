@@ -182,6 +182,19 @@ describe('createProduct', () => {
 
     expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
   })
+
+  it('creates new seller products in PENDING_REVIEW for the MVP moderation flow', async () => {
+    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
+    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+
+    const result = await createProduct(mockUser, {
+      name: 'Test Product',
+      price: '29.99',
+    })
+
+    expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
+  })
 })
 
 describe('submitForReview', () => {

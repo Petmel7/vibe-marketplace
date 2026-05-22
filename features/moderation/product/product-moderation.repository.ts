@@ -97,16 +97,20 @@ export async function updateProductModerationStatus(
   adminId: string,
   reason?: string,
 ): Promise<ProductWithStore> {
+  const isRejected = status === 'REJECTED'
+  const isPublished = status === 'PUBLISHED'
+
   return prisma.product.update({
     where: { id },
     data: {
       status,
       moderationReason: reason ?? null,
+      rejectionReason: isRejected ? reason ?? null : null,
       moderatedAt: new Date(),
       moderatedBy: adminId,
       updatedAt: new Date(),
       // Set publishedAt when first approved
-      ...(status === 'PUBLISHED' ? { publishedAt: new Date() } : {}),
+      ...(isPublished ? { publishedAt: new Date() } : {}),
     },
     include: STORE_INCLUDE,
   })

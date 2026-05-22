@@ -28,6 +28,8 @@ function toProductModerationDto(product: Product & { store: Store }): ProductMod
     storeName: product.store.name,
     status: product.status,
     moderationReason: product.moderationReason,
+    rejectionReason: product.rejectionReason,
+    publishedAt: product.publishedAt,
     moderatedAt: product.moderatedAt,
     moderatedBy: product.moderatedBy,
     createdAt: product.createdAt,

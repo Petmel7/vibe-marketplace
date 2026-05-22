@@ -27,12 +27,13 @@ export async function GET(request: NextRequest): Promise<Response> {
 
 /**
  * POST /api/seller/products
- * Creates a new product under the seller's store (status: DRAFT).
+ * Creates a new product under the seller's store (status: PENDING_REVIEW).
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
     const body = await request.json()
+    // console.log('Received POST /api/seller/products with body:', body)
     const parsed = createSellerProductSchema.safeParse(body)
     if (!parsed.success) {
       return Response.json(
