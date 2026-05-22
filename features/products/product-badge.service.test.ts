@@ -7,6 +7,8 @@ import {
   createAdminBadgeOverride,
   getProductBadges,
   recalculateProductMetricsAndBadges,
+  resolveMarketplaceBadgesForProducts,
+  syncSystemNewBadgeForProduct,
 } from './product-badge.service'
 import * as repository from './product-badge.repository'
 import {
@@ -47,6 +49,7 @@ function makeBadgeProduct(overrides: Partial<repository.BadgeSubjectProduct> = {
   return {
     id: 'product-1',
     categoryId: 'cat-1',
+    ownerId: 'seller-1',
     status: ProductStatus.PUBLISHED,
     publishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     isActive: true,
@@ -112,6 +115,67 @@ describe('getProductBadges', () => {
   })
 })
 
+describe('syncSystemNewBadgeForProduct', () => {
+  it('persists a SYSTEM NEW badge window for active published products', async () => {
+    const publishedAt = new Date('2026-05-20T10:00:00.000Z')
+
+    await syncSystemNewBadgeForProduct(
+      makeBadgeProduct({
+        publishedAt,
+        status: ProductStatus.PUBLISHED,
+        isActive: true,
+      }),
+    )
+
+    expect(mockedRepository.replaceSystemNewBadge).toHaveBeenCalledWith(
+      'product-1',
+      publishedAt,
+      true,
+    )
+  })
+
+  it('removes SYSTEM NEW persistence for draft products', async () => {
+    await syncSystemNewBadgeForProduct(
+      makeBadgeProduct({
+        status: ProductStatus.DRAFT,
+        publishedAt: null,
+      }),
+    )
+
+    expect(mockedRepository.replaceSystemNewBadge).toHaveBeenCalledWith(
+      'product-1',
+      null,
+      false,
+    )
+  })
+})
+
+describe('resolveMarketplaceBadgesForProducts', () => {
+  it('does not return NEW badges for products older than the 30-day window', async () => {
+    mockedRepository.findActiveProductBadges.mockResolvedValue([])
+
+    const result = await resolveMarketplaceBadgesForProducts([
+      makeBadgeProduct({
+        publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    ])
+
+    expect(result.get('product-1')).toEqual([])
+  })
+
+  it('does not return NEW badges for inactive or rejected products', async () => {
+    mockedRepository.findActiveProductBadges.mockResolvedValue([])
+
+    const result = await resolveMarketplaceBadgesForProducts([
+      makeBadgeProduct({ isActive: false }),
+      makeBadgeProduct({ id: 'product-2', status: ProductStatus.REJECTED }),
+    ])
+
+    expect(result.get('product-1')).toEqual([])
+    expect(result.get('product-2')).toEqual([])
+  })
+})
+
 describe('recalculateProductMetricsAndBadges', () => {
   it('aggregates metrics, persists them, and syncs system hit badges', async () => {
     mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
@@ -167,6 +231,62 @@ describe('recalculateProductMetricsAndBadges', () => {
 
     const hitBadgesCall = mockedRepository.replaceSystemHitBadges.mock.calls[0]?.[0] ?? []
     expect(hitBadgesCall.some((badge) => badge.productId === 'product-draft')).toBe(false)
+  })
+
+  it('does not award HIT when seller-owned wishlist and views are excluded from trusted metrics', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-owner-only' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-owner-only', 0]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-owner-only', 0]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(
+      new Map([['product-owner-only', { reviewCount: 0, ratingAvg: new Decimal(0) }]]),
+    )
+    mockedRepository.aggregateSalesStats.mockResolvedValue(
+      new Map([['product-owner-only', { soldCount: 0, revenueAmount: new Decimal(0) }]]),
+    )
+
+    await recalculateProductMetricsAndBadges()
+
+    const hitBadgesCall = mockedRepository.replaceSystemHitBadges.mock.calls[0]?.[0] ?? []
+    expect(hitBadgesCall).toEqual([])
+  })
+
+  it('allows trusted buyer wishlist and views to contribute to HIT metrics', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-buyer-signal' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-buyer-signal', 80]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-buyer-signal', 7]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(
+      new Map([['product-buyer-signal', { reviewCount: 3, ratingAvg: new Decimal('4.50') }]]),
+    )
+    mockedRepository.aggregateSalesStats.mockResolvedValue(
+      new Map([['product-buyer-signal', { soldCount: 4, revenueAmount: new Decimal('320.00') }]]),
+    )
+
+    await recalculateProductMetricsAndBadges()
+
+    expect(mockedRepository.upsertProductMetrics).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          productId: 'product-buyer-signal',
+          viewCount: 80,
+          wishlistCount: 7,
+          soldCount: 4,
+        }),
+      ]),
+    )
+
+    const hitBadgesCall = mockedRepository.replaceSystemHitBadges.mock.calls[0]?.[0] ?? []
+    expect(hitBadgesCall).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          productId: 'product-buyer-signal',
+          score: expect.any(Decimal),
+        }),
+      ]),
+    )
   })
 })
 

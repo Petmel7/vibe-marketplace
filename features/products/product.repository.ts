@@ -2,12 +2,15 @@ import { prisma } from '@/lib/prisma'
 import type {
   Category,
   Product,
+  ProductImage,
   ProductVariant,
 } from '@/app/generated/prisma/client'
 import { Prisma } from '@/app/generated/prisma/client'
 
-export type ProductWithVariants = Product & { variants: ProductVariant[] }
-export type ProductListProduct = Product & { variants: ProductVariant[] }
+type ProductImagePreview = Pick<ProductImage, 'id' | 'url' | 'isPrimary' | 'position' | 'createdAt'>
+
+export type ProductWithVariants = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
+export type ProductListProduct = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
 export type CategoryNode = Pick<Category, 'id' | 'parentId'>
 
 interface FindProductsParams {
@@ -44,6 +47,16 @@ export async function findProducts(
       include: {
         variants: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+        images: {
+          select: {
+            id: true,
+            url: true,
+            isPrimary: true,
+            position: true,
+            createdAt: true,
+          },
+          orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
         },
       },
     }),
@@ -85,8 +98,10 @@ async function findProductsWithFullTextSearch(params: {
       created_at AS "createdAt",
       updated_at AS "updatedAt"
     FROM products
+    INNER JOIN stores ON stores.id = products.store_id
     WHERE is_active = true
       AND status = 'PUBLISHED'
+      AND stores.is_active = true
       AND search_vector @@ plainto_tsquery('english', ${search})
     ORDER BY
       ts_rank(search_vector, plainto_tsquery('english', ${search})) DESC,
@@ -97,13 +112,16 @@ async function findProductsWithFullTextSearch(params: {
     prisma.$queryRaw<[{ count: bigint }]>`
     SELECT COUNT(*) AS count
     FROM products
+    INNER JOIN stores ON stores.id = products.store_id
     WHERE is_active = true
+      AND status = 'PUBLISHED'
+      AND stores.is_active = true
       AND search_vector @@ plainto_tsquery('english', ${search})
   `,
   ])
 
   return {
-    items: await attachVariants(items),
+    items: await attachProductRelations(items),
     total: Number(countResult[0]?.count ?? 0),
   }
 }
@@ -131,21 +149,42 @@ export async function searchProducts(
   return findProductsWithFullTextSearch({ search: q, skip, limit })
 }
 
-async function attachVariants(products: Product[]): Promise<ProductListProduct[]> {
+async function attachProductRelations(products: Product[]): Promise<ProductListProduct[]> {
   if (products.length === 0) {
     return []
   }
 
-  const variants = await prisma.productVariant.findMany({
-    where: {
-      productId: {
-        in: products.map((product) => product.id),
+  const productIds = products.map((product) => product.id)
+
+  const [variants, images] = await Promise.all([
+    prisma.productVariant.findMany({
+      where: {
+        productId: {
+          in: productIds,
+        },
       },
-    },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  })
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }),
+    prisma.productImage.findMany({
+      where: {
+        productId: {
+          in: productIds,
+        },
+      },
+      select: {
+        id: true,
+        productId: true,
+        url: true,
+        isPrimary: true,
+        position: true,
+        createdAt: true,
+      },
+      orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    }),
+  ])
 
   const variantsByProductId = new Map<string, ProductVariant[]>()
+  const imagesByProductId = new Map<string, ProductImagePreview[]>()
 
   for (const variant of variants) {
     const current = variantsByProductId.get(variant.productId) ?? []
@@ -153,9 +192,22 @@ async function attachVariants(products: Product[]): Promise<ProductListProduct[]
     variantsByProductId.set(variant.productId, current)
   }
 
+  for (const image of images) {
+    const current = imagesByProductId.get(image.productId) ?? []
+    current.push({
+      id: image.id,
+      url: image.url,
+      isPrimary: image.isPrimary,
+      position: image.position,
+      createdAt: image.createdAt,
+    })
+    imagesByProductId.set(image.productId, current)
+  }
+
   return products.map((product) => ({
     ...product,
     variants: variantsByProductId.get(product.id) ?? [],
+    images: imagesByProductId.get(product.id) ?? [],
   }))
 }
 
@@ -205,7 +257,26 @@ export async function findProductById(
   id: string
 ): Promise<ProductWithVariants | null> {
   return prisma.product.findFirst({
-    where: { id, isActive: true, status: 'PUBLISHED' },
-    include: { variants: true },
+    where: {
+      id,
+      isActive: true,
+      status: 'PUBLISHED',
+      store: {
+        isActive: true,
+      },
+    },
+    include: {
+      variants: true,
+      images: {
+        select: {
+          id: true,
+          url: true,
+          isPrimary: true,
+          position: true,
+          createdAt: true,
+        },
+        orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      },
+    },
   })
 }

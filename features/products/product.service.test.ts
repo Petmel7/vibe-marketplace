@@ -21,7 +21,7 @@ vi.mock('./product.repository', () => ({
 }))
 vi.mock('./product-badge.service', () => ({
   recalculateProductMetricsAndBadges: vi.fn(),
-  resolveMarketplaceFlagsForProducts: vi.fn(),
+  resolveMarketplaceBadgesForProducts: vi.fn(),
 }))
 
 const mockedRepository = vi.mocked(repository)
@@ -71,17 +71,44 @@ function makeListProduct(
   return {
     ...makeProduct(overrides),
     variants,
+    images: [],
   } as repository.ProductListProduct
 }
 
 describe('searchProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockedBadgeService.resolveMarketplaceFlagsForProducts.mockImplementation(async (products) =>
+    mockedBadgeService.resolveMarketplaceBadgesForProducts.mockImplementation(async (products) =>
       new Map(
         products.map((product) => [
           product.id,
-          { isHit: product.id === 'prod-hit', isNew: true },
+          product.id === 'prod-hit'
+            ? [
+                {
+                  id: 'badge-hit',
+                  productId: product.id,
+                  type: 'HIT',
+                  source: 'SYSTEM',
+                  score: '99.0000',
+                  startsAt: '2026-01-01T00:00:00.000Z',
+                  endsAt: null,
+                  createdAt: '2026-01-01T00:00:00.000Z',
+                  updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+              ]
+            : [
+                {
+                  id: 'badge-new',
+                  productId: product.id,
+                  type: 'NEW',
+                  source: 'SYSTEM',
+                  score: null,
+                  startsAt: '2026-01-01T00:00:00.000Z',
+                  endsAt: '2026-01-31T00:00:00.000Z',
+                  createdAt: '2026-01-01T00:00:00.000Z',
+                  updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+              ],
         ]),
       ),
     )
@@ -96,6 +123,7 @@ describe('searchProducts', () => {
     expect(result.total).toBe(1)
     expect(result.totalPages).toBe(1)
     expect(result.data[0]?.price).toBe('99.99')
+    expect(result.badgeContext).toBe('DEFAULT')
     expect(result.meta.hasNextPage).toBe(false)
   })
 
@@ -134,6 +162,17 @@ describe('listProducts', () => {
           sku: 'SKU-001',
           isHit: false,
           isNew: true,
+          badgeContext: 'DEFAULT',
+          badges: [
+            {
+              id: 'badge-new',
+              type: 'NEW',
+              source: 'SYSTEM',
+              score: null,
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: '2026-01-31T00:00:00.000Z',
+            },
+          ],
           createdAt: '2026-01-01T00:00:00.000Z',
           variants: [
             {
@@ -162,6 +201,17 @@ describe('listProducts', () => {
           sku: 'SKU-001',
           isHit: false,
           isNew: true,
+          badgeContext: 'DEFAULT',
+          badges: [
+            {
+              id: 'badge-new',
+              type: 'NEW',
+              source: 'SYSTEM',
+              score: null,
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: '2026-01-31T00:00:00.000Z',
+            },
+          ],
           createdAt: '2026-01-01T00:00:00.000Z',
           variants: [
             {
@@ -182,6 +232,7 @@ describe('listProducts', () => {
         totalPages: 2,
         hasNextPage: true,
       },
+      badgeContext: 'DEFAULT',
     })
   })
 
@@ -214,6 +265,9 @@ describe('listProducts', () => {
       where: {
         isActive: true,
         status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
         categoryId: {
           in: ['cat-root', 'cat-parent', 'cat-leaf-a', 'cat-leaf-b'],
         },
@@ -245,6 +299,7 @@ describe('listProducts', () => {
 
     expect(mockedRepository.findProducts).not.toHaveBeenCalled()
     expect(result).toEqual({
+      badgeContext: 'DEFAULT',
       items: [],
       total: 0,
       page: 1,
@@ -269,6 +324,9 @@ describe('listProducts', () => {
       where: {
         isActive: true,
         status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
         storeId: 'store-abc',
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -292,14 +350,62 @@ describe('filtered product listings', () => {
       where: {
         isActive: true,
         status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
         publishedAt: {
           gte: expect.any(Date),
         },
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       page: 1,
       limit: 12,
     })
+  })
+
+  it('returns only the NEW badge in the New Arrivals context even when HIT also exists internally', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct()],
+      total: 1,
+    })
+    mockedBadgeService.resolveMarketplaceBadgesForProducts.mockResolvedValue(
+      new Map([
+        [
+          'prod-1',
+          [
+            {
+              id: 'badge-hit',
+              productId: 'prod-1',
+              type: 'HIT',
+              source: 'SYSTEM',
+              score: '40.0000',
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'badge-new',
+              productId: 'prod-1',
+              type: 'NEW',
+              source: 'SYSTEM',
+              score: null,
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: '2026-01-31T00:00:00.000Z',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        ],
+      ]),
+    )
+
+    const result = await listNewProducts({ page: 1, limit: 12 })
+
+    expect(result.badgeContext).toBe('NEW')
+    expect(result.items[0]?.badges.map((badge) => badge.type)).toEqual(['NEW'])
+    expect(result.items[0]?.isHit).toBe(true)
+    expect(result.items[0]?.isNew).toBe(true)
   })
 
   it('passes isHit=true to the repository for hit products', async () => {
@@ -312,6 +418,9 @@ describe('filtered product listings', () => {
       where: {
         isActive: true,
         status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
         badges: {
           some: {
             type: 'HIT',
@@ -324,6 +433,51 @@ describe('filtered product listings', () => {
       page: 2,
       limit: 6,
     })
+  })
+
+  it('returns only the HIT badge in the Hit Products context even when NEW also exists internally', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct()],
+      total: 1,
+    })
+    mockedBadgeService.resolveMarketplaceBadgesForProducts.mockResolvedValue(
+      new Map([
+        [
+          'prod-1',
+          [
+            {
+              id: 'badge-hit',
+              productId: 'prod-1',
+              type: 'HIT',
+              source: 'SYSTEM',
+              score: '40.0000',
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'badge-new',
+              productId: 'prod-1',
+              type: 'NEW',
+              source: 'SYSTEM',
+              score: null,
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: '2026-01-31T00:00:00.000Z',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        ],
+      ]),
+    )
+
+    const result = await listHitProducts({ page: 1, limit: 12 })
+
+    expect(result.badgeContext).toBe('HIT')
+    expect(result.items[0]?.badges.map((badge) => badge.type)).toEqual(['HIT'])
+    expect(result.items[0]?.isHit).toBe(true)
+    expect(result.items[0]?.isNew).toBe(true)
   })
 })
 
@@ -349,6 +503,9 @@ describe('listProductsByCategorySlug', () => {
       where: {
         isActive: true,
         status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
         categoryId: {
           in: ['cat-root', 'cat-leaf'],
         },
@@ -382,8 +539,9 @@ describe('getProduct', () => {
     const result = await getProduct('prod-1')
 
     expect(result.id).toBe('prod-1')
+    expect(result.badgeContext).toBe('DEFAULT')
     expect(result.variants).toHaveLength(1)
-    expect(mockedBadgeService.resolveMarketplaceFlagsForProducts).toHaveBeenCalledWith([
+    expect(mockedBadgeService.resolveMarketplaceBadgesForProducts).toHaveBeenCalledWith([
       {
         id: 'prod-1',
         status: 'PUBLISHED',
@@ -405,5 +563,75 @@ describe('getProduct', () => {
     mockedRepository.findProductById.mockResolvedValue(null)
 
     await expect(getProduct('nonexistent-id')).rejects.toThrow(ProductNotFoundError)
+  })
+
+  it('prefers the primary ProductImage over the legacy imageUrl in listing DTOs', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [
+        makeListProduct(
+          { imageUrl: 'https://example.com/legacy.jpg' },
+          [],
+        ),
+      ].map((item) => ({
+        ...item,
+        images: [
+          {
+            id: 'image-1',
+            url: 'https://example.com/primary.webp',
+            isPrimary: true,
+            position: 0,
+            createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          },
+        ],
+      })),
+      total: 1,
+    })
+
+    const result = await listNewProducts({ page: 1, limit: 12 })
+
+    expect(result.items[0]?.imageUrl).toBe('https://example.com/primary.webp')
+  })
+
+  it('returns a single prioritized badge in DEFAULT context when multiple badges exist internally', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct()],
+      total: 1,
+    })
+    mockedBadgeService.resolveMarketplaceBadgesForProducts.mockResolvedValue(
+      new Map([
+        [
+          'prod-1',
+          [
+            {
+              id: 'badge-hit',
+              productId: 'prod-1',
+              type: 'HIT',
+              source: 'SYSTEM',
+              score: '40.0000',
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'badge-new',
+              productId: 'prod-1',
+              type: 'NEW',
+              source: 'SYSTEM',
+              score: null,
+              startsAt: '2026-01-01T00:00:00.000Z',
+              endsAt: '2026-01-31T00:00:00.000Z',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        ],
+      ]),
+    )
+
+    const result = await listProducts({ page: 1, limit: 12, sort: 'newest' })
+
+    expect(result.badgeContext).toBe('DEFAULT')
+    expect(result.items[0]?.badges.map((badge) => badge.type)).toEqual(['HIT'])
   })
 })

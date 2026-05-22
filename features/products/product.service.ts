@@ -2,6 +2,8 @@ import { Prisma, ProductBadgeType, ProductStatus } from '@/app/generated/prisma/
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import type {
   ProductDetailDto,
+  ProductBadgeContext,
+  ProductMarketplaceBadgeDto,
   ProductListDto,
   ProductSummaryDto,
   ProductVariantDto,
@@ -25,8 +27,9 @@ import type {
 } from '@/features/products/product.schema'
 import {
   recalculateProductMetricsAndBadges,
-  resolveMarketplaceFlagsForProducts,
+  resolveMarketplaceBadgesForProducts,
 } from './product-badge.service'
+import type { ProductBadgeDto } from './product-badge.dto'
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -50,24 +53,74 @@ export class ProductNotFoundError extends Error {
  * Decimal price is serialized to string to preserve precision in JSON.
  */
 function toProductSummaryDto(
-  product: Product,
+  product: Product | ProductListProduct,
   variants: ProductVariant[] = [],
-  marketplaceFlags?: { isHit: boolean; isNew: boolean },
+  marketplaceBadges: ProductBadgeDto[] = [],
+  badgeContext: ProductBadgeContext = 'DEFAULT',
 ): ProductSummaryDto {
+  const allBadgeTypes = new Set(marketplaceBadges.map((badge) => badge.type))
+  const contextualBadges = selectContextualBadges(marketplaceBadges, badgeContext)
+
   return {
     id: product.id,
     storeId: product.storeId,
     name: product.name,
     description: product.description ?? null,
     price: product.price.toString(),
-    imageUrl: product.imageUrl ?? null,
+    imageUrl: resolveProductImageUrl(product),
     isActive: product.isActive,
     sku: product.sku ?? null,
-    isHit: marketplaceFlags?.isHit ?? product.isHit,
-    isNew: marketplaceFlags?.isNew ?? product.isNew,
+    isHit: allBadgeTypes.has('HIT') || product.isHit,
+    isNew: allBadgeTypes.has('NEW') || product.isNew,
+    badgeContext,
+    badges: contextualBadges.map(toProductMarketplaceBadgeDto),
     createdAt: product.createdAt.toISOString(),
     variants: variants.map(toProductVariantDto),
   }
+}
+
+function resolveProductImageUrl(product: Product | ProductListProduct): string | null {
+  const primaryImage =
+    'images' in product
+      ? product.images.find((image) => image.isPrimary) ?? product.images[0]
+      : null
+
+  return primaryImage?.url ?? product.imageUrl ?? null
+}
+
+function toProductMarketplaceBadgeDto(badge: ProductBadgeDto): ProductMarketplaceBadgeDto {
+  return {
+    id: badge.id,
+    type: badge.type,
+    source: badge.source,
+    score: badge.score,
+    startsAt: badge.startsAt,
+    endsAt: badge.endsAt,
+  }
+}
+
+const DEFAULT_BADGE_PRIORITY: ProductBadgeDto['type'][] = [
+  ProductBadgeType.FEATURED,
+  ProductBadgeType.HIT,
+  ProductBadgeType.NEW,
+]
+
+function selectContextualBadges(
+  marketplaceBadges: ProductBadgeDto[],
+  badgeContext: ProductBadgeContext,
+): ProductBadgeDto[] {
+  if (badgeContext === 'DEFAULT') {
+    for (const badgeType of DEFAULT_BADGE_PRIORITY) {
+      const badge = marketplaceBadges.find((entry) => entry.type === badgeType)
+      if (badge) {
+        return [badge]
+      }
+    }
+
+    return []
+  }
+
+  return marketplaceBadges.filter((badge) => badge.type === badgeContext)
 }
 
 /**
@@ -90,8 +143,9 @@ async function toProductListDtoWithMarketplaceFlags(
   page: number,
   limit: number,
   total: number,
+  badgeContext: ProductBadgeContext = 'DEFAULT',
 ): Promise<ProductListDto> {
-  const flagsByProductId = await resolveMarketplaceFlagsForProducts(
+  const badgesByProductId = await resolveMarketplaceBadgesForProducts(
     items.map((item) => ({
       id: item.id,
       status: item.status,
@@ -104,12 +158,14 @@ async function toProductListDtoWithMarketplaceFlags(
     toProductSummaryDto(
       item,
       'variants' in item ? item.variants : [],
-      flagsByProductId.get(item.id),
+      badgesByProductId.get(item.id) ?? [],
+      badgeContext,
     ),
   )
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit)
 
   return {
+    badgeContext,
     items: mappedItems,
     total,
     page,
@@ -125,8 +181,13 @@ async function toProductListDtoWithMarketplaceFlags(
   }
 }
 
-function emptyProductListDto(page: number, limit: number): ProductListDto {
+function emptyProductListDto(
+  page: number,
+  limit: number,
+  badgeContext: ProductBadgeContext = 'DEFAULT',
+): ProductListDto {
   return {
+    badgeContext,
     items: [],
     total: 0,
     page,
@@ -166,6 +227,9 @@ function buildCatalogWhereInput(params: {
   return {
     isActive: true,
     status: ProductStatus.PUBLISHED,
+    store: {
+      isActive: true,
+    },
     ...(storeId ? { storeId } : {}),
     ...(isNew !== undefined
       ? isNew
@@ -284,7 +348,7 @@ export async function listProducts(
   const orderBy = mapSortToOrderBy(sort)
   const { items, total } = await findProducts({ where, orderBy, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total)
+  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'DEFAULT')
 }
 
 export async function listNewProducts(
@@ -292,10 +356,14 @@ export async function listNewProducts(
 ): Promise<ProductListDto> {
   const { page, limit } = query
   const where = buildCatalogWhereInput({ isNew: true })
-  const orderBy = mapSortToOrderBy('newest')
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+    { publishedAt: 'desc' },
+    { createdAt: 'desc' },
+    { id: 'desc' },
+  ]
   const { items, total } = await findProducts({ where, orderBy, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total)
+  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'NEW')
 }
 
 export async function listHitProducts(
@@ -307,7 +375,7 @@ export async function listHitProducts(
   const orderBy = mapSortToOrderBy('newest')
   const { items, total } = await findProducts({ where, orderBy, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total)
+  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'HIT')
 }
 
 export async function listProductsByCategorySlug(
@@ -326,7 +394,7 @@ export async function listProductsByCategorySlug(
   const orderBy = mapSortToOrderBy('newest')
   const { items, total } = await findProducts({ where, orderBy, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total)
+  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'DEFAULT')
 }
 
 /**
@@ -342,7 +410,7 @@ export async function searchProducts(
 
   const { items, total } = await repositorySearchProducts({ q, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total)
+  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'DEFAULT')
 }
 
 /**
@@ -358,7 +426,7 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     throw new ProductNotFoundError(id)
   }
 
-  const flagsByProductId = await resolveMarketplaceFlagsForProducts([{
+  const badgesByProductId = await resolveMarketplaceBadgesForProducts([{
     id: product.id,
     status: product.status,
     publishedAt: product.publishedAt,
@@ -366,7 +434,7 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
   }])
 
   return {
-    ...toProductSummaryDto(product, product.variants, flagsByProductId.get(product.id)),
+    ...toProductSummaryDto(product, product.variants, badgesByProductId.get(product.id) ?? [], 'DEFAULT'),
     variants: product.variants.map(toProductVariantDto),
   }
 }

@@ -1,3 +1,5 @@
+import type { ProductBadgeSource, ProductBadgeType } from '@/app/generated/prisma/client'
+
 /**
  * Data Transfer Objects for the Product feature.
  *
@@ -5,6 +7,8 @@
  * Decimal fields (price) are serialized as strings to avoid floating-point
  * precision loss and to be safe for JSON transport.
  */
+
+export type ProductBadgeContext = 'DEFAULT' | 'NEW' | 'HIT' | 'FEATURED'
 
 export interface ProductVariantDto {
   id: string
@@ -14,6 +18,15 @@ export interface ProductVariantDto {
   /** Variant-level price override, serialized as string. Null means "use base product price". */
   price: string | null
   stock: number
+}
+
+export interface ProductMarketplaceBadgeDto {
+  id: string
+  type: ProductBadgeType
+  source: ProductBadgeSource
+  score: string | null
+  startsAt: string | null
+  endsAt: string | null
 }
 
 export interface ProductSummaryDto {
@@ -28,6 +41,8 @@ export interface ProductSummaryDto {
   sku: string | null
   isHit: boolean
   isNew: boolean
+  badgeContext: ProductBadgeContext
+  badges: ProductMarketplaceBadgeDto[]
   createdAt: string
   variants: ProductVariantDto[]
 }
@@ -45,6 +60,7 @@ export interface ProductListMetaDto {
 }
 
 export interface ProductListDto {
+  badgeContext: ProductBadgeContext
   items: ProductSummaryDto[]
   total: number
   page: number

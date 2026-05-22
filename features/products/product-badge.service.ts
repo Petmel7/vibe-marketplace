@@ -149,22 +149,52 @@ export async function syncSystemNewBadgeForProduct(product: BadgeFlagSubject): P
   await replaceSystemNewBadge(product.id, product.publishedAt, shouldPersist)
 }
 
-export async function resolveMarketplaceFlagsForProducts(products: BadgeFlagSubject[]) {
+export async function resolveMarketplaceBadgesForProducts(products: BadgeFlagSubject[]) {
   const productIds = products.map((product) => product.id)
-  const activeBadges = await findActiveProductBadges(productIds, new Date(), [ProductBadgeType.HIT])
-  const hitIds = new Set(activeBadges.map((badge) => badge.productId))
+  const now = new Date()
+  const activeBadges = await findActiveProductBadges(
+    productIds,
+    now,
+    [ProductBadgeType.NEW, ProductBadgeType.HIT, ProductBadgeType.FEATURED],
+  )
+  const badgesByProductId = new Map<string, ProductBadgeDto[]>()
+
+  for (const badge of activeBadges) {
+    const bucket = badgesByProductId.get(badge.productId) ?? []
+    bucket.push(toProductBadgeDto(badge))
+    badgesByProductId.set(badge.productId, bucket)
+  }
 
   return new Map(
-    products.map((product) => [
-      product.id,
-      {
-        isNew: buildDerivedNewBadge(product) !== null,
-        isHit:
-          product.isActive &&
-          product.status === ProductStatus.PUBLISHED &&
-          hitIds.has(product.id),
-      },
-    ]),
+    products.map((product) => {
+      const badges = badgesByProductId.get(product.id) ?? []
+      const derivedNewBadge = buildDerivedNewBadge(product)
+
+      if (derivedNewBadge && !productHasActiveSystemNewBadge(badges)) {
+        badges.push(derivedNewBadge)
+      }
+
+      return [product.id, badges]
+    }),
+  )
+}
+
+export async function resolveMarketplaceFlagsForProducts(products: BadgeFlagSubject[]) {
+  const badgesByProductId = await resolveMarketplaceBadgesForProducts(products)
+
+  return new Map(
+    products.map((product) => {
+      const badges = badgesByProductId.get(product.id) ?? []
+      const badgeTypes = new Set(badges.map((badge) => badge.type))
+
+      return [
+        product.id,
+        {
+          isNew: badgeTypes.has(ProductBadgeType.NEW),
+          isHit: badgeTypes.has(ProductBadgeType.HIT),
+        },
+      ]
+    }),
   )
 }
 

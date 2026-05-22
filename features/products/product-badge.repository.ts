@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 export type BadgeSubjectProduct = {
   id: string
   categoryId: string | null
+  ownerId: string
   status: ProductStatus
   publishedAt: Date | null
   isActive: boolean
@@ -32,6 +33,11 @@ export async function findBadgeSubjectProducts(
     select: {
       id: true,
       categoryId: true,
+      store: {
+        select: {
+          ownerId: true,
+        },
+      },
       status: true,
       publishedAt: true,
       isActive: true,
@@ -43,7 +49,16 @@ export async function findBadgeSubjectProducts(
           take: limit,
         }
       : {}),
-  })
+  }).then((products) =>
+    products.map((product) => ({
+      id: product.id,
+      categoryId: product.categoryId,
+      ownerId: product.store.ownerId,
+      status: product.status,
+      publishedAt: product.publishedAt,
+      isActive: product.isActive,
+    })),
+  )
 }
 
 export async function countBadgeSubjectProducts(productIds?: string[]) {
@@ -303,17 +318,21 @@ export async function aggregateViewCounts(productIds: string[]) {
     return new Map<string, number>()
   }
 
-  const rows = await prisma.viewedProduct.groupBy({
-    by: ['productId'],
-    where: {
-      productId: { in: productIds },
-    },
-    _count: {
-      _all: true,
-    },
-  })
+  const rows = await prisma.$queryRaw<Array<{ productId: string; viewCount: bigint }>>(
+    Prisma.sql`
+      SELECT
+        vp.product_id AS "productId",
+        COUNT(*) AS "viewCount"
+      FROM viewed_products vp
+      INNER JOIN products p ON p.id = vp.product_id
+      INNER JOIN stores s ON s.id = p.store_id
+      WHERE vp.product_id IN (${Prisma.join(productIds)})
+        AND (vp.user_id IS NULL OR vp.user_id <> s.owner_id)
+      GROUP BY vp.product_id
+    `,
+  )
 
-  return new Map(rows.map((row) => [row.productId, row._count._all]))
+  return new Map(rows.map((row) => [row.productId, Number(row.viewCount)]))
 }
 
 export async function aggregateWishlistCounts(productIds: string[]) {
@@ -321,17 +340,22 @@ export async function aggregateWishlistCounts(productIds: string[]) {
     return new Map<string, number>()
   }
 
-  const rows = await prisma.wishlistItem.groupBy({
-    by: ['productId'],
-    where: {
-      productId: { in: productIds },
-    },
-    _count: {
-      _all: true,
-    },
-  })
+  const rows = await prisma.$queryRaw<Array<{ productId: string; wishlistCount: bigint }>>(
+    Prisma.sql`
+      SELECT
+        wi.product_id AS "productId",
+        COUNT(*) AS "wishlistCount"
+      FROM wishlist_items wi
+      INNER JOIN wishlists w ON w.id = wi.wishlist_id
+      INNER JOIN products p ON p.id = wi.product_id
+      INNER JOIN stores s ON s.id = p.store_id
+      WHERE wi.product_id IN (${Prisma.join(productIds)})
+        AND w.user_id <> s.owner_id
+      GROUP BY wi.product_id
+    `,
+  )
 
-  return new Map(rows.map((row) => [row.productId, row._count._all]))
+  return new Map(rows.map((row) => [row.productId, Number(row.wishlistCount)]))
 }
 
 export async function aggregateReviewStats(productIds: string[]) {
@@ -339,25 +363,27 @@ export async function aggregateReviewStats(productIds: string[]) {
     return new Map<string, { reviewCount: number; ratingAvg: Decimal }>()
   }
 
-  const rows = await prisma.review.groupBy({
-    by: ['productId'],
-    where: {
-      productId: { in: productIds },
-    },
-    _count: {
-      _all: true,
-    },
-    _avg: {
-      rating: true,
-    },
-  })
+  const rows = await prisma.$queryRaw<Array<{ productId: string; reviewCount: bigint; ratingAvg: Prisma.Decimal | null }>>(
+    Prisma.sql`
+      SELECT
+        r.product_id AS "productId",
+        COUNT(*) AS "reviewCount",
+        AVG(r.rating)::numeric AS "ratingAvg"
+      FROM reviews r
+      INNER JOIN products p ON p.id = r.product_id
+      INNER JOIN stores s ON s.id = p.store_id
+      WHERE r.product_id IN (${Prisma.join(productIds)})
+        AND r.user_id <> s.owner_id
+      GROUP BY r.product_id
+    `,
+  )
 
   return new Map(
     rows.map((row) => [
       row.productId,
       {
-        reviewCount: row._count._all,
-        ratingAvg: new Decimal(row._avg.rating ?? 0).toDecimalPlaces(2),
+        reviewCount: Number(row.reviewCount),
+        ratingAvg: new Decimal(row.ratingAvg ?? 0).toDecimalPlaces(2),
       },
     ]),
   )
@@ -377,8 +403,11 @@ export async function aggregateSalesStats(productIds: string[]) {
       FROM order_items oi
       INNER JOIN product_variants pv ON pv.id = oi.variant_id
       INNER JOIN orders o ON o.id = oi.order_id
+      INNER JOIN products p ON p.id = pv.product_id
+      INNER JOIN stores s ON s.id = p.store_id
       WHERE pv.product_id IN (${Prisma.join(productIds)})
         AND o.status IN ('paid', 'confirmed', 'processing', 'shipped', 'delivered')
+        AND o.user_id <> s.owner_id
       GROUP BY pv.product_id
     `,
   )

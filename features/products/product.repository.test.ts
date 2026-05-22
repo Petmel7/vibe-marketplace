@@ -7,6 +7,7 @@ const {
   queryRawMock,
   categoryFindFirstMock,
   categoryFindManyMock,
+  productImageFindManyMock,
   variantFindManyMock,
 } = vi.hoisted(() => ({
   findManyMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   queryRawMock: vi.fn(),
   categoryFindFirstMock: vi.fn(),
   categoryFindManyMock: vi.fn(),
+  productImageFindManyMock: vi.fn(),
   variantFindManyMock: vi.fn(),
 }))
 
@@ -26,6 +28,9 @@ vi.mock('@/lib/prisma', () => ({
     },
     productVariant: {
       findMany: variantFindManyMock,
+    },
+    productImage: {
+      findMany: productImageFindManyMock,
     },
     category: {
       findFirst: categoryFindFirstMock,
@@ -64,6 +69,7 @@ function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product 
 describe('findProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    productImageFindManyMock.mockResolvedValue([])
   })
 
   it('uses page-based pagination with service-provided filters and sorting', async () => {
@@ -87,6 +93,16 @@ describe('findProducts', () => {
       include: {
         variants: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+        images: {
+          select: {
+            id: true,
+            url: true,
+            isPrimary: true,
+            position: true,
+            createdAt: true,
+          },
+          orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
         },
       },
     })
