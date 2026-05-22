@@ -1,8 +1,10 @@
 export const MARKETPLACE_BADGE_TYPES = ['NEW', 'HIT', 'FEATURED'] as const
 export const MARKETPLACE_BADGE_SOURCES = ['SYSTEM', 'ADMIN'] as const
+export const MARKETPLACE_BADGE_CONTEXTS = ['DEFAULT', 'NEW', 'HIT', 'FEATURED'] as const
 
 export type MarketplaceBadgeType = (typeof MARKETPLACE_BADGE_TYPES)[number]
 export type MarketplaceBadgeSource = (typeof MARKETPLACE_BADGE_SOURCES)[number]
+export type MarketplaceBadgeContext = (typeof MARKETPLACE_BADGE_CONTEXTS)[number]
 
 export type MarketplaceProductBadge = {
   id?: string

@@ -15,12 +15,13 @@ import {
 import { resolveProductBadgeChips } from './productBadges'
 import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
 import type { ProductDetailDto } from '@/features/products/product.dto'
-import type { MarketplaceProductBadge } from '@/types/product-badges'
+import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
 import { formatPrice } from '@/utils/formatters/price'
 
 interface Props {
   product: ProductDetailDto & {
     badges?: MarketplaceProductBadge[]
+    badgeContext?: MarketplaceBadgeContext
   }
 }
 
@@ -34,6 +35,7 @@ export default function ProductDetails({ product }: Props) {
     badges: product.badges,
     isHit: product.isHit,
     isNew: product.isNew,
+    badgeContext: product.badgeContext ?? 'DEFAULT',
   })
 
   useRecordViewedProduct(product.id)

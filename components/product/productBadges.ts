@@ -1,9 +1,14 @@
-import type { MarketplaceProductBadge, MarketplaceBadgeType } from '@/types/product-badges'
+import type {
+  MarketplaceProductBadge,
+  MarketplaceBadgeType,
+  MarketplaceBadgeContext,
+} from '@/types/product-badges'
 
 type LegacyBadgeFlags = {
   badges?: MarketplaceProductBadge[] | null
   isHit?: boolean
   isNew?: boolean
+  badgeContext?: MarketplaceBadgeContext
   badgeVariant?: 'hit' | 'new'
 }
 
@@ -43,8 +48,26 @@ export function resolveProductBadgeChips({
   badges,
   isHit,
   isNew,
+  badgeContext,
   badgeVariant,
 }: LegacyBadgeFlags): ProductBadgeChip[] {
+  if (badgeContext && badgeContext !== 'DEFAULT') {
+    const contextualBadges = (badges ?? []).filter((badge) => badge.type === badgeContext)
+
+    if (contextualBadges.length > 0) {
+      return contextualBadges
+        .map((badge) => PRODUCT_BADGE_COPY[badge.type])
+        .filter(Boolean)
+    }
+
+    const fallbackType = badgeVariantToType(badgeVariant)
+    if (fallbackType === badgeContext) {
+      return [PRODUCT_BADGE_COPY[fallbackType]]
+    }
+
+    return []
+  }
+
   const activeTypes = new Set<MarketplaceBadgeType>()
 
   for (const badge of badges ?? []) {

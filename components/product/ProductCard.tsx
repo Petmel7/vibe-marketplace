@@ -7,7 +7,7 @@ import WishlistToggleButton from '../wishlist/WishlistToggleButton'
 import { getProductCardDisplayState, type ProductCardProductLike } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import { formatPrice } from '@/utils/formatters/price'
-import type { MarketplaceProductBadge } from '@/types/product-badges'
+import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
 
 interface ProductCardProps {
   id: string
@@ -16,6 +16,7 @@ interface ProductCardProps {
   isActive?: boolean
   isHit?: boolean
   isNew?: boolean
+  badgeContext?: MarketplaceBadgeContext
   badgeVariant?: 'hit' | 'new'
   badges?: MarketplaceProductBadge[]
   product: ProductCardProductLike
@@ -36,6 +37,7 @@ export default function ProductCard({
   isActive,
   isHit,
   isNew,
+  badgeContext,
   badgeVariant,
   badges,
   product,
@@ -46,6 +48,7 @@ export default function ProductCard({
     badges,
     isHit,
     isNew,
+    badgeContext,
     badgeVariant,
   })
 

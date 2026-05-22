@@ -2,7 +2,7 @@
 
 import ProductCardGrid from '@/components/product/ProductCardGrid'
 import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
-import type { ProductListItem } from '@/components/product/productListItem'
+import { isRenderablePublicProduct, type ProductListItem } from '@/components/product/productListItem'
 import { useInfiniteProducts } from '@/components/product/hooks/useInfiniteProducts'
 
 interface Props {
@@ -26,14 +26,15 @@ export default function InfiniteProductList({
     initialPage,
     initialHasNextPage,
   })
+  const visibleProducts = products.filter(isRenderablePublicProduct)
 
-  if (products.length === 0) {
+  if (visibleProducts.length === 0) {
     return <p className="ui-body-muted">{emptyMessage}</p>
   }
 
   return (
     <div className="space-y-4">
-      <ProductCardGrid products={products} badgeVariant={type} />
+      <ProductCardGrid products={visibleProducts} />
 
       {isLoading ? <ProductCardSkeleton count={4} /> : null}
 

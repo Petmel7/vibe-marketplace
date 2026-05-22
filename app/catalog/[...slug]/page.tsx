@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { findCategoryTreeNodeBySlugPath } from '@/components/category/category.data'
 import { fetchCategoryTree } from '@/components/category/category.server'
 import ProductCardGrid from '@/components/product/ProductCardGrid'
+import { isRenderablePublicProduct } from '@/components/product/productListItem'
 import { listProducts } from '@/features/products/product.service'
 
 interface Props {
@@ -24,15 +25,17 @@ export default async function CatalogCategoryPage({ params }: Props) {
     limit: 12,
   })
 
+  const visibleProducts = result.items.filter(isRenderablePublicProduct)
+
   return (
-    <main className="pt-4 pb-24 md:pb-12">
+    <main className="pb-24 pt-4 md:pb-12">
       <section className="space-y-6">
         <h1 className="ui-heading-page">{category.name}</h1>
 
-        {result.items.length > 0 ? (
-          <ProductCardGrid products={result.items} />
+        {visibleProducts.length > 0 ? (
+          <ProductCardGrid products={visibleProducts} />
         ) : (
-          <p className="ui-body-muted">У цій категорії поки що немає товарів.</p>
+          <p className="ui-body-muted">РЈ С†С–Р№ РєР°С‚РµРіРѕСЂС–С— РїРѕРєРё С‰Рѕ РЅРµРјР°С” С‚РѕРІР°СЂС–РІ.</p>
         )}
       </section>
     </main>

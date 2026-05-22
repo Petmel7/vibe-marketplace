@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { X } from 'lucide-react'
 import type { ProductSummaryDto } from '@/features/products/product.dto'
+import { isRenderablePublicProduct } from '@/components/product/productListItem'
 import SearchResultItem from './SearchResultItem'
 
 interface SearchOverlayProps {
@@ -77,7 +78,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         return
       }
 
-      setSearchState({ status: 'success', items: json.data.data })
+      setSearchState({
+        status: 'success',
+        items: json.data.data.filter(isRenderablePublicProduct),
+      })
     } catch {
       setSearchState({ status: 'error', message: 'Помилка мережі' })
     }

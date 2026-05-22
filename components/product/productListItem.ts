@@ -1,9 +1,14 @@
 import type { ProductSummaryDto } from '@/features/products/product.dto'
-import type { MarketplaceProductBadge } from '@/types/product-badges'
+import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
 import { getImageUrl } from '@/utils/getImageUrl'
 
 export type ProductListItem = ProductSummaryDto & {
   badges?: MarketplaceProductBadge[]
+  badgeContext?: MarketplaceBadgeContext
+}
+
+export function isRenderablePublicProduct(product: ProductListItem) {
+  return product.isActive !== false
 }
 
 export function toProductCardProps(
@@ -17,6 +22,7 @@ export function toProductCardProps(
     isActive: product.isActive,
     isHit: product.isHit,
     isNew: product.isNew,
+    badgeContext: product.badgeContext ?? 'DEFAULT',
     badgeVariant,
     badges: product.badges,
     product: {
