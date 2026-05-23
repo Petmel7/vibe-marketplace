@@ -297,13 +297,53 @@ async function seedCategories() {
   })
 }
 
+async function seedProductBadgeRules() {
+  await sql`
+    INSERT INTO product_badge_rules (
+      id,
+      badge_type,
+      min_views,
+      min_wishlists,
+      min_sold_count,
+      min_revenue_amount,
+      enabled,
+      created_at,
+      updated_at,
+      updated_by
+    )
+    VALUES (
+      gen_random_uuid(),
+      'HIT',
+      3,
+      2,
+      1,
+      0,
+      true,
+      NOW(),
+      NOW(),
+      NULL
+    )
+    ON CONFLICT (badge_type) DO UPDATE
+    SET
+      min_views = EXCLUDED.min_views,
+      min_wishlists = EXCLUDED.min_wishlists,
+      min_sold_count = EXCLUDED.min_sold_count,
+      min_revenue_amount = EXCLUDED.min_revenue_amount,
+      enabled = EXCLUDED.enabled,
+      updated_at = NOW()
+  `
+}
+
 async function main() {
   try {
     console.log('[seed] Seeding hierarchical categories...')
     await seedCategories()
     console.log(`[seed] Upserted ${categories.length} hierarchical categories`)
+    console.log('[seed] Seeding product badge rules...')
+    await seedProductBadgeRules()
+    console.log('[seed] Upserted HIT product badge rule')
   } catch (error) {
-    console.error('[seed] Failed to seed categories:', error)
+    console.error('[seed] Failed to seed database data:', error)
     process.exitCode = 1
   } finally {
     await sql.end({ timeout: 5 })

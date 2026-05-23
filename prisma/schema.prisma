@@ -9,26 +9,27 @@ datasource db {
 }
 
 model User {
-  id              String               @id @db.Uuid
-  email           String               @unique
-  name            String?
-  avatarUrl       String?              @map("avatar_url")
-  createdAt       DateTime             @default(now()) @map("created_at")
-  updatedAt       DateTime             @map("updated_at")
-  admin           AdminProfile?
-  buyer           BuyerProfile?
-  cart            Cart?
-  orders          Order[]
-  reviews         Review[]
-  seller          SellerProfile?
-  verifiedSellers SellerProfile[]      @relation("VerifiedByUser")
-  addresses       ShippingAddress[]
-  stores          Store[]
-  profile         UserProfile?
-  assignedRoles   UserRoleAssignment[] @relation("AssignedByUser")
-  roles           UserRoleAssignment[] @relation("UserRoles")
-  viewedProducts  ViewedProduct[]
-  wishlist        Wishlist?
+  id                String               @id @db.Uuid
+  email             String               @unique
+  name              String?
+  avatarUrl         String?              @map("avatar_url")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @map("updated_at")
+  admin             AdminProfile?
+  buyer             BuyerProfile?
+  cart              Cart?
+  orders            Order[]
+  reviews           Review[]
+  seller            SellerProfile?
+  verifiedSellers   SellerProfile[]      @relation("VerifiedByUser")
+  addresses         ShippingAddress[]
+  stores            Store[]
+  profile           UserProfile?
+  assignedRoles     UserRoleAssignment[] @relation("AssignedByUser")
+  roles             UserRoleAssignment[] @relation("UserRoles")
+  viewedProducts    ViewedProduct[]
+  wishlist          Wishlist?
+  badgeRulesUpdated ProductBadgeRule[]   @relation("ProductBadgeRuleUpdatedBy")
 
   @@map("users")
 }
@@ -135,6 +136,26 @@ model ProductBadge {
   @@index([startsAt, endsAt], map: "product_badges_active_window_idx")
   @@index([productId, type], map: "product_badges_productId_type_idx")
   @@map("product_badges")
+}
+
+model ProductBadgeRule {
+  id               String           @id @default(uuid()) @db.Uuid
+  badgeType        ProductBadgeType @map("badge_type")
+  minViews         Int              @default(0) @map("min_views")
+  minWishlists     Int              @default(0) @map("min_wishlists")
+  minSoldCount     Int              @default(0) @map("min_sold_count")
+  minRevenueAmount Decimal          @default(0) @map("min_revenue_amount") @db.Decimal(12, 2)
+  enabled          Boolean          @default(true)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  updatedBy        String?          @map("updated_by") @db.Uuid
+  updater          User?            @relation("ProductBadgeRuleUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@unique([badgeType], map: "product_badge_rules_badge_type_key")
+  @@index([badgeType], map: "product_badge_rules_badge_type_idx")
+  @@index([enabled], map: "product_badge_rules_enabled_idx")
+  @@index([updatedBy], map: "product_badge_rules_updated_by_idx")
+  @@map("product_badge_rules")
 }
 
 model ProductMetrics {
