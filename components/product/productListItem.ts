@@ -8,22 +8,20 @@ export type ProductListItem = ProductSummaryDto & {
 }
 
 export function isRenderablePublicProduct(product: ProductListItem) {
-  return product.isActive !== false
+  const status = (product as ProductListItem & { status?: string }).status
+
+  return product.isActive !== false && (status === undefined || status === 'PUBLISHED')
 }
 
 export function toProductCardProps(
   product: ProductListItem,
-  badgeVariant?: 'hit' | 'new',
 ) {
   return {
     id: product.id,
     name: product.name,
     imageUrl: getImageUrl(product.imageUrl),
     isActive: product.isActive,
-    isHit: product.isHit,
-    isNew: product.isNew,
     badgeContext: product.badgeContext ?? 'DEFAULT',
-    badgeVariant,
     badges: product.badges,
     product: {
       price: product.price,

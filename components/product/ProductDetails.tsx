@@ -33,8 +33,6 @@ export default function ProductDetails({ product }: Props) {
   const presentation = getProductPresentationState(product, selectedVariantId)
   const badgeChips = resolveProductBadgeChips({
     badges: product.badges,
-    isHit: product.isHit,
-    isNew: product.isNew,
     badgeContext: product.badgeContext ?? 'DEFAULT',
   })
 

@@ -6,10 +6,7 @@ import type {
 
 type LegacyBadgeFlags = {
   badges?: MarketplaceProductBadge[] | null
-  isHit?: boolean
-  isNew?: boolean
   badgeContext?: MarketplaceBadgeContext
-  badgeVariant?: 'hit' | 'new'
 }
 
 export type ProductBadgeChip = {
@@ -38,18 +35,9 @@ const PRODUCT_BADGE_COPY: Record<MarketplaceBadgeType, ProductBadgeChip> = {
   },
 }
 
-function badgeVariantToType(variant: 'hit' | 'new' | undefined): MarketplaceBadgeType | null {
-  if (variant === 'hit') return 'HIT'
-  if (variant === 'new') return 'NEW'
-  return null
-}
-
 export function resolveProductBadgeChips({
   badges,
-  isHit,
-  isNew,
   badgeContext,
-  badgeVariant,
 }: LegacyBadgeFlags): ProductBadgeChip[] {
   if (badgeContext && badgeContext !== 'DEFAULT') {
     const contextualBadges = (badges ?? []).filter((badge) => badge.type === badgeContext)
@@ -58,11 +46,6 @@ export function resolveProductBadgeChips({
       return contextualBadges
         .map((badge) => PRODUCT_BADGE_COPY[badge.type])
         .filter(Boolean)
-    }
-
-    const fallbackType = badgeVariantToType(badgeVariant)
-    if (fallbackType === badgeContext) {
-      return [PRODUCT_BADGE_COPY[fallbackType]]
     }
 
     return []
@@ -77,13 +60,7 @@ export function resolveProductBadgeChips({
   }
 
   if (activeTypes.size === 0) {
-    const forcedType = badgeVariantToType(badgeVariant)
-    if (forcedType) {
-      activeTypes.add(forcedType)
-    } else {
-      if (isHit) activeTypes.add('HIT')
-      if (isNew) activeTypes.add('NEW')
-    }
+    return []
   }
 
   return PRODUCT_BADGE_PRIORITY

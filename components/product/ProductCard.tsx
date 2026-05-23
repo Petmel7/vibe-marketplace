@@ -14,10 +14,7 @@ interface ProductCardProps {
   name: string
   imageUrl: string
   isActive?: boolean
-  isHit?: boolean
-  isNew?: boolean
   badgeContext?: MarketplaceBadgeContext
-  badgeVariant?: 'hit' | 'new'
   badges?: MarketplaceProductBadge[]
   product: ProductCardProductLike
 }
@@ -35,10 +32,7 @@ export default function ProductCard({
   name,
   imageUrl,
   isActive,
-  isHit,
-  isNew,
   badgeContext,
-  badgeVariant,
   badges,
   product,
 }: ProductCardProps) {
@@ -46,10 +40,7 @@ export default function ProductCard({
   const { price, sku } = getProductCardDisplayState(product)
   const badgeChips = resolveProductBadgeChips({
     badges,
-    isHit,
-    isNew,
     badgeContext,
-    badgeVariant,
   })
 
   return (

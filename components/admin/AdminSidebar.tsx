@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/analytics', label: 'Analytics' },
+  { href: '/admin/settings/badges', label: 'Badge rules' },
 ] as const
 
 export default function AdminSidebar({
@@ -40,7 +41,9 @@ export default function AdminSidebar({
       <nav aria-label="Admin navigation" className="ui-elevated-panel p-3">
         <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/admin' && pathname?.startsWith(`${item.href}/`))
 
             return (
               <Link
