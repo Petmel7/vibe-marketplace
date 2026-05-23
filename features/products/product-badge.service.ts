@@ -1,5 +1,12 @@
 import Decimal from 'decimal.js'
-import { ProductBadgeSource, ProductBadgeType, ProductStatus, UserRole, type ProductBadge } from '@/app/generated/prisma/client'
+import {
+  ProductBadgeSource,
+  ProductBadgeType,
+  ProductStatus,
+  UserRole,
+  type ProductBadge,
+  type ProductBadgeRule,
+} from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type {
   CreateAdminProductBadgeDto,
@@ -9,6 +16,7 @@ import type {
   ProductMetricsListDto,
 } from './product-badge.dto'
 import type { ProductBadgesQuery, ProductMetricsQuery } from './product-badge.schema'
+import { findBadgeRuleByType } from './product-badge-rule.repository'
 import {
   aggregateReviewStats,
   aggregateSalesStats,
@@ -37,8 +45,6 @@ import {
 import { ProductNotFoundError } from '@/lib/errors/seller'
 
 const NEW_BADGE_WINDOW_DAYS = 30
-const HIT_SCORE_THRESHOLD = new Decimal(25)
-const HIT_TOP_LIMIT = 12
 
 type BadgeFlagSubject = {
   id: string
@@ -122,6 +128,37 @@ function productHasActiveSystemNewBadge(badges: ProductBadgeDto[]) {
   return badges.some((badge) => badge.type === ProductBadgeType.NEW && badge.source === ProductBadgeSource.SYSTEM)
 }
 
+function hasPositiveRuleThreshold(rule: ProductBadgeRule) {
+  return (
+    rule.minViews > 0 ||
+    rule.minWishlists > 0 ||
+    rule.minSoldCount > 0 ||
+    new Decimal(rule.minRevenueAmount).greaterThan(0)
+  )
+}
+
+function qualifiesForHitRule(
+  rule: ProductBadgeRule | null,
+  metrics: {
+    viewCount: number
+    wishlistCount: number
+    soldCount: number
+    revenueAmount: Decimal
+  },
+) {
+  if (!rule || !rule.enabled || !hasPositiveRuleThreshold(rule)) {
+    return false
+  }
+
+  return (
+    (rule.minViews > 0 && metrics.viewCount >= rule.minViews) ||
+    (rule.minWishlists > 0 && metrics.wishlistCount >= rule.minWishlists) ||
+    (rule.minSoldCount > 0 && metrics.soldCount >= rule.minSoldCount) ||
+    (new Decimal(rule.minRevenueAmount).greaterThan(0) &&
+      metrics.revenueAmount.greaterThanOrEqualTo(rule.minRevenueAmount))
+  )
+}
+
 export function calculateHitScore(metrics: {
   viewCount: number
   wishlistCount: number
@@ -202,11 +239,12 @@ export async function recalculateProductMetricsAndBadges(): Promise<void> {
   try {
     const products = await findBadgeSubjectProducts()
     const productIds = products.map((product) => product.id)
-    const [viewCounts, wishlistCounts, reviewStats, salesStats] = await Promise.all([
+    const [viewCounts, wishlistCounts, reviewStats, salesStats, hitRule] = await Promise.all([
       aggregateViewCounts(productIds),
       aggregateWishlistCounts(productIds),
       aggregateReviewStats(productIds),
       aggregateSalesStats(productIds),
+      findBadgeRuleByType(ProductBadgeType.HIT),
     ])
 
     const calculatedAt = new Date()
@@ -233,25 +271,21 @@ export async function recalculateProductMetricsAndBadges(): Promise<void> {
 
     await upsertProductMetrics(snapshots)
 
-    const eligibleHitBadges = snapshots
+    const productsById = new Map(products.map((product) => [product.id, product]))
+
+    const systemHitBadges = snapshots
       .filter((snapshot) => {
-        const product = products.find((entry) => entry.id === snapshot.productId)
-        if (!product) return false
+        const product = productsById.get(snapshot.productId)
+        if (!product) {
+          return false
+        }
 
-        return (
-          product.isActive &&
-          product.status === ProductStatus.PUBLISHED &&
-          snapshot.hitScore.greaterThan(0)
-        )
+        if (!product.isActive || product.status !== ProductStatus.PUBLISHED) {
+          return false
+        }
+
+        return qualifiesForHitRule(hitRule, snapshot)
       })
-      .sort((left, right) => right.hitScore.comparedTo(left.hitScore))
-
-    const topHitIds = new Set(
-      eligibleHitBadges.slice(0, HIT_TOP_LIMIT).map((snapshot) => snapshot.productId),
-    )
-
-    const systemHitBadges = eligibleHitBadges
-      .filter((snapshot) => snapshot.hitScore.greaterThanOrEqualTo(HIT_SCORE_THRESHOLD) || topHitIds.has(snapshot.productId))
       .map((snapshot) => ({
         productId: snapshot.productId,
         score: snapshot.hitScore,

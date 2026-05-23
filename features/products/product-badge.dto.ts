@@ -46,3 +46,28 @@ export type CreateAdminProductBadgeDto = {
   endsAt?: Date | null
   score?: string | null
 }
+
+export type ProductBadgeRuleDto = {
+  id: string
+  badgeType: ProductBadgeType
+  minViews: number
+  minWishlists: number
+  minSoldCount: number
+  minRevenueAmount: string
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+  updatedBy: string | null
+}
+
+export type ProductBadgeRuleListDto = {
+  items: ProductBadgeRuleDto[]
+}
+
+export type UpdateHitBadgeRuleDto = {
+  minViews?: number
+  minWishlists?: number
+  minSoldCount?: number
+  minRevenueAmount?: string
+  enabled?: boolean
+}

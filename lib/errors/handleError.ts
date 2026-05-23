@@ -53,10 +53,13 @@ import {
   InvalidModerationTransitionError as AdminInvalidModerationTransitionError,
 } from './admin'
 import {
+  BadgeRuleNotFoundError,
   InvalidBadgeTransitionError,
+  InvalidBadgeRuleError,
   ProductBadgeConflictError,
   ProductMetricsCalculationError,
   UnauthorizedBadgeMutationError,
+  UnauthorizedBadgeRuleMutationError,
 } from './product'
 import { logError } from '@/utils/logger'
 
@@ -77,7 +80,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AdminAccessError ||
     err instanceof SellerNotVerifiedError ||
     err instanceof StoreProvisioningRequiredError ||
-    err instanceof UnauthorizedBadgeMutationError
+    err instanceof UnauthorizedBadgeMutationError ||
+    err instanceof UnauthorizedBadgeRuleMutationError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -93,7 +97,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof StoreNotFoundError ||
     err instanceof ProductNotFoundError ||
     err instanceof OrderItemNotFoundError ||
-    err instanceof CategoryNotFoundError
+    err instanceof CategoryNotFoundError ||
+    err instanceof BadgeRuleNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -130,7 +135,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidImageFileError ||
     err instanceof InvalidSkuError ||
     err instanceof ProductImageLimitExceededError ||
-    err instanceof InvalidBadgeTransitionError
+    err instanceof InvalidBadgeTransitionError ||
+    err instanceof InvalidBadgeRuleError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

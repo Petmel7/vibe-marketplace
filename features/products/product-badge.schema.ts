@@ -64,6 +64,32 @@ export const badgeIdParamSchema = z.object({
   badgeId: z.string().uuid({ error: 'badgeId must be a valid UUID' }),
 })
 
+export const updateHitBadgeRuleSchema = z.object({
+  minViews: z
+    .number({ error: 'minViews must be a number' })
+    .int({ error: 'minViews must be an integer' })
+    .min(0, { error: 'minViews must be at least 0' })
+    .optional(),
+  minWishlists: z
+    .number({ error: 'minWishlists must be a number' })
+    .int({ error: 'minWishlists must be an integer' })
+    .min(0, { error: 'minWishlists must be at least 0' })
+    .optional(),
+  minSoldCount: z
+    .number({ error: 'minSoldCount must be a number' })
+    .int({ error: 'minSoldCount must be an integer' })
+    .min(0, { error: 'minSoldCount must be at least 0' })
+    .optional(),
+  minRevenueAmount: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, 'minRevenueAmount must be a valid non-negative decimal')
+    .optional(),
+  enabled: z.boolean({ error: 'enabled must be a boolean' }).optional(),
+}).refine((value) => Object.values(value).some((field) => field !== undefined), {
+  message: 'At least one HIT badge rule field must be provided',
+})
+
 export type ProductBadgesQuery = z.infer<typeof productBadgesQuerySchema>
 export type ProductMetricsQuery = z.infer<typeof productMetricsQuerySchema>
 export type AdminCreateProductBadgeInput = z.infer<typeof adminCreateProductBadgeSchema>
+export type UpdateHitBadgeRuleInput = z.infer<typeof updateHitBadgeRuleSchema>

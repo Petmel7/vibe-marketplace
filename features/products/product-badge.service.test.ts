@@ -11,6 +11,7 @@ import {
   syncSystemNewBadgeForProduct,
 } from './product-badge.service'
 import * as repository from './product-badge.repository'
+import * as badgeRuleRepository from './product-badge-rule.repository'
 import {
   InvalidBadgeTransitionError,
   ProductBadgeConflictError,
@@ -37,7 +38,12 @@ vi.mock('./product-badge.repository', () => ({
   upsertProductMetrics: vi.fn(),
 }))
 
+vi.mock('./product-badge-rule.repository', () => ({
+  findBadgeRuleByType: vi.fn(),
+}))
+
 const mockedRepository = vi.mocked(repository)
+const mockedBadgeRuleRepository = vi.mocked(badgeRuleRepository)
 
 const adminUser: SessionUser = {
   id: 'admin-1',
@@ -61,6 +67,18 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockedRepository.countBadgeSubjectProducts.mockResolvedValue(1)
   mockedRepository.findAllProductBadges.mockResolvedValue({ items: [], total: 0 })
+  mockedBadgeRuleRepository.findBadgeRuleByType.mockResolvedValue({
+    id: 'rule-hit',
+    badgeType: ProductBadgeType.HIT,
+    minViews: 3,
+    minWishlists: 2,
+    minSoldCount: 1,
+    minRevenueAmount: new Decimal(0),
+    enabled: true,
+    createdAt: new Date('2026-05-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+    updatedBy: 'admin-1',
+  } as never)
 })
 
 describe('calculateHitScore', () => {
@@ -233,6 +251,73 @@ describe('recalculateProductMetricsAndBadges', () => {
     expect(hitBadgesCall.some((badge) => badge.productId === 'product-draft')).toBe(false)
   })
 
+  it('assigns HIT when trusted views satisfy the active rule threshold', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-views-hit' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-views-hit', 3]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-views-hit', 0]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(new Map())
+    mockedRepository.aggregateSalesStats.mockResolvedValue(new Map())
+
+    await recalculateProductMetricsAndBadges()
+
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([
+      expect.objectContaining({ productId: 'product-views-hit' }),
+    ])
+  })
+
+  it('assigns HIT when trusted wishlist count satisfies the active rule threshold', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-wishlist-hit' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-wishlist-hit', 0]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-wishlist-hit', 2]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(new Map())
+    mockedRepository.aggregateSalesStats.mockResolvedValue(new Map())
+
+    await recalculateProductMetricsAndBadges()
+
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([
+      expect.objectContaining({ productId: 'product-wishlist-hit' }),
+    ])
+  })
+
+  it('assigns HIT when trusted sold count satisfies the active rule threshold', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-sales-hit' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-sales-hit', 0]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-sales-hit', 0]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(new Map())
+    mockedRepository.aggregateSalesStats.mockResolvedValue(
+      new Map([['product-sales-hit', { soldCount: 1, revenueAmount: new Decimal('49.99') }]]),
+    )
+
+    await recalculateProductMetricsAndBadges()
+
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([
+      expect.objectContaining({ productId: 'product-sales-hit' }),
+    ])
+  })
+
+  it('does not assign HIT below all active thresholds', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-below-thresholds' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-below-thresholds', 2]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-below-thresholds', 1]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(new Map())
+    mockedRepository.aggregateSalesStats.mockResolvedValue(
+      new Map([['product-below-thresholds', { soldCount: 0, revenueAmount: new Decimal('0') }]]),
+    )
+
+    await recalculateProductMetricsAndBadges()
+
+    const hitBadgesCall = mockedRepository.replaceSystemHitBadges.mock.calls[0]?.[0] ?? []
+    expect(hitBadgesCall).toEqual([])
+  })
+
   it('does not award HIT when seller-owned wishlist and views are excluded from trusted metrics', async () => {
     mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
       makeBadgeProduct({ id: 'product-owner-only' }),
@@ -287,6 +372,34 @@ describe('recalculateProductMetricsAndBadges', () => {
         }),
       ]),
     )
+  })
+
+  it('removes SYSTEM HIT badges when the active rule is disabled', async () => {
+    mockedBadgeRuleRepository.findBadgeRuleByType.mockResolvedValue({
+      id: 'rule-hit',
+      badgeType: ProductBadgeType.HIT,
+      minViews: 3,
+      minWishlists: 2,
+      minSoldCount: 1,
+      minRevenueAmount: new Decimal(0),
+      enabled: false,
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+      updatedBy: 'admin-1',
+    } as never)
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-hit-disabled' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-hit-disabled', 30]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-hit-disabled', 10]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(new Map())
+    mockedRepository.aggregateSalesStats.mockResolvedValue(
+      new Map([['product-hit-disabled', { soldCount: 5, revenueAmount: new Decimal('500.00') }]]),
+    )
+
+    await recalculateProductMetricsAndBadges()
+
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([])
   })
 })
 

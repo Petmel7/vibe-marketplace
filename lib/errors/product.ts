@@ -37,3 +37,33 @@ export class ProductMetricsCalculationError extends Error {
     this.name = 'ProductMetricsCalculationError'
   }
 }
+
+export class BadgeRuleNotFoundError extends Error {
+  readonly code = 'BADGE_RULE_NOT_FOUND'
+  readonly statusCode = 404
+
+  constructor(msg = 'Product badge rule not found') {
+    super(msg)
+    this.name = 'BadgeRuleNotFoundError'
+  }
+}
+
+export class InvalidBadgeRuleError extends Error {
+  readonly code = 'INVALID_BADGE_RULE'
+  readonly statusCode = 400
+
+  constructor(msg = 'Product badge rule is invalid') {
+    super(msg)
+    this.name = 'InvalidBadgeRuleError'
+  }
+}
+
+export class UnauthorizedBadgeRuleMutationError extends Error {
+  readonly code = 'UNAUTHORIZED_BADGE_RULE_MUTATION'
+  readonly statusCode = 403
+
+  constructor(msg = 'You are not allowed to mutate product badge rules') {
+    super(msg)
+    this.name = 'UnauthorizedBadgeRuleMutationError'
+  }
+}
