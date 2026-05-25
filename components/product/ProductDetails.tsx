@@ -8,6 +8,7 @@ import ProductQuantitySelector from './ProductQuantitySelector'
 import AddToCartButton from '../cart/AddToCartButton'
 import ProductDescription from './ProductDescription'
 import ProductCharacteristics from './ProductCharacteristics'
+import { getInventoryStatusChip } from './productInventory'
 import {
   getDefaultProductVariantId,
   getProductPresentationState,
@@ -27,10 +28,11 @@ interface Props {
 
 export default function ProductDetails({ product }: Props) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
-    getDefaultProductVariantId(product)
+    getDefaultProductVariantId(product),
   )
   const [quantity, setQuantity] = useState(1)
   const presentation = getProductPresentationState(product, selectedVariantId)
+  const inventoryChip = getInventoryStatusChip(presentation.stockStatus)
   const badgeChips = resolveProductBadgeChips({
     badges: product.badges,
     badgeContext: product.badgeContext ?? 'DEFAULT',
@@ -42,11 +44,13 @@ export default function ProductDetails({ product }: Props) {
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
         <h1 className="ui-heading-product">{product.name}</h1>
-        <div className="flex items-center gap-3 shrink-0 pt-1">
-          <WishlistToggleButton productId={product.id} />
-          <button aria-label="РџРѕРґС–Р»РёС‚РёСЃСЏ" className="ui-icon-button">
-            <Share2 size={24} color="#A5A8AD" />
-          </button>
+        <div className="shrink-0 pt-1">
+          <div className="flex items-center gap-3">
+            <WishlistToggleButton productId={product.id} />
+            <button aria-label="Поділитися" className="ui-icon-button">
+              <Share2 size={24} color="#A5A8AD" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -66,14 +70,34 @@ export default function ProductDetails({ product }: Props) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        {presentation.isAvailable && (
-          <span className="ui-status-badge">
-            <span className="ui-status-dot" />
-            В наявності
-          </span>
-        )}
-        {presentation.sku && <span className="ui-meta-text"> Арт.: {presentation.sku}</span>}
+        {inventoryChip ? (
+          inventoryChip.dotClassName ? (
+            <span className={inventoryChip.className}>
+              <span className={inventoryChip.dotClassName} />
+              {inventoryChip.label}
+            </span>
+          ) : (
+            <span className={inventoryChip.className}>{inventoryChip.label}</span>
+          )
+        ) : null}
+        {presentation.sku ? <span className="ui-meta-text"> Арт.: {presentation.sku}</span> : null}
       </div>
+
+      {!presentation.isAvailable ? (
+        <p
+          className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary"
+          aria-live="polite"
+        >
+          Обраний варіант зараз недоступний для покупки. Товар лишається видимим у каталозі, але додавання в кошик вимкнено, доки запас не з’явиться знову.
+        </p>
+      ) : presentation.stockStatus === 'LOW_STOCK' ? (
+        <p
+          className="rounded-2xl border border-amber-300/40 bg-amber-300/15 px-4 py-3 text-sm text-copy-primary"
+          aria-live="polite"
+        >
+          Залишилось небагато: доступно {presentation.maxQty} шт.
+        </p>
+      ) : null}
 
       <ProductVariantSelector
         variants={product.variants}
@@ -81,12 +105,13 @@ export default function ProductDetails({ product }: Props) {
         onSelect={setSelectedVariantId}
       />
 
-      <ProductQuantitySelector quantity={quantity} onChange={setQuantity} max={presentation.maxQty} />
+      <ProductQuantitySelector quantity={quantity} onChange={setQuantity} max={Math.max(presentation.maxQty, 1)} />
 
       <AddToCartButton
-        productId={product.id}
         variantId={presentation.selectedVariantId}
         quantity={quantity}
+        disabled={!presentation.isAvailable}
+        disabledLabel="Немає в наявності"
       />
 
       <ProductDescription description={product.description} />

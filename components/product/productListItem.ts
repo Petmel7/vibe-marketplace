@@ -21,12 +21,18 @@ export function toProductCardProps(
     name: product.name,
     imageUrl: getImageUrl(product.imageUrl),
     isActive: product.isActive,
+    inStock: product.inStock,
+    totalStock: product.totalStock,
+    stockStatus: product.stockStatus,
     badgeContext: product.badgeContext ?? 'DEFAULT',
     badges: product.badges,
     product: {
       price: product.price,
       sku: product.sku,
-      variants: [],
+      inStock: product.inStock,
+      totalStock: product.totalStock,
+      stockStatus: product.stockStatus,
+      variants: product.variants,
     },
   }
 }

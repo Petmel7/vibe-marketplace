@@ -12,7 +12,7 @@ export default async function Catalog() {
   const visibleProducts = result.items.filter(isRenderablePublicProduct)
 
   if (visibleProducts.length === 0) {
-    return <p className="ui-body-muted">РўРѕРІР°СЂРё РїРѕРєРё С‰Рѕ РІС–РґСЃСѓС‚РЅС–.</p>
+    return <p className="ui-body-muted">Товари поки що відсутні.</p>
   }
 
   return <ProductCardGrid products={visibleProducts} />

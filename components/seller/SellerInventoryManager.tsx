@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { deriveInventoryStatusFromVariants, getInventoryStatusChip } from '@/components/product/productInventory'
 import ProductStatusBadge from '@/components/seller/ProductStatusBadge'
 import { useSellerMutation } from '@/hooks/useSellerMutation'
 import type { SellerProductStatus } from '@/types/seller'
@@ -45,7 +46,8 @@ export default function SellerInventoryManager({
       ) : null}
 
       {products.map((product) => {
-        const totalStock = product.variants.reduce((sum, variant) => sum + variant.stock, 0)
+        const inventoryState = deriveInventoryStatusFromVariants(product.variants)
+        const inventoryChip = getInventoryStatusChip(inventoryState.stockStatus)
 
         return (
           <section key={product.id} className="ui-elevated-panel p-5 sm:p-6">
@@ -54,32 +56,52 @@ export default function SellerInventoryManager({
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-lg font-semibold text-copy-strong">{product.name}</h2>
                   <ProductStatusBadge status={product.status} />
+                  {inventoryChip ? (
+                    inventoryChip.dotClassName ? (
+                      <span className={inventoryChip.className}>
+                        <span className={inventoryChip.dotClassName} />
+                        {inventoryChip.label}
+                      </span>
+                    ) : (
+                      <span className={inventoryChip.className}>{inventoryChip.label}</span>
+                    )
+                  ) : null}
                 </div>
                 <p className="mt-2 text-sm text-copy-muted">
                   {product.sku ? `Base SKU: ${product.sku} · ` : ''}
-                  {totalStock} units across {product.variants.length} variants
+                  {inventoryState.totalStock} units across {product.variants.length} variants
                 </p>
               </div>
             </div>
 
             <div className="mt-5 space-y-3">
               {product.variants.map((variant) => {
-                const isLowStock = draftStocks[variant.id] <= 5
+                const nextStock = draftStocks[variant.id] ?? 0
+                const variantInventoryChip = getInventoryStatusChip(
+                  nextStock <= 0 ? 'OUT_OF_STOCK' : nextStock <= 3 ? 'LOW_STOCK' : 'IN_STOCK',
+                )
 
                 return (
                   <div
                     key={variant.id}
                     className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 lg:flex-row lg:items-center lg:justify-between"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <p className="text-sm font-semibold text-copy-strong">{variant.sku}</p>
                       <p className="text-sm text-copy-secondary">
                         {[variant.size, variant.color].filter(Boolean).join(' · ') || 'Single option'}
                       </p>
-                      {isLowStock ? (
-                        <p className="text-xs font-medium uppercase tracking-[0.16em] text-amber-200">
-                          Low stock
-                        </p>
+                      {variantInventoryChip ? (
+                        variantInventoryChip.dotClassName ? (
+                          <span className={`${variantInventoryChip.className} inline-flex`}>
+                            <span className={variantInventoryChip.dotClassName} />
+                            {variantInventoryChip.label}
+                          </span>
+                        ) : (
+                          <span className={`${variantInventoryChip.className} inline-flex`}>
+                            {variantInventoryChip.label}
+                          </span>
+                        )
                       ) : null}
                     </div>
 
@@ -90,7 +112,7 @@ export default function SellerInventoryManager({
                           type="number"
                           min={0}
                           className="ui-surface-input w-28"
-                          value={draftStocks[variant.id] ?? 0}
+                          value={nextStock}
                           onChange={(event) =>
                             setDraftStocks((current) => ({
                               ...current,
@@ -106,10 +128,9 @@ export default function SellerInventoryManager({
                         disabled={
                           isReadOnly ||
                           isPending ||
-                          draftStocks[variant.id] === variant.stock
+                          nextStock === variant.stock
                         }
                         onClick={async () => {
-                          const nextStock = draftStocks[variant.id] ?? 0
                           const data = await execute<{ stock: number }>({
                             url: `/api/seller/products/${product.id}/variants/${variant.id}/inventory`,
                             method: 'PATCH',

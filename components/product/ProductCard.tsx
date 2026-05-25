@@ -5,7 +5,9 @@ import { Share2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import WishlistToggleButton from '../wishlist/WishlistToggleButton'
 import { getProductCardDisplayState, type ProductCardProductLike } from './productCard.selectors'
+import { getInventoryStatusChip } from './productInventory'
 import { resolveProductBadgeChips } from './productBadges'
+import type { ProductStockStatus } from '@/features/products/product.dto'
 import { formatPrice } from '@/utils/formatters/price'
 import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
 
@@ -14,6 +16,7 @@ interface ProductCardProps {
   name: string
   imageUrl: string
   isActive?: boolean
+  stockStatus?: ProductStockStatus
   badgeContext?: MarketplaceBadgeContext
   badges?: MarketplaceProductBadge[]
   product: ProductCardProductLike
@@ -32,6 +35,7 @@ export default function ProductCard({
   name,
   imageUrl,
   isActive,
+  stockStatus,
   badgeContext,
   badges,
   product,
@@ -42,6 +46,7 @@ export default function ProductCard({
     badges,
     badgeContext,
   })
+  const inventoryChip = getInventoryStatusChip(stockStatus)
 
   return (
     <div
@@ -87,13 +92,17 @@ export default function ProductCard({
         <p className="truncate text-[14px] font-bold leading-5 text-copy-muted">{name}</p>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isActive && (
-            <span className="ui-status-badge">
-              <span className="ui-status-dot" />
-              В наявності
-            </span>
-          )}
-          {sku && <span className="ui-meta-text"> Арт.: {sku}</span>}
+          {isActive && inventoryChip ? (
+            inventoryChip.dotClassName ? (
+              <span className={inventoryChip.className}>
+                <span className={inventoryChip.dotClassName} />
+                {inventoryChip.label}
+              </span>
+            ) : (
+              <span className={inventoryChip.className}>{inventoryChip.label}</span>
+            )
+          ) : null}
+          {sku ? <span className="ui-meta-text"> Арт.: {sku}</span> : null}
         </div>
 
         <p className="ui-price-card">{formatPrice(price)}</p>
