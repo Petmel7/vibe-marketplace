@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import CategoryBreadcrumb from '@/components/seller/CategoryBreadcrumb'
+import CategoryTreeSelect from '@/components/seller/CategoryTreeSelect'
 import MultiImageUploadField from '@/components/seller/MultiImageUploadField'
 import ProductStatusBadge from '@/components/seller/ProductStatusBadge'
 import UploadProgress from '@/components/seller/UploadProgress'
@@ -15,11 +17,11 @@ import { useProductImageUpload, type ProductImageDraft } from '@/hooks/useProduc
 import { useSellerCategories } from '@/hooks/useSellerCategories'
 import { useSellerMutation } from '@/hooks/useSellerMutation'
 import {
-  formatCategoryOptionLabel,
   generateBaseSkuDraft,
   generateVariantSkuDraft,
   validateProductImageFile,
 } from '@/lib/utils/sellerForm'
+import { findCategoryPathById, flattenCategoryTree, isLeafCategoryNode } from '@/types/categories'
 import { canArchiveProduct, canSubmitProductForReview, type SellerProductStatus } from '@/types/seller'
 
 type VariantState = {
@@ -182,7 +184,11 @@ export default function SellerProductForm({
     }
   }, [])
 
-  const selectedCategoryIsValid = !formState.categoryId || categories.some((category) => category.id === formState.categoryId)
+  const flattenedCategories = flattenCategoryTree(categories)
+  const leafCategories = flattenedCategories.filter(isLeafCategoryNode)
+  const selectedCategoryPath = findCategoryPathById(categories, formState.categoryId || null)
+  const selectedCategoryIsValid =
+    !formState.categoryId || leafCategories.some((category) => category.id === formState.categoryId)
 
   function updateBaseSku(nextSku: string, manual: boolean) {
     setIsBaseSkuManual(manual)
@@ -617,21 +623,21 @@ export default function SellerProductForm({
             </div>
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Category</span>
-              <select
-                className="ui-surface-input"
-                value={formState.categoryId || ''}
-                onChange={(event) => setFormState((current) => ({ ...current, categoryId: event.target.value }))}
-                aria-invalid={!selectedCategoryIsValid}
-              >
-                <option value="">{isLoadingCategories ? 'Loading categories...' : 'Choose a category'}</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {formatCategoryOptionLabel(category)}
-                  </option>
-                ))}
-              </select>
-              {categoryError ? <p className="text-sm text-brand-danger">{categoryError}</p> : null}
-              {!selectedCategoryIsValid ? <p className="text-sm text-brand-danger">Please choose a valid category option.</p> : null}
+              <CategoryTreeSelect
+                tree={categories}
+                value={formState.categoryId || null}
+                onChange={(id) => setFormState((current) => ({ ...current, categoryId: id ?? '' }))}
+                disabled={isBusy}
+                isLoading={isLoadingCategories}
+                errorMessage={categoryError}
+              />
+              <CategoryBreadcrumb
+                items={selectedCategoryPath.map((category) => category.name)}
+                emptyLabel="Оберіть фінальну підкатегорію. Для товару доступні лише листові категорії."
+              />
+              {!selectedCategoryIsValid ? (
+                <p className="text-sm text-brand-danger">Please choose a valid final category option.</p>
+              ) : null}
             </label>
             <div className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Store context</span>

@@ -9,7 +9,7 @@ type ApiError = { success: false; error?: { message?: string; code?: string } }
 
 type ExecuteOptions<T> = {
   url: string
-  method?: 'POST' | 'PATCH'
+  method?: 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
   successMessage: string
   fallbackErrorMessage?: string
