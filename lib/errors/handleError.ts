@@ -61,6 +61,11 @@ import {
   UnauthorizedBadgeMutationError,
   UnauthorizedBadgeRuleMutationError,
 } from './product'
+import {
+  CategoryCircularReferenceError,
+  CategoryHasProductsError,
+  CategorySlugConflictError,
+} from './category'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -112,7 +117,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AlreadyModeratedError ||
     err instanceof StoreAlreadyExistsError ||
     err instanceof StoragePathConflictError ||
-    err instanceof ProductBadgeConflictError
+    err instanceof ProductBadgeConflictError ||
+    err instanceof CategorySlugConflictError ||
+    err instanceof CategoryHasProductsError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -136,7 +143,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidSkuError ||
     err instanceof ProductImageLimitExceededError ||
     err instanceof InvalidBadgeTransitionError ||
-    err instanceof InvalidBadgeRuleError
+    err instanceof InvalidBadgeRuleError ||
+    err instanceof CategoryCircularReferenceError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

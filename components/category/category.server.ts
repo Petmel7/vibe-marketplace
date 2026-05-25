@@ -32,7 +32,7 @@ export async function fetchCategoryTree(): Promise<CategoryTreeNode[]> {
         isActive: true,
         isVisible: true,
       },
-      orderBy: [{ order: 'asc' }, { name: 'asc' }],
+      orderBy: [{ position: 'asc' }, { name: 'asc' }],
       select: {
         id: true,
         name: true,
@@ -43,7 +43,7 @@ export async function fetchCategoryTree(): Promise<CategoryTreeNode[]> {
             isActive: true,
             isVisible: true,
           },
-          orderBy: [{ order: 'asc' }, { name: 'asc' }],
+          orderBy: [{ position: 'asc' }, { name: 'asc' }],
           select: {
             id: true,
             name: true,
@@ -54,7 +54,7 @@ export async function fetchCategoryTree(): Promise<CategoryTreeNode[]> {
                 isActive: true,
                 isVisible: true,
               },
-              orderBy: [{ order: 'asc' }, { name: 'asc' }],
+              orderBy: [{ position: 'asc' }, { name: 'asc' }],
               select: {
                 id: true,
                 name: true,

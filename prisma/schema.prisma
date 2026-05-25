@@ -66,7 +66,7 @@ model Category {
   parentId   String?    @map("parent_id")
   icon       String?
   hoverImage String?    @map("hover_image")
-  order      Int        @default(0) @map("sort_order")
+  position   Int        @default(0) @map("sort_order")
   level      Int        @default(1)
   isActive   Boolean    @default(true) @map("is_active")
   isVisible  Boolean    @default(true) @map("is_visible")
@@ -75,9 +75,9 @@ model Category {
   products   Product[]
 
   @@index([parentId], map: "categories_parentId_idx")
-  @@index([order], map: "categories_order_idx")
-  @@index([parentId, order], map: "categories_parentId_order_idx")
-  @@index([parentId], map: "idx_categories_parent")
+  @@index([isActive], map: "categories_isActive_idx")
+  @@index([position], map: "categories_position_idx")
+  @@index([parentId, position], map: "categories_parentId_position_idx")
   @@map("categories")
 }
 
