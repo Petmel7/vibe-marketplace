@@ -9,6 +9,7 @@ import type { ProductBadgeSource, ProductBadgeType } from '@/app/generated/prism
  */
 
 export type ProductBadgeContext = 'DEFAULT' | 'NEW' | 'HIT' | 'FEATURED'
+export type ProductStockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
 
 export interface ProductVariantDto {
   id: string
@@ -38,6 +39,9 @@ export interface ProductSummaryDto {
   price: string
   imageUrl: string | null
   isActive: boolean
+  inStock: boolean
+  totalStock: number
+  stockStatus: ProductStockStatus
   sku: string | null
   isHit: boolean
   isNew: boolean

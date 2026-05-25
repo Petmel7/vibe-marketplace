@@ -33,7 +33,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
     const body = await request.json()
-    // console.log('Received POST /api/seller/products with body:', body)
     const parsed = createSellerProductSchema.safeParse(body)
     if (!parsed.success) {
       return Response.json(

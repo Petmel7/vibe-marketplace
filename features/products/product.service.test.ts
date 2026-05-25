@@ -159,6 +159,9 @@ describe('listProducts', () => {
           price: '99.99',
           imageUrl: 'https://example.com/img.jpg',
           isActive: true,
+          inStock: true,
+          totalStock: 10,
+          stockStatus: 'IN_STOCK',
           sku: 'SKU-001',
           isHit: false,
           isNew: true,
@@ -198,6 +201,9 @@ describe('listProducts', () => {
           price: '99.99',
           imageUrl: 'https://example.com/img.jpg',
           isActive: true,
+          inStock: true,
+          totalStock: 10,
+          stockStatus: 'IN_STOCK',
           sku: 'SKU-001',
           isHit: false,
           isNew: true,
@@ -540,6 +546,9 @@ describe('getProduct', () => {
 
     expect(result.id).toBe('prod-1')
     expect(result.badgeContext).toBe('DEFAULT')
+    expect(result.inStock).toBe(true)
+    expect(result.totalStock).toBe(10)
+    expect(result.stockStatus).toBe('IN_STOCK')
     expect(result.variants).toHaveLength(1)
     expect(mockedBadgeService.resolveMarketplaceBadgesForProducts).toHaveBeenCalledWith([
       {
@@ -590,6 +599,40 @@ describe('getProduct', () => {
     const result = await listNewProducts({ page: 1, limit: 12 })
 
     expect(result.items[0]?.imageUrl).toBe('https://example.com/primary.webp')
+  })
+
+  it('keeps a published product visible when all variants are out of stock', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct({}, [makeVariant({ stock: 0 })])],
+      total: 1,
+    })
+
+    const result = await listProducts({ page: 1, limit: 12, sort: 'newest' })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({
+      inStock: false,
+      totalStock: 0,
+      stockStatus: 'OUT_OF_STOCK',
+    })
+  })
+
+  it('derives stock state correctly across multiple variants', async () => {
+    mockedRepository.findProductById.mockResolvedValue({
+      ...makeProduct(),
+      variants: [
+        makeVariant({ id: 'var-1', stock: 0 }),
+        makeVariant({ id: 'var-2', stock: 2 }),
+        makeVariant({ id: 'var-3', stock: 1 }),
+      ],
+      images: [],
+    } as repository.ProductWithVariants)
+
+    const result = await getProduct('prod-1')
+
+    expect(result.inStock).toBe(true)
+    expect(result.totalStock).toBe(3)
+    expect(result.stockStatus).toBe('LOW_STOCK')
   })
 
   it('returns a single prioritized badge in DEFAULT context when multiple badges exist internally', async () => {

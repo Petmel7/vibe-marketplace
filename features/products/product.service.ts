@@ -5,6 +5,7 @@ import type {
   ProductBadgeContext,
   ProductMarketplaceBadgeDto,
   ProductListDto,
+  ProductStockStatus,
   ProductSummaryDto,
   ProductVariantDto,
 } from '@/features/products/product.dto'
@@ -30,6 +31,39 @@ import {
   resolveMarketplaceBadgesForProducts,
 } from './product-badge.service'
 import type { ProductBadgeDto } from './product-badge.dto'
+
+const LOW_STOCK_THRESHOLD = 3
+
+function deriveInventoryState(variants: ProductVariant[]): {
+  inStock: boolean
+  totalStock: number
+  stockStatus: ProductStockStatus
+} {
+  const totalStock = variants.reduce((sum, variant) => sum + Math.max(variant.stock, 0), 0)
+  const inStock = variants.some((variant) => variant.stock > 0)
+
+  if (!inStock || totalStock <= 0) {
+    return {
+      inStock: false,
+      totalStock,
+      stockStatus: 'OUT_OF_STOCK',
+    }
+  }
+
+  if (totalStock <= LOW_STOCK_THRESHOLD) {
+    return {
+      inStock: true,
+      totalStock,
+      stockStatus: 'LOW_STOCK',
+    }
+  }
+
+  return {
+    inStock: true,
+    totalStock,
+    stockStatus: 'IN_STOCK',
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -60,6 +94,7 @@ function toProductSummaryDto(
 ): ProductSummaryDto {
   const allBadgeTypes = new Set(marketplaceBadges.map((badge) => badge.type))
   const contextualBadges = selectContextualBadges(marketplaceBadges, badgeContext)
+  const inventoryState = deriveInventoryState(variants)
 
   return {
     id: product.id,
@@ -69,6 +104,9 @@ function toProductSummaryDto(
     price: product.price.toString(),
     imageUrl: resolveProductImageUrl(product),
     isActive: product.isActive,
+    inStock: inventoryState.inStock,
+    totalStock: inventoryState.totalStock,
+    stockStatus: inventoryState.stockStatus,
     sku: product.sku ?? null,
     isHit: allBadgeTypes.has('HIT') || product.isHit,
     isNew: allBadgeTypes.has('NEW') || product.isNew,

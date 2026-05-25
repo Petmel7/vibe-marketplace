@@ -184,6 +184,14 @@ describe('addItem', () => {
       .rejects.toThrow(InsufficientStockError)
   })
 
+  it('throws InsufficientStockError when the variant is out of stock', async () => {
+    mockRepo.findVariantById.mockResolvedValue(makeVariant({ stock: 0 }))
+    mockRepo.findCart.mockResolvedValue(makeCart([]))
+
+    await expect(addItem(identifier, { variantId: VARIANT_ID, quantity: 1 }))
+      .rejects.toThrow(InsufficientStockError)
+  })
+
   it('throws InsufficientStockError when adding would exceed stock vs existing qty', async () => {
     // already 2 in cart, stock = 3, trying to add 2 more → total 4 > 3
     const item = makeCartItem({ quantity: 2 })
