@@ -194,6 +194,9 @@ describe('checkout preview', () => {
     expect(preview.addressOptions).toHaveLength(1)
     expect(preview.blockingIssues).toEqual([])
     expect(preview.canCheckout).toBe(true)
+    expect(preview.items[0].storeId).toBe(STORE_ID)
+    expect(preview.items[0].storeName).toBe('Test Store')
+    expect(preview.items[0].storeSlug).toBe('test-store')
     expect(preview.items[0].imageUrl).toBe('/img/shirt-primary.jpg')
   })
 

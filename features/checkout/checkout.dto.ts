@@ -31,6 +31,9 @@ export type CheckoutPreviewItemDto = {
   id: string
   productId: string
   variantId: string
+  storeId: string
+  storeName: string
+  storeSlug: string
   productName: string
   variantLabel: string | null
   imageUrl: string | null
