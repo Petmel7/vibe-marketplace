@@ -3,6 +3,7 @@ import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import type {
   ProductDetailDto,
   ProductBadgeContext,
+  ProductImageDto,
   ProductMarketplaceBadgeDto,
   ProductListDto,
   ProductStockStatus,
@@ -18,6 +19,7 @@ import {
 } from '@/features/products/product.repository'
 import type {
   CategoryNode,
+  ProductDetailProduct,
   ProductListProduct,
 } from '@/features/products/product.repository'
 import type {
@@ -135,6 +137,16 @@ function toProductMarketplaceBadgeDto(badge: ProductBadgeDto): ProductMarketplac
     startsAt: badge.startsAt,
     endsAt: badge.endsAt,
   }
+}
+
+function toProductImageDto(product: ProductDetailProduct): ProductImageDto[] {
+  return product.images.map((image) => ({
+    id: image.id,
+    url: image.url,
+    altText: image.altText ?? null,
+    isPrimary: image.isPrimary,
+    position: image.position,
+  }))
 }
 
 const DEFAULT_BADGE_PRIORITY: ProductBadgeDto['type'][] = [
@@ -473,6 +485,11 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
 
   return {
     ...toProductSummaryDto(product, product.variants, badgesByProductId.get(product.id) ?? [], 'DEFAULT'),
+    images: toProductImageDto(product),
+    storeName: product.store.name,
+    storeSlug: product.store.slug,
+    categoryName: product.category?.name ?? null,
+    categorySlug: product.category?.slug ?? null,
     variants: product.variants.map(toProductVariantDto),
   }
 }

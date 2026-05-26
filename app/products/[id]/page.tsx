@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
 import { getProduct, ProductNotFoundError } from '@/features/products/product.service'
 import type { ProductDetailDto } from '@/features/products/product.dto'
-import ProductImageSlider from '@/components/product/ProductImageSlider'
 import ProductDetails from '@/components/product/ProductDetails'
+import ProductDetailsShell from '@/components/product/ProductDetailsShell'
+import ProductImageGallery from '@/components/product/ProductImageGallery'
 import RecentlyViewed from '@/components/viewed/RecentlyViewed'
-import { PageContainer } from '@/components/layout/PageContainer'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 
 interface Props {
@@ -23,39 +23,40 @@ export default async function ProductPage({ params }: Props) {
     throw e
   }
 
-  const images = product.imageUrl ? [product.imageUrl] : []
+  const breadcrumbItems = [
+    {
+      label: 'Головна',
+      href: '/',
+    },
+    {
+      label: 'Каталог',
+      href: '/catalog',
+    },
+    ...(product.categoryName && product.categorySlug
+      ? [
+        {
+          label: product.categoryName,
+          href: `/products/category/${product.categorySlug}`,
+        },
+      ]
+      : []),
+    {
+      label: product.name,
+    },
+  ]
 
   return (
-    <PageContainer>
-      <Breadcrumbs
-        items={[
-          {
-            label: 'Головна',
-            href: '/',
-          },
-          {
-            label: 'Каталог',
-            href: '/catalog',
-          },
-          {
-            label: `${product.name}`,
-          },
-        ]}
-      />
+    <>
+      <div className="space-y-8 pb-8 md:space-y-10">
+        <Breadcrumbs items={breadcrumbItems} />
 
-      {/* Two-column on desktop, stacked on mobile */}
-      <div className="flex flex-col md:flex-row md:gap-8 md:items-start">
-        {/* Left: image */}
-        <div className="w-full md:w-108 shrink-0">
-          <ProductImageSlider images={images} alt={product.name} />
-        </div>
-        {/* Right: details */}
-        <div className="flex-1 mt-6 md:mt-0 min-w-0">
-          <ProductDetails product={product} />
-        </div>
+        <ProductDetailsShell
+          gallery={<ProductImageGallery images={product.images} productName={product.name} />}
+          purchasePanel={<ProductDetails product={product} />}
+        />
       </div>
 
       <RecentlyViewed currentProductId={id} />
-    </PageContainer>
+    </>
   )
 }

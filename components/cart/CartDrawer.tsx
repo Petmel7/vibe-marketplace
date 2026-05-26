@@ -5,7 +5,6 @@ import { useState } from 'react'
 import CartItem from './CartItem'
 import StateView, { CART_EMPTY_STATE } from '@/components/ui/StateView'
 import { formatPrice } from '@/utils/formatters/price'
-import { PageContainer } from '@/components/layout/PageContainer'
 import Loading from '@/app/cart/loading'
 import CartCheckbox from './CartCheckbox'
 import { pluralizeItems } from '@/utils/pluralize'
@@ -64,7 +63,7 @@ export default function CartDrawer() {
   const checkoutDisabled = blockingIssues.length > 0
 
   return (
-    <PageContainer className="max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <>
       <Breadcrumbs
         items={[
           {
@@ -222,6 +221,6 @@ export default function CartDrawer() {
           </DashboardCard>
         </div>
       </div>
-    </PageContainer>
+    </>
   )
 }

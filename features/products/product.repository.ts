@@ -8,10 +8,20 @@ import type {
 import { Prisma } from '@/app/generated/prisma/client'
 
 type ProductImagePreview = Pick<ProductImage, 'id' | 'url' | 'isPrimary' | 'position' | 'createdAt'>
+type ProductImageDetailPreview = Pick<
+  ProductImage,
+  'id' | 'url' | 'altText' | 'isPrimary' | 'position' | 'createdAt'
+>
 
 export type ProductWithVariants = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
 export type ProductListProduct = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
 export type CategoryNode = Pick<Category, 'id' | 'parentId'>
+export type ProductDetailProduct = Product & {
+  variants: ProductVariant[]
+  images: ProductImageDetailPreview[]
+  store: Pick<Prisma.StoreGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'>
+  category: Pick<Prisma.CategoryGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'> | null
+}
 
 interface FindProductsParams {
   where: Prisma.ProductWhereInput
@@ -255,7 +265,7 @@ export async function findCategoriesByParentIds(
  */
 export async function findProductById(
   id: string
-): Promise<ProductWithVariants | null> {
+): Promise<ProductDetailProduct | null> {
   return prisma.product.findFirst({
     where: {
       id,
@@ -267,10 +277,23 @@ export async function findProductById(
     },
     include: {
       variants: true,
+      store: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
+      category: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
       images: {
         select: {
           id: true,
           url: true,
+          altText: true,
           isPrimary: true,
           position: true,
           createdAt: true,

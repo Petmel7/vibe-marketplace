@@ -1,4 +1,4 @@
-import type { ProductBadgeSource, ProductBadgeType } from '@/app/generated/prisma/client'
+import type { MarketplaceBadgeSource, MarketplaceBadgeType } from '@/types/product-badges'
 
 /**
  * Data Transfer Objects for the Product feature.
@@ -23,11 +23,19 @@ export interface ProductVariantDto {
 
 export interface ProductMarketplaceBadgeDto {
   id: string
-  type: ProductBadgeType
-  source: ProductBadgeSource
+  type: MarketplaceBadgeType
+  source: MarketplaceBadgeSource
   score: string | null
   startsAt: string | null
   endsAt: string | null
+}
+
+export interface ProductImageDto {
+  id: string
+  url: string
+  altText: string | null
+  isPrimary: boolean
+  position: number
 }
 
 export interface ProductSummaryDto {
@@ -52,6 +60,11 @@ export interface ProductSummaryDto {
 }
 
 export interface ProductDetailDto extends ProductSummaryDto {
+  images: ProductImageDto[]
+  storeName: string
+  storeSlug: string
+  categoryName: string | null
+  categorySlug: string | null
   variants: ProductVariantDto[]
 }
 

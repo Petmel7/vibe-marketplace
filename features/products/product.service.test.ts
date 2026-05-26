@@ -75,6 +75,25 @@ function makeListProduct(
   } as repository.ProductListProduct
 }
 
+function makeDetailProduct(
+  overrides: Partial<Record<string, unknown>> = {},
+  variants: ProductVariant[] = [],
+): repository.ProductDetailProduct {
+  return {
+    ...makeProduct(overrides),
+    variants,
+    images: [],
+    store: {
+      name: 'Test Store',
+      slug: 'test-store',
+    },
+    category: {
+      name: 'Category',
+      slug: 'category',
+    },
+  } as repository.ProductDetailProduct
+}
+
 describe('searchProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -539,7 +558,7 @@ describe('getProduct', () => {
 
   it('returns product detail DTO including mapped variants', async () => {
     const variant = makeVariant()
-    const product = { ...makeProduct(), variants: [variant] } as repository.ProductWithVariants
+    const product = makeDetailProduct({}, [variant])
     mockedRepository.findProductById.mockResolvedValue(product)
 
     const result = await getProduct('prod-1')
@@ -619,14 +638,14 @@ describe('getProduct', () => {
 
   it('derives stock state correctly across multiple variants', async () => {
     mockedRepository.findProductById.mockResolvedValue({
-      ...makeProduct(),
+      ...makeDetailProduct(),
       variants: [
         makeVariant({ id: 'var-1', stock: 0 }),
         makeVariant({ id: 'var-2', stock: 2 }),
         makeVariant({ id: 'var-3', stock: 1 }),
       ],
       images: [],
-    } as repository.ProductWithVariants)
+    } as repository.ProductDetailProduct)
 
     const result = await getProduct('prod-1')
 
