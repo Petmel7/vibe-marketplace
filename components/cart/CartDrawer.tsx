@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import CartItem from './CartItem'
 import StateView, { CART_EMPTY_STATE } from '@/components/ui/StateView'
@@ -9,6 +10,7 @@ import Loading from '@/app/cart/loading'
 import CartCheckbox from './CartCheckbox'
 import { pluralizeItems } from '@/utils/pluralize'
 import { useCart } from './hooks/useCart'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { Breadcrumbs } from '../ui/Breadcrumbs'
 import { PageTitle } from '../ui/PageTitle'
 
@@ -17,6 +19,7 @@ function CartEmpty() {
 }
 
 export default function CartDrawer() {
+  const { isAuthenticated } = useCurrentUser()
   const [promoCode, setPromoCode] = useState('')
   const [agreed, setAgreed] = useState(false)
 
@@ -30,6 +33,10 @@ export default function CartDrawer() {
 
   if (isLoading) return <Loading />
   if (!cart || cart.items.length === 0) return <CartEmpty />
+
+  const checkoutHref = isAuthenticated
+    ? '/checkout'
+    : '/login?notice=auth-required&next=/checkout'
 
   return (
     <PageContainer>
@@ -51,7 +58,6 @@ export default function CartDrawer() {
         countLabel={pluralizeItems(cart.itemCount)}
       />
 
-      {/* CartItem */}
       <div className="md:flex md:items-start md:gap-8">
         <div className="min-w-0 flex-1">
           <div>
@@ -67,8 +73,7 @@ export default function CartDrawer() {
           </div>
 
           <div className="mt-6 flex flex-col md:flex-row md:items-center md:gap-6">
-
-            <div className="rounded-full border border-panelBorder bg-panel overflow-hidden">
+            <div className="overflow-hidden rounded-full border border-panelBorder bg-panel">
               <input
                 type="text"
                 value={promoCode}
@@ -111,9 +116,9 @@ export default function CartDrawer() {
                 </p>
               </div>
 
-              <button type="button" className="ui-primary-button mt-2 w-full">
+              <Link href={checkoutHref} className="ui-primary-button mt-2 block w-full text-center">
                 Оформити замовлення
-              </button>
+              </Link>
 
               <div className="flex items-start gap-2 pt-1">
                 <CartCheckbox checked={agreed} onChange={setAgreed} />

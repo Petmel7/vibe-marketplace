@@ -1,6 +1,11 @@
 export const API_ROUTES = {
   authMe: '/api/auth/me',
   visitorInit: '/api/visitor/init',
+  cart: '/api/cart',
+  cartItems: '/api/cart/items',
+  checkoutPreview: '/api/checkout',
+  checkoutSubmit: '/api/checkout',
+  profileAddresses: '/api/profile/addresses',
   categoriesTree: '/api/categories/tree',
   adminBadgeRules: '/api/admin/badge-rules',
   adminHitBadgeRule: '/api/admin/badge-rules/hit',

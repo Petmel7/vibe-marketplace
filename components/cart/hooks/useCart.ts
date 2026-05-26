@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cartApi } from '../api/cart.api'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 import {
     withItemRemoved,
@@ -11,6 +12,7 @@ import { useCartStore } from '@/store/cartStore'
 import type { CartDto } from '@/features/cart/cart.dto'
 
 export function useCart() {
+    const { isAuthenticated } = useCurrentUser()
     const setItemCount = useCartStore((s) => s.setItemCount)
 
     const [cart, setCart] = useState<CartDto | null>(null)
@@ -26,7 +28,11 @@ export function useCart() {
 
         async function loadCart() {
             try {
-                const json = await cartApi.get(sessionIdRef.current)
+                const json = await cartApi.get(
+                    isAuthenticated
+                        ? { auth: true }
+                        : { sessionId: sessionIdRef.current },
+                )
 
                 if (!cancelled && json) {
                     setCart(json)
@@ -44,7 +50,7 @@ export function useCart() {
         return () => {
             cancelled = true
         }
-    }, [setItemCount])
+    }, [isAuthenticated, setItemCount])
 
     const handleUpdateQuantity = useCallback(
         async (itemId: string, quantity: number) => {
@@ -60,7 +66,9 @@ export function useCart() {
 
             try {
                 const json = await cartApi.updateItem(
-                    sessionIdRef.current,
+                    isAuthenticated
+                        ? { auth: true }
+                        : { sessionId: sessionIdRef.current },
                     itemId,
                     quantity,
                 )
@@ -85,7 +93,7 @@ export function useCart() {
                 })
             }
         },
-        [cart, setItemCount],
+        [cart, isAuthenticated, setItemCount],
     )
 
     const handleRemoveItem = useCallback(
@@ -102,7 +110,9 @@ export function useCart() {
 
             try {
                 const json = await cartApi.removeItem(
-                    sessionIdRef.current,
+                    isAuthenticated
+                        ? { auth: true }
+                        : { sessionId: sessionIdRef.current },
                     itemId,
                 )
 
@@ -126,7 +136,7 @@ export function useCart() {
                 })
             }
         },
-        [cart, setItemCount],
+        [cart, isAuthenticated, setItemCount],
     )
 
     return {

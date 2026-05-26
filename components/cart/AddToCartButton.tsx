@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { cartApi } from './api/cart.api'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useCartStore } from '@/store/cartStore'
 
 interface Props {
@@ -16,6 +18,7 @@ export default function AddToCartButton({
   disabled = false,
   disabledLabel = 'Немає в наявності',
 }: Props) {
+  const { isAuthenticated } = useCurrentUser()
   const [isAdding, setIsAdding] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -31,28 +34,22 @@ export default function AddToCartButton({
     setIsAdding(true)
 
     try {
-      const res = await fetch('/api/cart/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-id': sessionId,
-        },
-        body: JSON.stringify({ variantId, quantity }),
-      })
-      const json = await res.json()
+      const cart = await cartApi.addItem(
+        isAuthenticated
+          ? { auth: true }
+          : { sessionId },
+        variantId,
+        quantity,
+      )
 
-      if (json.success) {
-        useCartStore.getState().setItemCount(json.data.itemCount)
-        return
-      }
-
+      useCartStore.getState().setItemCount(cart.itemCount)
+    } catch (error) {
       useCartStore.getState().setItemCount(prevCount)
       setErrorMessage(
-        json.error?.message || 'Не вдалося додати товар у кошик. Спробуйте ще раз.',
+        error instanceof Error
+          ? error.message
+          : 'Не вдалося додати товар у кошик. Спробуйте ще раз.',
       )
-    } catch {
-      useCartStore.getState().setItemCount(prevCount)
-      setErrorMessage('Не вдалося додати товар у кошик. Спробуйте ще раз.')
     } finally {
       setIsAdding(false)
     }
