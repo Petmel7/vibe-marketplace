@@ -1,112 +1,135 @@
 'use client'
 
 import Image from 'next/image'
-import { Share2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useState } from 'react'
 import WishlistToggleButton from '../wishlist/WishlistToggleButton'
-import { getProductCardDisplayState, type ProductCardProductLike } from './productCard.selectors'
-import { getInventoryStatusChip } from './productInventory'
+import ProductCardAddToCartButton from './ProductCardAddToCartButton'
+import ProductStockBadge from './ProductStockBadge'
+import { getDefaultProductVariantId, getProductCardDisplayState, type ProductCardProductLike } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import type { ProductStockStatus } from '@/features/products/product.dto'
 import { formatPrice } from '@/utils/formatters/price'
 import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
 
+const PRODUCT_CARD_FALLBACK_IMAGE = '/placeholder.png'
+
 interface ProductCardProps {
   id: string
   name: string
+  imageAlt?: string | null
   imageUrl: string
-  isActive?: boolean
   stockStatus?: ProductStockStatus
   badgeContext?: MarketplaceBadgeContext
   badges?: MarketplaceProductBadge[]
+  storeName?: string | null
   product: ProductCardProductLike
-}
-
-function ShareIcon() {
-  return (
-    <button aria-label="Поширити" className="ui-icon-button-card">
-      <Share2 size={20} color="#A5A8AD" aria-hidden="true" />
-    </button>
-  )
 }
 
 export default function ProductCard({
   id,
   name,
+  imageAlt,
   imageUrl,
-  isActive,
   stockStatus,
   badgeContext,
   badges,
+  storeName,
   product,
 }: ProductCardProps) {
-  const router = useRouter()
-  const { price, sku } = getProductCardDisplayState(product)
+  const [imageFailed, setImageFailed] = useState(false)
+  const { price, sku, isAvailable } = getProductCardDisplayState(product)
   const badgeChips = resolveProductBadgeChips({
     badges,
     badgeContext,
   })
-  const inventoryChip = getInventoryStatusChip(stockStatus)
+  const defaultVariantId = getDefaultProductVariantId(product)
+  const resolvedImageUrl = imageFailed ? PRODUCT_CARD_FALLBACK_IMAGE : imageUrl || PRODUCT_CARD_FALLBACK_IMAGE
 
   return (
-    <div
-      className="ui-product-card"
-      onClick={() => router.push(`/products/${id}`)}
-      onKeyDown={(e) => e.key === 'Enter' && router.push(`/products/${id}`)}
-      role="link"
-      tabIndex={0}
-      style={{ cursor: 'pointer' }}
-    >
-      <div className="ui-product-card-media">
-        {badgeChips.length > 0 ? (
-          <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-2" aria-label="Marketplace badges">
-            {badgeChips.map((badge) => (
-              <span
-                key={badge.type}
-                className={`rounded px-2 text-[13px] font-medium leading-5 ${badge.className}`}
-              >
-                {badge.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div
-          className="absolute right-2 top-2 z-10 flex flex-col gap-1 xs:hidden"
-          onClick={(e) => e.stopPropagation()}
+    <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-panelBorder bg-panel shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:shadow-lg">
+      <div className="relative">
+        <Link
+          href={`/products/${id}`}
+          aria-label={`Переглянути товар ${name}`}
+          className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-inset"
         >
-          <WishlistToggleButton productId={id} variant="card" />
-          <ShareIcon />
-        </div>
+          <div className="relative aspect-[4/4.6] overflow-hidden border-b border-panelBorder bg-copy-base/40">
+            {badgeChips.length > 0 ? (
+              <div className="absolute left-3 top-3 z-10 flex flex-wrap gap-2" aria-label="Marketplace badges">
+                {badgeChips.map((badge) => (
+                  <span
+                    key={badge.type}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
-        <Image
-          src={imageUrl}
-          alt={name}
-          fill
-          className="object-contain p-4"
-          sizes="(min-width: 480px) 25vw, 207px"
-        />
+            <div
+              className="absolute right-3 top-3 z-10"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <WishlistToggleButton productId={id} variant="card" />
+            </div>
+
+            <Image
+              src={resolvedImageUrl}
+              alt={imageAlt?.trim() || name}
+              fill
+              sizes="(min-width: 1280px) 23vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, (min-width: 375px) 50vw, 100vw"
+              className="object-contain p-4 transition duration-300 group-hover:scale-[1.02] sm:p-5"
+              onError={() => setImageFailed(true)}
+            />
+          </div>
+        </Link>
       </div>
 
-      <div className="flex flex-col gap-1 px-3 pb-3 pt-2">
-        <p className="truncate text-[14px] font-bold leading-5 text-copy-muted">{name}</p>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {isActive && inventoryChip ? (
-            inventoryChip.dotClassName ? (
-              <span className={inventoryChip.className}>
-                <span className={inventoryChip.dotClassName} />
-                {inventoryChip.label}
-              </span>
-            ) : (
-              <span className={inventoryChip.className}>{inventoryChip.label}</span>
-            )
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
+        <div className="space-y-2">
+          {storeName ? (
+            <p className="text-xs uppercase tracking-[0.16em] text-copy-muted">
+              {storeName}
+            </p>
           ) : null}
-          {sku ? <span className="ui-meta-text"> Арт.: {sku}</span> : null}
+
+          <Link
+            href={`/products/${id}`}
+            className="block text-base font-semibold leading-6 text-copy-strong transition group-hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+          >
+            {name}
+          </Link>
+
+          <div className="flex min-h-6 flex-wrap items-center gap-2">
+            {stockStatus ? <ProductStockBadge status={stockStatus} /> : null}
+            {sku ? <span className="ui-meta-text"> Арт.: {sku}</span> : null}
+          </div>
         </div>
 
-        <p className="ui-price-card">{formatPrice(price)}</p>
+        <div className="mt-auto space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <p className="text-2xl font-semibold leading-none text-copy-strong">
+              {formatPrice(price)}
+            </p>
+            {!isAvailable ? (
+              <span className="text-xs font-medium uppercase tracking-[0.16em] text-copy-muted">
+                Недоступно
+              </span>
+            ) : null}
+          </div>
+
+          {defaultVariantId ? (
+            <ProductCardAddToCartButton
+              variantId={defaultVariantId}
+              productName={name}
+              disabled={!isAvailable}
+              disabledLabel="Немає в наявності"
+            />
+          ) : null}
+        </div>
       </div>
-    </div>
+    </article>
   )
 }

@@ -34,7 +34,7 @@ export default function RecentlyViewed({ currentProductId }: Props) {
             <ProductCard
               id={item.productId}
               name={item.name}
-              imageUrl={item.imageUrl ?? '/logo.svg'}
+              imageUrl={item.imageUrl ?? ''}
               product={{ price: item.price, sku: null, variants: [] }}
             />
           </div>

@@ -5,6 +5,8 @@ import { getImageUrl } from '@/utils/getImageUrl'
 export type ProductListItem = ProductSummaryDto & {
   badges?: MarketplaceProductBadge[]
   badgeContext?: MarketplaceBadgeContext
+  imageAlt?: string | null
+  storeName?: string | null
 }
 
 export function isRenderablePublicProduct(product: ProductListItem) {
@@ -20,10 +22,9 @@ export function toProductCardProps(
     id: product.id,
     name: product.name,
     imageUrl: getImageUrl(product.imageUrl),
-    isActive: product.isActive,
-    inStock: product.inStock,
-    totalStock: product.totalStock,
+    imageAlt: product.imageAlt ?? product.name,
     stockStatus: product.stockStatus,
+    storeName: product.storeName ?? null,
     badgeContext: product.badgeContext ?? 'DEFAULT',
     badges: product.badges,
     product: {

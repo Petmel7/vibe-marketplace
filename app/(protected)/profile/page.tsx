@@ -161,7 +161,7 @@ export default async function ProfileOverviewPage() {
                 key={item.id}
                 id={item.productId}
                 name={item.name}
-                imageUrl={item.imageUrl ?? '/logo.svg'}
+                imageUrl={item.imageUrl ?? ''}
                 product={{ price: item.price, sku: null, variants: [] }}
               />
             ))}
