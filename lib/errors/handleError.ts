@@ -15,6 +15,10 @@ import {
   CheckoutVariantNotFoundError,
   CheckoutInsufficientStockError,
   InvalidShippingAddressError,
+  CheckoutAddressRequiredError,
+  CheckoutStockUnavailableError,
+  CheckoutPriceChangedError,
+  CheckoutProductUnavailableError,
 } from './checkout'
 import {
   OrderNotFoundError,
@@ -119,7 +123,10 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof StoragePathConflictError ||
     err instanceof ProductBadgeConflictError ||
     err instanceof CategorySlugConflictError ||
-    err instanceof CategoryHasProductsError
+    err instanceof CategoryHasProductsError ||
+    err instanceof CheckoutStockUnavailableError ||
+    err instanceof CheckoutPriceChangedError ||
+    err instanceof CheckoutProductUnavailableError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -131,6 +138,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InactiveStoreError ||
     err instanceof CheckoutInsufficientStockError ||
     err instanceof InvalidShippingAddressError ||
+    err instanceof CheckoutAddressRequiredError ||
     err instanceof InvalidStatusTransitionError ||
     err instanceof InvalidModerationTransitionError ||
     err instanceof AdminInvalidModerationTransitionError ||

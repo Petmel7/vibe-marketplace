@@ -1,23 +1,303 @@
 import Decimal from 'decimal.js'
+import { ProductStatus } from '@/app/generated/prisma/client'
 import { requireBuyer } from '@/lib/auth/guards'
+import type { ProductStockStatus } from '@/features/products/product.dto'
 import type { SessionUser } from '@/features/auth/auth.dto'
-import type { CheckoutInput, CheckoutResponseDto } from './checkout.dto'
+import type {
+  CheckoutAddressOptionDto,
+  CheckoutBlockingIssueDto,
+  CheckoutInput,
+  CheckoutPreviewInput,
+  CheckoutPreviewItemDto,
+  CheckoutPreviewResponseDto,
+  CheckoutResponseDto,
+} from './checkout.dto'
 import {
-  getCartWithItems,
   findShippingAddress,
-  createOrder,
-  createOrderItems,
-  decrementVariantStocks,
-  clearCartItems,
+  getCartWithItems,
+  getCartWithItemsByUserId,
+  listShippingAddressesByUserId,
+  submitCheckoutOrder,
 } from './checkout.repository'
 import {
   EmptyCartError,
   CartOwnershipError,
-  InactiveProductError,
-  InactiveStoreError,
-  CheckoutInsufficientStockError,
   InvalidShippingAddressError,
+  CheckoutAddressRequiredError,
+  CheckoutPriceChangedError,
+  CheckoutProductUnavailableError,
+  CheckoutStockUnavailableError,
 } from '@/lib/errors/checkout'
+
+const LOW_STOCK_THRESHOLD = 3
+const SHIPPING_PLACEHOLDER_AMOUNT = new Decimal(0)
+
+type CheckoutCart = NonNullable<Awaited<ReturnType<typeof getCartWithItems>>>
+type CheckoutCartItem = CheckoutCart['items'][number]
+
+type PreparedCheckoutItem = {
+  cartItemId: string
+  productId: string
+  variantId: string
+  storeId: string
+  productName: string
+  storeName: string
+  quantity: number
+  availableStock: number
+  unitPrice: Decimal
+  lineTotal: Decimal
+  variantLabel: string | null
+  imageUrl: string | null
+  inStock: boolean
+  stockStatus: ProductStockStatus
+  productStatus: ProductStatus
+  productIsActive: boolean
+  storeIsActive: boolean
+}
+
+function deriveVariantStockStatus(stock: number): ProductStockStatus {
+  if (stock <= 0) return 'OUT_OF_STOCK'
+  if (stock <= LOW_STOCK_THRESHOLD) return 'LOW_STOCK'
+  return 'IN_STOCK'
+}
+
+function resolveVariantLabel(item: CheckoutCartItem): string | null {
+  return [item.variant.size, item.variant.color].filter(Boolean).join(' / ') || null
+}
+
+function resolveImageUrl(item: CheckoutCartItem): string | null {
+  return item.variant.product.images[0]?.url ?? item.variant.product.imageUrl ?? null
+}
+
+function resolveUnitPrice(item: CheckoutCartItem): Decimal {
+  return item.variant.price != null
+    ? new Decimal(item.variant.price.toString())
+    : new Decimal(item.variant.product.price.toString())
+}
+
+function prepareCheckoutItem(item: CheckoutCartItem): PreparedCheckoutItem {
+  const stockStatus = deriveVariantStockStatus(item.variant.stock)
+  const unitPrice = resolveUnitPrice(item)
+
+  return {
+    cartItemId: item.id,
+    productId: item.variant.product.id,
+    variantId: item.variant.id,
+    storeId: item.variant.product.store.id,
+    productName: item.variant.product.name,
+    storeName: item.variant.product.store.name,
+    quantity: item.quantity,
+    availableStock: item.variant.stock,
+    unitPrice,
+    lineTotal: unitPrice.mul(item.quantity),
+    variantLabel: resolveVariantLabel(item),
+    imageUrl: resolveImageUrl(item),
+    inStock: item.variant.stock > 0,
+    stockStatus,
+    productStatus: item.variant.product.status,
+    productIsActive: item.variant.product.isActive,
+    storeIsActive: item.variant.product.store.isActive,
+  }
+}
+
+function toUnavailableMessage(item: PreparedCheckoutItem): string {
+  if (item.productStatus !== ProductStatus.PUBLISHED) {
+    return `Product "${item.productName}" is not published yet`
+  }
+
+  if (!item.productIsActive) {
+    return `Product "${item.productName}" is currently unavailable`
+  }
+
+  if (!item.storeIsActive) {
+    return `Store "${item.storeName}" is currently unavailable`
+  }
+
+  return `Variant "${item.variantId}" has only ${item.availableStock} unit(s) available, requested ${item.quantity}`
+}
+
+function toPreviewItemDto(item: PreparedCheckoutItem): CheckoutPreviewItemDto {
+  return {
+    id: item.cartItemId,
+    productId: item.productId,
+    variantId: item.variantId,
+    productName: item.productName,
+    variantLabel: item.variantLabel,
+    imageUrl: item.imageUrl,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice.toFixed(2),
+    lineTotal: item.lineTotal.toFixed(2),
+    availableStock: item.availableStock,
+    inStock: item.inStock,
+    stockStatus: item.stockStatus,
+  }
+}
+
+function toAddressOptionDto(
+  address: Awaited<ReturnType<typeof listShippingAddressesByUserId>>[number],
+): CheckoutAddressOptionDto {
+  return {
+    id: address.id,
+    label: address.label ?? null,
+    fullName: address.fullName,
+    phone: address.phone,
+    country: address.country,
+    city: address.city,
+    region: address.region ?? null,
+    street: address.street,
+    building: address.building,
+    apartment: address.apartment ?? null,
+    zipCode: address.zipCode ?? null,
+    isDefault: address.isDefault,
+  }
+}
+
+function sumItemCount(items: PreparedCheckoutItem[]): number {
+  return items.reduce((sum, item) => sum + item.quantity, 0)
+}
+
+function sumSubtotal(items: PreparedCheckoutItem[]): Decimal {
+  return items.reduce((sum, item) => sum.plus(item.lineTotal), new Decimal(0))
+}
+
+function buildBlockingIssues(
+  items: PreparedCheckoutItem[],
+  hasAddresses: boolean,
+): CheckoutBlockingIssueDto[] {
+  const issues: CheckoutBlockingIssueDto[] = []
+
+  if (items.length === 0) {
+    issues.push({
+      code: 'EMPTY_CART',
+      message: 'Your cart is empty',
+    })
+  }
+
+  if (!hasAddresses) {
+    issues.push({
+      code: 'ADDRESS_REQUIRED',
+      message: 'Add a shipping address to continue to checkout',
+    })
+  }
+
+  for (const item of items) {
+    if (item.productStatus !== ProductStatus.PUBLISHED || !item.productIsActive || !item.storeIsActive) {
+      issues.push({
+        code: 'PRODUCT_UNAVAILABLE',
+        message: toUnavailableMessage(item),
+        cartItemId: item.cartItemId,
+        productId: item.productId,
+        variantId: item.variantId,
+      })
+      continue
+    }
+
+    if (item.availableStock < item.quantity) {
+      issues.push({
+        code: 'STOCK_UNAVAILABLE',
+        message: toUnavailableMessage(item),
+        cartItemId: item.cartItemId,
+        productId: item.productId,
+        variantId: item.variantId,
+      })
+    }
+  }
+
+  return issues
+}
+
+async function loadCheckoutCart(userId: string, cartId?: string): Promise<CheckoutCart | null> {
+  if (cartId) {
+    const cart = await getCartWithItems(cartId)
+
+    if (!cart) {
+      return null
+    }
+
+    if (cart.userId !== userId) {
+      throw new CartOwnershipError()
+    }
+
+    return cart
+  }
+
+  const cart = await getCartWithItemsByUserId(userId)
+  if (cart && cart.userId !== userId) {
+    throw new CartOwnershipError()
+  }
+
+  return cart
+}
+
+function ensureExpectedTotals(
+  data: CheckoutInput,
+  subtotal: Decimal,
+  total: Decimal,
+): void {
+  if (data.expectedSubtotal) {
+    const expectedSubtotal = new Decimal(data.expectedSubtotal)
+    if (!expectedSubtotal.equals(subtotal)) {
+      throw new CheckoutPriceChangedError(expectedSubtotal.toFixed(2), subtotal.toFixed(2))
+    }
+  }
+
+  if (data.expectedTotal) {
+    const expectedTotal = new Decimal(data.expectedTotal)
+    if (!expectedTotal.equals(total)) {
+      throw new CheckoutPriceChangedError(expectedTotal.toFixed(2), total.toFixed(2))
+    }
+  }
+}
+
+function assertCheckoutIssues(issues: CheckoutBlockingIssueDto[]): void {
+  const firstIssue = issues[0]
+  if (!firstIssue) return
+
+  switch (firstIssue.code) {
+    case 'EMPTY_CART':
+      throw new EmptyCartError()
+    case 'ADDRESS_REQUIRED':
+      throw new CheckoutAddressRequiredError()
+    case 'PRODUCT_UNAVAILABLE':
+      throw new CheckoutProductUnavailableError(firstIssue.message)
+    case 'STOCK_UNAVAILABLE':
+      throw new CheckoutStockUnavailableError(firstIssue.variantId ?? 'unknown', 0, 0)
+    default:
+      return
+  }
+}
+
+export async function getCheckoutPreview(
+  user: SessionUser,
+  input: CheckoutPreviewInput,
+): Promise<CheckoutPreviewResponseDto> {
+  requireBuyer(user)
+
+  const [cart, addresses] = await Promise.all([
+    loadCheckoutCart(user.id, input.cartId),
+    listShippingAddressesByUserId(user.id),
+  ])
+
+  const preparedItems = (cart?.items ?? []).map(prepareCheckoutItem)
+  const addressOptions = addresses.map(toAddressOptionDto)
+  const defaultShippingAddress = addressOptions.find((address) => address.isDefault) ?? addressOptions[0] ?? null
+  const blockingIssues = buildBlockingIssues(preparedItems, addressOptions.length > 0)
+  const subtotal = sumSubtotal(preparedItems)
+  const total = subtotal.plus(SHIPPING_PLACEHOLDER_AMOUNT)
+
+  return {
+    cartId: cart?.id ?? null,
+    items: preparedItems.map(toPreviewItemDto),
+    itemCount: sumItemCount(preparedItems),
+    subtotal: subtotal.toFixed(2),
+    shippingAmount: SHIPPING_PLACEHOLDER_AMOUNT.toFixed(2),
+    total: total.toFixed(2),
+    defaultShippingAddress,
+    addressOptions,
+    blockingIssues,
+    canCheckout: blockingIssues.length === 0,
+  }
+}
 
 export async function checkout(
   user: SessionUser,
@@ -25,106 +305,59 @@ export async function checkout(
 ): Promise<CheckoutResponseDto> {
   requireBuyer(user)
 
-  // 1. Load cart
-  const cart = await getCartWithItems(data.cartId)
-  if (!cart) throw new EmptyCartError('Cart not found')
-
-  // 2. Verify ownership
-  if (cart.userId !== user.id) throw new CartOwnershipError()
-
-  // 3. Ensure cart has items
-  if (cart.items.length === 0) throw new EmptyCartError()
-
-  // 4. Validate shipping address
-  const address = await findShippingAddress(data.shippingAddressId, user.id)
-  if (!address) throw new InvalidShippingAddressError()
-
-  // 5. Validate each item and build order item data
-  let total = new Decimal(0)
-  let itemCount = 0
-
-  const orderItemData: Array<{
-    orderId: string
-    variantId: string
-    storeId: string
-    quantity: number
-    unitPrice: Decimal
-    productNameSnapshot: string
-    variantSnapshot: string | null
-    imageSnapshot: string | null
-    storeNameSnapshot: string
-    unitPriceSnapshot: Decimal
-  }> = []
-
-  const stockUpdates: Array<{ variantId: string; qty: number }> = []
-
-  for (const item of cart.items) {
-    const variant = item.variant
-    const product = variant.product
-    const store = product.store
-
-    if (!product.isActive) throw new InactiveProductError(product.name)
-    if (!store.isActive) throw new InactiveStoreError(store.name)
-    if (item.quantity > variant.stock) {
-      throw new CheckoutInsufficientStockError(variant.id, variant.stock, item.quantity)
-    }
-
-    // Resolve price: variant price takes precedence over product base price
-    const unitPrice =
-      variant.price != null
-        ? new Decimal(variant.price.toString())
-        : new Decimal(product.price.toString())
-
-    const lineTotal = unitPrice.mul(item.quantity)
-    total = total.plus(lineTotal)
-    itemCount += item.quantity
-
-    // Build variant snapshot label (e.g. "M / Blue")
-    const variantSnapshot =
-      [variant.size, variant.color].filter(Boolean).join(' / ') || null
-
-    orderItemData.push({
-      orderId: '', // will be filled after order creation
-      variantId: variant.id,
-      storeId: store.id,
-      quantity: item.quantity,
-      unitPrice: unitPrice,
-      productNameSnapshot: product.name,
-      variantSnapshot,
-      imageSnapshot: product.imageUrl ?? null,
-      storeNameSnapshot: store.name,
-      unitPriceSnapshot: unitPrice,
-    })
-
-    stockUpdates.push({ variantId: variant.id, qty: item.quantity })
+  const cart = await loadCheckoutCart(user.id, data.cartId)
+  if (!cart) {
+    throw new EmptyCartError('Cart not found')
   }
 
-  // 6. Create the order
-  const order = await createOrder({
+  const preparedItems = cart.items.map(prepareCheckoutItem)
+  if (preparedItems.length === 0) {
+    throw new EmptyCartError()
+  }
+
+  if (!data.shippingAddressId) {
+    throw new CheckoutAddressRequiredError()
+  }
+
+  const address = await findShippingAddress(data.shippingAddressId, user.id)
+  if (!address) {
+    throw new InvalidShippingAddressError()
+  }
+
+  const blockingIssues = buildBlockingIssues(preparedItems, true)
+  assertCheckoutIssues(blockingIssues)
+
+  const subtotal = sumSubtotal(preparedItems)
+  const total = subtotal.plus(SHIPPING_PLACEHOLDER_AMOUNT)
+  ensureExpectedTotals(data, subtotal, total)
+
+  const order = await submitCheckoutOrder({
     userId: user.id,
-    status: 'pending',
-    totalAmount: total,
-    shippingAddressId: data.shippingAddressId,
+    cartId: cart.id,
+    shippingAddressId: address.id,
     note: data.note,
+    totalAmount: total,
+    items: preparedItems.map((item) => ({
+      variantId: item.variantId,
+      storeId: item.storeId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      productNameSnapshot: item.productName,
+      variantSnapshot: item.variantLabel,
+      imageSnapshot: item.imageUrl,
+      storeNameSnapshot: item.storeName,
+      unitPriceSnapshot: item.unitPrice,
+    })),
+    stockUpdates: preparedItems.map((item) => ({
+      variantId: item.variantId,
+      qty: item.quantity,
+    })),
   })
-
-  // 7. Attach orderId and create items
-  const itemsWithOrderId = orderItemData.map((item) => ({
-    ...item,
-    orderId: order.id,
-  }))
-  await createOrderItems(itemsWithOrderId)
-
-  // 8. Decrement stock
-  await decrementVariantStocks(stockUpdates)
-
-  // 9. Clear cart
-  await clearCartItems(cart.id)
 
   return {
     orderId: order.id,
     totalAmount: total.toFixed(2),
-    itemCount,
+    itemCount: sumItemCount(preparedItems),
     status: order.status,
     createdAt: order.createdAt,
   }

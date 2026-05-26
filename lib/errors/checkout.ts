@@ -60,3 +60,39 @@ export class InvalidShippingAddressError extends Error {
     this.name = 'InvalidShippingAddressError'
   }
 }
+
+export class CheckoutAddressRequiredError extends Error {
+  readonly code = 'CHECKOUT_ADDRESS_REQUIRED'
+  readonly statusCode = 400
+  constructor(message = 'Shipping address is required to complete checkout') {
+    super(message)
+    this.name = 'CheckoutAddressRequiredError'
+  }
+}
+
+export class CheckoutStockUnavailableError extends Error {
+  readonly code = 'CHECKOUT_STOCK_UNAVAILABLE'
+  readonly statusCode = 409
+  constructor(variantId: string, available: number, requested: number) {
+    super(`Variant "${variantId}" has only ${available} unit(s) available for checkout, requested ${requested}`)
+    this.name = 'CheckoutStockUnavailableError'
+  }
+}
+
+export class CheckoutPriceChangedError extends Error {
+  readonly code = 'CHECKOUT_PRICE_CHANGED'
+  readonly statusCode = 409
+  constructor(expected: string, current: string) {
+    super(`Checkout totals changed from ${expected} to ${current}. Please review your cart and try again.`)
+    this.name = 'CheckoutPriceChangedError'
+  }
+}
+
+export class CheckoutProductUnavailableError extends Error {
+  readonly code = 'CHECKOUT_PRODUCT_UNAVAILABLE'
+  readonly statusCode = 409
+  constructor(message = 'One or more products in the cart are no longer available for checkout') {
+    super(message)
+    this.name = 'CheckoutProductUnavailableError'
+  }
+}

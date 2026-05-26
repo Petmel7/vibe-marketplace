@@ -145,14 +145,14 @@ export default function SellerProductForm({
   const [createVariants, setCreateVariants] = useState<VariantState[]>(
     mode === 'create'
       ? initialProduct?.variants.map((variant) => ({
-          id: variant.id,
-          sku: variant.sku,
-          size: variant.size ?? '',
-          color: variant.color ?? '',
-          price: variant.price ?? '',
-          stock: variant.stock,
-          isSkuManual: true,
-        })) ?? [createVariantState()]
+        id: variant.id,
+        sku: variant.sku,
+        size: variant.size ?? '',
+        color: variant.color ?? '',
+        price: variant.price ?? '',
+        stock: variant.stock,
+        isSkuManual: true,
+      })) ?? [createVariantState()]
       : [],
   )
   const [editVariants, setEditVariants] = useState<VariantState[]>(
@@ -421,14 +421,14 @@ export default function SellerProductForm({
       current.map((entry, currentIndex) =>
         currentIndex === index
           ? {
-              id: saved.id,
-              sku: saved.sku,
-              size: saved.size ?? '',
-              color: saved.color ?? '',
-              price: saved.price ?? '',
-              stock: saved.stock,
-              isSkuManual: true,
-            }
+            id: saved.id,
+            sku: saved.sku,
+            size: saved.size ?? '',
+            color: saved.color ?? '',
+            price: saved.price ?? '',
+            stock: saved.stock,
+            isSkuManual: true,
+          }
           : entry,
       ),
     )
@@ -762,10 +762,10 @@ export default function SellerProductForm({
                                 current.map((entry, currentIndex) =>
                                   currentIndex === index
                                     ? {
-                                        ...entry,
-                                        isSkuManual: false,
-                                        sku: generateVariantSkuDraft(formState.sku, entry, index),
-                                      }
+                                      ...entry,
+                                      isSkuManual: false,
+                                      sku: generateVariantSkuDraft(formState.sku, entry, index),
+                                    }
                                     : entry,
                                 ),
                               )
@@ -900,10 +900,10 @@ export default function SellerProductForm({
                                 current.map((entry, currentIndex) =>
                                   currentIndex === index
                                     ? {
-                                        ...entry,
-                                        isSkuManual: false,
-                                        sku: generateVariantSkuDraft(formState.sku, entry, currentIndex),
-                                      }
+                                      ...entry,
+                                      isSkuManual: false,
+                                      sku: generateVariantSkuDraft(formState.sku, entry, currentIndex),
+                                    }
                                     : entry,
                                 ),
                               )

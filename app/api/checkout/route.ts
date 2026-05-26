@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/session/getSession'
-import { checkoutSchema } from '@/features/checkout/checkout.schema'
-import { checkout } from '@/features/checkout/checkout.service'
+import { checkoutPreviewSchema, checkoutSchema } from '@/features/checkout/checkout.schema'
+import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
 
 /**
@@ -15,6 +15,33 @@ import { toErrorResponse } from '@/lib/errors/handleError'
  *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   403  { success: false, error: { message, code: 'FORBIDDEN' } }
  */
+export async function GET(request: NextRequest): Promise<Response> {
+  try {
+    const user = await requireAuth()
+    const parsed = checkoutPreviewSchema.safeParse({
+      cartId: request.nextUrl.searchParams.get('cartId') ?? undefined,
+    })
+
+    if (!parsed.success) {
+      return Response.json(
+        {
+          success: false,
+          error: {
+            message: 'Validation error',
+            code: 'VALIDATION_ERROR',
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const data = await getCheckoutPreview(user, parsed.data)
+    return Response.json({ success: true, data })
+  } catch (err) {
+    return toErrorResponse('GET /api/checkout', err)
+  }
+}
+
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
@@ -27,7 +54,6 @@ export async function POST(request: NextRequest): Promise<Response> {
           error: {
             message: 'Validation error',
             code: 'VALIDATION_ERROR',
-            details: parsed.error.flatten(),
           },
         },
         { status: 400 },
