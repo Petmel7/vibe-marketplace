@@ -13,9 +13,30 @@ import { useCart } from './hooks/useCart'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { Breadcrumbs } from '../ui/Breadcrumbs'
 import { PageTitle } from '../ui/PageTitle'
+import DashboardCard from '@/components/profile/DashboardCard'
 
 function CartEmpty() {
   return <StateView {...CART_EMPTY_STATE} />
+}
+
+function getCartBlockingIssues(
+  items: NonNullable<ReturnType<typeof useCart>['cart']>['items'],
+) {
+  return items.flatMap((item) => {
+    if (item.variant.stock <= 0) {
+      return [
+        `Товар "${item.variant.product.name}" зараз недоступний. Видаліть його з кошика або дочекайтеся поповнення запасу.`,
+      ]
+    }
+
+    if (item.quantity > item.variant.stock) {
+      return [
+        `Товар "${item.variant.product.name}" має лише ${item.variant.stock} шт. у наявності, тому кількість у кошику потрібно зменшити.`,
+      ]
+    }
+
+    return []
+  })
 }
 
 export default function CartDrawer() {
@@ -38,8 +59,12 @@ export default function CartDrawer() {
     ? '/checkout'
     : '/login?notice=auth-required&next=/checkout'
 
+  const blockingIssues = getCartBlockingIssues(cart.items)
+
+  const checkoutDisabled = blockingIssues.length > 0
+
   return (
-    <PageContainer>
+    <PageContainer className="max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <Breadcrumbs
         items={[
           {
@@ -52,85 +77,149 @@ export default function CartDrawer() {
         ]}
       />
 
-      <PageTitle
-        title="Кошик"
-        count={cart.itemCount}
-        countLabel={pluralizeItems(cart.itemCount)}
-      />
+      <div className="mb-8 space-y-3">
+        <PageTitle
+          title="Кошик"
+          count={cart.itemCount}
+          countLabel={pluralizeItems(cart.itemCount)}
+        />
+        <p className="max-w-3xl text-sm text-copy-muted">
+          Перевірте товари, оновіть кількість і перейдіть до безпечного оформлення
+          замовлення з серверною перевіркою цін та залишків.
+        </p>
+      </div>
 
-      <div className="md:flex md:items-start md:gap-8">
-        <div className="min-w-0 flex-1">
-          <div>
-            {cart.items.map((item) => (
-              <CartItem
-                key={item.id}
-                item={item}
-                onUpdateQuantity={handleUpdateQuantity}
-                onRemove={handleRemoveItem}
-                isLoading={loadingItemIds.has(item.id)}
-              />
-            ))}
-          </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <div className="space-y-6">
+          {blockingIssues.length > 0 ? (
+            <section
+              className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-4 sm:px-5"
+              aria-labelledby="cart-issues-title"
+            >
+              <div className="space-y-3">
+                <div>
+                  <h2 id="cart-issues-title" className="text-sm font-semibold text-copy-strong">
+                    Кошик потребує уваги
+                  </h2>
+                  <p className="mt-1 text-sm text-copy-secondary">
+                    Виправте проблеми із залишками перед переходом до оформлення.
+                  </p>
+                </div>
 
-          <div className="mt-6 flex flex-col md:flex-row md:items-center md:gap-6">
-            <div className="overflow-hidden rounded-full border border-panelBorder bg-panel">
-              <input
-                type="text"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                placeholder="Промокод"
-                className="ui-surface-input-plain h-12 w-74"
-                aria-label="Промокод"
-              />
+                <ul className="space-y-2 text-sm text-copy-primary">
+                  {blockingIssues.map((issue) => (
+                    <li
+                      key={issue}
+                      className="rounded-xl bg-white/50 px-3 py-2"
+                    >
+                      {issue}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          ) : null}
+
+          <DashboardCard
+            title="Товари у кошику"
+            description="Усі позиції з актуальними цінами та кількістю перед переходом до checkout."
+          >
+            <div className="space-y-4">
+              {cart.items.map((item) => (
+                <CartItem
+                  key={item.id}
+                  item={item}
+                  onUpdateQuantity={handleUpdateQuantity}
+                  onRemove={handleRemoveItem}
+                  isLoading={loadingItemIds.has(item.id)}
+                />
+              ))}
             </div>
-            <p className="ui-body-secondary mt-2 md:hidden">
-              Щоб скористатися знижкою введіть промокод
-            </p>
-          </div>
-          <p className="ui-body-secondary hidden md:block">
-            Щоб скористатися знижкою введіть промокод
-          </p>
+          </DashboardCard>
+
+          <DashboardCard
+            title="Промокод"
+            description="Якщо у вас є промокод, збережіть його для наступного етапу оформлення."
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="overflow-hidden rounded-full border border-panelBorder bg-panel">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  placeholder="Промокод"
+                  className="ui-surface-input-plain h-12 w-full min-w-0 px-5 sm:w-74"
+                  aria-label="Промокод"
+                />
+              </div>
+              <p className="text-sm text-copy-muted">
+                Знижка буде застосована на етапі оформлення, коли логіка промокодів
+                стане доступною.
+              </p>
+            </div>
+          </DashboardCard>
         </div>
 
-        <div className="mt-6 md:mt-0 md:w-80 md:shrink-0">
-          <div className="md:sticky md:top-24">
-            <div className="ui-summary-card">
-              <div className="flex items-center justify-between">
-                <span className="ui-body-muted">{cart.itemCount} товар на суму</span>
-                <span className="text-[13px] leading-5 tabular-nums text-copy-secondary">
-                  {formatPrice(cart.totalAmount)}
-                </span>
-              </div>
+        <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+          <DashboardCard
+            title="Підсумок замовлення"
+            description="Сума в кошику і попередній total перед переходом до checkout."
+          >
+            <div className="space-y-4">
+              <dl className="space-y-3 text-sm text-copy-secondary">
+                <div className="flex items-center justify-between gap-4">
+                  <dt>Товари</dt>
+                  <dd className="text-copy-primary">{cart.itemCount}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt>Підсумок товарів</dt>
+                  <dd className="text-copy-primary">{formatPrice(cart.totalAmount)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt>Доставка</dt>
+                  <dd className="text-copy-primary">{formatPrice('0.00')}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 border-t border-panelBorder pt-3 text-base font-semibold text-copy-strong">
+                  <dt>Разом</dt>
+                  <dd>{formatPrice(cart.totalAmount)}</dd>
+                </div>
+              </dl>
 
-              <div className="flex items-center justify-between border-b border-panelBorder pb-4">
-                <span className="ui-body-muted">Сума зі знижкою</span>
-                <span className="text-[13px] leading-5 tabular-nums text-copy-secondary">
-                  {formatPrice(cart.totalAmount)}
-                </span>
-              </div>
+              {checkoutDisabled ? (
+                <div className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary">
+                  Поки що не можна перейти до оформлення: у кошику є позиції з
+                  недоступною кількістю.
+                </div>
+              ) : null}
 
-              <div className="pt-1">
-                <p className="text-[16px] font-bold leading-5 text-copy-primary">Підсумок</p>
-                <p className="mt-1 text-[20px] font-medium leading-7 tabular-nums text-brand-accent">
-                  {formatPrice(cart.totalAmount)}
-                </p>
-              </div>
+              {checkoutDisabled ? (
+                <button
+                  type="button"
+                  disabled
+                  className="ui-primary-button w-full cursor-not-allowed opacity-60"
+                  aria-disabled="true"
+                >
+                  Оформити замовлення
+                </button>
+              ) : (
+                <Link href={checkoutHref} className="ui-primary-button block w-full text-center">
+                  Оформити замовлення
+                </Link>
+              )}
 
-              <Link href={checkoutHref} className="ui-primary-button mt-2 block w-full text-center">
-                Оформити замовлення
-              </Link>
-
-              <div className="flex items-start gap-2 pt-1">
+              <div className="flex items-start gap-2">
                 <CartCheckbox checked={agreed} onChange={setAgreed} />
-                <p className="text-[10px] leading-3 text-copy-secondary">
+                <p className="text-[11px] leading-4 text-copy-secondary">
                   Натискаючи на кнопку «Оформити замовлення», ви погоджуєтеся на обробку{' '}
                   <a href="#" className="text-brand hover:underline">
                     персональних даних
                   </a>
+                  . На наступному етапі checkout ще раз перевірить ціни, адресу та
+                  наявність.
                 </p>
               </div>
             </div>
-          </div>
+          </DashboardCard>
         </div>
       </div>
     </PageContainer>
