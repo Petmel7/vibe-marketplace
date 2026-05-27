@@ -5,6 +5,8 @@ import {
   getUserRoles,
 } from './auth.repository'
 import type { SessionUser } from './auth.dto'
+import { emitWelcomeEmailEvent } from '@/features/email/events/email.events'
+import { logError } from '@/utils/logger'
 
 /**
  * Syncs a Supabase-authenticated user into our database.
@@ -15,6 +17,14 @@ export async function syncUser(supabaseUser: SupabaseUser): Promise<SessionUser>
   const existing = await findUserById(supabaseUser.id)
   if (!existing) {
     await createUserWithProfile(supabaseUser.id, supabaseUser.email ?? '')
+    if (supabaseUser.email) {
+      void emitWelcomeEmailEvent({
+        userId: supabaseUser.id,
+        email: supabaseUser.email,
+      }).catch((error) => {
+        logError('syncUser:welcome-email', error)
+      })
+    }
   }
   const roles = await getUserRoles(supabaseUser.id)
   return {

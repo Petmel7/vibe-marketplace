@@ -28,6 +28,8 @@ import {
   CheckoutProductUnavailableError,
   CheckoutStockUnavailableError,
 } from '@/lib/errors/checkout'
+import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
+import { logError } from '@/utils/logger'
 
 const LOW_STOCK_THRESHOLD = 3
 const SHIPPING_PLACEHOLDER_AMOUNT = new Decimal(0)
@@ -357,6 +359,10 @@ export async function checkout(
       variantId: item.variantId,
       qty: item.quantity,
     })),
+  })
+
+  void emitOrderCreatedEmailEvent({ orderId: order.id }).catch((error) => {
+    logError('checkout:order-created-email', error)
   })
 
   return {

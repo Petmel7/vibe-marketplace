@@ -9,18 +9,23 @@ vi.mock('@/features/auth/auth.repository', () => ({
   createUserWithProfile: vi.fn(),
   getUserRoles: vi.fn(),
 }))
+vi.mock('@/features/email/events/email.events', () => ({
+  emitWelcomeEmailEvent: vi.fn(),
+}))
 
 import {
   findUserById,
   createUserWithProfile,
   getUserRoles,
 } from '@/features/auth/auth.repository'
+import { emitWelcomeEmailEvent } from '@/features/email/events/email.events'
 import { syncUser, getSessionUser } from '@/features/auth/auth.service'
 
 // Typed mocks
 const mockFindUserById = vi.mocked(findUserById)
 const mockCreateUserWithProfile = vi.mocked(createUserWithProfile)
 const mockGetUserRoles = vi.mocked(getUserRoles)
+const mockEmitWelcomeEmailEvent = vi.mocked(emitWelcomeEmailEvent)
 
 function makeSupabaseUser(overrides?: Partial<SupabaseUser>): SupabaseUser {
   return {
@@ -36,6 +41,7 @@ function makeSupabaseUser(overrides?: Partial<SupabaseUser>): SupabaseUser {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockEmitWelcomeEmailEvent.mockResolvedValue({} as never)
 })
 
 describe('syncUser', () => {
@@ -59,6 +65,10 @@ describe('syncUser', () => {
       supabaseUser.id,
       supabaseUser.email
     )
+    expect(mockEmitWelcomeEmailEvent).toHaveBeenCalledWith({
+      userId: supabaseUser.id,
+      email: supabaseUser.email,
+    })
   })
 
   it('does NOT call createUserWithProfile on subsequent login (user already exists)', async () => {
@@ -111,6 +121,25 @@ describe('syncUser', () => {
     const result = await syncUser(supabaseUser)
 
     expect(result).toEqual({ id: 'abc-123', email: 'a@b.com', roles: [UserRole.BUYER] })
+  })
+
+  it('does not break signup sync when welcome email enqueue fails', async () => {
+    const supabaseUser = makeSupabaseUser()
+    mockFindUserById.mockResolvedValueOnce(null)
+    mockCreateUserWithProfile.mockResolvedValueOnce({
+      id: supabaseUser.id,
+      email: supabaseUser.email!,
+      name: null,
+      avatarUrl: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    mockGetUserRoles.mockResolvedValueOnce([UserRole.BUYER])
+    mockEmitWelcomeEmailEvent.mockRejectedValueOnce(new Error('email down'))
+
+    const result = await syncUser(supabaseUser)
+
+    expect(result.roles).toContain(UserRole.BUYER)
   })
 })
 

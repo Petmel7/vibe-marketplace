@@ -15,6 +15,11 @@ import {
   deactivateSellerStores,
 } from './seller-moderation.repository'
 import type { SellerProfile } from '@/app/generated/prisma/client'
+import {
+  emitSellerApprovedEmailEvent,
+  emitSellerRejectedEmailEvent,
+} from '@/features/email/events/email.events'
+import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
 // DTO mapper
@@ -81,6 +86,12 @@ export async function approveSeller(
   }
 
   const updated = await updateSellerVerificationStatus(sellerId, 'VERIFIED', admin.id)
+  void emitSellerApprovedEmailEvent({
+    sellerUserId: updated.userId,
+    businessName: updated.businessName ?? null,
+  }).catch((error) => {
+    logError('seller-moderation:approve-email', error)
+  })
   return toSellerModerationDto(updated)
 }
 
@@ -99,6 +110,13 @@ export async function rejectSeller(
   }
 
   const updated = await updateSellerVerificationStatus(sellerId, 'REJECTED', admin.id, reason)
+  void emitSellerRejectedEmailEvent({
+    sellerUserId: updated.userId,
+    businessName: updated.businessName ?? null,
+    reason,
+  }).catch((error) => {
+    logError('seller-moderation:reject-email', error)
+  })
   return toSellerModerationDto(updated)
 }
 

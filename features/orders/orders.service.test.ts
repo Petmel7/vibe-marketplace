@@ -3,9 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/orders/orders.repository')
 vi.mock('@/lib/auth/guards')
+vi.mock('@/features/email/events/email.events', () => ({
+  emitOrderConfirmedEmailEvent: vi.fn(),
+}))
 
 import * as repo from '@/features/orders/orders.repository'
 import * as guards from '@/lib/auth/guards'
+import { emitOrderConfirmedEmailEvent } from '@/features/email/events/email.events'
 import {
   getMyOrders,
   getMyOrderById,
@@ -18,6 +22,7 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(guards)
+const mockEmitOrderConfirmedEmailEvent = vi.mocked(emitOrderConfirmedEmailEvent)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -117,6 +122,7 @@ beforeEach(() => {
   mockGuards.requireBuyer.mockReturnValue(undefined)
   mockGuards.requireSeller.mockReturnValue(undefined)
   mockGuards.requireAdmin.mockReturnValue(undefined)
+  mockEmitOrderConfirmedEmailEvent.mockResolvedValue(null)
 })
 
 // ---------------------------------------------------------------------------
@@ -241,6 +247,19 @@ describe('updateStatus', () => {
     const result = await updateStatus(mockAdmin, ORDER_ID, 'confirmed')
 
     expect(mockRepo.updateOrderStatus).toHaveBeenCalledWith(ORDER_ID, 'confirmed')
+    expect(result.status).toBe('confirmed')
+    expect(mockEmitOrderConfirmedEmailEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
+  })
+
+  it('does not fail order confirmation when email enqueue fails', async () => {
+    const order = makeOrder({ status: 'pending' })
+    const updated = makeOrder({ status: 'confirmed' })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+    mockRepo.updateOrderStatus.mockResolvedValue(updated as unknown as Awaited<ReturnType<typeof mockRepo.updateOrderStatus>>)
+    mockEmitOrderConfirmedEmailEvent.mockRejectedValueOnce(new Error('email down'))
+
+    const result = await updateStatus(mockAdmin, ORDER_ID, 'confirmed')
+
     expect(result.status).toBe('confirmed')
   })
 

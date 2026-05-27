@@ -70,6 +70,13 @@ import {
   CategoryHasProductsError,
   CategorySlugConflictError,
 } from './category'
+import {
+  EmailDuplicateEventError,
+  EmailEventNotFoundError,
+  EmailProviderError,
+  EmailRetryLimitExceededError,
+  EmailTemplateRenderError,
+} from './email'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -107,7 +114,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ProductNotFoundError ||
     err instanceof OrderItemNotFoundError ||
     err instanceof CategoryNotFoundError ||
-    err instanceof BadgeRuleNotFoundError
+    err instanceof BadgeRuleNotFoundError ||
+    err instanceof EmailEventNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -126,7 +134,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CategoryHasProductsError ||
     err instanceof CheckoutStockUnavailableError ||
     err instanceof CheckoutPriceChangedError ||
-    err instanceof CheckoutProductUnavailableError
+    err instanceof CheckoutProductUnavailableError ||
+    err instanceof EmailDuplicateEventError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -152,13 +161,19 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ProductImageLimitExceededError ||
     err instanceof InvalidBadgeTransitionError ||
     err instanceof InvalidBadgeRuleError ||
-    err instanceof CategoryCircularReferenceError
+    err instanceof CategoryCircularReferenceError ||
+    err instanceof EmailRetryLimitExceededError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 400 },
     )
-  if (err instanceof UploadFailedError || err instanceof ProductMetricsCalculationError)
+  if (
+    err instanceof UploadFailedError ||
+    err instanceof ProductMetricsCalculationError ||
+    err instanceof EmailProviderError ||
+    err instanceof EmailTemplateRenderError
+  )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 500 },

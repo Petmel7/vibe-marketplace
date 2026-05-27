@@ -17,6 +17,8 @@ import {
   findAllOrders,
   updateOrderStatus,
 } from './orders.repository'
+import { emitOrderConfirmedEmailEvent } from '@/features/email/events/email.events'
+import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
 // Status transition table
@@ -178,5 +180,12 @@ export async function updateStatus(
   }
 
   const updated = await updateOrderStatus(orderId, newStatus)
+
+  if (newStatus === 'confirmed') {
+    void emitOrderConfirmedEmailEvent({ orderId: updated.id }).catch((error) => {
+      logError('orders:update-status:confirmed-email', error)
+    })
+  }
+
   return toOrderDetailDto(updated)
 }

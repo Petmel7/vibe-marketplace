@@ -3,9 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/moderation/seller/seller-moderation.repository')
 vi.mock('@/lib/auth/adminGuards')
+vi.mock('@/features/email/events/email.events', () => ({
+  emitSellerApprovedEmailEvent: vi.fn(),
+  emitSellerRejectedEmailEvent: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/seller/seller-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
+import {
+  emitSellerApprovedEmailEvent,
+  emitSellerRejectedEmailEvent,
+} from '@/features/email/events/email.events'
 import {
   approveSeller,
   rejectSeller,
@@ -22,6 +30,8 @@ import type { SellerProfile } from '@/app/generated/prisma/client'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
+const mockEmitSellerApprovedEmailEvent = vi.mocked(emitSellerApprovedEmailEvent)
+const mockEmitSellerRejectedEmailEvent = vi.mocked(emitSellerRejectedEmailEvent)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -64,6 +74,8 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.assertAdminAccess.mockReturnValue(undefined)
   mockGuards.assertNotSelfModeration.mockReturnValue(undefined)
+  mockEmitSellerApprovedEmailEvent.mockResolvedValue(null)
+  mockEmitSellerRejectedEmailEvent.mockResolvedValue(null)
 })
 
 // ---------------------------------------------------------------------------

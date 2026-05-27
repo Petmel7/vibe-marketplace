@@ -15,6 +15,11 @@ import {
 } from './product-moderation.repository'
 import type { Product, Store } from '@/app/generated/prisma/client'
 import { syncSystemNewBadgeForProduct } from '@/features/products/product-badge.service'
+import {
+  emitProductApprovedEmailEvent,
+  emitProductRejectedEmailEvent,
+} from '@/features/email/events/email.events'
+import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
 // DTO mapper
@@ -84,6 +89,9 @@ export async function approveProduct(
   // Pass publishedAt via the extra data handled in repository
   const updated = await updateProductModerationStatus(productId, 'PUBLISHED', admin.id)
   await syncSystemNewBadgeForProduct(updated)
+  void emitProductApprovedEmailEvent({ productId: updated.id }).catch((error) => {
+    logError('product-moderation:approve-email', error)
+  })
   return toProductModerationDto(updated)
 }
 
@@ -103,6 +111,9 @@ export async function rejectProduct(
 
   const updated = await updateProductModerationStatus(productId, 'REJECTED', admin.id, reason)
   await syncSystemNewBadgeForProduct(updated)
+  void emitProductRejectedEmailEvent({ productId: updated.id, reason }).catch((error) => {
+    logError('product-moderation:reject-email', error)
+  })
   return toProductModerationDto(updated)
 }
 

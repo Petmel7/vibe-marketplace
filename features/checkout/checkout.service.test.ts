@@ -3,9 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/checkout/checkout.repository')
 vi.mock('@/lib/auth/guards')
+vi.mock('@/features/email/events/email.events', () => ({
+  emitOrderCreatedEmailEvent: vi.fn(),
+}))
 
 import * as repo from '@/features/checkout/checkout.repository'
 import * as guards from '@/lib/auth/guards'
+import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
 import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import {
   CartOwnershipError,
@@ -20,6 +24,7 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(guards)
+const mockEmitOrderCreatedEmailEvent = vi.mocked(emitOrderCreatedEmailEvent)
 
 const USER_ID = 'user-0000-0000-0000-000000000001'
 const CART_ID = 'cart-0000-0000-0000-000000000002'
@@ -169,6 +174,7 @@ const checkoutInput = {
 beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.requireBuyer.mockReturnValue(undefined)
+  mockEmitOrderCreatedEmailEvent.mockResolvedValue(null)
   mockRepo.submitCheckoutOrder.mockResolvedValue(
     mockOrder as unknown as Awaited<ReturnType<typeof mockRepo.submitCheckoutOrder>>,
   )
@@ -260,6 +266,21 @@ describe('checkout submit', () => {
       itemCount: 2,
       status: 'pending',
     })
+    expect(mockEmitOrderCreatedEmailEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
+  })
+
+  it('does not fail checkout when order created email enqueue fails', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockRepo.findShippingAddress.mockResolvedValue(
+      makeAddress() as unknown as Awaited<ReturnType<typeof mockRepo.findShippingAddress>>,
+    )
+    mockEmitOrderCreatedEmailEvent.mockRejectedValueOnce(new Error('email down'))
+
+    const result = await checkout(mockUser, checkoutInput)
+
+    expect(result.orderId).toBe(ORDER_ID)
   })
 
   it('blocks empty carts', async () => {

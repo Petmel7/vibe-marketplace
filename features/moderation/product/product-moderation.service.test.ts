@@ -6,10 +6,18 @@ vi.mock('@/lib/auth/adminGuards')
 vi.mock('@/features/products/product-badge.service', () => ({
   syncSystemNewBadgeForProduct: vi.fn(),
 }))
+vi.mock('@/features/email/events/email.events', () => ({
+  emitProductApprovedEmailEvent: vi.fn(),
+  emitProductRejectedEmailEvent: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/product/product-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
 import * as productBadgeService from '@/features/products/product-badge.service'
+import {
+  emitProductApprovedEmailEvent,
+  emitProductRejectedEmailEvent,
+} from '@/features/email/events/email.events'
 import {
   getPendingProductQueue,
   approveProduct,
@@ -25,6 +33,8 @@ import type { Product, ProductStatus, Store } from '@/app/generated/prisma/clien
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
 const mockBadgeService = vi.mocked(productBadgeService)
+const mockEmitProductApprovedEmailEvent = vi.mocked(emitProductApprovedEmailEvent)
+const mockEmitProductRejectedEmailEvent = vi.mocked(emitProductRejectedEmailEvent)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -90,6 +100,8 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.assertAdminAccess.mockReturnValue(undefined)
   mockGuards.assertNotSelfModeration.mockReturnValue(undefined)
+  mockEmitProductApprovedEmailEvent.mockResolvedValue(null)
+  mockEmitProductRejectedEmailEvent.mockResolvedValue(null)
 })
 
 describe('getPendingProductQueue', () => {
