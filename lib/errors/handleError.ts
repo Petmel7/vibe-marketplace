@@ -77,6 +77,16 @@ import {
   EmailRetryLimitExceededError,
   EmailTemplateRenderError,
 } from './email'
+import {
+  InvalidPaymentTransitionError,
+  PaymentAmountMismatchError,
+  PaymentNotFoundError,
+  PaymentProviderError as DomainPaymentProviderError,
+  PaymentWebhookDuplicateError,
+  PaymentWebhookSignatureError,
+  RefundNotSupportedError,
+  UnsupportedPaymentMethodError,
+} from './payment'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -115,7 +125,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof OrderItemNotFoundError ||
     err instanceof CategoryNotFoundError ||
     err instanceof BadgeRuleNotFoundError ||
-    err instanceof EmailEventNotFoundError
+    err instanceof EmailEventNotFoundError ||
+    err instanceof PaymentNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -135,7 +146,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CheckoutStockUnavailableError ||
     err instanceof CheckoutPriceChangedError ||
     err instanceof CheckoutProductUnavailableError ||
-    err instanceof EmailDuplicateEventError
+    err instanceof EmailDuplicateEventError ||
+    err instanceof PaymentWebhookDuplicateError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -162,7 +174,12 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidBadgeTransitionError ||
     err instanceof InvalidBadgeRuleError ||
     err instanceof CategoryCircularReferenceError ||
-    err instanceof EmailRetryLimitExceededError
+    err instanceof EmailRetryLimitExceededError ||
+    err instanceof PaymentAmountMismatchError ||
+    err instanceof PaymentWebhookSignatureError ||
+    err instanceof InvalidPaymentTransitionError ||
+    err instanceof UnsupportedPaymentMethodError ||
+    err instanceof RefundNotSupportedError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -172,7 +189,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof UploadFailedError ||
     err instanceof ProductMetricsCalculationError ||
     err instanceof EmailProviderError ||
-    err instanceof EmailTemplateRenderError
+    err instanceof EmailTemplateRenderError ||
+    err instanceof DomainPaymentProviderError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

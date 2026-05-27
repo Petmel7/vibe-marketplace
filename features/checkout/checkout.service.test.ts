@@ -6,10 +6,15 @@ vi.mock('@/lib/auth/guards')
 vi.mock('@/features/email/events/email.events', () => ({
   emitOrderCreatedEmailEvent: vi.fn(),
 }))
+vi.mock('@/features/payments/payment.service', () => ({
+  prepareCheckoutPayment: vi.fn(),
+  resolveCheckoutOrderStatus: vi.fn(),
+}))
 
 import * as repo from '@/features/checkout/checkout.repository'
 import * as guards from '@/lib/auth/guards'
 import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
+import * as paymentService from '@/features/payments/payment.service'
 import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import {
   CartOwnershipError,
@@ -25,6 +30,7 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(guards)
 const mockEmitOrderCreatedEmailEvent = vi.mocked(emitOrderCreatedEmailEvent)
+const mockPaymentService = vi.mocked(paymentService)
 
 const USER_ID = 'user-0000-0000-0000-000000000001'
 const CART_ID = 'cart-0000-0000-0000-000000000002'
@@ -43,10 +49,27 @@ const mockUser: SessionUser = {
 const mockOrder = {
   id: ORDER_ID,
   userId: USER_ID,
-  status: 'pending',
+  status: 'confirmed',
   totalAmount: { toString: () => '99.98' },
   shippingAddressId: ADDRESS_ID,
   note: null,
+  createdAt: new Date('2026-01-01'),
+  updatedAt: new Date('2026-01-01'),
+}
+
+const mockPayment = {
+  id: 'paym-0000-0000-0000-000000000009',
+  orderId: ORDER_ID,
+  provider: 'MANUAL',
+  providerPaymentId: 'cod:test',
+  status: 'PENDING',
+  method: 'CASH_ON_DELIVERY',
+  amount: { toString: () => '99.98' },
+  currency: 'UAH',
+  checkoutUrl: null,
+  failureReason: null,
+  paidAt: null,
+  expiresAt: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 }
@@ -169,14 +192,32 @@ function makeCart(
 const checkoutInput = {
   cartId: CART_ID,
   shippingAddressId: ADDRESS_ID,
+  paymentMethod: 'CASH_ON_DELIVERY' as const,
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.requireBuyer.mockReturnValue(undefined)
   mockEmitOrderCreatedEmailEvent.mockResolvedValue(null)
+  mockPaymentService.prepareCheckoutPayment.mockResolvedValue({
+    provider: 'MANUAL',
+    providerPaymentId: 'cod:test',
+    status: 'PENDING',
+    method: 'CASH_ON_DELIVERY',
+    amount: '99.98',
+    currency: 'UAH',
+    checkoutUrl: null,
+    failureReason: null,
+    paidAt: null,
+    expiresAt: null,
+    nextAction: 'AWAITING_CASH_ON_DELIVERY',
+  } as never)
+  mockPaymentService.resolveCheckoutOrderStatus.mockReturnValue('confirmed')
   mockRepo.submitCheckoutOrder.mockResolvedValue(
-    mockOrder as unknown as Awaited<ReturnType<typeof mockRepo.submitCheckoutOrder>>,
+    {
+      order: mockOrder,
+      payment: mockPayment,
+    } as unknown as Awaited<ReturnType<typeof mockRepo.submitCheckoutOrder>>,
   )
   mockRepo.listShippingAddressesByUserId.mockResolvedValue(
     [makeAddress()] as unknown as Awaited<ReturnType<typeof mockRepo.listShippingAddressesByUserId>>,
@@ -249,7 +290,9 @@ describe('checkout submit', () => {
     const payload = mockRepo.submitCheckoutOrder.mock.calls[0][0]
     expect(payload.cartId).toBe(CART_ID)
     expect(payload.shippingAddressId).toBe(ADDRESS_ID)
+    expect(payload.orderStatus).toBe('confirmed')
     expect(payload.stockUpdates).toEqual([{ variantId: VARIANT_ID, qty: 2 }])
+    expect(payload.payment.method).toBe('CASH_ON_DELIVERY')
     expect(payload.items[0]).toMatchObject({
       variantId: VARIANT_ID,
       storeId: STORE_ID,
@@ -262,9 +305,13 @@ describe('checkout submit', () => {
 
     expect(result).toMatchObject({
       orderId: ORDER_ID,
+      paymentId: mockPayment.id,
+      paymentStatus: 'PENDING',
+      paymentMethod: 'CASH_ON_DELIVERY',
+      nextAction: 'AWAITING_CASH_ON_DELIVERY',
       totalAmount: '99.98',
       itemCount: 2,
-      status: 'pending',
+      status: 'confirmed',
     })
     expect(mockEmitOrderCreatedEmailEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
   })
@@ -281,6 +328,43 @@ describe('checkout submit', () => {
     const result = await checkout(mockUser, checkoutInput)
 
     expect(result.orderId).toBe(ORDER_ID)
+  })
+
+  it('returns payment fields for card checkout skeleton responses', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockRepo.findShippingAddress.mockResolvedValue(
+      makeAddress() as unknown as Awaited<ReturnType<typeof mockRepo.findShippingAddress>>,
+    )
+    mockPaymentService.prepareCheckoutPayment.mockResolvedValueOnce({
+      provider: 'LIQPAY',
+      providerPaymentId: 'liqpay:test',
+      status: 'PROCESSING',
+      method: 'CARD',
+      amount: '99.98',
+      currency: 'UAH',
+      checkoutUrl: null,
+      failureReason: null,
+      paidAt: null,
+      expiresAt: new Date('2026-01-01'),
+      nextAction: 'AWAITING_PROVIDER_CONFIRMATION',
+    } as never)
+    mockPaymentService.resolveCheckoutOrderStatus.mockReturnValueOnce('pending')
+    mockRepo.submitCheckoutOrder.mockResolvedValueOnce({
+      order: { ...mockOrder, status: 'pending' },
+      payment: { ...mockPayment, provider: 'LIQPAY', status: 'PROCESSING', method: 'CARD' },
+    } as never)
+
+    const result = await checkout(mockUser, {
+      ...checkoutInput,
+      paymentMethod: 'CARD',
+    })
+
+    expect(result.paymentStatus).toBe('PROCESSING')
+    expect(result.paymentMethod).toBe('CARD')
+    expect(result.nextAction).toBe('AWAITING_PROVIDER_CONFIRMATION')
+    expect(result.status).toBe('pending')
   })
 
   it('blocks empty carts', async () => {
@@ -303,7 +387,7 @@ describe('checkout submit', () => {
     )
 
     await expect(
-      checkout(mockUser, { cartId: CART_ID, shippingAddressId: null }),
+      checkout(mockUser, { cartId: CART_ID, shippingAddressId: null, paymentMethod: 'CASH_ON_DELIVERY' }),
     ).rejects.toThrow(CheckoutAddressRequiredError)
   })
 

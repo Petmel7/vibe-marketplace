@@ -1,4 +1,6 @@
 import type { ProductStockStatus } from '@/features/products/product.dto'
+import type { CheckoutPaymentMethod, PaymentNextAction } from '@/features/payments/payment.dto'
+import type { PaymentMethod, PaymentStatus } from '@/app/generated/prisma/client'
 
 export type CheckoutInput = {
   cartId: string
@@ -6,6 +8,7 @@ export type CheckoutInput = {
   expectedSubtotal?: string | null
   expectedTotal?: string | null
   note?: string
+  paymentMethod: CheckoutPaymentMethod
 }
 
 export type CheckoutPreviewInput = {
@@ -75,6 +78,11 @@ export type CheckoutPreviewResponseDto = {
 
 export type CheckoutResponseDto = {
   orderId: string
+  paymentId: string
+  paymentStatus: PaymentStatus
+  paymentMethod: PaymentMethod
+  checkoutUrl: string | null
+  nextAction: PaymentNextAction
   totalAmount: string
   itemCount: number
   status: string

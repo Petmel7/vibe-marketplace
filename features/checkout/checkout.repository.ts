@@ -1,7 +1,8 @@
 import Decimal from 'decimal.js'
-import { type Prisma, type OrderStatus } from '@/app/generated/prisma/client'
-import { prisma } from '@/lib/prisma'
 import { CheckoutStockUnavailableError } from '@/lib/errors/checkout'
+import { submitCheckoutOrderWithPayment } from '@/features/payments/payment.repository'
+import { type PaymentMethod, type PaymentProvider, type PaymentStatus, type Prisma } from '@/app/generated/prisma/client'
+import { prisma } from '@/lib/prisma'
 
 const checkoutCartInclude = {
   items: {
@@ -69,54 +70,33 @@ export async function submitCheckoutOrder(data: {
   cartId: string
   shippingAddressId: string
   note?: string
+  orderStatus: string
   totalAmount: Decimal
   items: CheckoutOrderItemCreateInput[]
   stockUpdates: CheckoutStockUpdate[]
+  payment: {
+    provider: PaymentProvider
+    providerPaymentId: string | null
+    status: PaymentStatus
+    method: PaymentMethod
+    amount: Decimal
+    currency: string
+    checkoutUrl: string | null
+    failureReason: string | null
+    paidAt: Date | null
+    expiresAt: Date | null
+    attemptRequestPayload: Prisma.InputJsonValue
+    attemptResponsePayload?: Prisma.InputJsonValue
+    attemptErrorMessage?: string | null
+  }
 }) {
-  return prisma.$transaction(async (tx) => {
-    const order = await tx.order.create({
-      data: {
-        userId: data.userId,
-        status: 'pending' satisfies OrderStatus,
-        totalAmount: data.totalAmount,
-        shippingAddressId: data.shippingAddressId,
-        note: data.note ?? null,
-        updatedAt: new Date(),
-      },
-    })
-
-    await tx.orderItem.createMany({
-      data: data.items.map((item) => ({
-        ...item,
-        orderId: order.id,
-      })),
-    })
-
-    for (const { variantId, qty } of data.stockUpdates) {
-      const updated = await tx.productVariant.updateMany({
-        where: {
-          id: variantId,
-          stock: { gte: qty },
-        },
-        data: {
-          stock: { decrement: qty },
-        },
-      })
-
-      if (updated.count === 0) {
-        const variant = await tx.productVariant.findUnique({
-          where: { id: variantId },
-          select: { stock: true },
-        })
-
-        throw new CheckoutStockUnavailableError(variantId, variant?.stock ?? 0, qty)
-      }
+  try {
+    return await submitCheckoutOrderWithPayment(data)
+  } catch (error) {
+    if (error instanceof CheckoutStockUnavailableError) {
+      throw error
     }
 
-    await tx.cartItem.deleteMany({
-      where: { cartId: data.cartId },
-    })
-
-    return order
-  })
+    throw error
+  }
 }

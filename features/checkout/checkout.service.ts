@@ -20,6 +20,10 @@ import {
   submitCheckoutOrder,
 } from './checkout.repository'
 import {
+  prepareCheckoutPayment,
+  resolveCheckoutOrderStatus,
+} from '@/features/payments/payment.service'
+import {
   EmptyCartError,
   CartOwnershipError,
   InvalidShippingAddressError,
@@ -337,12 +341,19 @@ export async function checkout(
   const subtotal = sumSubtotal(preparedItems)
   const total = subtotal.plus(SHIPPING_PLACEHOLDER_AMOUNT)
   ensureExpectedTotals(data, subtotal, total)
+  const preparedPayment = await prepareCheckoutPayment(
+    data.paymentMethod,
+    total,
+    `${user.id}:${cart.id}`,
+  )
+  const orderStatus = resolveCheckoutOrderStatus(data.paymentMethod)
 
-  const order = await submitCheckoutOrder({
+  const { order, payment } = await submitCheckoutOrder({
     userId: user.id,
     cartId: cart.id,
     shippingAddressId: address.id,
     note: data.note,
+    orderStatus,
     totalAmount: total,
     items: preparedItems.map((item) => ({
       variantId: item.variantId,
@@ -359,6 +370,27 @@ export async function checkout(
       variantId: item.variantId,
       qty: item.quantity,
     })),
+    payment: {
+      provider: preparedPayment.provider,
+      providerPaymentId: preparedPayment.providerPaymentId,
+      status: preparedPayment.status,
+      method: preparedPayment.method,
+      amount: total,
+      currency: preparedPayment.currency,
+      checkoutUrl: preparedPayment.checkoutUrl,
+      failureReason: preparedPayment.failureReason,
+      paidAt: preparedPayment.paidAt,
+      expiresAt: preparedPayment.expiresAt,
+      attemptRequestPayload: {
+        method: preparedPayment.method,
+        orderReference: `${user.id}:${cart.id}`,
+      },
+      attemptResponsePayload: {
+        checkoutUrl: preparedPayment.checkoutUrl,
+        nextAction: preparedPayment.nextAction,
+        providerPaymentId: preparedPayment.providerPaymentId,
+      },
+    },
   })
 
   void emitOrderCreatedEmailEvent({ orderId: order.id }).catch((error) => {
@@ -367,6 +399,11 @@ export async function checkout(
 
   return {
     orderId: order.id,
+    paymentId: payment.id,
+    paymentStatus: payment.status,
+    paymentMethod: payment.method,
+    checkoutUrl: payment.checkoutUrl,
+    nextAction: preparedPayment.nextAction,
     totalAmount: total.toFixed(2),
     itemCount: sumItemCount(preparedItems),
     status: order.status,

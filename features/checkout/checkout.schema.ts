@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { checkoutPaymentMethodSchema } from '@/features/payments/payment.schema'
 
 const moneyStringSchema = z
   .string()
@@ -10,6 +11,7 @@ export const checkoutSchema = z.object({
   expectedSubtotal: moneyStringSchema.nullish(),
   expectedTotal: moneyStringSchema.nullish(),
   note: z.string().max(500).optional(),
+  paymentMethod: checkoutPaymentMethodSchema.default('CASH_ON_DELIVERY'),
 })
 
 export const checkoutPreviewSchema = z.object({
