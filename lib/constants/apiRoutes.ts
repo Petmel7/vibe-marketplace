@@ -11,11 +11,20 @@ export const API_ROUTES = {
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
   adminCategories: '/api/admin/categories',
   adminCategoryReorder: '/api/admin/categories/reorder',
+  adminEmails: '/api/admin/emails',
 } as const
 
 export const AUTH_PAGE_PATHS = ['/login', '/register'] as const
 
 export type ApiRouteKey = keyof typeof API_ROUTES
+
+export function getAdminEmailDetailRoute(id: string) {
+  return `/api/admin/emails/${id}`
+}
+
+export function getAdminEmailRetryRoute(id: string) {
+  return `/api/admin/emails/${id}/retry`
+}
 
 export function isAuthPagePath(pathname: string | null | undefined) {
   return Boolean(pathname && AUTH_PAGE_PATHS.includes(pathname as (typeof AUTH_PAGE_PATHS)[number]))
