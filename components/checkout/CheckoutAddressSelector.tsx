@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import type { CheckoutAddressOptionDto } from '@/features/checkout/checkout.dto'
 import type { CreateAddressDto } from '@/features/address/address.dto'
 import DashboardCard from '@/components/profile/DashboardCard'
+import type { CheckoutAddressOption } from '@/types/checkout'
 
 type AddressFormState = {
   label: string
@@ -57,7 +57,7 @@ export default function CheckoutAddressSelector({
   isSaving,
   errorMessage,
 }: {
-  addresses: CheckoutAddressOptionDto[]
+  addresses: CheckoutAddressOption[]
   selectedAddressId: string
   onSelect: (addressId: string) => void
   onAddAddress: (payload: CreateAddressDto) => Promise<unknown>

@@ -1,32 +1,34 @@
 import type { ReactNode } from 'react'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { PageTitle } from '@/components/ui/PageTitle'
-import { PageContainer } from '@/components/layout/PageContainer'
 
 export default function CheckoutShell({
   children,
+  title = 'Checkout',
+  description = 'Review your items, confirm a shipping address, and place the order using server-validated pricing and inventory.',
+  currentLabel = 'Checkout',
 }: {
   children: ReactNode
+  title?: string
+  description?: string
+  currentLabel?: string
 }) {
   return (
-    <PageContainer className="max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <>
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
           { label: 'Cart', href: '/cart' },
-          { label: 'Checkout' },
+          { label: currentLabel },
         ]}
       />
 
       <div className="mb-8 space-y-3">
-        <PageTitle title="Checkout" />
-        <p className="max-w-3xl text-sm text-copy-muted">
-          Review your items, confirm a shipping address, and place the order using
-          server-validated pricing and inventory.
-        </p>
+        <PageTitle title={title} />
+        <p className="max-w-3xl text-sm text-copy-muted">{description}</p>
       </div>
 
       {children}
-    </PageContainer>
+    </>
   )
 }

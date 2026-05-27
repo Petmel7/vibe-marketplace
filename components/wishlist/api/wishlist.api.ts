@@ -1,6 +1,9 @@
-
 import { apiClient }
     from '@/shared/api/api.client'
+import {
+    API_ROUTES,
+    getWishlistItemRoute,
+} from '@/lib/constants/apiRoutes'
 
 import type { WishlistDto }
     from '@/features/wishlist/wishlist.dto'
@@ -12,7 +15,7 @@ interface WishlistItemsData {
 export const wishlistApi = {
     add(productId: string) {
         return apiClient.post<void>(
-            '/api/wishlist',
+            API_ROUTES.wishlist,
             {
                 productId,
             },
@@ -24,7 +27,7 @@ export const wishlistApi = {
 
     remove(productId: string) {
         return apiClient.delete<void>(
-            `/api/wishlist/${productId}`,
+            getWishlistItemRoute(productId),
             {
                 auth: true,
             },
@@ -33,7 +36,7 @@ export const wishlistApi = {
 
     getAll() {
         return apiClient.get<WishlistItemsData>(
-            '/api/wishlist',
+            API_ROUTES.wishlist,
             {
                 auth: true,
             },

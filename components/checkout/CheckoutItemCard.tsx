@@ -1,12 +1,12 @@
 import Image from 'next/image'
 import { getInventoryStatusChip } from '@/components/product/productInventory'
-import type { CheckoutPreviewItemDto } from '@/features/checkout/checkout.dto'
+import type { CheckoutPreviewItem } from '@/types/checkout'
 import { formatPrice } from '@/utils/formatters/price'
 
 export default function CheckoutItemCard({
   item,
 }: {
-  item: CheckoutPreviewItemDto & { storeName?: string }
+  item: CheckoutPreviewItem & { storeName?: string }
 }) {
   const inventoryChip = getInventoryStatusChip(item.stockStatus)
 

@@ -1,11 +1,15 @@
 import DashboardCard from '@/components/profile/DashboardCard'
-import type { CheckoutPreviewResponseDto } from '@/features/checkout/checkout.dto'
+import type { CheckoutPreview } from '@/types/checkout'
+import type { CheckoutPaymentMethod } from '@/types/payments'
 import { formatPrice } from '@/utils/formatters/price'
+import { getPaymentMethodLabel } from './PaymentMethodBadge'
 
 export default function CheckoutSummary({
   preview,
+  paymentMethod,
 }: {
-  preview: CheckoutPreviewResponseDto
+  preview: CheckoutPreview
+  paymentMethod: CheckoutPaymentMethod
 }) {
   return (
     <DashboardCard
@@ -24,6 +28,10 @@ export default function CheckoutSummary({
         <div className="flex items-center justify-between gap-4">
           <dt>Shipping</dt>
           <dd className="text-copy-primary">{formatPrice(preview.shippingAmount)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <dt>Payment</dt>
+          <dd className="text-copy-primary">{getPaymentMethodLabel(paymentMethod)}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 border-t border-panelBorder pt-3 text-base font-semibold text-copy-strong">
           <dt>Total</dt>

@@ -1,6 +1,6 @@
-import type { CheckoutBlockingIssueDto } from '@/features/checkout/checkout.dto'
+import type { CheckoutBlockingIssue } from '@/types/checkout'
 
-const ISSUE_COPY: Record<CheckoutBlockingIssueDto['code'], string> = {
+const ISSUE_COPY: Record<CheckoutBlockingIssue['code'], string> = {
   EMPTY_CART: 'Your cart is empty.',
   ADDRESS_REQUIRED: 'Select or add a shipping address before placing the order.',
   PRODUCT_UNAVAILABLE: 'One or more products are unavailable right now.',
@@ -11,7 +11,7 @@ const ISSUE_COPY: Record<CheckoutBlockingIssueDto['code'], string> = {
 export default function CheckoutBlockingIssues({
   issues,
 }: {
-  issues: CheckoutBlockingIssueDto[]
+  issues: CheckoutBlockingIssue[]
 }) {
   if (issues.length === 0) {
     return null

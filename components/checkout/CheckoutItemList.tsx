@@ -1,11 +1,11 @@
 import DashboardCard from '@/components/profile/DashboardCard'
-import type { CheckoutPreviewItemDto } from '@/features/checkout/checkout.dto'
+import type { CheckoutPreviewItem } from '@/types/checkout'
 import CheckoutItemCard from './CheckoutItemCard'
 
 export default function CheckoutItemList({
   items,
 }: {
-  items: CheckoutPreviewItemDto[]
+  items: CheckoutPreviewItem[]
 }) {
   return (
     <DashboardCard

@@ -8,6 +8,7 @@ import { useCheckout } from '@/hooks/useCheckout'
 import CheckoutAddressSelector from './CheckoutAddressSelector'
 import CheckoutBlockingIssues from './CheckoutBlockingIssues'
 import CheckoutItemList from './CheckoutItemList'
+import PaymentMethodSelector from './PaymentMethodSelector'
 import CheckoutSubmitButton from './CheckoutSubmitButton'
 import CheckoutSummary from './CheckoutSummary'
 
@@ -24,10 +25,13 @@ export default function CheckoutClient({
     loadError,
     submitError,
     addressError,
+    paymentMethodError,
     isEmpty,
     canSubmit,
     selectedAddressId,
+    selectedPaymentMethod,
     setSelectedAddressId,
+    setSelectedPaymentMethod,
     submitCheckout,
     addAddress,
   } = useCheckout(initialCartId)
@@ -73,6 +77,12 @@ export default function CheckoutClient({
       <div className="space-y-6">
         <CheckoutBlockingIssues issues={preview.blockingIssues} />
         <CheckoutItemList items={preview.items} />
+        <PaymentMethodSelector
+          value={selectedPaymentMethod}
+          onChange={setSelectedPaymentMethod}
+          disabled={isSubmitting}
+          errorMessage={paymentMethodError}
+        />
         <CheckoutAddressSelector
           addresses={preview.addressOptions}
           selectedAddressId={selectedAddressId}
@@ -84,15 +94,16 @@ export default function CheckoutClient({
       </div>
 
       <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-        <CheckoutSummary preview={preview} />
+        <CheckoutSummary preview={preview} paymentMethod={selectedPaymentMethod} />
         <DashboardCard
-          title="Place order"
-          description="Submitting the order will recheck stock, prices, product availability, and the selected shipping address on the server."
+          title="Підтвердження"
+          description="Під час оформлення сервер ще раз перевірить наявність товарів, актуальні ціни, адресу доставки та обраний спосіб оплати."
         >
           <div className="space-y-4">
             <CheckoutSubmitButton
               disabled={!canSubmit}
               isSubmitting={isSubmitting}
+              paymentMethod={selectedPaymentMethod}
               onSubmit={() => {
                 void submitCheckout()
               }}

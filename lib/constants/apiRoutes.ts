@@ -1,6 +1,7 @@
 export const API_ROUTES = {
   authMe: '/api/auth/me',
   visitorInit: '/api/visitor/init',
+  wishlist: '/api/wishlist',
   cart: '/api/cart',
   cartItems: '/api/cart/items',
   checkoutPreview: '/api/checkout',
@@ -24,6 +25,10 @@ export function getAdminEmailDetailRoute(id: string) {
 
 export function getAdminEmailRetryRoute(id: string) {
   return `/api/admin/emails/${id}/retry`
+}
+
+export function getWishlistItemRoute(productId: string) {
+  return `${API_ROUTES.wishlist}/${productId}`
 }
 
 export function isAuthPagePath(pathname: string | null | undefined) {

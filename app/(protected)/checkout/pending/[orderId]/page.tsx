@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import CheckoutPendingPaymentCard from '@/components/checkout/CheckoutPendingPaymentCard'
 import CheckoutShell from '@/components/checkout/CheckoutShell'
-import CheckoutSuccessCard from '@/components/checkout/CheckoutSuccessCard'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
-import { getCurrentUser } from '@/lib/session/getSession'
-import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { getMyOrderById } from '@/features/orders/orders.service'
+import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
+import { getCurrentUser } from '@/lib/session/getSession'
 import {
   isPaymentMethod,
   isPaymentNextAction,
@@ -13,10 +13,10 @@ import {
 } from '@/types/payments'
 
 export const metadata: Metadata = {
-  title: 'Order success — Вайб',
+  title: 'Payment pending — Вайб',
 }
 
-async function getCheckoutSuccessState(
+async function getCheckoutPendingState(
   user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
   orderId: string,
 ) {
@@ -36,7 +36,7 @@ async function getCheckoutSuccessState(
   }
 }
 
-export default async function CheckoutSuccessPage({
+export default async function CheckoutPendingPage({
   params,
   searchParams,
 }: {
@@ -54,7 +54,7 @@ export default async function CheckoutSuccessPage({
 
   const { orderId } = await params
   const resolvedSearchParams = await searchParams
-  const state = await getCheckoutSuccessState(user, orderId)
+  const state = await getCheckoutPendingState(user, orderId)
 
   if (state.kind === 'not-found') {
     notFound()
@@ -62,7 +62,11 @@ export default async function CheckoutSuccessPage({
 
   if (state.kind === 'forbidden') {
     return (
-      <CheckoutShell>
+      <CheckoutShell
+        title="Оплата очікує підтвердження"
+        description="Сторінка оплати доступна тільки для власника цього замовлення."
+        currentLabel="Оплата в очікуванні"
+      >
         <ProtectedRouteState
           title="Order access denied"
           description="This order is not available for the current buyer account."
@@ -91,11 +95,11 @@ export default async function CheckoutSuccessPage({
 
   return (
     <CheckoutShell
-      title="Замовлення оформлено"
-      description="Ваше замовлення створене. Далі ви можете перейти до деталей покупки або продовжити шопінг."
-      currentLabel="Успішне оформлення"
+      title="Оплата очікує підтвердження"
+      description="Ми створили замовлення, але фінальний статус оплати оновиться після підтвердження від сервера або платіжного провайдера."
+      currentLabel="Оплата в очікуванні"
     >
-      <CheckoutSuccessCard
+      <CheckoutPendingPaymentCard
         order={state.order}
         paymentMethod={paymentMethod}
         paymentStatus={paymentStatus}

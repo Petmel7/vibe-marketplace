@@ -2,15 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type {
-  CheckoutPreviewResponseDto,
-  CheckoutResponseDto,
-} from '@/features/checkout/checkout.dto'
 import type { CreateAddressDto, ShippingAddressDto } from '@/features/address/address.dto'
 import { API_ROUTES } from '@/lib/constants/apiRoutes'
 import { apiClient } from '@/shared/api/api.client'
 import { ApiError } from '@/shared/api/api.errors'
 import { useCartStore } from '@/store/cartStore'
+import type { CheckoutPreview, CheckoutResponse } from '@/types/checkout'
+import type { CheckoutPaymentMethod } from '@/types/payments'
 
 function buildCheckoutPreviewUrl(cartId?: string) {
   if (!cartId) {
@@ -45,14 +43,17 @@ function shouldRefreshPreviewAfterError(error: unknown) {
 export function useCheckout(initialCartId?: string) {
   const router = useRouter()
   const setCartItemCount = useCartStore((state) => state.setItemCount)
-  const [preview, setPreview] = useState<CheckoutPreviewResponseDto | null>(null)
+  const [preview, setPreview] = useState<CheckoutPreview | null>(null)
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<CheckoutPaymentMethod>('CASH_ON_DELIVERY')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingAddress, setIsSavingAddress] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
+  const [paymentMethodError, setPaymentMethodError] = useState<string | null>(null)
 
   const loadPreview = useCallback(
     async (nextCartId?: string, preserveSelection = true) => {
@@ -60,7 +61,7 @@ export function useCheckout(initialCartId?: string) {
       setLoadError(null)
 
       try {
-        const data = await apiClient.get<CheckoutPreviewResponseDto>(
+        const data = await apiClient.get<CheckoutPreview>(
           buildCheckoutPreviewUrl(nextCartId ?? initialCartId),
         )
 
@@ -98,19 +99,43 @@ export function useCheckout(initialCartId?: string) {
       return null
     }
 
+    if (!selectedPaymentMethod) {
+      setPaymentMethodError('Оберіть спосіб оплати перед оформленням замовлення.')
+      return null
+    }
+
     setIsSubmitting(true)
     setSubmitError(null)
+    setPaymentMethodError(null)
 
     try {
-      const result = await apiClient.post<CheckoutResponseDto>(API_ROUTES.checkoutSubmit, {
+      const result = await apiClient.post<CheckoutResponse>(API_ROUTES.checkoutSubmit, {
         cartId: preview.cartId,
         shippingAddressId: selectedAddressId,
         expectedSubtotal: preview.subtotal,
         expectedTotal: preview.total,
+        paymentMethod: selectedPaymentMethod,
       })
 
       setCartItemCount(0)
-      router.replace(`/checkout/success/${result.orderId}`)
+
+      if (result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl)
+        return result
+      }
+
+      const params = new URLSearchParams({
+        paymentMethod: result.paymentMethod,
+        paymentStatus: result.paymentStatus,
+        nextAction: result.nextAction,
+      })
+
+      if (result.paymentMethod === 'CARD') {
+        router.replace(`/checkout/pending/${result.orderId}?${params.toString()}`)
+        return result
+      }
+
+      router.replace(`/checkout/success/${result.orderId}?${params.toString()}`)
       return result
     } catch (error) {
       setSubmitError(
@@ -125,7 +150,15 @@ export function useCheckout(initialCartId?: string) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [isSubmitting, loadPreview, preview, router, selectedAddressId, setCartItemCount])
+  }, [
+    isSubmitting,
+    loadPreview,
+    preview,
+    router,
+    selectedAddressId,
+    selectedPaymentMethod,
+    setCartItemCount,
+  ])
 
   const addAddress = useCallback(
     async (payload: CreateAddressDto) => {
@@ -177,9 +210,12 @@ export function useCheckout(initialCartId?: string) {
     loadError,
     submitError,
     addressError,
+    paymentMethodError,
     isEmpty,
     canSubmit,
     setSelectedAddressId,
+    selectedPaymentMethod,
+    setSelectedPaymentMethod,
     reloadPreview: loadPreview,
     submitCheckout,
     addAddress,
