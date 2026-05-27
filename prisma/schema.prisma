@@ -30,6 +30,8 @@ model User {
   viewedProducts    ViewedProduct[]
   wishlist          Wishlist?
   badgeRulesUpdated ProductBadgeRule[]   @relation("ProductBadgeRuleUpdatedBy")
+  emailEvents       EmailEvent[]
+  emailLogs         EmailLog[]
 
   @@map("users")
 }
@@ -342,6 +344,61 @@ model ViewedProduct {
   @@map("viewed_products")
 }
 
+model EmailEvent {
+  id              String           @id @default(uuid()) @db.Uuid
+  eventType       String           @map("event_type")
+  dedupeKey       String           @unique @map("dedupe_key")
+  recipientEmail  String           @map("recipient_email")
+  recipientUserId String?          @map("recipient_user_id") @db.Uuid
+  template        String
+  payload         Json
+  status          EmailEventStatus @default(PENDING)
+  attempts        Int              @default(0)
+  maxAttempts     Int              @default(3) @map("max_attempts")
+  nextAttemptAt   DateTime?        @map("next_attempt_at")
+  processedAt     DateTime?        @map("processed_at")
+  failedAt        DateTime?        @map("failed_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  recipientUser   User?            @relation(fields: [recipientUserId], references: [id])
+  logs            EmailLog[]
+
+  @@index([status], map: "email_events_status_idx")
+  @@index([nextAttemptAt], map: "email_events_next_attempt_at_idx")
+  @@index([eventType], map: "email_events_event_type_idx")
+  @@index([recipientUserId], map: "email_events_recipient_user_id_idx")
+  @@index([status, nextAttemptAt], map: "email_events_status_next_attempt_at_idx")
+  @@map("email_events")
+}
+
+model EmailLog {
+  id                String              @id @default(uuid()) @db.Uuid
+  emailEventId      String?             @map("email_event_id") @db.Uuid
+  provider          EmailProvider
+  providerMessageId String?             @map("provider_message_id")
+  recipientEmail    String              @map("recipient_email")
+  recipientUserId   String?             @map("recipient_user_id") @db.Uuid
+  template          String
+  subject           String
+  status            EmailDeliveryStatus @default(QUEUED)
+  errorMessage      String?             @map("error_message")
+  sentAt            DateTime?           @map("sent_at")
+  deliveredAt       DateTime?           @map("delivered_at")
+  bouncedAt         DateTime?           @map("bounced_at")
+  openedAt          DateTime?           @map("opened_at")
+  clickedAt         DateTime?           @map("clicked_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  emailEvent        EmailEvent?         @relation(fields: [emailEventId], references: [id])
+  recipientUser     User?               @relation(fields: [recipientUserId], references: [id])
+
+  @@index([status], map: "email_logs_status_idx")
+  @@index([providerMessageId], map: "email_logs_provider_message_id_idx")
+  @@index([recipientUserId], map: "email_logs_recipient_user_id_idx")
+  @@index([emailEventId], map: "email_logs_email_event_id_idx")
+  @@map("email_logs")
+}
+
 model UserProfile {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @unique @map("user_id") @db.Uuid
@@ -487,4 +544,26 @@ enum SellerVerificationStatus {
   VERIFIED
   REJECTED
   SUSPENDED
+}
+
+enum EmailEventStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum EmailDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+  OPENED
+  CLICKED
+}
+
+enum EmailProvider {
+  RESEND
 }
