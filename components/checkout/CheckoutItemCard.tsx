@@ -12,7 +12,7 @@ export default function CheckoutItemCard({
 
   return (
     <article className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 sm:flex-row sm:items-start">
-      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-panelBorder bg-white">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-panelBorder">
         {item.imageUrl ? (
           <Image
             src={item.imageUrl}

@@ -67,7 +67,7 @@ export default function ProductCardAddToCartButton({
         disabled={!variantId || disabled || isAdding}
         aria-label={disabled ? `${disabledLabel}: ${productName}` : `Додати ${productName} до кошика`}
         className={[
-          'inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-medium transition',
+          'inline-flex h-11 w-full items-center justify-center gap-2 rounded-4xl border px-4 text-sm font-medium transition',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-copy-base',
           !variantId || disabled || isAdding
             ? 'cursor-not-allowed border-panelBorder bg-panelAlt text-copy-muted opacity-70'

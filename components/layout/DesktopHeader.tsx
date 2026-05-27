@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { ListPlus, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { CategoryTreeNode } from '@/components/category/category.data'
 import type { SessionUser } from '@/types/auth'
 import CartIcon from '@/components/cart/CartIcon'
@@ -93,10 +93,6 @@ export default function DesktopHeader({
         </HeaderIconButton>
 
         <WishlistIcon />
-
-        <HeaderIconButton label="Wishlist">
-          <ListPlus size={24} color="#E8E9EA" />
-        </HeaderIconButton>
 
         <CartIcon />
 

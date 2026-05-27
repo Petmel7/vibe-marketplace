@@ -21,7 +21,7 @@ function ProductImage({
   alt: string
 }) {
   return (
-    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-panelBorder bg-white">
+    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-panelBorder">
       {src ? (
         <Image
           src={src}
@@ -53,7 +53,7 @@ function QuantityControls({
   onIncrement: () => void
 }) {
   return (
-    <div className="inline-flex items-center gap-3 rounded-full border border-panelBorder bg-white px-3 py-2">
+    <div className="inline-flex items-center gap-3 rounded-full border border-panelBorder px-3 py-2">
       <button
         type="button"
         aria-label="Зменшити кількість"
@@ -92,7 +92,7 @@ function RemoveButton({
       aria-label="Видалити товар з кошика"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-panelBorder bg-white text-copy-muted transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-panelBorder text-copy-muted transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Trash2 width={16} height={16} aria-hidden="true" />
     </button>
@@ -212,11 +212,10 @@ export default function CartItem({
 
           {stockWarning ? (
             <p
-              className={`rounded-2xl px-4 py-3 text-sm ${
-                item.variant.stock <= 0 || item.quantity > item.variant.stock
-                  ? 'border border-brand-danger/30 bg-brand-danger/10 text-copy-primary'
-                  : 'border border-amber-300/40 bg-amber-300/15 text-copy-primary'
-              }`}
+              className={`rounded-2xl px-4 py-3 text-sm ${item.variant.stock <= 0 || item.quantity > item.variant.stock
+                ? 'border border-brand-danger/30 bg-brand-danger/10 text-copy-primary'
+                : 'border border-amber-300/40 bg-amber-300/15 text-copy-primary'
+                }`}
               aria-live="polite"
             >
               {stockWarning}

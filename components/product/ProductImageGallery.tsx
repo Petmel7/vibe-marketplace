@@ -80,7 +80,7 @@ export default function ProductImageGallery({
       <div className={hasMultipleImages ? 'grid gap-4 lg:grid-cols-[88px_minmax(0,1fr)]' : 'grid gap-4'}>
         {hasMultipleImages ? (
           <div className="order-2 lg:order-1">
-            <div className="flex gap-3 overflow-x-auto pb-1 lg:grid lg:max-h-[42rem] lg:auto-rows-max lg:overflow-y-auto lg:overflow-x-visible">
+            <div className="flex gap-3 overflow-x-auto pb-1 lg:grid lg:max-h-168 lg:auto-rows-max lg:overflow-y-auto lg:overflow-x-visible">
               {galleryImages.map((image, index) => (
                 <ProductGalleryThumbnail
                   key={image.id}

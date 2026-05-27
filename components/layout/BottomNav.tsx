@@ -1,7 +1,7 @@
 
 'use client'
 
-import { House, List, Ellipsis } from 'lucide-react'
+import { House, List } from 'lucide-react'
 import CartIcon from '@/components/cart/CartIcon'
 import WishlistIcon from '../wishlist/WishlistIcon'
 import NavItem from '@/components/ui/NavItem'
@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { href: '/catalog', icon: List, label: 'Каталог' },
   { href: '/wishlist', component: WishlistIcon, label: 'Вибране' },
   { href: '/cart', component: CartIcon, label: 'Кошик' },
-  { href: '/more', icon: Ellipsis, label: 'Ще' },
 ] as const
 
 export default function BottomNav() {
