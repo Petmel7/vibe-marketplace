@@ -22,7 +22,7 @@ export class CardPaymentProvider implements PaymentProviderAdapter {
   async createPayment(input: PaymentPreparationInput): Promise<PreparedPaymentDraft> {
     return {
       provider: this.provider,
-      providerPaymentId: `${this.provider.toLowerCase()}:${input.orderReference}`,
+      providerPaymentId: input.paymentId,
       status: PaymentStatus.PROCESSING,
       method: PaymentMethod.CARD,
       amount: input.amount,
@@ -32,6 +32,7 @@ export class CardPaymentProvider implements PaymentProviderAdapter {
       paidAt: null,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       nextAction: 'AWAITING_PROVIDER_CONFIRMATION',
+      checkoutAction: null,
     }
   }
 

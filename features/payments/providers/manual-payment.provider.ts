@@ -16,7 +16,7 @@ export class ManualPaymentProvider implements PaymentProviderAdapter {
   async createPayment(input: PaymentPreparationInput): Promise<PreparedPaymentDraft> {
     return {
       provider: PaymentProvider.MANUAL,
-      providerPaymentId: `manual:${input.orderReference}`,
+      providerPaymentId: input.paymentId,
       status: PaymentStatus.PENDING,
       method: PaymentMethod.MANUAL,
       amount: input.amount,
@@ -26,6 +26,7 @@ export class ManualPaymentProvider implements PaymentProviderAdapter {
       paidAt: null,
       expiresAt: null,
       nextAction: 'AWAITING_MANUAL_CONFIRMATION',
+      checkoutAction: null,
     }
   }
 
@@ -75,7 +76,7 @@ export class CashOnDeliveryProvider implements PaymentProviderAdapter {
   async createPayment(input: PaymentPreparationInput): Promise<PreparedPaymentDraft> {
     return {
       provider: PaymentProvider.MANUAL,
-      providerPaymentId: `cod:${input.orderReference}`,
+      providerPaymentId: input.paymentId,
       status: PaymentStatus.PENDING,
       method: PaymentMethod.CASH_ON_DELIVERY,
       amount: input.amount,
@@ -85,6 +86,7 @@ export class CashOnDeliveryProvider implements PaymentProviderAdapter {
       paidAt: null,
       expiresAt: null,
       nextAction: 'AWAITING_CASH_ON_DELIVERY',
+      checkoutAction: null,
     }
   }
 

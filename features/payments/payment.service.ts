@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import Decimal from 'decimal.js'
 import { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
 import { requireAdmin } from '@/lib/auth/guards'
@@ -12,12 +13,15 @@ import {
   createRefundRecord,
   findPaymentById,
   findPaymentByProviderPaymentId,
+  findPaymentCheckoutSessionById,
   listPayments,
   markManualPaymentSucceeded,
   markWebhookProcessed,
 } from './payment.repository'
 import {
   InvalidPaymentTransitionError,
+  LiqPayAmountMismatchError,
+  LiqPaySignatureError,
   PaymentAmountMismatchError,
   PaymentNotFoundError,
   PaymentWebhookDuplicateError,
@@ -25,10 +29,12 @@ import {
 } from '@/lib/errors/payment'
 import type {
   CheckoutPaymentMethod,
+  CheckoutPaymentResponseDto,
   ParsedPaymentWebhookEvent,
   PaymentDetailDto,
   PaymentDiagnosticsQueryDto,
   PaymentDto,
+  PaymentHostedCheckoutActionDto,
   PaymentListItemDto,
   PaymentListResponseDto,
   PaymentWebhookProcessResultDto,
@@ -41,6 +47,7 @@ import {
 
 type PaymentRecord = NonNullable<Awaited<ReturnType<typeof findPaymentById>>>
 type PaymentListRecord = Awaited<ReturnType<typeof listPayments>>[number]
+type PaymentCheckoutSession = NonNullable<Awaited<ReturnType<typeof findPaymentCheckoutSessionById>>>
 
 function toPaymentDto(payment: PaymentRecord): PaymentDto {
   return {
@@ -104,10 +111,73 @@ function toPaymentListItemDto(payment: PaymentListRecord): PaymentListItemDto {
   }
 }
 
+function toHostedCheckoutPayloadDto(
+  action: PaymentHostedCheckoutActionDto | null,
+): PaymentHostedCheckoutActionDto | null {
+  if (!action) {
+    return null
+  }
+
+  return {
+    provider: action.provider,
+    checkoutAction: action.checkoutAction,
+    checkoutUrl: action.checkoutUrl,
+    data: action.data,
+    signature: action.signature,
+    paymentId: action.paymentId,
+    orderId: action.orderId,
+  }
+}
+
+function extractHostedCheckoutAction(payment: PaymentCheckoutSession) {
+  const requestPayload = payment.attempts[0]?.requestPayload as
+    | {
+        checkoutAction?: PaymentHostedCheckoutActionDto | null
+      }
+    | undefined
+
+  return requestPayload?.checkoutAction ?? null
+}
+
+function assertAdmin(user: SessionUser) {
+  requireAdmin(user)
+}
+
+function assertPaymentAmountMatchesOrder(
+  event: ParsedPaymentWebhookEvent,
+  payment: PaymentRecord,
+  provider: PaymentProvider,
+) {
+  const orderTotal = new Decimal(payment.order.totalAmount.toString())
+  const paymentAmount = new Decimal(payment.amount.toString())
+  const mismatchError =
+    provider === PaymentProvider.LIQPAY
+      ? LiqPayAmountMismatchError
+      : PaymentAmountMismatchError
+
+  if (!paymentAmount.equals(orderTotal)) {
+    throw new mismatchError()
+  }
+
+  if (event.amount && !new Decimal(event.amount).equals(paymentAmount)) {
+    throw new mismatchError('Webhook payment amount does not match the stored payment record')
+  }
+
+  if (event.currency && event.currency !== payment.currency) {
+    throw new mismatchError('Webhook currency does not match the stored payment record')
+  }
+}
+
+export function resolveHostedCheckoutRedirectUrl(paymentId: string) {
+  return `/api/payments/checkout/${paymentId}`
+}
+
 export async function prepareCheckoutPayment(
   method: CheckoutPaymentMethod,
   totalAmount: Decimal,
   orderReference: string,
+  orderId: string,
+  paymentId: string,
 ): Promise<PreparedPaymentDraft> {
   const adapter = getPaymentProviderAdapterForMethod(method as PaymentMethod)
 
@@ -116,6 +186,8 @@ export async function prepareCheckoutPayment(
     amount: totalAmount.toFixed(2),
     currency: 'UAH',
     orderReference,
+    orderId,
+    paymentId,
   })
 }
 
@@ -123,25 +195,59 @@ export function resolveCheckoutOrderStatus(method: CheckoutPaymentMethod) {
   return method === PaymentMethod.CASH_ON_DELIVERY ? 'confirmed' : 'pending'
 }
 
-function assertAdmin(user: SessionUser) {
-  requireAdmin(user)
+export async function getHostedCheckoutActionByPaymentId(
+  paymentId: string,
+): Promise<CheckoutPaymentResponseDto> {
+  const payment = await findPaymentCheckoutSessionById(paymentId)
+  if (!payment) {
+    throw new PaymentNotFoundError()
+  }
+
+  const checkoutAction = extractHostedCheckoutAction(payment)
+  if (!checkoutAction) {
+    throw new InvalidPaymentTransitionError(payment.status, 'HOSTED_CHECKOUT_UNAVAILABLE')
+  }
+
+  return {
+    paymentId: payment.id,
+    paymentStatus: payment.status,
+    paymentMethod: payment.method,
+    checkoutUrl: payment.checkoutUrl,
+    nextAction: 'AWAITING_PROVIDER_CONFIRMATION',
+    paymentAction: toHostedCheckoutPayloadDto(checkoutAction),
+  }
 }
 
-function assertPaymentAmountMatchesOrder(event: ParsedPaymentWebhookEvent, payment: PaymentRecord) {
-  const orderTotal = new Decimal(payment.order.totalAmount.toString())
-  const paymentAmount = new Decimal(payment.amount.toString())
-
-  if (!paymentAmount.equals(orderTotal)) {
-    throw new PaymentAmountMismatchError()
+export async function getHostedCheckoutHtml(paymentId: string): Promise<string> {
+  const checkout = await getHostedCheckoutActionByPaymentId(paymentId)
+  if (!checkout.paymentAction) {
+    throw new InvalidPaymentTransitionError(checkout.paymentStatus, 'HOSTED_CHECKOUT_UNAVAILABLE')
   }
 
-  if (event.amount && !new Decimal(event.amount).equals(paymentAmount)) {
-    throw new PaymentAmountMismatchError('Webhook payment amount does not match the stored payment record')
-  }
+  const escapedCheckoutUrl = checkout.paymentAction.checkoutUrl.replace(/"/g, '&quot;')
+  const escapedData = checkout.paymentAction.data.replace(/"/g, '&quot;')
+  const escapedSignature = checkout.paymentAction.signature.replace(/"/g, '&quot;')
 
-  if (event.currency && event.currency !== payment.currency) {
-    throw new PaymentAmountMismatchError('Webhook currency does not match the stored payment record')
-  }
+  return `<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LiqPay redirect</title>
+  </head>
+  <body>
+    <form id="liqpay-checkout-form" method="POST" action="${escapedCheckoutUrl}" accept-charset="utf-8">
+      <input type="hidden" name="data" value="${escapedData}" />
+      <input type="hidden" name="signature" value="${escapedSignature}" />
+      <noscript>
+        <button type="submit">Continue to LiqPay</button>
+      </noscript>
+    </form>
+    <script>
+      document.getElementById('liqpay-checkout-form')?.submit();
+    </script>
+  </body>
+</html>`
 }
 
 export async function getAdminPayments(
@@ -257,6 +363,10 @@ export async function processPaymentWebhook(
   })
 
   if (!signatureValid) {
+    if (provider === PaymentProvider.LIQPAY) {
+      throw new LiqPaySignatureError()
+    }
+
     throw new PaymentWebhookSignatureError()
   }
 
@@ -302,13 +412,32 @@ export async function processPaymentWebhook(
     }
   }
 
-  assertPaymentAmountMatchesOrder(parsedEvent, payment)
+  assertPaymentAmountMatchesOrder(parsedEvent, payment, provider)
 
   if (parsedEvent.status === PaymentStatus.SUCCEEDED) {
     if (payment.status !== PaymentStatus.SUCCEEDED) {
       await applySuccessfulPayment({
         paymentId: payment.id,
         paidAt: new Date(),
+      })
+    }
+  } else if (parsedEvent.status === PaymentStatus.REFUNDED) {
+    if (
+      payment.status !== PaymentStatus.REFUNDED &&
+      payment.status !== PaymentStatus.PARTIALLY_REFUNDED
+    ) {
+      await createRefundRecord({
+        paymentId: payment.id,
+        providerRefundId: parsedEvent.providerEventId,
+        status: 'SUCCEEDED',
+        amount: new Decimal(payment.amount.toString()),
+        reason: 'LiqPay reversed payment',
+      })
+
+      await applyRefundOutcome({
+        paymentId: payment.id,
+        amount: new Decimal(payment.amount.toString()),
+        fullAmount: true,
       })
     }
   } else if (
@@ -345,5 +474,12 @@ export async function processPaymentWebhook(
     paymentId: payment.id,
     status: parsedEvent.status,
     duplicate: false,
+  }
+}
+
+export function createCheckoutIdentifiers() {
+  return {
+    orderId: randomUUID(),
+    paymentId: randomUUID(),
   }
 }

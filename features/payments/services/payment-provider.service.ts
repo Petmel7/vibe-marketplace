@@ -1,5 +1,6 @@
 import { PaymentMethod, PaymentProvider } from '@/app/generated/prisma/client'
 import { CardPaymentProvider } from '@/features/payments/providers/card-payment.provider'
+import { LiqPayPaymentProvider } from '@/features/payments/providers/liqpay-payment.provider'
 import {
   CashOnDeliveryProvider,
   ManualPaymentProvider,
@@ -14,7 +15,7 @@ export function getPaymentProviderAdapterForMethod(
     case PaymentMethod.CASH_ON_DELIVERY:
       return new CashOnDeliveryProvider()
     case PaymentMethod.CARD:
-      return new CardPaymentProvider(PaymentProvider.LIQPAY)
+      return new LiqPayPaymentProvider()
     case PaymentMethod.MANUAL:
       return new ManualPaymentProvider()
     default:
@@ -29,6 +30,7 @@ export function getPaymentProviderAdapterByProvider(
     case PaymentProvider.MANUAL:
       return new ManualPaymentProvider()
     case PaymentProvider.LIQPAY:
+      return new LiqPayPaymentProvider()
     case PaymentProvider.STRIPE:
     case PaymentProvider.WAYFORPAY:
       return new CardPaymentProvider(provider)

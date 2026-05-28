@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PaymentProvider } from '@/app/generated/prisma/client'
 
 vi.mock('@/features/payments/payment.repository', () => ({
   applyFailedPayment: vi.fn(),
@@ -10,6 +12,7 @@ vi.mock('@/features/payments/payment.repository', () => ({
   createRefundRecord: vi.fn(),
   findPaymentById: vi.fn(),
   findPaymentByProviderPaymentId: vi.fn(),
+  findPaymentCheckoutSessionById: vi.fn(),
   listPayments: vi.fn(),
   markManualPaymentSucceeded: vi.fn(),
   markWebhookProcessed: vi.fn(),
@@ -28,10 +31,10 @@ import {
   refundPaymentByAdmin,
 } from '@/features/payments/payment.service'
 import {
-  PaymentAmountMismatchError,
+  LiqPayAmountMismatchError,
+  LiqPaySignatureError,
   PaymentNotFoundError,
   PaymentWebhookDuplicateError,
-  PaymentWebhookSignatureError,
 } from '@/lib/errors/payment'
 import type { SessionUser } from '@/features/auth/auth.dto'
 
@@ -44,12 +47,30 @@ const adminUser: SessionUser = {
   roles: ['ADMIN'],
 }
 
+const LIQPAY_PRIVATE_KEY = 'test-private-key'
+
+function sign(data: string) {
+  return createHash('sha3-256')
+    .update(`${LIQPAY_PRIVATE_KEY}${data}${LIQPAY_PRIVATE_KEY}`, 'utf8')
+    .digest('base64')
+}
+
+function makeLiqPayRawBody(
+  payload: Record<string, unknown>,
+  overrideSignature?: string,
+) {
+  const data = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+  const signature = overrideSignature ?? sign(data)
+
+  return new URLSearchParams({ data, signature }).toString()
+}
+
 function makePayment(overrides: Record<string, unknown> = {}) {
   return {
     id: '99999999-9999-4999-8999-999999999999',
     orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     provider: 'MANUAL',
-    providerPaymentId: 'manual:checkout-1',
+    providerPaymentId: '99999999-9999-4999-8999-999999999999',
     status: 'PENDING',
     method: 'MANUAL',
     amount: { toString: () => '99.98' },
@@ -75,38 +96,61 @@ function makePayment(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.resetAllMocks()
   mockAuthGuards.requireAdmin.mockReturnValue(undefined)
+  process.env.LIQPAY_PUBLIC_KEY = 'test-public-key'
+  process.env.LIQPAY_PRIVATE_KEY = LIQPAY_PRIVATE_KEY
+  process.env.LIQPAY_SANDBOX = 'false'
+  process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com'
 })
 
 describe('prepareCheckoutPayment', () => {
   it('creates a cash on delivery draft with pending status', async () => {
-    const result = await prepareCheckoutPayment('CASH_ON_DELIVERY', {
-      toFixed: () => '99.98',
-    } as never, 'checkout-1')
+    const result = await prepareCheckoutPayment(
+      'CASH_ON_DELIVERY',
+      { toFixed: () => '99.98' } as never,
+      'checkout-1',
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    )
 
     expect(result.method).toBe('CASH_ON_DELIVERY')
     expect(result.provider).toBe('MANUAL')
     expect(result.status).toBe('PENDING')
     expect(result.nextAction).toBe('AWAITING_CASH_ON_DELIVERY')
+    expect(result.checkoutAction).toBeNull()
   })
 
-  it('creates a card skeleton payment draft', async () => {
-    const result = await prepareCheckoutPayment('CARD', {
-      toFixed: () => '99.98',
-    } as never, 'checkout-1')
+  it('creates a real LiqPay hosted payment draft for card checkout', async () => {
+    const result = await prepareCheckoutPayment(
+      'CARD',
+      { toFixed: () => '99.98' } as never,
+      'checkout-1',
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    )
 
     expect(result.method).toBe('CARD')
     expect(result.status).toBe('PROCESSING')
     expect(result.provider).toBe('LIQPAY')
     expect(result.nextAction).toBe('AWAITING_PROVIDER_CONFIRMATION')
+    expect(result.checkoutUrl).toBe(
+      'https://app.example.com/api/payments/checkout/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    )
+    expect(result.checkoutAction).toMatchObject({
+      provider: 'LIQPAY',
+      checkoutAction: 'POST_FORM',
+      checkoutUrl: 'https://www.liqpay.ua/api/3/checkout',
+      paymentId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
   })
 })
 
 describe('processPaymentWebhook', () => {
-  it('marks a payment succeeded when a verified webhook confirms it', async () => {
+  it('marks a payment succeeded when a verified LiqPay webhook confirms it', async () => {
     mockRepo.findPaymentByProviderPaymentId.mockResolvedValue(
       makePayment({
         provider: 'LIQPAY',
-        providerPaymentId: 'liqpay:checkout-1',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
         method: 'CARD',
         status: 'PROCESSING',
       }) as never,
@@ -117,22 +161,23 @@ describe('processPaymentWebhook', () => {
     mockRepo.applySuccessfulPayment.mockResolvedValue({
       payment: makePayment({
         provider: 'LIQPAY',
-        providerPaymentId: 'liqpay:checkout-1',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
         method: 'CARD',
         status: 'SUCCEEDED',
       }),
       order: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'paid' },
     } as never)
 
-    const result = await processPaymentWebhook('LIQPAY', {
-      headers: { 'x-payment-test-signature': 'card-skeleton' },
-      rawBody: JSON.stringify({
-        providerEventId: 'event-1',
-        providerPaymentId: 'liqpay:checkout-1',
-        eventType: 'payment.succeeded',
+    const result = await processPaymentWebhook(PaymentProvider.LIQPAY, {
+      headers: {},
+      rawBody: makeLiqPayRawBody({
+        order_id: '99999999-9999-4999-8999-999999999999',
+        payment_id: 'liqpay-payment-1',
+        transaction_id: 'event-1',
+        type: 'buy',
         amount: '99.98',
         currency: 'UAH',
-        status: 'SUCCEEDED',
+        status: 'success',
       }),
     })
 
@@ -142,25 +187,26 @@ describe('processPaymentWebhook', () => {
     expect(result.duplicate).toBe(false)
   })
 
-  it('ignores duplicate webhooks safely', async () => {
+  it('ignores duplicate LiqPay webhooks safely', async () => {
     mockRepo.findPaymentByProviderPaymentId.mockResolvedValue(
       makePayment({
         provider: 'LIQPAY',
-        providerPaymentId: 'liqpay:checkout-1',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
         method: 'CARD',
       }) as never,
     )
     mockRepo.createPaymentWebhookEvent.mockRejectedValue(new PaymentWebhookDuplicateError())
 
-    const result = await processPaymentWebhook('LIQPAY', {
-      headers: { 'x-payment-test-signature': 'card-skeleton' },
-      rawBody: JSON.stringify({
-        providerEventId: 'event-dup',
-        providerPaymentId: 'liqpay:checkout-1',
-        eventType: 'payment.succeeded',
+    const result = await processPaymentWebhook(PaymentProvider.LIQPAY, {
+      headers: {},
+      rawBody: makeLiqPayRawBody({
+        order_id: '99999999-9999-4999-8999-999999999999',
+        payment_id: 'liqpay-payment-1',
+        transaction_id: 'event-dup',
+        type: 'buy',
         amount: '99.98',
         currency: 'UAH',
-        status: 'SUCCEEDED',
+        status: 'success',
       }),
     })
 
@@ -168,27 +214,30 @@ describe('processPaymentWebhook', () => {
     expect(result.status).toBe('IGNORED')
   })
 
-  it('rejects invalid webhook signatures', async () => {
+  it('rejects invalid LiqPay webhook signatures', async () => {
     await expect(
-      processPaymentWebhook('LIQPAY', {
-        headers: { 'x-payment-test-signature': 'bad-signature' },
-        rawBody: JSON.stringify({
-          providerEventId: 'event-1',
-          providerPaymentId: 'liqpay:checkout-1',
-          eventType: 'payment.succeeded',
-          amount: '99.98',
-          currency: 'UAH',
-          status: 'SUCCEEDED',
-        }),
+      processPaymentWebhook(PaymentProvider.LIQPAY, {
+        headers: {},
+        rawBody: makeLiqPayRawBody(
+          {
+            order_id: '99999999-9999-4999-8999-999999999999',
+            payment_id: 'liqpay-payment-1',
+            transaction_id: 'event-1',
+            amount: '99.98',
+            currency: 'UAH',
+            status: 'success',
+          },
+          'bad-signature',
+        ),
       }),
-    ).rejects.toThrow(PaymentWebhookSignatureError)
+    ).rejects.toThrow(LiqPaySignatureError)
   })
 
   it('blocks webhook reconciliation when amount does not match the order total', async () => {
     mockRepo.findPaymentByProviderPaymentId.mockResolvedValue(
       makePayment({
         provider: 'LIQPAY',
-        providerPaymentId: 'liqpay:checkout-1',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
         method: 'CARD',
         status: 'PROCESSING',
       }) as never,
@@ -198,18 +247,48 @@ describe('processPaymentWebhook', () => {
     } as never)
 
     await expect(
-      processPaymentWebhook('LIQPAY', {
-        headers: { 'x-payment-test-signature': 'card-skeleton' },
-        rawBody: JSON.stringify({
-          providerEventId: 'event-2',
-          providerPaymentId: 'liqpay:checkout-1',
-          eventType: 'payment.succeeded',
+      processPaymentWebhook(PaymentProvider.LIQPAY, {
+        headers: {},
+        rawBody: makeLiqPayRawBody({
+          order_id: '99999999-9999-4999-8999-999999999999',
+          payment_id: 'liqpay-payment-1',
+          transaction_id: 'event-2',
           amount: '10.00',
           currency: 'UAH',
-          status: 'SUCCEEDED',
+          status: 'success',
         }),
       }),
-    ).rejects.toThrow(PaymentAmountMismatchError)
+    ).rejects.toThrow(LiqPayAmountMismatchError)
+  })
+
+  it('does not mark an order as paid when LiqPay reports a failed payment', async () => {
+    mockRepo.findPaymentByProviderPaymentId.mockResolvedValue(
+      makePayment({
+        provider: 'LIQPAY',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
+        method: 'CARD',
+        status: 'PROCESSING',
+      }) as never,
+    )
+    mockRepo.createPaymentWebhookEvent.mockResolvedValue({
+      id: 'webhook-3',
+    } as never)
+
+    const result = await processPaymentWebhook(PaymentProvider.LIQPAY, {
+      headers: {},
+      rawBody: makeLiqPayRawBody({
+        order_id: '99999999-9999-4999-8999-999999999999',
+        payment_id: 'liqpay-payment-1',
+        transaction_id: 'event-3',
+        amount: '99.98',
+        currency: 'UAH',
+        status: 'failure',
+      }),
+    })
+
+    expect(mockRepo.applySuccessfulPayment).not.toHaveBeenCalled()
+    expect(mockRepo.applyFailedPayment).toHaveBeenCalled()
+    expect(result.status).toBe('FAILED')
   })
 })
 

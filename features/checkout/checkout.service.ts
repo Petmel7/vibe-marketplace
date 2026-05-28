@@ -20,7 +20,9 @@ import {
   submitCheckoutOrder,
 } from './checkout.repository'
 import {
+  createCheckoutIdentifiers,
   prepareCheckoutPayment,
+  resolveHostedCheckoutRedirectUrl,
   resolveCheckoutOrderStatus,
 } from '@/features/payments/payment.service'
 import {
@@ -341,14 +343,19 @@ export async function checkout(
   const subtotal = sumSubtotal(preparedItems)
   const total = subtotal.plus(SHIPPING_PLACEHOLDER_AMOUNT)
   ensureExpectedTotals(data, subtotal, total)
+  const { orderId, paymentId } = createCheckoutIdentifiers()
   const preparedPayment = await prepareCheckoutPayment(
     data.paymentMethod,
     total,
-    `${user.id}:${cart.id}`,
+    `${user.id}:${cart.id}:${paymentId}`,
+    orderId,
+    paymentId,
   )
   const orderStatus = resolveCheckoutOrderStatus(data.paymentMethod)
 
   const { order, payment } = await submitCheckoutOrder({
+    orderId,
+    paymentId,
     userId: user.id,
     cartId: cart.id,
     shippingAddressId: address.id,
@@ -383,12 +390,14 @@ export async function checkout(
       expiresAt: preparedPayment.expiresAt,
       attemptRequestPayload: {
         method: preparedPayment.method,
-        orderReference: `${user.id}:${cart.id}`,
+        orderReference: `${user.id}:${cart.id}:${paymentId}`,
+        checkoutAction: preparedPayment.checkoutAction,
       },
       attemptResponsePayload: {
         checkoutUrl: preparedPayment.checkoutUrl,
         nextAction: preparedPayment.nextAction,
         providerPaymentId: preparedPayment.providerPaymentId,
+        checkoutAction: preparedPayment.checkoutAction,
       },
     },
   })
@@ -402,8 +411,10 @@ export async function checkout(
     paymentId: payment.id,
     paymentStatus: payment.status,
     paymentMethod: payment.method,
-    checkoutUrl: payment.checkoutUrl,
+    checkoutUrl:
+      payment.method === 'CARD' ? resolveHostedCheckoutRedirectUrl(payment.id) : payment.checkoutUrl,
     nextAction: preparedPayment.nextAction,
+    paymentAction: preparedPayment.checkoutAction,
     totalAmount: total.toFixed(2),
     itemCount: sumItemCount(preparedItems),
     status: order.status,

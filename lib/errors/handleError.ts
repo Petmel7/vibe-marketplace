@@ -79,6 +79,11 @@ import {
 } from './email'
 import {
   InvalidPaymentTransitionError,
+  LiqPayAmountMismatchError,
+  LiqPayConfigError,
+  LiqPayPayloadError,
+  LiqPaySignatureError,
+  LiqPayStatusMappingError,
   PaymentAmountMismatchError,
   PaymentNotFoundError,
   PaymentProviderError as DomainPaymentProviderError,
@@ -176,7 +181,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CategoryCircularReferenceError ||
     err instanceof EmailRetryLimitExceededError ||
     err instanceof PaymentAmountMismatchError ||
+    err instanceof LiqPayAmountMismatchError ||
     err instanceof PaymentWebhookSignatureError ||
+    err instanceof LiqPaySignatureError ||
+    err instanceof LiqPayPayloadError ||
+    err instanceof LiqPayStatusMappingError ||
     err instanceof InvalidPaymentTransitionError ||
     err instanceof UnsupportedPaymentMethodError ||
     err instanceof RefundNotSupportedError
@@ -190,7 +199,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ProductMetricsCalculationError ||
     err instanceof EmailProviderError ||
     err instanceof EmailTemplateRenderError ||
-    err instanceof DomainPaymentProviderError
+    err instanceof DomainPaymentProviderError ||
+    err instanceof LiqPayConfigError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

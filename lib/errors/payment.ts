@@ -16,6 +16,51 @@ export class PaymentProviderError extends Error {
   }
 }
 
+export class LiqPayConfigError extends Error {
+  code = 'LIQPAY_CONFIG_ERROR'
+
+  constructor(message = 'LiqPay configuration is invalid') {
+    super(message)
+    this.name = 'LiqPayConfigError'
+  }
+}
+
+export class LiqPaySignatureError extends Error {
+  code = 'LIQPAY_SIGNATURE_ERROR'
+
+  constructor(message = 'LiqPay callback signature could not be verified') {
+    super(message)
+    this.name = 'LiqPaySignatureError'
+  }
+}
+
+export class LiqPayPayloadError extends Error {
+  code = 'LIQPAY_PAYLOAD_ERROR'
+
+  constructor(message = 'LiqPay payload is invalid') {
+    super(message)
+    this.name = 'LiqPayPayloadError'
+  }
+}
+
+export class LiqPayAmountMismatchError extends Error {
+  code = 'LIQPAY_AMOUNT_MISMATCH'
+
+  constructor(message = 'LiqPay amount does not match the stored payment record') {
+    super(message)
+    this.name = 'LiqPayAmountMismatchError'
+  }
+}
+
+export class LiqPayStatusMappingError extends Error {
+  code = 'LIQPAY_STATUS_MAPPING_ERROR'
+
+  constructor(status: string) {
+    super(`Unsupported LiqPay status: ${status}`)
+    this.name = 'LiqPayStatusMappingError'
+  }
+}
+
 export class PaymentAmountMismatchError extends Error {
   code = 'PAYMENT_AMOUNT_MISMATCH'
 

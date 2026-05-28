@@ -66,6 +66,8 @@ type CheckoutStockUpdate = {
 }
 
 export async function submitCheckoutOrder(data: {
+  orderId: string
+  paymentId: string
   userId: string
   cartId: string
   shippingAddressId: string

@@ -13,11 +13,25 @@ export type PaymentNextAction =
   | 'AWAITING_PROVIDER_CONFIRMATION'
   | 'AWAITING_MANUAL_CONFIRMATION'
 
+export type PaymentCheckoutAction = 'POST_FORM'
+
+export type PaymentHostedCheckoutActionDto = {
+  provider: PaymentProvider
+  checkoutAction: PaymentCheckoutAction
+  checkoutUrl: string
+  data: string
+  signature: string
+  paymentId: string
+  orderId: string
+}
+
 export type PaymentPreparationInput = {
   method: CheckoutPaymentMethod | 'MANUAL'
   amount: string
   currency: string
   orderReference: string
+  orderId: string
+  paymentId: string
 }
 
 export type PreparedPaymentDraft = {
@@ -32,6 +46,7 @@ export type PreparedPaymentDraft = {
   paidAt: Date | null
   expiresAt: Date | null
   nextAction: PaymentNextAction
+  checkoutAction: PaymentHostedCheckoutActionDto | null
 }
 
 export type PaymentWebhookVerificationInput = {
@@ -154,4 +169,5 @@ export type CheckoutPaymentResponseDto = {
   paymentMethod: PaymentMethod
   checkoutUrl: string | null
   nextAction: PaymentNextAction
+  paymentAction: PaymentHostedCheckoutActionDto | null
 }

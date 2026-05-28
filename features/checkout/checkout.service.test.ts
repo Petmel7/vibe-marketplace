@@ -7,7 +7,9 @@ vi.mock('@/features/email/events/email.events', () => ({
   emitOrderCreatedEmailEvent: vi.fn(),
 }))
 vi.mock('@/features/payments/payment.service', () => ({
+  createCheckoutIdentifiers: vi.fn(),
   prepareCheckoutPayment: vi.fn(),
+  resolveHostedCheckoutRedirectUrl: vi.fn(),
   resolveCheckoutOrderStatus: vi.fn(),
 }))
 
@@ -201,7 +203,7 @@ beforeEach(() => {
   mockEmitOrderCreatedEmailEvent.mockResolvedValue(null)
   mockPaymentService.prepareCheckoutPayment.mockResolvedValue({
     provider: 'MANUAL',
-    providerPaymentId: 'cod:test',
+    providerPaymentId: mockPayment.id,
     status: 'PENDING',
     method: 'CASH_ON_DELIVERY',
     amount: '99.98',
@@ -211,7 +213,13 @@ beforeEach(() => {
     paidAt: null,
     expiresAt: null,
     nextAction: 'AWAITING_CASH_ON_DELIVERY',
+    checkoutAction: null,
   } as never)
+  mockPaymentService.createCheckoutIdentifiers.mockReturnValue({
+    orderId: ORDER_ID,
+    paymentId: 'paym-0000-0000-0000-000000000009',
+  })
+  mockPaymentService.resolveHostedCheckoutRedirectUrl.mockImplementation((paymentId: string) => `/api/payments/checkout/${paymentId}`)
   mockPaymentService.resolveCheckoutOrderStatus.mockReturnValue('confirmed')
   mockRepo.submitCheckoutOrder.mockResolvedValue(
     {
@@ -288,6 +296,8 @@ describe('checkout submit', () => {
 
     expect(mockRepo.submitCheckoutOrder).toHaveBeenCalledOnce()
     const payload = mockRepo.submitCheckoutOrder.mock.calls[0][0]
+    expect(payload.orderId).toBe(ORDER_ID)
+    expect(payload.paymentId).toBe(mockPayment.id)
     expect(payload.cartId).toBe(CART_ID)
     expect(payload.shippingAddressId).toBe(ADDRESS_ID)
     expect(payload.orderStatus).toBe('confirmed')
@@ -308,6 +318,7 @@ describe('checkout submit', () => {
       paymentId: mockPayment.id,
       paymentStatus: 'PENDING',
       paymentMethod: 'CASH_ON_DELIVERY',
+      paymentAction: null,
       nextAction: 'AWAITING_CASH_ON_DELIVERY',
       totalAmount: '99.98',
       itemCount: 2,
@@ -339,16 +350,25 @@ describe('checkout submit', () => {
     )
     mockPaymentService.prepareCheckoutPayment.mockResolvedValueOnce({
       provider: 'LIQPAY',
-      providerPaymentId: 'liqpay:test',
+      providerPaymentId: mockPayment.id,
       status: 'PROCESSING',
       method: 'CARD',
       amount: '99.98',
       currency: 'UAH',
-      checkoutUrl: null,
+      checkoutUrl: '/api/payments/checkout/paym-0000-0000-0000-000000000009',
       failureReason: null,
       paidAt: null,
       expiresAt: new Date('2026-01-01'),
       nextAction: 'AWAITING_PROVIDER_CONFIRMATION',
+      checkoutAction: {
+        provider: 'LIQPAY',
+        checkoutAction: 'POST_FORM',
+        checkoutUrl: 'https://www.liqpay.ua/api/3/checkout',
+        data: 'encoded-data',
+        signature: 'encoded-signature',
+        paymentId: mockPayment.id,
+        orderId: ORDER_ID,
+      },
     } as never)
     mockPaymentService.resolveCheckoutOrderStatus.mockReturnValueOnce('pending')
     mockRepo.submitCheckoutOrder.mockResolvedValueOnce({
@@ -364,6 +384,13 @@ describe('checkout submit', () => {
     expect(result.paymentStatus).toBe('PROCESSING')
     expect(result.paymentMethod).toBe('CARD')
     expect(result.nextAction).toBe('AWAITING_PROVIDER_CONFIRMATION')
+    expect(result.checkoutUrl).toBe(`/api/payments/checkout/${mockPayment.id}`)
+    expect(result.paymentAction).toMatchObject({
+      provider: 'LIQPAY',
+      checkoutAction: 'POST_FORM',
+      paymentId: mockPayment.id,
+      orderId: ORDER_ID,
+    })
     expect(result.status).toBe('pending')
   })
 

@@ -36,6 +36,19 @@ export async function findPaymentById(id: string) {
   })
 }
 
+export async function findPaymentCheckoutSessionById(id: string) {
+  return prisma.payment.findUnique({
+    where: { id },
+    include: {
+      attempts: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+      order: true,
+    },
+  })
+}
+
 export async function findPaymentByProviderPaymentId(providerPaymentId: string) {
   return prisma.payment.findFirst({
     where: { providerPaymentId },
@@ -143,6 +156,8 @@ export async function markWebhookProcessed(id: string, processedAt: Date) {
 }
 
 export async function submitCheckoutOrderWithPayment(data: {
+  orderId: string
+  paymentId: string
   userId: string
   cartId: string
   shippingAddressId: string
@@ -183,6 +198,7 @@ export async function submitCheckoutOrderWithPayment(data: {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
+        id: data.orderId,
         userId: data.userId,
         status: data.orderStatus as OrderStatus,
         totalAmount: data.totalAmount,
@@ -222,6 +238,7 @@ export async function submitCheckoutOrderWithPayment(data: {
 
     const payment = await tx.payment.create({
       data: {
+        id: data.paymentId,
         orderId: order.id,
         provider: data.payment.provider,
         providerPaymentId: data.payment.providerPaymentId,
