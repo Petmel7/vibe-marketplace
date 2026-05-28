@@ -1,6 +1,7 @@
 import type { ProductStockStatus } from '@/features/products/product.dto'
 import type {
   CheckoutPaymentMethod,
+  HostedPaymentAction,
   PaymentMethod,
   PaymentNextAction,
   PaymentStatus,
@@ -82,6 +83,7 @@ export type CheckoutResponse = {
   paymentMethod: PaymentMethod
   checkoutUrl: string | null
   nextAction: PaymentNextAction
+  paymentAction: HostedPaymentAction | null
   totalAmount: string
   itemCount: number
   status: string

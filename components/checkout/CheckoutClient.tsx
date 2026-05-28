@@ -11,6 +11,7 @@ import CheckoutItemList from './CheckoutItemList'
 import PaymentMethodSelector from './PaymentMethodSelector'
 import CheckoutSubmitButton from './CheckoutSubmitButton'
 import CheckoutSummary from './CheckoutSummary'
+import LiqPayPaymentHandoff from './LiqPayPaymentHandoff'
 
 export default function CheckoutClient({
   initialCartId,
@@ -22,6 +23,7 @@ export default function CheckoutClient({
     isLoading,
     isSubmitting,
     isSavingAddress,
+    paymentHandoffAction,
     loadError,
     submitError,
     addressError,
@@ -70,6 +72,10 @@ export default function CheckoutClient({
         actionLabel="Browse catalog"
       />
     )
+  }
+
+  if (paymentHandoffAction) {
+    return <LiqPayPaymentHandoff action={paymentHandoffAction} />
   }
 
   return (

@@ -8,7 +8,7 @@ import { apiClient } from '@/shared/api/api.client'
 import { ApiError } from '@/shared/api/api.errors'
 import { useCartStore } from '@/store/cartStore'
 import type { CheckoutPreview, CheckoutResponse } from '@/types/checkout'
-import type { CheckoutPaymentMethod } from '@/types/payments'
+import type { CheckoutPaymentMethod, HostedPaymentAction } from '@/types/payments'
 
 function buildCheckoutPreviewUrl(cartId?: string) {
   if (!cartId) {
@@ -50,6 +50,7 @@ export function useCheckout(initialCartId?: string) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingAddress, setIsSavingAddress] = useState(false)
+  const [paymentHandoffAction, setPaymentHandoffAction] = useState<HostedPaymentAction | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
@@ -107,6 +108,7 @@ export function useCheckout(initialCartId?: string) {
     setIsSubmitting(true)
     setSubmitError(null)
     setPaymentMethodError(null)
+    setPaymentHandoffAction(null)
 
     try {
       const result = await apiClient.post<CheckoutResponse>(API_ROUTES.checkoutSubmit, {
@@ -118,6 +120,11 @@ export function useCheckout(initialCartId?: string) {
       })
 
       setCartItemCount(0)
+
+      if (result.paymentAction?.checkoutAction === 'POST_FORM') {
+        setPaymentHandoffAction(result.paymentAction)
+        return result
+      }
 
       if (result.checkoutUrl) {
         window.location.assign(result.checkoutUrl)
@@ -207,6 +214,7 @@ export function useCheckout(initialCartId?: string) {
     isLoading,
     isSubmitting,
     isSavingAddress,
+    paymentHandoffAction,
     loadError,
     submitError,
     addressError,
@@ -216,6 +224,7 @@ export function useCheckout(initialCartId?: string) {
     setSelectedAddressId,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
+    setPaymentHandoffAction,
     reloadPreview: loadPreview,
     submitCheckout,
     addAddress,
