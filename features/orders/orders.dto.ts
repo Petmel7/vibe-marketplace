@@ -1,3 +1,9 @@
+import type {
+  PaymentMethod,
+  PaymentProvider,
+  PaymentStatus,
+} from '@/app/generated/prisma/client'
+
 export type OrderItemDto = {
   id: string
   productNameSnapshot: string
@@ -8,6 +14,14 @@ export type OrderItemDto = {
   quantity: number
 }
 
+export type OrderPaymentSummaryDto = {
+  paymentId: string | null
+  paymentProvider: PaymentProvider | null
+  paymentMethod: PaymentMethod | null
+  paymentStatus: PaymentStatus | null
+  paidAt: string | null
+}
+
 export type OrderSummaryDto = {
   id: string
   status: string
@@ -15,7 +29,7 @@ export type OrderSummaryDto = {
   itemCount: number
   createdAt: Date
   storeNames: string[]
-}
+} & OrderPaymentSummaryDto
 
 export type OrderDetailDto = {
   id: string
@@ -25,7 +39,7 @@ export type OrderDetailDto = {
   note: string | null
   createdAt: Date
   items: OrderItemDto[]
-}
+} & OrderPaymentSummaryDto
 
 export type SellerOrderItemDto = {
   id: string

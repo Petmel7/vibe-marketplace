@@ -55,6 +55,18 @@ function makeOrderItem(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makePayment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'pay-001',
+    provider: 'MANUAL',
+    method: 'CASH_ON_DELIVERY',
+    status: 'PENDING',
+    paidAt: null,
+    createdAt: new Date('2026-01-01T01:00:00.000Z'),
+    ...overrides,
+  }
+}
+
 function makeOrder(overrides: Record<string, unknown> = {}) {
   return {
     id: ORDER_ID,
@@ -66,6 +78,7 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     items: [makeOrderItem()],
+    payments: [makePayment()],
     ...overrides,
   }
 }
@@ -142,6 +155,10 @@ describe('getMyOrders', () => {
     expect(result[0].status).toBe('pending')
     expect(result[0].itemCount).toBe(2)
     expect(result[0].storeNames).toContain('Test Store')
+    expect(result[0].paymentMethod).toBe('CASH_ON_DELIVERY')
+    expect(result[0].paymentStatus).toBe('PENDING')
+    expect(result[0].paymentProvider).toBe('MANUAL')
+    expect(result[0].paymentId).toBe('pay-001')
   })
 
   it('returns empty array when user has no orders', async () => {
@@ -167,6 +184,61 @@ describe('getMyOrderById', () => {
     expect(result.id).toBe(ORDER_ID)
     expect(result.items).toHaveLength(1)
     expect(result.items[0].productNameSnapshot).toBe('Test Product')
+    expect(result.paymentId).toBe('pay-001')
+    expect(result.paymentMethod).toBe('CASH_ON_DELIVERY')
+    expect(result.paymentStatus).toBe('PENDING')
+    expect(result.paidAt).toBeNull()
+  })
+
+  it('exposes the latest card payment status for webhook-driven orders', async () => {
+    const order = makeOrder({
+      payments: [
+        makePayment({
+          id: 'pay-card-new',
+          provider: 'LIQPAY',
+          method: 'CARD',
+          status: 'PROCESSING',
+          paidAt: null,
+          createdAt: new Date('2026-01-02T12:00:00.000Z'),
+        }),
+        makePayment({
+          id: 'pay-card-old',
+          provider: 'LIQPAY',
+          method: 'CARD',
+          status: 'FAILED',
+          paidAt: null,
+          createdAt: new Date('2026-01-01T12:00:00.000Z'),
+        }),
+      ],
+    })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    const result = await getMyOrderById(mockBuyer, ORDER_ID)
+
+    expect(result.paymentId).toBe('pay-card-new')
+    expect(result.paymentProvider).toBe('LIQPAY')
+    expect(result.paymentMethod).toBe('CARD')
+    expect(result.paymentStatus).toBe('PROCESSING')
+  })
+
+  it('exposes refunded payment state safely', async () => {
+    const order = makeOrder({
+      payments: [
+        makePayment({
+          id: 'pay-refunded',
+          provider: 'LIQPAY',
+          method: 'CARD',
+          status: 'REFUNDED',
+          paidAt: new Date('2026-01-03T12:00:00.000Z'),
+        }),
+      ],
+    })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    const result = await getMyOrderById(mockBuyer, ORDER_ID)
+
+    expect(result.paymentStatus).toBe('REFUNDED')
+    expect(result.paidAt).toBe('2026-01-03T12:00:00.000Z')
   })
 
   it('throws OrderNotFoundError when order does not exist', async () => {
@@ -177,6 +249,16 @@ describe('getMyOrderById', () => {
 
   it('throws OrderAccessError when order belongs to a different user', async () => {
     const order = makeOrder({ userId: OTHER_USER_ID })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    await expect(getMyOrderById(mockBuyer, ORDER_ID)).rejects.toThrow(OrderAccessError)
+  })
+
+  it('does not expose payment data to non-owners', async () => {
+    const order = makeOrder({
+      userId: OTHER_USER_ID,
+      payments: [makePayment({ id: 'pay-secret', provider: 'LIQPAY', method: 'CARD', status: 'SUCCEEDED' })],
+    })
     mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
 
     await expect(getMyOrderById(mockBuyer, ORDER_ID)).rejects.toThrow(OrderAccessError)

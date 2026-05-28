@@ -1,14 +1,26 @@
 import { prisma } from '@/lib/prisma'
-import type { OrderStatus } from '@/app/generated/prisma/client'
+import type { OrderStatus, Prisma } from '@/app/generated/prisma/client'
 import type { OrderFilterInput } from './orders.dto'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-const ORDER_ITEMS_INCLUDE = {
+const ORDER_ITEMS_INCLUDE: Prisma.OrderInclude = {
   items: true,
-} as const
+  payments: {
+    orderBy: [{ createdAt: 'desc' }],
+    take: 1,
+    select: {
+      id: true,
+      provider: true,
+      method: true,
+      status: true,
+      paidAt: true,
+      createdAt: true,
+    },
+  },
+}
 
 // ---------------------------------------------------------------------------
 // Buyer queries

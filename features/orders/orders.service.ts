@@ -1,3 +1,8 @@
+import type {
+  PaymentMethod,
+  PaymentProvider,
+  PaymentStatus,
+} from '@/app/generated/prisma/client'
 import { requireBuyer, requireSeller, requireAdmin } from '@/lib/auth/guards'
 import { assertOrderOwner } from '@/lib/auth/orderGuards'
 import { OrderNotFoundError, InvalidStatusTransitionError } from '@/lib/errors/orders'
@@ -39,6 +44,32 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 // DTO mappers
 // ---------------------------------------------------------------------------
 
+function toOrderPaymentSummaryDto(order: {
+  payments?: Array<{
+    id: string
+    provider: PaymentProvider
+    method: PaymentMethod
+    status: PaymentStatus
+    paidAt: Date | null
+  }>
+}): {
+  paymentId: string | null
+  paymentProvider: PaymentProvider | null
+  paymentMethod: PaymentMethod | null
+  paymentStatus: PaymentStatus | null
+  paidAt: string | null
+} {
+  const payment = order.payments?.[0] ?? null
+
+  return {
+    paymentId: payment?.id ?? null,
+    paymentProvider: payment?.provider ?? null,
+    paymentMethod: payment?.method ?? null,
+    paymentStatus: payment?.status ?? null,
+    paidAt: payment?.paidAt?.toISOString() ?? null,
+  }
+}
+
 function toOrderItemDto(item: {
   id: string
   productNameSnapshot: string
@@ -64,6 +95,13 @@ function toOrderSummaryDto(order: {
   status: string
   totalAmount: { toString(): string }
   createdAt: Date
+  payments?: Array<{
+    id: string
+    provider: PaymentProvider
+    method: PaymentMethod
+    status: PaymentStatus
+    paidAt: Date | null
+  }>
   items: Array<{
     quantity: number
     storeNameSnapshot: string
@@ -78,6 +116,7 @@ function toOrderSummaryDto(order: {
     itemCount,
     createdAt: order.createdAt,
     storeNames,
+    ...toOrderPaymentSummaryDto(order),
   }
 }
 
@@ -88,6 +127,13 @@ function toOrderDetailDto(order: {
   shippingAddressId: string | null
   note: string | null
   createdAt: Date
+  payments?: Array<{
+    id: string
+    provider: PaymentProvider
+    method: PaymentMethod
+    status: PaymentStatus
+    paidAt: Date | null
+  }>
   items: Array<{
     id: string
     productNameSnapshot: string
@@ -106,6 +152,7 @@ function toOrderDetailDto(order: {
     note: order.note,
     createdAt: order.createdAt,
     items: order.items.map(toOrderItemDto),
+    ...toOrderPaymentSummaryDto(order),
   }
 }
 
