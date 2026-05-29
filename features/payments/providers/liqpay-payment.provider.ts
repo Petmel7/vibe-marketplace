@@ -33,7 +33,7 @@ type LiqPayCheckoutPayload = {
   order_id: string
   result_url: string
   server_url: string
-  sandbox?: '1'
+  sandbox?: 1
 }
 
 type LiqPayWebhookPayload = {
@@ -106,10 +106,38 @@ function decodeWebhookPayload(data: string): LiqPayWebhookPayload {
   }
 }
 
+function normalizeAmount(amount: string) {
+  const normalized = amount.trim().replace(',', '.')
+
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    throw new LiqPayPayloadError('LiqPay payment amount must be a dot-decimal string')
+  }
+
+  return normalized
+}
+
 function signLiqPayPayload(privateKey: string, data: string) {
-  return createHash('sha3-256')
+  return createHash('sha1')
     .update(`${privateKey}${data}${privateKey}`, 'utf8')
     .digest('base64')
+}
+
+function logLiqPayPayloadDiagnostics(payload: LiqPayCheckoutPayload) {
+  if (process.env.NODE_ENV !== 'development') {
+    return
+  }
+
+  console.info('[LiqPay] checkout payload prepared', {
+    public_key: payload.public_key,
+    version: payload.version,
+    action: payload.action,
+    amount: payload.amount,
+    currency: payload.currency,
+    order_id: payload.order_id,
+    has_result_url: Boolean(payload.result_url),
+    has_server_url: Boolean(payload.server_url),
+    sandbox: payload.sandbox ?? 0,
+  })
 }
 
 function mapLiqPayStatus(status: string): PaymentStatus {
@@ -148,29 +176,31 @@ export class LiqPayPaymentProvider implements PaymentProviderAdapter {
   async createPayment(input: PaymentPreparationInput): Promise<PreparedPaymentDraft> {
     const resultUrl = `${this.config.appUrl}/checkout/pending/${input.orderId}?paymentMethod=CARD&paymentStatus=PROCESSING&nextAction=AWAITING_PROVIDER_CONFIRMATION`
     const serverUrl = `${this.config.appUrl}/api/payments/webhooks/liqpay`
+    const amount = normalizeAmount(input.amount)
     const payload: LiqPayCheckoutPayload = {
       public_key: this.config.publicKey,
       version: 3,
       action: 'pay',
-      amount: input.amount,
-      currency: input.currency,
+      amount,
+      currency: 'UAH',
       description: `Marketplace order #${input.orderId.slice(0, 8)}`,
       order_id: input.paymentId,
       result_url: resultUrl,
       server_url: serverUrl,
-      ...(this.config.sandbox ? { sandbox: '1' } : {}),
+      ...(this.config.sandbox ? { sandbox: 1 } : {}),
     }
 
     const data = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
     const signature = signLiqPayPayload(this.config.privateKey, data)
+    logLiqPayPayloadDiagnostics(payload)
 
     return {
       provider: PaymentProvider.LIQPAY,
       providerPaymentId: input.paymentId,
       status: PaymentStatus.PROCESSING,
       method: PaymentMethod.CARD,
-      amount: input.amount,
-      currency: input.currency,
+      amount,
+      currency: 'UAH',
       checkoutUrl: `${this.config.appUrl}/api/payments/checkout/${input.paymentId}`,
       failureReason: null,
       paidAt: null,

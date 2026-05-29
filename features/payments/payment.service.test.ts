@@ -50,7 +50,7 @@ const adminUser: SessionUser = {
 const LIQPAY_PRIVATE_KEY = 'test-private-key'
 
 function sign(data: string) {
-  return createHash('sha3-256')
+  return createHash('sha1')
     .update(`${LIQPAY_PRIVATE_KEY}${data}${LIQPAY_PRIVATE_KEY}`, 'utf8')
     .digest('base64')
 }

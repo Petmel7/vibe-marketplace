@@ -5,7 +5,7 @@ import { LiqPayPayloadError, LiqPayStatusMappingError } from '@/lib/errors/payme
 import { LiqPayPaymentProvider } from './liqpay-payment.provider'
 
 function sign(privateKey: string, data: string) {
-  return createHash('sha3-256')
+  return createHash('sha1')
     .update(`${privateKey}${data}${privateKey}`, 'utf8')
     .digest('base64')
 }
@@ -44,6 +44,8 @@ describe('LiqPayPaymentProvider', () => {
 
     expect(decodedPayload.order_id).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
     expect(decodedPayload.public_key).toBe('public-key')
+    expect(decodedPayload.amount).toBe('199.99')
+    expect(decodedPayload.currency).toBe('UAH')
     expect(decodedPayload.result_url).toContain(
       '/checkout/pending/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     )
@@ -69,9 +71,26 @@ describe('LiqPayPaymentProvider', () => {
 
     const decodedPayload = JSON.parse(
       Buffer.from(result.checkoutAction?.data ?? '', 'base64').toString('utf8'),
+    ) as Record<string, string | number>
+
+    expect(decodedPayload.sandbox).toBe(1)
+  })
+
+  it('normalizes comma decimal amounts into LiqPay-compatible dot decimals', async () => {
+    const result = await provider.createPayment({
+      method: 'CARD',
+      amount: '99,98',
+      currency: 'UAH',
+      orderReference: 'order-ref',
+      orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      paymentId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    })
+
+    const decodedPayload = JSON.parse(
+      Buffer.from(result.checkoutAction?.data ?? '', 'base64').toString('utf8'),
     ) as Record<string, string>
 
-    expect(decodedPayload.sandbox).toBe('1')
+    expect(decodedPayload.amount).toBe('99.98')
   })
 
   it('verifies callback signatures and parses webhook payloads', async () => {
