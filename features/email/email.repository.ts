@@ -343,6 +343,7 @@ export async function findProductNotificationContext(productId: string) {
       name: true,
       store: {
         select: {
+          id: true,
           name: true,
           ownerId: true,
           owner: {

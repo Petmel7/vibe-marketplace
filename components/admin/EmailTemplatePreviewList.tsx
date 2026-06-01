@@ -21,8 +21,31 @@ const TEMPLATE_PREVIEWS = [
     description: 'Confirms that checkout succeeded and an order record now exists.',
     render: () => (
       <OrderCreatedEmail
-        orderId="33333333-3333-4333-8333-333333333333"
+        buyerEmail="olena@example.com"
+        buyerName="Olena Buyer"
         itemCount={3}
+        orderDetailsUrl="https://app.example.com/profile/orders/33333333-3333-4333-8333-333333333333"
+        orderId="33333333-3333-4333-8333-333333333333"
+        orderItems={[
+          {
+            productName: 'Blue Hoodie',
+            quantity: 2,
+            storeName: 'North Store',
+            unitPrice: '799.00',
+            variantLabel: 'L / Blue',
+          },
+          {
+            productName: 'Red Tee',
+            quantity: 1,
+            storeName: 'South Store',
+            unitPrice: '901.00',
+            variantLabel: null,
+          },
+        ]}
+        orderStatus="confirmed"
+        paymentMethod="CASH_ON_DELIVERY"
+        paymentStatus="PENDING"
+        storeNames={['North Store', 'South Store']}
         totalAmount="2499.00"
       />
     ),
@@ -33,8 +56,31 @@ const TEMPLATE_PREVIEWS = [
     description: 'Sent when order status transitions into confirmed processing.',
     render: () => (
       <OrderConfirmedEmail
-        orderId="44444444-4444-4444-8444-444444444444"
+        buyerEmail="olena@example.com"
+        buyerName="Olena Buyer"
         itemCount={3}
+        orderDetailsUrl="https://app.example.com/profile/orders/44444444-4444-4444-8444-444444444444"
+        orderId="44444444-4444-4444-8444-444444444444"
+        orderItems={[
+          {
+            productName: 'Blue Hoodie',
+            quantity: 2,
+            storeName: 'North Store',
+            unitPrice: '799.00',
+            variantLabel: 'L / Blue',
+          },
+          {
+            productName: 'Red Tee',
+            quantity: 1,
+            storeName: 'South Store',
+            unitPrice: '901.00',
+            variantLabel: null,
+          },
+        ]}
+        orderStatus="confirmed"
+        paymentMethod="CASH_ON_DELIVERY"
+        paymentStatus="PENDING"
+        storeNames={['North Store', 'South Store']}
         totalAmount="2499.00"
       />
     ),
