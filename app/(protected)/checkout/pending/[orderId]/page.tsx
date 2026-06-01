@@ -1,19 +1,16 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import CheckoutPendingPaymentCard from '@/components/checkout/CheckoutPendingPaymentCard'
+import CheckoutPendingStatusClient from '@/components/checkout/CheckoutPendingStatusClient'
 import CheckoutShell from '@/components/checkout/CheckoutShell'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import { getMyOrderById } from '@/features/orders/orders.service'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { getCurrentUser } from '@/lib/session/getSession'
-import {
-  isPaymentMethod,
-  isPaymentNextAction,
-  isPaymentStatus,
-} from '@/types/payments'
+import { isPaymentNextAction, type PaymentNextAction } from '@/types/payments'
+import { toCheckoutOrderDetail } from '@/types/orders'
 
 export const metadata: Metadata = {
-  title: 'Payment pending — Вайб',
+  title: 'Очікування оплати — Вайб',
 }
 
 async function getCheckoutPendingState(
@@ -36,14 +33,16 @@ async function getCheckoutPendingState(
   }
 }
 
+function parseNextAction(value: string | string[] | undefined): PaymentNextAction | null {
+  return typeof value === 'string' && isPaymentNextAction(value) ? value : null
+}
+
 export default async function CheckoutPendingPage({
   params,
   searchParams,
 }: {
   params: Promise<{ orderId: string }>
   searchParams: Promise<{
-    paymentMethod?: string | string[]
-    paymentStatus?: string | string[]
     nextAction?: string | string[]
   }>
 }) {
@@ -63,7 +62,7 @@ export default async function CheckoutPendingPage({
   if (state.kind === 'forbidden') {
     return (
       <CheckoutShell
-        title="Оплата очікує підтвердження"
+        title="Очікування оплати"
         description="Сторінка оплати доступна тільки для власника цього замовлення."
         currentLabel="Оплата в очікуванні"
       >
@@ -77,33 +76,15 @@ export default async function CheckoutPendingPage({
     )
   }
 
-  const paymentMethod =
-    typeof resolvedSearchParams.paymentMethod === 'string' &&
-    isPaymentMethod(resolvedSearchParams.paymentMethod)
-      ? resolvedSearchParams.paymentMethod
-      : null
-  const paymentStatus =
-    typeof resolvedSearchParams.paymentStatus === 'string' &&
-    isPaymentStatus(resolvedSearchParams.paymentStatus)
-      ? resolvedSearchParams.paymentStatus
-      : null
-  const nextAction =
-    typeof resolvedSearchParams.nextAction === 'string' &&
-    isPaymentNextAction(resolvedSearchParams.nextAction)
-      ? resolvedSearchParams.nextAction
-      : null
-
   return (
     <CheckoutShell
-      title="Оплата очікує підтвердження"
-      description="Ми створили замовлення, але фінальний статус оплати оновиться після підтвердження від сервера або платіжного провайдера."
+      title="Очікуємо підтвердження платежу"
+      description="Ми стежимо за серверним статусом платежу і автоматично оновимо сторінку, щойно LiqPay webhook підтвердить або відхилить оплату."
       currentLabel="Оплата в очікуванні"
     >
-      <CheckoutPendingPaymentCard
-        order={state.order}
-        paymentMethod={paymentMethod}
-        paymentStatus={paymentStatus}
-        nextAction={nextAction}
+      <CheckoutPendingStatusClient
+        initialOrder={toCheckoutOrderDetail(state.order)}
+        nextAction={parseNextAction(resolvedSearchParams.nextAction)}
       />
     </CheckoutShell>
   )

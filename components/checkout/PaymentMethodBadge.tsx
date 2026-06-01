@@ -1,3 +1,5 @@
+'use client'
+
 import type { PaymentMethod } from '@/types/payments'
 
 const PAYMENT_METHOD_META: Record<PaymentMethod, { label: string; className: string }> = {

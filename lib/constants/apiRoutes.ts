@@ -27,6 +27,10 @@ export function getAdminEmailRetryRoute(id: string) {
   return `/api/admin/emails/${id}/retry`
 }
 
+export function getOrderRoute(id: string) {
+  return `/api/orders/${id}`
+}
+
 export function getWishlistItemRoute(productId: string) {
   return `${API_ROUTES.wishlist}/${productId}`
 }

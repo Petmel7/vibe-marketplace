@@ -1,40 +1,43 @@
+'use client'
+
 import Link from 'next/link'
 import DashboardCard from '@/components/profile/DashboardCard'
-import type { OrderDetailDto } from '@/features/orders/orders.dto'
-import type { PaymentMethod, PaymentNextAction, PaymentStatus } from '@/types/payments'
+import type { PaymentNextAction } from '@/types/payments'
+import type { CheckoutOrderDetail } from '@/types/orders'
 import { formatPrice } from '@/utils/formatters/price'
 import PaymentMethodBadge from './PaymentMethodBadge'
 import PaymentStatusBadge from './PaymentStatusBadge'
 
-function getItemCount(order: OrderDetailDto) {
+function getItemCount(order: CheckoutOrderDetail) {
   return order.items.reduce((sum, item) => sum + item.quantity, 0)
+}
+
+function getOrderStatusLabel(status: string) {
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 export default function CheckoutSuccessCard({
   order,
-  paymentMethod,
-  paymentStatus,
   nextAction,
 }: {
-  order: OrderDetailDto
-  paymentMethod: PaymentMethod | null
-  paymentStatus: PaymentStatus | null
+  order: CheckoutOrderDetail
   nextAction: PaymentNextAction | null
 }) {
-  const isCashOnDelivery = paymentMethod === 'CASH_ON_DELIVERY'
+  const isCashOnDelivery = order.paymentMethod === 'CASH_ON_DELIVERY'
+  const isCardPayment = order.paymentMethod === 'CARD'
 
   return (
     <DashboardCard
-      title="Замовлення створено"
+      title="Замовлення оформлено"
       description={
         isCashOnDelivery
           ? 'Замовлення підтверджене. Оплата буде очікуватися під час отримання, а всі деталі вже збережені у вашому кабінеті покупця.'
-          : 'Замовлення збережене у вашому кабінеті покупця. Далі ви зможете відстежувати його статус і деталі доставки.'
+          : 'Оплату підтверджено на сервері. Замовлення вже збережене у вашому кабінеті, де можна відстежувати його подальший статус.'
       }
       action={
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <PaymentMethodBadge method={paymentMethod} />
-          <PaymentStatusBadge status={paymentStatus} />
+          <PaymentMethodBadge method={order.paymentMethod} />
+          <PaymentStatusBadge status={order.paymentStatus} />
         </div>
       }
     >
@@ -61,13 +64,21 @@ export default function CheckoutSuccessCard({
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-4">
             <dt className="text-sm text-copy-muted">Спосіб оплати</dt>
             <dd className="mt-2">
-              <PaymentMethodBadge method={paymentMethod} />
+              <PaymentMethodBadge method={order.paymentMethod} />
             </dd>
           </div>
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-4">
             <dt className="text-sm text-copy-muted">Статус оплати</dt>
             <dd className="mt-2">
-              <PaymentStatusBadge status={paymentStatus} />
+              <PaymentStatusBadge status={order.paymentStatus} />
+            </dd>
+          </div>
+          <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-4">
+            <dt className="text-sm text-copy-muted">Статус замовлення</dt>
+            <dd className="mt-2">
+              <span className="inline-flex rounded-full border border-panelBorder bg-panel px-3 py-1 text-xs font-medium text-copy-primary">
+                {getOrderStatusLabel(order.status)}
+              </span>
             </dd>
           </div>
         </dl>
@@ -79,10 +90,13 @@ export default function CheckoutSuccessCard({
             <li>
               {isCashOnDelivery
                 ? 'Оплатіть покупку під час отримання від служби доставки або продавця.'
-                : 'Слідкуйте за оновленням статусу оплати й замовлення у деталях замовлення.'}
+                : 'Стежте за оновленням статусу замовлення у деталях замовлення.'}
             </li>
+            {isCardPayment ? (
+              <li>Ми показуємо лише підтверджений сервером статус оплати, а не результат повернення з платіжної сторінки.</li>
+            ) : null}
             {nextAction === 'AWAITING_CASH_ON_DELIVERY' ? (
-              <li>Оплата залишиться в статусі очікування, доки не буде зафіксована після вручення.</li>
+              <li>Оплата залишиться в статусі очікування, доки її не буде зафіксовано після вручення.</li>
             ) : null}
           </ul>
         </div>

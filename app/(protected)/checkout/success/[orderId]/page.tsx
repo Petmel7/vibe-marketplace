@@ -1,19 +1,23 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import CheckoutFailureCard from '@/components/checkout/CheckoutFailureCard'
+import CheckoutPendingStatusClient from '@/components/checkout/CheckoutPendingStatusClient'
 import CheckoutShell from '@/components/checkout/CheckoutShell'
 import CheckoutSuccessCard from '@/components/checkout/CheckoutSuccessCard'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { getMyOrderById } from '@/features/orders/orders.service'
+import { isPaymentNextAction, type PaymentNextAction } from '@/types/payments'
 import {
-  isPaymentMethod,
-  isPaymentNextAction,
-  isPaymentStatus,
-} from '@/types/payments'
+  isFailedPaymentStatus,
+  isPaidOrderStatus,
+  isSuccessfulPaymentStatus,
+  toCheckoutOrderDetail,
+} from '@/types/orders'
 
 export const metadata: Metadata = {
-  title: 'Order success — Вайб',
+  title: 'Статус замовлення — Вайб',
 }
 
 async function getCheckoutSuccessState(
@@ -36,14 +40,16 @@ async function getCheckoutSuccessState(
   }
 }
 
+function parseNextAction(value: string | string[] | undefined): PaymentNextAction | null {
+  return typeof value === 'string' && isPaymentNextAction(value) ? value : null
+}
+
 export default async function CheckoutSuccessPage({
   params,
   searchParams,
 }: {
   params: Promise<{ orderId: string }>
   searchParams: Promise<{
-    paymentMethod?: string | string[]
-    paymentStatus?: string | string[]
     nextAction?: string | string[]
   }>
 }) {
@@ -73,34 +79,32 @@ export default async function CheckoutSuccessPage({
     )
   }
 
-  const paymentMethod =
-    typeof resolvedSearchParams.paymentMethod === 'string' &&
-    isPaymentMethod(resolvedSearchParams.paymentMethod)
-      ? resolvedSearchParams.paymentMethod
-      : null
-  const paymentStatus =
-    typeof resolvedSearchParams.paymentStatus === 'string' &&
-    isPaymentStatus(resolvedSearchParams.paymentStatus)
-      ? resolvedSearchParams.paymentStatus
-      : null
-  const nextAction =
-    typeof resolvedSearchParams.nextAction === 'string' &&
-    isPaymentNextAction(resolvedSearchParams.nextAction)
-      ? resolvedSearchParams.nextAction
-      : null
+  const order = toCheckoutOrderDetail(state.order)
+  const nextAction = parseNextAction(resolvedSearchParams.nextAction)
+  const isCashOnDelivery = order.paymentMethod === 'CASH_ON_DELIVERY'
+  const isSuccessful =
+    isCashOnDelivery ||
+    isSuccessfulPaymentStatus(order.paymentStatus) ||
+    isPaidOrderStatus(order.status)
+  const isFailed = isFailedPaymentStatus(order.paymentStatus)
 
   return (
     <CheckoutShell
-      title="Замовлення оформлено"
-      description="Ваше замовлення створене. Далі ви можете перейти до деталей покупки або продовжити шопінг."
-      currentLabel="Успішне оформлення"
+      title={isSuccessful ? 'Замовлення оформлено' : 'Статус замовлення'}
+      description={
+        isSuccessful
+          ? 'Ми показуємо тільки серверно-підтверджений статус замовлення та оплати.'
+          : 'Статус замовлення ще може змінюватися після підтвердження платежу або завершення обробки.'
+      }
+      currentLabel={isSuccessful ? 'Успішне оформлення' : 'Статус платежу'}
     >
-      <CheckoutSuccessCard
-        order={state.order}
-        paymentMethod={paymentMethod}
-        paymentStatus={paymentStatus}
-        nextAction={nextAction}
-      />
+      {isFailed ? (
+        <CheckoutFailureCard order={order} />
+      ) : isSuccessful ? (
+        <CheckoutSuccessCard order={order} nextAction={nextAction} />
+      ) : (
+        <CheckoutPendingStatusClient initialOrder={order} nextAction={nextAction} />
+      )}
     </CheckoutShell>
   )
 }

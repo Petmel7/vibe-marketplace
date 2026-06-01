@@ -1,3 +1,5 @@
+'use client'
+
 import type { PaymentStatus } from '@/types/payments'
 
 const PAYMENT_STATUS_META: Record<PaymentStatus, { label: string; className: string }> = {

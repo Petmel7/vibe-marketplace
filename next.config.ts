@@ -19,6 +19,9 @@ function resolveSupabaseHostname() {
 const supabaseHostname = resolveSupabaseHostname();
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    'acid-numerous-snowdrift.ngrok-free.dev',
+  ],
   images: {
     remotePatterns: supabaseHostname
       ? [
