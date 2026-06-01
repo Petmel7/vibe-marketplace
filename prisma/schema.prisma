@@ -32,6 +32,7 @@ model User {
   badgeRulesUpdated ProductBadgeRule[]   @relation("ProductBadgeRuleUpdatedBy")
   emailEvents       EmailEvent[]
   emailLogs         EmailLog[]
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -481,6 +482,26 @@ model EmailLog {
   @@map("email_logs")
 }
 
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  message   String
+  actionUrl String?          @map("action_url")
+  metadata  Json?
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "notifications_user_id_idx")
+  @@index([userId, readAt], map: "notifications_user_id_read_at_idx")
+  @@index([userId, createdAt], map: "notifications_user_id_created_at_idx")
+  @@index([type], map: "notifications_type_idx")
+  @@map("notifications")
+}
+
 model UserProfile {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @unique @map("user_id") @db.Uuid
@@ -648,6 +669,19 @@ enum EmailDeliveryStatus {
 
 enum EmailProvider {
   RESEND
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  ORDER_SHIPPED
+  SELLER_APPROVED
+  SELLER_REJECTED
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+  SELLER_NEW_ORDER
+  ADMIN_ALERT
 }
 
 enum PaymentProvider {
