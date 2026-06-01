@@ -9,9 +9,12 @@ import type {
 import { emailTemplatePayloadSchemaMap } from '../email.schema'
 import OrderConfirmedEmail from '../templates/OrderConfirmedEmail'
 import OrderCreatedEmail from '../templates/OrderCreatedEmail'
+import PaymentFailedEmail from '../templates/PaymentFailedEmail'
+import PaymentSucceededEmail from '../templates/PaymentSucceededEmail'
 import ProductApprovedEmail from '../templates/ProductApprovedEmail'
 import ProductRejectedEmail from '../templates/ProductRejectedEmail'
 import SellerApprovedEmail from '../templates/SellerApprovedEmail'
+import SellerNewOrderEmail from '../templates/SellerNewOrderEmail'
 import SellerRejectedEmail from '../templates/SellerRejectedEmail'
 import WelcomeEmail from '../templates/WelcomeEmail'
 
@@ -50,6 +53,18 @@ const templateDefinitions: {
   PRODUCT_REJECTED_EMAIL: {
     render: (payload) => <ProductRejectedEmail {...payload} />,
     subject: (payload) => `Product needs updates: ${payload.productName}`,
+  },
+  PAYMENT_SUCCEEDED_EMAIL: {
+    render: (payload) => <PaymentSucceededEmail {...payload} />,
+    subject: (payload) => `Payment received for order ${payload.orderId}`,
+  },
+  PAYMENT_FAILED_EMAIL: {
+    render: (payload) => <PaymentFailedEmail {...payload} />,
+    subject: (payload) => `Payment issue for order ${payload.orderId}`,
+  },
+  SELLER_NEW_ORDER_EMAIL: {
+    render: (payload) => <SellerNewOrderEmail {...payload} />,
+    subject: (payload) => `New paid order for ${payload.storeName}`,
   },
 }
 

@@ -1,32 +1,16 @@
-import { Heading, Text } from '@react-email/components'
 import EmailLayout from './components/EmailLayout'
+import OrderEmailContent from './components/OrderEmailContent'
 import type { OrderConfirmedEmailPayload } from '../email.dto'
 
-export default function OrderConfirmedEmail({
-  itemCount,
-  orderId,
-  totalAmount,
-}: OrderConfirmedEmailPayload) {
+export default function OrderConfirmedEmail(payload: OrderConfirmedEmailPayload) {
   return (
-    <EmailLayout previewText={`Order ${orderId} was confirmed`}>
-      <Heading as="h2" style={heading}>Your order is confirmed</Heading>
-      <Text style={copy}>Order ID: {orderId}</Text>
-      <Text style={copy}>Items: {itemCount}</Text>
-      <Text style={copy}>Total: {totalAmount}</Text>
+    <EmailLayout previewText={`Order ${payload.orderId} was confirmed`}>
+      <OrderEmailContent
+        ctaLabel="Open your order"
+        intro="Your order has been confirmed and is ready for the next fulfillment step."
+        payload={payload}
+        title="Your order is confirmed"
+      />
     </EmailLayout>
   )
-}
-
-const heading = {
-  color: '#f5f7fb',
-  fontSize: '22px',
-  fontWeight: '700',
-  margin: '0 0 16px',
-}
-
-const copy = {
-  color: '#d3dae6',
-  fontSize: '15px',
-  lineHeight: '24px',
-  margin: '0 0 14px',
 }

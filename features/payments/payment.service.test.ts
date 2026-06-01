@@ -20,9 +20,15 @@ vi.mock('@/features/payments/payment.repository', () => ({
 vi.mock('@/lib/auth/guards', () => ({
   requireAdmin: vi.fn(),
 }))
+vi.mock('@/features/email/events/email.events', () => ({
+  emitPaymentFailedEmailEvent: vi.fn(),
+  emitPaymentSucceededEmailEvent: vi.fn(),
+  emitSellerNewOrderEmailEvents: vi.fn(),
+}))
 
 import * as repo from '@/features/payments/payment.repository'
 import * as authGuards from '@/lib/auth/guards'
+import * as emailEvents from '@/features/email/events/email.events'
 import {
   getAdminPayments,
   markManualPaymentPaid,
@@ -40,6 +46,7 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRepo = vi.mocked(repo)
 const mockAuthGuards = vi.mocked(authGuards)
+const mockEmailEvents = vi.mocked(emailEvents)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -96,6 +103,9 @@ function makePayment(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.resetAllMocks()
   mockAuthGuards.requireAdmin.mockReturnValue(undefined)
+  mockEmailEvents.emitPaymentFailedEmailEvent.mockResolvedValue(null)
+  mockEmailEvents.emitPaymentSucceededEmailEvent.mockResolvedValue(null)
+  mockEmailEvents.emitSellerNewOrderEmailEvents.mockResolvedValue([])
   process.env.LIQPAY_PUBLIC_KEY = 'test-public-key'
   process.env.LIQPAY_PRIVATE_KEY = LIQPAY_PRIVATE_KEY
   process.env.LIQPAY_SANDBOX = 'false'
@@ -182,6 +192,12 @@ describe('processPaymentWebhook', () => {
     })
 
     expect(mockRepo.applySuccessfulPayment).toHaveBeenCalled()
+    expect(mockEmailEvents.emitPaymentSucceededEmailEvent).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+    })
+    expect(mockEmailEvents.emitSellerNewOrderEmailEvents).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+    })
     expect(mockRepo.markWebhookProcessed).toHaveBeenCalledWith('webhook-1', expect.any(Date))
     expect(result.status).toBe('SUCCEEDED')
     expect(result.duplicate).toBe(false)
@@ -212,6 +228,8 @@ describe('processPaymentWebhook', () => {
 
     expect(result.duplicate).toBe(true)
     expect(result.status).toBe('IGNORED')
+    expect(mockEmailEvents.emitPaymentSucceededEmailEvent).not.toHaveBeenCalled()
+    expect(mockEmailEvents.emitSellerNewOrderEmailEvents).not.toHaveBeenCalled()
   })
 
   it('rejects invalid LiqPay webhook signatures', async () => {
@@ -288,7 +306,50 @@ describe('processPaymentWebhook', () => {
 
     expect(mockRepo.applySuccessfulPayment).not.toHaveBeenCalled()
     expect(mockRepo.applyFailedPayment).toHaveBeenCalled()
+    expect(mockEmailEvents.emitPaymentFailedEmailEvent).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+    })
     expect(result.status).toBe('FAILED')
+  })
+
+  it('does not fail webhook reconciliation when lifecycle email enqueue fails', async () => {
+    mockRepo.findPaymentByProviderPaymentId.mockResolvedValue(
+      makePayment({
+        provider: 'LIQPAY',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
+        method: 'CARD',
+        status: 'PROCESSING',
+      }) as never,
+    )
+    mockRepo.createPaymentWebhookEvent.mockResolvedValue({
+      id: 'webhook-4',
+    } as never)
+    mockRepo.applySuccessfulPayment.mockResolvedValue({
+      payment: makePayment({
+        provider: 'LIQPAY',
+        providerPaymentId: '99999999-9999-4999-8999-999999999999',
+        method: 'CARD',
+        status: 'SUCCEEDED',
+      }),
+      order: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'paid' },
+    } as never)
+    mockEmailEvents.emitPaymentSucceededEmailEvent.mockRejectedValueOnce(new Error('email down'))
+
+    const result = await processPaymentWebhook(PaymentProvider.LIQPAY, {
+      headers: {},
+      rawBody: makeLiqPayRawBody({
+        order_id: '99999999-9999-4999-8999-999999999999',
+        payment_id: 'liqpay-payment-1',
+        transaction_id: 'event-4',
+        type: 'buy',
+        amount: '99.98',
+        currency: 'UAH',
+        status: 'success',
+      }),
+    })
+
+    expect(result.status).toBe('SUCCEEDED')
+    expect(mockRepo.markWebhookProcessed).toHaveBeenCalledWith('webhook-4', expect.any(Date))
   })
 })
 

@@ -10,15 +10,55 @@ export const welcomeEmailPayloadSchema = z.object({
   email: z.email(),
 })
 
-export const orderCreatedEmailPayloadSchema = z.object({
-  orderId: z.uuid(),
+const orderEmailItemPayloadSchema = z.object({
+  productName: z.string().trim().min(1),
+  quantity: z.number().int().positive(),
+  storeName: z.string().trim().min(1),
+  unitPrice: z.string().trim().min(1),
+  variantLabel: z.string().trim().min(1).nullable(),
+})
+
+const marketplaceOrderEmailPayloadSchema = z.object({
+  buyerEmail: z.email(),
+  buyerName: z.string().trim().min(1).nullable(),
   itemCount: z.number().int().positive(),
+  orderDetailsUrl: z.string().trim().min(1),
+  orderId: z.uuid(),
+  orderItems: z.array(orderEmailItemPayloadSchema).min(1),
+  orderStatus: z.string().trim().min(1),
+  paymentMethod: z.string().trim().min(1).nullable(),
+  paymentStatus: z.string().trim().min(1).nullable(),
+  storeNames: z.array(z.string().trim().min(1)).min(1),
   totalAmount: z.string().min(1),
 })
 
-export const orderConfirmedEmailPayloadSchema = z.object({
-  orderId: z.uuid(),
+export const orderCreatedEmailPayloadSchema = marketplaceOrderEmailPayloadSchema
+
+export const orderConfirmedEmailPayloadSchema = marketplaceOrderEmailPayloadSchema
+
+export const paymentSucceededEmailPayloadSchema = marketplaceOrderEmailPayloadSchema.extend({
+  paidAt: z.string().datetime().nullable(),
+  paymentId: z.uuid(),
+  paymentProvider: z.string().trim().min(1),
+})
+
+export const paymentFailedEmailPayloadSchema = marketplaceOrderEmailPayloadSchema.extend({
+  failureReason: z.string().trim().min(1).nullable(),
+  paymentId: z.uuid(),
+  paymentProvider: z.string().trim().min(1),
+})
+
+export const sellerNewOrderEmailPayloadSchema = z.object({
+  buyerEmail: z.email(),
+  buyerName: z.string().trim().min(1).nullable(),
   itemCount: z.number().int().positive(),
+  orderDetailsUrl: z.string().trim().min(1),
+  orderId: z.uuid(),
+  orderItems: z.array(orderEmailItemPayloadSchema).min(1),
+  orderStatus: z.string().trim().min(1),
+  paymentMethod: z.string().trim().min(1).nullable(),
+  paymentStatus: z.string().trim().min(1),
+  storeName: z.string().trim().min(1),
   totalAmount: z.string().min(1),
 })
 
@@ -45,9 +85,12 @@ export const productRejectedEmailPayloadSchema = z.object({
 export const emailTemplatePayloadSchemaMap = {
   ORDER_CONFIRMED_EMAIL: orderConfirmedEmailPayloadSchema,
   ORDER_CREATED_EMAIL: orderCreatedEmailPayloadSchema,
+  PAYMENT_FAILED_EMAIL: paymentFailedEmailPayloadSchema,
+  PAYMENT_SUCCEEDED_EMAIL: paymentSucceededEmailPayloadSchema,
   PRODUCT_APPROVED_EMAIL: productApprovedEmailPayloadSchema,
   PRODUCT_REJECTED_EMAIL: productRejectedEmailPayloadSchema,
   SELLER_APPROVED_EMAIL: sellerApprovedEmailPayloadSchema,
+  SELLER_NEW_ORDER_EMAIL: sellerNewOrderEmailPayloadSchema,
   SELLER_REJECTED_EMAIL: sellerRejectedEmailPayloadSchema,
   WELCOME_EMAIL: welcomeEmailPayloadSchema,
 } as const

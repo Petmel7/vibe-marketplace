@@ -8,6 +8,9 @@ export const EMAIL_EVENT_TYPES = [
   'USER_REGISTERED',
   'ORDER_CREATED',
   'ORDER_CONFIRMED',
+  'PAYMENT_SUCCEEDED',
+  'PAYMENT_FAILED',
+  'SELLER_NEW_ORDER',
   'SELLER_APPROVED',
   'SELLER_REJECTED',
   'PRODUCT_APPROVED',
@@ -18,6 +21,9 @@ export const EMAIL_TEMPLATE_KEYS = [
   'WELCOME_EMAIL',
   'ORDER_CREATED_EMAIL',
   'ORDER_CONFIRMED_EMAIL',
+  'PAYMENT_SUCCEEDED_EMAIL',
+  'PAYMENT_FAILED_EMAIL',
+  'SELLER_NEW_ORDER_EMAIL',
   'SELLER_APPROVED_EMAIL',
   'SELLER_REJECTED_EMAIL',
   'PRODUCT_APPROVED_EMAIL',
@@ -32,15 +38,55 @@ export interface WelcomeEmailPayload {
   email: string
 }
 
-export interface OrderCreatedEmailPayload {
-  orderId: string
+export interface OrderEmailItemPayload {
+  productName: string
+  quantity: number
+  storeName: string
+  unitPrice: string
+  variantLabel: string | null
+}
+
+export interface MarketplaceOrderEmailPayload {
+  buyerEmail: string
+  buyerName: string | null
   itemCount: number
+  orderDetailsUrl: string
+  orderId: string
+  orderItems: OrderEmailItemPayload[]
+  orderStatus: string
+  paymentMethod: string | null
+  paymentStatus: string | null
+  storeNames: string[]
   totalAmount: string
 }
 
-export interface OrderConfirmedEmailPayload {
-  orderId: string
+export type OrderCreatedEmailPayload = MarketplaceOrderEmailPayload
+
+export type OrderConfirmedEmailPayload = MarketplaceOrderEmailPayload
+
+export interface PaymentSucceededEmailPayload extends MarketplaceOrderEmailPayload {
+  paidAt: string | null
+  paymentId: string
+  paymentProvider: string
+}
+
+export interface PaymentFailedEmailPayload extends MarketplaceOrderEmailPayload {
+  failureReason: string | null
+  paymentId: string
+  paymentProvider: string
+}
+
+export interface SellerNewOrderEmailPayload {
+  buyerEmail: string
+  buyerName: string | null
   itemCount: number
+  orderDetailsUrl: string
+  orderId: string
+  orderItems: OrderEmailItemPayload[]
+  orderStatus: string
+  paymentMethod: string | null
+  paymentStatus: string
+  storeName: string
   totalAmount: string
 }
 
@@ -67,9 +113,12 @@ export interface ProductRejectedEmailPayload {
 export type EmailTemplatePayloadMap = {
   ORDER_CONFIRMED_EMAIL: OrderConfirmedEmailPayload
   ORDER_CREATED_EMAIL: OrderCreatedEmailPayload
+  PAYMENT_FAILED_EMAIL: PaymentFailedEmailPayload
+  PAYMENT_SUCCEEDED_EMAIL: PaymentSucceededEmailPayload
   PRODUCT_APPROVED_EMAIL: ProductApprovedEmailPayload
   PRODUCT_REJECTED_EMAIL: ProductRejectedEmailPayload
   SELLER_APPROVED_EMAIL: SellerApprovedEmailPayload
+  SELLER_NEW_ORDER_EMAIL: SellerNewOrderEmailPayload
   SELLER_REJECTED_EMAIL: SellerRejectedEmailPayload
   WELCOME_EMAIL: WelcomeEmailPayload
 }

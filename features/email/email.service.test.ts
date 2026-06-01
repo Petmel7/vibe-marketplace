@@ -51,6 +51,37 @@ const mockProvider = {
   send: vi.fn(),
 }
 
+function makeOrderCreatedPayload() {
+  return {
+    buyerEmail: 'buyer@example.com',
+    buyerName: 'Olena Buyer',
+    itemCount: 2,
+    orderDetailsUrl: 'https://app.example.com/profile/orders/11111111-1111-1111-1111-111111111111',
+    orderId: '11111111-1111-1111-1111-111111111111',
+    orderItems: [
+      {
+        productName: 'Blue Hoodie',
+        quantity: 1,
+        storeName: 'North Store',
+        unitPrice: '60.00',
+        variantLabel: 'L / Blue',
+      },
+      {
+        productName: 'Red Tee',
+        quantity: 1,
+        storeName: 'South Store',
+        unitPrice: '60.00',
+        variantLabel: null,
+      },
+    ],
+    orderStatus: 'confirmed',
+    paymentMethod: 'CASH_ON_DELIVERY',
+    paymentStatus: 'PENDING',
+    storeNames: ['North Store', 'South Store'],
+    totalAmount: '120.00',
+  }
+}
+
 function makeEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: 'event-1',
@@ -59,11 +90,7 @@ function makeEvent(overrides: Record<string, unknown> = {}) {
     recipientEmail: 'buyer@example.com',
     recipientUserId: '22222222-2222-4222-8222-222222222222',
     template: 'ORDER_CREATED_EMAIL',
-    payload: {
-      orderId: '11111111-1111-1111-1111-111111111111',
-      itemCount: 2,
-      totalAmount: '120.00',
-    },
+    payload: makeOrderCreatedPayload(),
     status: 'PENDING',
     attempts: 0,
     maxAttempts: 3,
@@ -93,11 +120,7 @@ describe('enqueueEmail', () => {
       recipientEmail: 'buyer@example.com',
       recipientUserId: '22222222-2222-4222-8222-222222222222',
       template: 'ORDER_CREATED_EMAIL',
-      payload: {
-        orderId: '11111111-1111-1111-1111-111111111111',
-        itemCount: 2,
-        totalAmount: '120.00',
-      },
+      payload: makeOrderCreatedPayload(),
     })
 
     expect(mockRepo.createEmailEvent).not.toHaveBeenCalled()
@@ -114,11 +137,7 @@ describe('enqueueEmail', () => {
       recipientEmail: 'buyer@example.com',
       recipientUserId: '22222222-2222-4222-8222-222222222222',
       template: 'ORDER_CREATED_EMAIL',
-      payload: {
-        orderId: '11111111-1111-1111-1111-111111111111',
-        itemCount: 2,
-        totalAmount: '120.00',
-      },
+      payload: makeOrderCreatedPayload(),
     })
 
     expect(mockRepo.createEmailEvent).toHaveBeenCalledOnce()

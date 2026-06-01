@@ -9,6 +9,70 @@ const emailEventInclude = {
   },
 } satisfies Prisma.EmailEventInclude
 
+const notificationOrderItemsSelect = {
+  id: true,
+  quantity: true,
+  storeId: true,
+  productNameSnapshot: true,
+  variantSnapshot: true,
+  storeNameSnapshot: true,
+  unitPriceSnapshot: true,
+  store: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      ownerId: true,
+      owner: {
+        select: {
+          email: true,
+          name: true,
+          profile: {
+            select: {
+              displayName: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.OrderItemSelect
+
+const notificationOrderSelect = {
+  id: true,
+  userId: true,
+  status: true,
+  totalAmount: true,
+  shippingAddressId: true,
+  user: {
+    select: {
+      email: true,
+      name: true,
+      profile: {
+        select: {
+          displayName: true,
+        },
+      },
+    },
+  },
+  payments: {
+    orderBy: [{ createdAt: 'desc' }],
+    take: 1,
+    select: {
+      id: true,
+      provider: true,
+      method: true,
+      status: true,
+      failureReason: true,
+      paidAt: true,
+    },
+  },
+  items: {
+    orderBy: [{ createdAt: 'asc' }],
+    select: notificationOrderItemsSelect,
+  },
+} satisfies Prisma.OrderSelect
+
 function isPrismaUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 }
@@ -206,25 +270,69 @@ export async function findUserNotificationContext(userId: string) {
 }
 
 export async function findOrderNotificationContext(orderId: string) {
-  return prisma.order.findUnique({
+  const order = await prisma.order.findUnique({
     where: { id: orderId },
+    select: notificationOrderSelect,
+  })
+
+  if (!order) {
+    return null
+  }
+
+  const shippingAddress = order.shippingAddressId
+    ? await prisma.shippingAddress.findUnique({
+        where: { id: order.shippingAddressId },
+        select: {
+          fullName: true,
+        },
+      })
+    : null
+
+  return {
+    ...order,
+    shippingAddressName: shippingAddress?.fullName ?? null,
+  }
+}
+
+export async function findPaymentNotificationContext(paymentId: string) {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
     select: {
       id: true,
-      totalAmount: true,
-      userId: true,
-      user: {
-        select: {
-          email: true,
-        },
-      },
-      items: {
-        select: {
-          id: true,
-          quantity: true,
-        },
+      provider: true,
+      method: true,
+      status: true,
+      amount: true,
+      currency: true,
+      failureReason: true,
+      paidAt: true,
+      orderId: true,
+      order: {
+        select: notificationOrderSelect,
       },
     },
   })
+
+  if (!payment) {
+    return null
+  }
+
+  const shippingAddress = payment.order.shippingAddressId
+    ? await prisma.shippingAddress.findUnique({
+        where: { id: payment.order.shippingAddressId },
+        select: {
+          fullName: true,
+        },
+      })
+    : null
+
+  return {
+    ...payment,
+    order: {
+      ...payment.order,
+      shippingAddressName: shippingAddress?.fullName ?? null,
+    },
+  }
 }
 
 export async function findProductNotificationContext(productId: string) {

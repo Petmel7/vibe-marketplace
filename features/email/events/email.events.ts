@@ -1,9 +1,201 @@
+import type { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
 import { enqueueEmailEvent } from '../queue/email.queue'
 import {
   findOrderNotificationContext,
+  findPaymentNotificationContext,
   findProductNotificationContext,
   findUserNotificationContext,
 } from '../email.repository'
+import type {
+  MarketplaceOrderEmailPayload,
+  OrderEmailItemPayload,
+  PaymentFailedEmailPayload,
+  PaymentSucceededEmailPayload,
+  SellerNewOrderEmailPayload,
+} from '../email.dto'
+
+function buildAppUrl(path: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (!appUrl) {
+    return path
+  }
+
+  try {
+    return new URL(path, appUrl.endsWith('/') ? appUrl : `${appUrl}/`).toString()
+  } catch {
+    return path
+  }
+}
+
+function resolveBuyerName(context: {
+  shippingAddressName?: string | null
+  user: {
+    name?: string | null
+    profile?: {
+      displayName?: string | null
+    } | null
+  }
+}) {
+  return context.shippingAddressName ?? context.user.profile?.displayName ?? context.user.name ?? null
+}
+
+function toOrderEmailItems(
+  items: Array<{
+    productNameSnapshot: string
+    quantity: number
+    storeNameSnapshot: string
+    unitPriceSnapshot: { toString(): string }
+    variantSnapshot: string | null
+  }>,
+): OrderEmailItemPayload[] {
+  return items.map((item) => ({
+    productName: item.productNameSnapshot,
+    quantity: item.quantity,
+    storeName: item.storeNameSnapshot,
+    unitPrice: item.unitPriceSnapshot.toString(),
+    variantLabel: item.variantSnapshot,
+  }))
+}
+
+function buildMarketplaceOrderPayload(input: {
+  order: {
+    id: string
+    status: string
+    totalAmount: { toString(): string }
+    shippingAddressName?: string | null
+    user: {
+      email: string | null
+      name?: string | null
+      profile?: {
+        displayName?: string | null
+      } | null
+    }
+    items: Array<{
+      productNameSnapshot: string
+      quantity: number
+      storeNameSnapshot: string
+      unitPriceSnapshot: { toString(): string }
+      variantSnapshot: string | null
+    }>
+  }
+  payment?: {
+    method: PaymentMethod | null
+    status: PaymentStatus | null
+  } | null
+}): MarketplaceOrderEmailPayload {
+  const orderItems = toOrderEmailItems(input.order.items)
+  const storeNames = [...new Set(orderItems.map((item) => item.storeName))]
+
+  return {
+    buyerEmail: input.order.user.email ?? '',
+    buyerName: resolveBuyerName(input.order),
+    itemCount: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+    orderDetailsUrl: buildAppUrl(`/profile/orders/${input.order.id}`),
+    orderId: input.order.id,
+    orderItems,
+    orderStatus: input.order.status,
+    paymentMethod: input.payment?.method ?? null,
+    paymentStatus: input.payment?.status ?? null,
+    storeNames,
+    totalAmount: input.order.totalAmount.toString(),
+  }
+}
+
+function buildPaymentSucceededPayload(input: {
+  payment: {
+    id: string
+    method: PaymentMethod
+    paidAt: Date | null
+    provider: PaymentProvider
+    status: PaymentStatus
+  }
+  order: Parameters<typeof buildMarketplaceOrderPayload>[0]['order']
+}): PaymentSucceededEmailPayload {
+  const basePayload = buildMarketplaceOrderPayload({
+    order: input.order,
+    payment: {
+      method: input.payment.method,
+      status: input.payment.status,
+    },
+  })
+
+  return {
+    ...basePayload,
+    paidAt: input.payment.paidAt?.toISOString() ?? null,
+    paymentId: input.payment.id,
+    paymentProvider: input.payment.provider,
+  }
+}
+
+function buildPaymentFailedPayload(input: {
+  payment: {
+    failureReason: string | null
+    id: string
+    method: PaymentMethod
+    provider: PaymentProvider
+    status: PaymentStatus
+  }
+  order: Parameters<typeof buildMarketplaceOrderPayload>[0]['order']
+}): PaymentFailedEmailPayload {
+  const basePayload = buildMarketplaceOrderPayload({
+    order: input.order,
+    payment: {
+      method: input.payment.method,
+      status: input.payment.status,
+    },
+  })
+
+  return {
+    ...basePayload,
+    failureReason: input.payment.failureReason,
+    paymentId: input.payment.id,
+    paymentProvider: input.payment.provider,
+  }
+}
+
+function buildSellerNewOrderPayload(input: {
+  items: Array<{
+    productNameSnapshot: string
+    quantity: number
+    storeNameSnapshot: string
+    unitPriceSnapshot: { toString(): string }
+    variantSnapshot: string | null
+  }>
+  order: {
+    id: string
+    status: string
+    totalAmount: { toString(): string }
+    shippingAddressName?: string | null
+    user: {
+      email: string | null
+      name?: string | null
+      profile?: {
+        displayName?: string | null
+      } | null
+    }
+  }
+  payment: {
+    method: PaymentMethod
+    status: PaymentStatus
+  }
+  storeName: string
+}): SellerNewOrderEmailPayload {
+  const orderItems = toOrderEmailItems(input.items)
+
+  return {
+    buyerEmail: input.order.user.email ?? '',
+    buyerName: resolveBuyerName(input.order),
+    itemCount: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+    orderDetailsUrl: buildAppUrl('/seller/orders'),
+    orderId: input.order.id,
+    orderItems,
+    orderStatus: input.order.status,
+    paymentMethod: input.payment.method,
+    paymentStatus: input.payment.status,
+    storeName: input.storeName,
+    totalAmount: input.order.totalAmount.toString(),
+  }
+}
 
 export async function emitWelcomeEmailEvent(input: {
   email: string
@@ -32,19 +224,21 @@ export async function emitOrderCreatedEmailEvent(input: {
     return null
   }
 
-  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
-
   return enqueueEmailEvent({
     eventType: 'ORDER_CREATED',
-    dedupeKey: `order-created:${order.id}`,
+    dedupeKey: `order-created:${order.id}:${order.userId}`,
     recipientEmail: order.user.email,
     recipientUserId: order.userId,
     template: 'ORDER_CREATED_EMAIL',
-    payload: {
-      orderId: order.id,
-      itemCount,
-      totalAmount: order.totalAmount.toString(),
-    },
+    payload: buildMarketplaceOrderPayload({
+      order,
+      payment: order.payments[0]
+        ? {
+            method: order.payments[0].method,
+            status: order.payments[0].status,
+          }
+        : null,
+    }),
   })
 }
 
@@ -56,20 +250,124 @@ export async function emitOrderConfirmedEmailEvent(input: {
     return null
   }
 
-  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
-
   return enqueueEmailEvent({
     eventType: 'ORDER_CONFIRMED',
-    dedupeKey: `order-confirmed:${order.id}`,
+    dedupeKey: `order-confirmed:${order.id}:${order.userId}`,
     recipientEmail: order.user.email,
     recipientUserId: order.userId,
     template: 'ORDER_CONFIRMED_EMAIL',
-    payload: {
-      orderId: order.id,
-      itemCount,
-      totalAmount: order.totalAmount.toString(),
-    },
+    payload: buildMarketplaceOrderPayload({
+      order,
+      payment: order.payments[0]
+        ? {
+            method: order.payments[0].method,
+            status: order.payments[0].status,
+          }
+        : null,
+    }),
   })
+}
+
+export async function emitPaymentSucceededEmailEvent(input: {
+  paymentId: string
+}) {
+  const payment = await findPaymentNotificationContext(input.paymentId)
+  if (!payment?.order.user.email) {
+    return null
+  }
+
+  return enqueueEmailEvent({
+    eventType: 'PAYMENT_SUCCEEDED',
+    dedupeKey: `payment-succeeded:${payment.id}:${payment.order.userId}`,
+    recipientEmail: payment.order.user.email,
+    recipientUserId: payment.order.userId,
+    template: 'PAYMENT_SUCCEEDED_EMAIL',
+    payload: buildPaymentSucceededPayload({
+      payment,
+      order: payment.order,
+    }),
+  })
+}
+
+export async function emitPaymentFailedEmailEvent(input: {
+  paymentId: string
+}) {
+  const payment = await findPaymentNotificationContext(input.paymentId)
+  if (!payment?.order.user.email) {
+    return null
+  }
+
+  return enqueueEmailEvent({
+    eventType: 'PAYMENT_FAILED',
+    dedupeKey: `payment-failed:${payment.id}:${payment.order.userId}`,
+    recipientEmail: payment.order.user.email,
+    recipientUserId: payment.order.userId,
+    template: 'PAYMENT_FAILED_EMAIL',
+    payload: buildPaymentFailedPayload({
+      payment,
+      order: payment.order,
+    }),
+  })
+}
+
+export async function emitSellerNewOrderEmailEvents(input: {
+  paymentId: string
+}) {
+  const payment = await findPaymentNotificationContext(input.paymentId)
+  if (!payment) {
+    return []
+  }
+
+  const itemsByStore = new Map<
+    string,
+    {
+      ownerEmail: string | null
+      ownerId: string
+      items: typeof payment.order.items
+      storeName: string
+    }
+  >()
+
+  for (const item of payment.order.items) {
+    const current = itemsByStore.get(item.storeId)
+
+    if (current) {
+      current.items.push(item)
+      continue
+    }
+
+    itemsByStore.set(item.storeId, {
+      ownerEmail: item.store.owner.email,
+      ownerId: item.store.ownerId,
+      items: [item],
+      storeName: item.store.name,
+    })
+  }
+
+  return Promise.all(
+    [...itemsByStore.entries()].map(async ([storeId, store]) => {
+      if (!store.ownerEmail) {
+        return null
+      }
+
+      return enqueueEmailEvent({
+        eventType: 'SELLER_NEW_ORDER',
+        dedupeKey: `seller-new-order:${payment.orderId}:${storeId}`,
+        recipientEmail: store.ownerEmail,
+        recipientUserId: store.ownerId,
+        template: 'SELLER_NEW_ORDER_EMAIL',
+        payload: buildSellerNewOrderPayload({
+          items: store.items,
+          order: payment.order,
+          payment: {
+            method: payment.method,
+            status: payment.status,
+          },
+          storeName: store.storeName,
+        }),
+      })
+    }),
+  )
 }
 
 export async function emitSellerApprovedEmailEvent(input: {

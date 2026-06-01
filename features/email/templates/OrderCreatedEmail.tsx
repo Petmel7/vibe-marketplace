@@ -1,32 +1,16 @@
-import { Heading, Text } from '@react-email/components'
 import EmailLayout from './components/EmailLayout'
+import OrderEmailContent from './components/OrderEmailContent'
 import type { OrderCreatedEmailPayload } from '../email.dto'
 
-export default function OrderCreatedEmail({
-  itemCount,
-  orderId,
-  totalAmount,
-}: OrderCreatedEmailPayload) {
+export default function OrderCreatedEmail(payload: OrderCreatedEmailPayload) {
   return (
-    <EmailLayout previewText={`Order ${orderId} was created`}>
-      <Heading as="h2" style={heading}>Your order was created</Heading>
-      <Text style={copy}>Order ID: {orderId}</Text>
-      <Text style={copy}>Items: {itemCount}</Text>
-      <Text style={copy}>Total: {totalAmount}</Text>
+    <EmailLayout previewText={`Order ${payload.orderId} was created`}>
+      <OrderEmailContent
+        ctaLabel="View order details"
+        intro="We received your order and saved the latest order snapshot for checkout."
+        payload={payload}
+        title="Your order was created"
+      />
     </EmailLayout>
   )
-}
-
-const heading = {
-  color: '#f5f7fb',
-  fontSize: '22px',
-  fontWeight: '700',
-  margin: '0 0 16px',
-}
-
-const copy = {
-  color: '#d3dae6',
-  fontSize: '15px',
-  lineHeight: '24px',
-  margin: '0 0 14px',
 }

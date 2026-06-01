@@ -4,6 +4,12 @@ import { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/p
 import { requireAdmin } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import {
+  emitPaymentFailedEmailEvent,
+  emitPaymentSucceededEmailEvent,
+  emitSellerNewOrderEmailEvents,
+} from '@/features/email/events/email.events'
+import { logError } from '@/utils/logger'
+import {
   applyFailedPayment,
   applyRefundOutcome,
   applySuccessfulPayment,
@@ -420,6 +426,13 @@ export async function processPaymentWebhook(
         paymentId: payment.id,
         paidAt: new Date(),
       })
+
+      void emitPaymentSucceededEmailEvent({ paymentId: payment.id }).catch((error) => {
+        logError('payments:webhook:payment-succeeded-email', error)
+      })
+      void emitSellerNewOrderEmailEvents({ paymentId: payment.id }).catch((error) => {
+        logError('payments:webhook:seller-new-order-email', error)
+      })
     }
   } else if (parsedEvent.status === PaymentStatus.REFUNDED) {
     if (
@@ -448,6 +461,10 @@ export async function processPaymentWebhook(
       await applyFailedPayment({
         paymentId: payment.id,
         status: parsedEvent.status as 'FAILED' | 'CANCELLED',
+      })
+
+      void emitPaymentFailedEmailEvent({ paymentId: payment.id }).catch((error) => {
+        logError('payments:webhook:payment-failed-email', error)
       })
     }
   } else if (
