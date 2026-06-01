@@ -8,6 +8,7 @@ vi.mock('@/features/notifications/notifications.repository', () => ({
   deleteNotificationById: vi.fn(),
   findAdminNotificationRecipients: vi.fn(),
   findNotificationById: vi.fn(),
+  findSellerNewOrderNotificationByDedupeKey: vi.fn(),
   listNotificationsByUserId: vi.fn(),
   markAllNotificationsReadByUserId: vi.fn(),
   markNotificationRead: vi.fn(),

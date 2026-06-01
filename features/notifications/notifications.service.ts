@@ -19,6 +19,7 @@ import {
   deleteNotificationById,
   findAdminNotificationRecipients,
   findNotificationById,
+  findSellerNewOrderNotificationByDedupeKey,
   markAllNotificationsReadByUserId,
   markNotificationRead,
   type NotificationListRecord,
@@ -100,6 +101,14 @@ export async function createSellerNotification(
   },
 ): Promise<NotificationDto> {
   return notifyUser(input)
+}
+
+export async function findExistingSellerNewOrderNotification(
+  userId: string,
+  dedupeKey: string,
+): Promise<NotificationDto | null> {
+  const notification = await findSellerNewOrderNotificationByDedupeKey(userId, dedupeKey)
+  return notification ? toNotificationDto(notification) : null
 }
 
 export async function createAdminNotification(

@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import { NotificationType } from '@/app/generated/prisma/client'
 import {
   findOrderNotificationContext,
@@ -8,6 +9,7 @@ import {
   createOrderNotification,
   createPaymentNotification,
   createSellerNotification,
+  findExistingSellerNewOrderNotification,
 } from '../notifications.service'
 
 function buildAppUrl(path: string): string {
@@ -33,6 +35,106 @@ function resolveBuyerName(context: {
   }
 }) {
   return context.shippingAddressName ?? context.user.profile?.displayName ?? context.user.name ?? 'Покупець'
+}
+
+type SellerOrderNotificationOrderItem = {
+  quantity: number
+  storeId: string
+  unitPriceSnapshot: { toString(): string }
+  store: {
+    name: string
+    ownerId: string
+  }
+}
+
+type SellerOrderNotificationContext = {
+  id: string
+  status: string
+  shippingAddressName?: string | null
+  user: {
+    email: string | null
+    name?: string | null
+    profile?: {
+      displayName?: string | null
+    } | null
+  }
+  items: SellerOrderNotificationOrderItem[]
+}
+
+function groupSellerOrderItemsByStore(items: SellerOrderNotificationOrderItem[]) {
+  const itemsByStore = new Map<
+    string,
+    {
+      ownerId: string
+      items: SellerOrderNotificationOrderItem[]
+      storeName: string
+    }
+  >()
+
+  for (const item of items) {
+    const existing = itemsByStore.get(item.storeId)
+
+    if (existing) {
+      existing.items.push(item)
+      continue
+    }
+
+    itemsByStore.set(item.storeId, {
+      ownerId: item.store.ownerId,
+      items: [item],
+      storeName: item.store.name,
+    })
+  }
+
+  return itemsByStore
+}
+
+async function createSellerNewOrderNotificationsFromOrderContext(input: {
+  order: SellerOrderNotificationContext
+  paymentMethod: string | null
+  paymentStatus: string | null
+}) {
+  const itemsByStore = groupSellerOrderItemsByStore(input.order.items)
+
+  const results = await Promise.all(
+    [...itemsByStore.entries()].map(async ([storeId, store]) => {
+      const dedupeKey = `seller-new-order:${input.order.id}:${storeId}`
+      const existing = await findExistingSellerNewOrderNotification(store.ownerId, dedupeKey)
+
+      if (existing) {
+        return existing
+      }
+
+      const sellerItemCount = store.items.reduce((sum, item) => sum + item.quantity, 0)
+      const sellerSubtotal = store.items
+        .reduce(
+          (sum, item) => sum.plus(new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)),
+          new Decimal(0),
+        )
+        .toFixed(2)
+
+      return createSellerNotification({
+        userId: store.ownerId,
+        type: NotificationType.SELLER_NEW_ORDER,
+        title: 'Нове замовлення для обробки',
+        message: `Для магазину "${store.storeName}" надійшло нове замовлення від ${resolveBuyerName(input.order)}.`,
+        actionUrl: buildAppUrl('/seller/orders'),
+        metadata: {
+          dedupeKey,
+          orderId: input.order.id,
+          orderStatus: input.order.status,
+          paymentMethod: input.paymentMethod,
+          paymentStatus: input.paymentStatus,
+          sellerItemCount,
+          sellerSubtotal,
+          storeId,
+          storeName: store.storeName,
+        },
+      })
+    }),
+  )
+
+  return results.filter((result) => result != null)
 }
 
 export async function emitOrderCreatedNotificationEvent(input: { orderId: string }) {
@@ -109,34 +211,24 @@ export async function emitSellerNewOrderNotificationEvents(input: { paymentId: s
     return []
   }
 
-  const processedStoreIds = new Set<string>()
+  return createSellerNewOrderNotificationsFromOrderContext({
+    order: payment.order,
+    paymentMethod: payment.method,
+    paymentStatus: payment.status,
+  })
+}
 
-  const results = await Promise.all(
-    payment.order.items.map(async (item) => {
-      if (processedStoreIds.has(item.storeId)) {
-        return null
-      }
+export async function emitSellerNewOrderNotificationEventsForOrder(input: { orderId: string }) {
+  const order = await findOrderNotificationContext(input.orderId)
+  if (!order) {
+    return []
+  }
 
-      processedStoreIds.add(item.storeId)
-
-      return createSellerNotification({
-        userId: item.store.ownerId,
-        type: NotificationType.SELLER_NEW_ORDER,
-        title: 'Нове оплачене замовлення',
-        message: `Для магазину "${item.store.name}" надійшло нове оплачене замовлення від ${resolveBuyerName(payment.order)}.`,
-        actionUrl: buildAppUrl('/seller/orders'),
-        metadata: {
-          orderId: payment.order.id,
-          paymentId: payment.id,
-          storeId: item.storeId,
-          storeName: item.store.name,
-          paymentStatus: payment.status,
-        },
-      })
-    }),
-  )
-
-  return results.filter((result) => result != null)
+  return createSellerNewOrderNotificationsFromOrderContext({
+    order,
+    paymentMethod: order.payments[0]?.method ?? null,
+    paymentStatus: order.payments[0]?.status ?? null,
+  })
 }
 
 export async function emitSellerApprovedNotificationEvent(input: {

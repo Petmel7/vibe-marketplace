@@ -35,7 +35,10 @@ import {
   CheckoutStockUnavailableError,
 } from '@/lib/errors/checkout'
 import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
-import { emitOrderCreatedNotificationEvent } from '@/features/notifications/events/notification.events'
+import {
+  emitOrderCreatedNotificationEvent,
+  emitSellerNewOrderNotificationEventsForOrder,
+} from '@/features/notifications/events/notification.events'
 import { logError } from '@/utils/logger'
 
 const LOW_STOCK_THRESHOLD = 3
@@ -409,6 +412,11 @@ export async function checkout(
   void emitOrderCreatedNotificationEvent({ orderId: order.id }).catch((error) => {
     logError('checkout:order-created-notification', error)
   })
+  if (payment.method === 'CASH_ON_DELIVERY' && order.status === 'confirmed') {
+    void emitSellerNewOrderNotificationEventsForOrder({ orderId: order.id }).catch((error) => {
+      logError('checkout:seller-new-order-notification', error)
+    })
+  }
 
   return {
     orderId: order.id,

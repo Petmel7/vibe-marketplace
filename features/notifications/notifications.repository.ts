@@ -134,6 +134,20 @@ export async function findAdminNotificationRecipients() {
   })
 }
 
+export async function findSellerNewOrderNotificationByDedupeKey(userId: string, dedupeKey: string) {
+  return prisma.notification.findFirst({
+    where: {
+      userId,
+      type: 'SELLER_NEW_ORDER',
+      metadata: {
+        path: ['dedupeKey'],
+        equals: dedupeKey,
+      },
+    },
+    select: notificationSelect,
+  })
+}
+
 export type NotificationRecord = Awaited<ReturnType<typeof createNotification>>
 export type NotificationOwnershipRecord = Awaited<ReturnType<typeof findNotificationById>>
 export type NotificationListRecord = Awaited<ReturnType<typeof listNotificationsByUserId>>[number]

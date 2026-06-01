@@ -8,6 +8,7 @@ vi.mock('@/features/email/events/email.events', () => ({
 }))
 vi.mock('@/features/notifications/events/notification.events', () => ({
   emitOrderCreatedNotificationEvent: vi.fn(),
+  emitSellerNewOrderNotificationEventsForOrder: vi.fn(),
 }))
 vi.mock('@/features/payments/payment.service', () => ({
   createCheckoutIdentifiers: vi.fn(),
@@ -19,7 +20,10 @@ vi.mock('@/features/payments/payment.service', () => ({
 import * as repo from '@/features/checkout/checkout.repository'
 import * as guards from '@/lib/auth/guards'
 import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
-import { emitOrderCreatedNotificationEvent } from '@/features/notifications/events/notification.events'
+import {
+  emitOrderCreatedNotificationEvent,
+  emitSellerNewOrderNotificationEventsForOrder,
+} from '@/features/notifications/events/notification.events'
 import * as paymentService from '@/features/payments/payment.service'
 import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import {
@@ -37,6 +41,9 @@ const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(guards)
 const mockEmitOrderCreatedEmailEvent = vi.mocked(emitOrderCreatedEmailEvent)
 const mockEmitOrderCreatedNotificationEvent = vi.mocked(emitOrderCreatedNotificationEvent)
+const mockEmitSellerNewOrderNotificationEventsForOrder = vi.mocked(
+  emitSellerNewOrderNotificationEventsForOrder,
+)
 const mockPaymentService = vi.mocked(paymentService)
 
 const USER_ID = 'user-0000-0000-0000-000000000001'
@@ -207,6 +214,7 @@ beforeEach(() => {
   mockGuards.requireBuyer.mockReturnValue(undefined)
   mockEmitOrderCreatedEmailEvent.mockResolvedValue(null)
   mockEmitOrderCreatedNotificationEvent.mockResolvedValue(null)
+  mockEmitSellerNewOrderNotificationEventsForOrder.mockResolvedValue([])
   mockPaymentService.prepareCheckoutPayment.mockResolvedValue({
     provider: 'MANUAL',
     providerPaymentId: mockPayment.id,
@@ -332,6 +340,7 @@ describe('checkout submit', () => {
     })
     expect(mockEmitOrderCreatedEmailEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
     expect(mockEmitOrderCreatedNotificationEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
+    expect(mockEmitSellerNewOrderNotificationEventsForOrder).toHaveBeenCalledWith({ orderId: ORDER_ID })
   })
 
   it('does not fail checkout when order created email enqueue fails', async () => {
@@ -356,6 +365,22 @@ describe('checkout submit', () => {
       makeAddress() as unknown as Awaited<ReturnType<typeof mockRepo.findShippingAddress>>,
     )
     mockEmitOrderCreatedNotificationEvent.mockRejectedValueOnce(new Error('notifications down'))
+
+    const result = await checkout(mockUser, checkoutInput)
+
+    expect(result.orderId).toBe(ORDER_ID)
+  })
+
+  it('does not fail checkout when seller new order notification enqueue fails for cash on delivery', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockRepo.findShippingAddress.mockResolvedValue(
+      makeAddress() as unknown as Awaited<ReturnType<typeof mockRepo.findShippingAddress>>,
+    )
+    mockEmitSellerNewOrderNotificationEventsForOrder.mockRejectedValueOnce(
+      new Error('notifications down'),
+    )
 
     const result = await checkout(mockUser, checkoutInput)
 
@@ -413,6 +438,7 @@ describe('checkout submit', () => {
       orderId: ORDER_ID,
     })
     expect(result.status).toBe('pending')
+    expect(mockEmitSellerNewOrderNotificationEventsForOrder).not.toHaveBeenCalled()
   })
 
   it('blocks empty carts', async () => {
