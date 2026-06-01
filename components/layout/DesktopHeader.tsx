@@ -7,6 +7,7 @@ import type { CategoryTreeNode } from '@/components/category/category.data'
 import type { SessionUser } from '@/types/auth'
 import CartIcon from '@/components/cart/CartIcon'
 import AuthUserMenu from '@/components/auth/AuthUserMenu'
+import NotificationBell from '@/components/notifications/NotificationBell'
 import WishlistIcon from '../wishlist/WishlistIcon'
 import CatalogToggleButton from '../ui/CatalogToggleButton'
 import Logo from '../ui/Logo'
@@ -91,6 +92,8 @@ export default function DesktopHeader({
         <HeaderIconButton label="Search" onClick={onSearch}>
           <Search size={24} color="#E8E9EA" />
         </HeaderIconButton>
+
+        {user ? <NotificationBell /> : null}
 
         <WishlistIcon />
 

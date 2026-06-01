@@ -3,6 +3,7 @@
 import { Search } from 'lucide-react'
 import type { SessionUser } from '@/types/auth'
 import AuthUserMenu from '@/components/auth/AuthUserMenu'
+import NotificationBell from '@/components/notifications/NotificationBell'
 import HeaderIconButton from './HeaderIconButton'
 import Logo from '../ui/Logo'
 
@@ -23,6 +24,8 @@ export default function MobileHeader({
         <HeaderIconButton label="Search" onClick={onSearch}>
           <Search size={24} color="#E8E9EA" />
         </HeaderIconButton>
+
+        {user ? <NotificationBell /> : null}
 
         <AuthUserMenu user={user} />
       </nav>

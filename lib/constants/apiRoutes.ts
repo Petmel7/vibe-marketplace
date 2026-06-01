@@ -6,6 +6,9 @@ export const API_ROUTES = {
   cartItems: '/api/cart/items',
   checkoutPreview: '/api/checkout',
   checkoutSubmit: '/api/checkout',
+  notifications: '/api/notifications',
+  notificationsUnreadCount: '/api/notifications/unread-count',
+  notificationsReadAll: '/api/notifications/read-all',
   profileAddresses: '/api/profile/addresses',
   categoriesTree: '/api/categories/tree',
   adminBadgeRules: '/api/admin/badge-rules',
@@ -33,6 +36,14 @@ export function getOrderRoute(id: string) {
 
 export function getWishlistItemRoute(productId: string) {
   return `${API_ROUTES.wishlist}/${productId}`
+}
+
+export function getNotificationRoute(id: string) {
+  return `${API_ROUTES.notifications}/${id}`
+}
+
+export function getNotificationReadRoute(id: string) {
+  return `${API_ROUTES.notifications}/${id}/read`
 }
 
 export function isAuthPagePath(pathname: string | null | undefined) {
