@@ -10,6 +10,10 @@ vi.mock('@/features/email/events/email.events', () => ({
   emitProductApprovedEmailEvent: vi.fn(),
   emitProductRejectedEmailEvent: vi.fn(),
 }))
+vi.mock('@/features/notifications/events/notification.events', () => ({
+  emitProductApprovedNotificationEvent: vi.fn(),
+  emitProductRejectedNotificationEvent: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/product/product-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
@@ -18,6 +22,10 @@ import {
   emitProductApprovedEmailEvent,
   emitProductRejectedEmailEvent,
 } from '@/features/email/events/email.events'
+import {
+  emitProductApprovedNotificationEvent,
+  emitProductRejectedNotificationEvent,
+} from '@/features/notifications/events/notification.events'
 import {
   getPendingProductQueue,
   approveProduct,
@@ -35,6 +43,8 @@ const mockGuards = vi.mocked(adminGuards)
 const mockBadgeService = vi.mocked(productBadgeService)
 const mockEmitProductApprovedEmailEvent = vi.mocked(emitProductApprovedEmailEvent)
 const mockEmitProductRejectedEmailEvent = vi.mocked(emitProductRejectedEmailEvent)
+const mockEmitProductApprovedNotificationEvent = vi.mocked(emitProductApprovedNotificationEvent)
+const mockEmitProductRejectedNotificationEvent = vi.mocked(emitProductRejectedNotificationEvent)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -102,6 +112,8 @@ beforeEach(() => {
   mockGuards.assertNotSelfModeration.mockReturnValue(undefined)
   mockEmitProductApprovedEmailEvent.mockResolvedValue(null)
   mockEmitProductRejectedEmailEvent.mockResolvedValue(null)
+  mockEmitProductApprovedNotificationEvent.mockResolvedValue({} as never)
+  mockEmitProductRejectedNotificationEvent.mockResolvedValue({} as never)
 })
 
 describe('getPendingProductQueue', () => {
@@ -150,6 +162,7 @@ describe('approveProduct', () => {
     expect(result.storeName).toBe('Test Store')
     expect(result.moderatedBy).toBe(ADMIN_ID)
     expect(mockBadgeService.syncSystemNewBadgeForProduct).toHaveBeenCalledWith(updated)
+    expect(mockEmitProductApprovedNotificationEvent).toHaveBeenCalledWith({ productId: PRODUCT_ID })
   })
 
   it('throws InvalidModerationTransitionError on wrong state', async () => {
@@ -197,6 +210,10 @@ describe('rejectProduct', () => {
     expect(result.moderationReason).toBe('Violates content policy')
     expect(result.rejectionReason).toBe('Violates content policy')
     expect(mockBadgeService.syncSystemNewBadgeForProduct).toHaveBeenCalledWith(updated)
+    expect(mockEmitProductRejectedNotificationEvent).toHaveBeenCalledWith({
+      productId: PRODUCT_ID,
+      reason: 'Violates content policy',
+    })
   })
 
   it('throws InvalidModerationTransitionError when product is not PENDING_REVIEW', async () => {

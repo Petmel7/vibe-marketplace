@@ -35,6 +35,7 @@ import {
   CheckoutStockUnavailableError,
 } from '@/lib/errors/checkout'
 import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
+import { emitOrderCreatedNotificationEvent } from '@/features/notifications/events/notification.events'
 import { logError } from '@/utils/logger'
 
 const LOW_STOCK_THRESHOLD = 3
@@ -404,6 +405,9 @@ export async function checkout(
 
   void emitOrderCreatedEmailEvent({ orderId: order.id }).catch((error) => {
     logError('checkout:order-created-email', error)
+  })
+  void emitOrderCreatedNotificationEvent({ orderId: order.id }).catch((error) => {
+    logError('checkout:order-created-notification', error)
   })
 
   return {

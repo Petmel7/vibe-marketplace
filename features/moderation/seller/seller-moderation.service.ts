@@ -19,6 +19,10 @@ import {
   emitSellerApprovedEmailEvent,
   emitSellerRejectedEmailEvent,
 } from '@/features/email/events/email.events'
+import {
+  emitSellerApprovedNotificationEvent,
+  emitSellerRejectedNotificationEvent,
+} from '@/features/notifications/events/notification.events'
 import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
@@ -92,6 +96,12 @@ export async function approveSeller(
   }).catch((error) => {
     logError('seller-moderation:approve-email', error)
   })
+  void emitSellerApprovedNotificationEvent({
+    sellerUserId: updated.userId,
+    businessName: updated.businessName ?? null,
+  }).catch((error) => {
+    logError('seller-moderation:approve-notification', error)
+  })
   return toSellerModerationDto(updated)
 }
 
@@ -116,6 +126,13 @@ export async function rejectSeller(
     reason,
   }).catch((error) => {
     logError('seller-moderation:reject-email', error)
+  })
+  void emitSellerRejectedNotificationEvent({
+    sellerUserId: updated.userId,
+    businessName: updated.businessName ?? null,
+    reason,
+  }).catch((error) => {
+    logError('seller-moderation:reject-notification', error)
   })
   return toSellerModerationDto(updated)
 }

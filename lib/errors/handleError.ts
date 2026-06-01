@@ -78,6 +78,10 @@ import {
   EmailTemplateRenderError,
 } from './email'
 import {
+  NotificationNotFoundError,
+  NotificationOwnershipError,
+} from './notification'
+import {
   InvalidPaymentTransitionError,
   LiqPayAmountMismatchError,
   LiqPayConfigError,
@@ -105,6 +109,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AddressOwnershipError ||
     err instanceof CartOwnershipError ||
     err instanceof OrderAccessError ||
+    err instanceof NotificationOwnershipError ||
     err instanceof StoreOwnershipError ||
     err instanceof ProductOwnershipError ||
     err instanceof UnverifiedSellerError ||
@@ -131,6 +136,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CategoryNotFoundError ||
     err instanceof BadgeRuleNotFoundError ||
     err instanceof EmailEventNotFoundError ||
+    err instanceof NotificationNotFoundError ||
     err instanceof PaymentNotFoundError
   )
     return Response.json(

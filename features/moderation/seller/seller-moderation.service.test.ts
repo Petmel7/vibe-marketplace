@@ -7,6 +7,10 @@ vi.mock('@/features/email/events/email.events', () => ({
   emitSellerApprovedEmailEvent: vi.fn(),
   emitSellerRejectedEmailEvent: vi.fn(),
 }))
+vi.mock('@/features/notifications/events/notification.events', () => ({
+  emitSellerApprovedNotificationEvent: vi.fn(),
+  emitSellerRejectedNotificationEvent: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/seller/seller-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
@@ -14,6 +18,10 @@ import {
   emitSellerApprovedEmailEvent,
   emitSellerRejectedEmailEvent,
 } from '@/features/email/events/email.events'
+import {
+  emitSellerApprovedNotificationEvent,
+  emitSellerRejectedNotificationEvent,
+} from '@/features/notifications/events/notification.events'
 import {
   approveSeller,
   rejectSeller,
@@ -32,6 +40,8 @@ const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
 const mockEmitSellerApprovedEmailEvent = vi.mocked(emitSellerApprovedEmailEvent)
 const mockEmitSellerRejectedEmailEvent = vi.mocked(emitSellerRejectedEmailEvent)
+const mockEmitSellerApprovedNotificationEvent = vi.mocked(emitSellerApprovedNotificationEvent)
+const mockEmitSellerRejectedNotificationEvent = vi.mocked(emitSellerRejectedNotificationEvent)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -76,6 +86,8 @@ beforeEach(() => {
   mockGuards.assertNotSelfModeration.mockReturnValue(undefined)
   mockEmitSellerApprovedEmailEvent.mockResolvedValue(null)
   mockEmitSellerRejectedEmailEvent.mockResolvedValue(null)
+  mockEmitSellerApprovedNotificationEvent.mockResolvedValue({} as never)
+  mockEmitSellerRejectedNotificationEvent.mockResolvedValue({} as never)
 })
 
 // ---------------------------------------------------------------------------
@@ -102,6 +114,10 @@ describe('approveSeller', () => {
     expect(result.id).toBe(SELLER_ID)
     expect(result.verificationStatus).toBe('VERIFIED')
     expect(result.moderatedBy).toBe(ADMIN_ID)
+    expect(mockEmitSellerApprovedNotificationEvent).toHaveBeenCalledWith({
+      sellerUserId: SELLER_USER_ID,
+      businessName: 'Test Business',
+    })
   })
 
   it('throws InvalidModerationTransitionError when seller is not PENDING', async () => {
@@ -146,6 +162,11 @@ describe('rejectSeller', () => {
     )
     expect(result.verificationStatus).toBe('REJECTED')
     expect(result.moderationReason).toBe('Incomplete documentation provided')
+    expect(mockEmitSellerRejectedNotificationEvent).toHaveBeenCalledWith({
+      sellerUserId: SELLER_USER_ID,
+      businessName: 'Test Business',
+      reason: 'Incomplete documentation provided',
+    })
   })
 
   it('throws InvalidModerationTransitionError on wrong state', async () => {

@@ -8,6 +8,11 @@ import {
   emitPaymentSucceededEmailEvent,
   emitSellerNewOrderEmailEvents,
 } from '@/features/email/events/email.events'
+import {
+  emitPaymentFailedNotificationEvent,
+  emitPaymentSucceededNotificationEvent,
+  emitSellerNewOrderNotificationEvents,
+} from '@/features/notifications/events/notification.events'
 import { logError } from '@/utils/logger'
 import {
   applyFailedPayment,
@@ -430,8 +435,14 @@ export async function processPaymentWebhook(
       void emitPaymentSucceededEmailEvent({ paymentId: payment.id }).catch((error) => {
         logError('payments:webhook:payment-succeeded-email', error)
       })
+      void emitPaymentSucceededNotificationEvent({ paymentId: payment.id }).catch((error) => {
+        logError('payments:webhook:payment-succeeded-notification', error)
+      })
       void emitSellerNewOrderEmailEvents({ paymentId: payment.id }).catch((error) => {
         logError('payments:webhook:seller-new-order-email', error)
+      })
+      void emitSellerNewOrderNotificationEvents({ paymentId: payment.id }).catch((error) => {
+        logError('payments:webhook:seller-new-order-notification', error)
       })
     }
   } else if (parsedEvent.status === PaymentStatus.REFUNDED) {
@@ -465,6 +476,9 @@ export async function processPaymentWebhook(
 
       void emitPaymentFailedEmailEvent({ paymentId: payment.id }).catch((error) => {
         logError('payments:webhook:payment-failed-email', error)
+      })
+      void emitPaymentFailedNotificationEvent({ paymentId: payment.id }).catch((error) => {
+        logError('payments:webhook:payment-failed-notification', error)
       })
     }
   } else if (

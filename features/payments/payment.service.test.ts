@@ -25,10 +25,16 @@ vi.mock('@/features/email/events/email.events', () => ({
   emitPaymentSucceededEmailEvent: vi.fn(),
   emitSellerNewOrderEmailEvents: vi.fn(),
 }))
+vi.mock('@/features/notifications/events/notification.events', () => ({
+  emitPaymentFailedNotificationEvent: vi.fn(),
+  emitPaymentSucceededNotificationEvent: vi.fn(),
+  emitSellerNewOrderNotificationEvents: vi.fn(),
+}))
 
 import * as repo from '@/features/payments/payment.repository'
 import * as authGuards from '@/lib/auth/guards'
 import * as emailEvents from '@/features/email/events/email.events'
+import * as notificationEvents from '@/features/notifications/events/notification.events'
 import {
   getAdminPayments,
   markManualPaymentPaid,
@@ -47,6 +53,7 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 const mockRepo = vi.mocked(repo)
 const mockAuthGuards = vi.mocked(authGuards)
 const mockEmailEvents = vi.mocked(emailEvents)
+const mockNotificationEvents = vi.mocked(notificationEvents)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -106,6 +113,9 @@ beforeEach(() => {
   mockEmailEvents.emitPaymentFailedEmailEvent.mockResolvedValue(null)
   mockEmailEvents.emitPaymentSucceededEmailEvent.mockResolvedValue(null)
   mockEmailEvents.emitSellerNewOrderEmailEvents.mockResolvedValue([])
+  mockNotificationEvents.emitPaymentFailedNotificationEvent.mockResolvedValue(null)
+  mockNotificationEvents.emitPaymentSucceededNotificationEvent.mockResolvedValue(null)
+  mockNotificationEvents.emitSellerNewOrderNotificationEvents.mockResolvedValue([])
   process.env.LIQPAY_PUBLIC_KEY = 'test-public-key'
   process.env.LIQPAY_PRIVATE_KEY = LIQPAY_PRIVATE_KEY
   process.env.LIQPAY_SANDBOX = 'false'
@@ -195,7 +205,13 @@ describe('processPaymentWebhook', () => {
     expect(mockEmailEvents.emitPaymentSucceededEmailEvent).toHaveBeenCalledWith({
       paymentId: '99999999-9999-4999-8999-999999999999',
     })
+    expect(mockNotificationEvents.emitPaymentSucceededNotificationEvent).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+    })
     expect(mockEmailEvents.emitSellerNewOrderEmailEvents).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+    })
+    expect(mockNotificationEvents.emitSellerNewOrderNotificationEvents).toHaveBeenCalledWith({
       paymentId: '99999999-9999-4999-8999-999999999999',
     })
     expect(mockRepo.markWebhookProcessed).toHaveBeenCalledWith('webhook-1', expect.any(Date))
@@ -230,6 +246,8 @@ describe('processPaymentWebhook', () => {
     expect(result.status).toBe('IGNORED')
     expect(mockEmailEvents.emitPaymentSucceededEmailEvent).not.toHaveBeenCalled()
     expect(mockEmailEvents.emitSellerNewOrderEmailEvents).not.toHaveBeenCalled()
+    expect(mockNotificationEvents.emitPaymentSucceededNotificationEvent).not.toHaveBeenCalled()
+    expect(mockNotificationEvents.emitSellerNewOrderNotificationEvents).not.toHaveBeenCalled()
   })
 
   it('rejects invalid LiqPay webhook signatures', async () => {
@@ -309,10 +327,13 @@ describe('processPaymentWebhook', () => {
     expect(mockEmailEvents.emitPaymentFailedEmailEvent).toHaveBeenCalledWith({
       paymentId: '99999999-9999-4999-8999-999999999999',
     })
+    expect(mockNotificationEvents.emitPaymentFailedNotificationEvent).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+    })
     expect(result.status).toBe('FAILED')
   })
 
-  it('does not fail webhook reconciliation when lifecycle email enqueue fails', async () => {
+  it('does not fail webhook reconciliation when lifecycle email or notification enqueue fails', async () => {
     mockRepo.findPaymentByProviderPaymentId.mockResolvedValue(
       makePayment({
         provider: 'LIQPAY',
@@ -334,6 +355,7 @@ describe('processPaymentWebhook', () => {
       order: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'paid' },
     } as never)
     mockEmailEvents.emitPaymentSucceededEmailEvent.mockRejectedValueOnce(new Error('email down'))
+    mockNotificationEvents.emitPaymentSucceededNotificationEvent.mockRejectedValueOnce(new Error('notifications down'))
 
     const result = await processPaymentWebhook(PaymentProvider.LIQPAY, {
       headers: {},

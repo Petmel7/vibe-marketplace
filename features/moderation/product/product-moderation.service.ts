@@ -19,6 +19,10 @@ import {
   emitProductApprovedEmailEvent,
   emitProductRejectedEmailEvent,
 } from '@/features/email/events/email.events'
+import {
+  emitProductApprovedNotificationEvent,
+  emitProductRejectedNotificationEvent,
+} from '@/features/notifications/events/notification.events'
 import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
@@ -92,6 +96,9 @@ export async function approveProduct(
   void emitProductApprovedEmailEvent({ productId: updated.id }).catch((error) => {
     logError('product-moderation:approve-email', error)
   })
+  void emitProductApprovedNotificationEvent({ productId: updated.id }).catch((error) => {
+    logError('product-moderation:approve-notification', error)
+  })
   return toProductModerationDto(updated)
 }
 
@@ -113,6 +120,9 @@ export async function rejectProduct(
   await syncSystemNewBadgeForProduct(updated)
   void emitProductRejectedEmailEvent({ productId: updated.id, reason }).catch((error) => {
     logError('product-moderation:reject-email', error)
+  })
+  void emitProductRejectedNotificationEvent({ productId: updated.id, reason }).catch((error) => {
+    logError('product-moderation:reject-notification', error)
   })
   return toProductModerationDto(updated)
 }
