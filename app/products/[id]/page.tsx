@@ -4,8 +4,11 @@ import type { ProductDetailDto } from '@/features/products/product.dto'
 import ProductDetails from '@/components/product/ProductDetails'
 import ProductDetailsShell from '@/components/product/ProductDetailsShell'
 import ProductImageGallery from '@/components/product/ProductImageGallery'
+import ProductReviewsSection from '@/components/reviews/ProductReviewsSection'
 import RecentlyViewed from '@/components/viewed/RecentlyViewed'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
+import { listReviews } from '@/features/review/review.service'
+import { getCurrentUser } from '@/lib/session/getSession'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -22,6 +25,11 @@ export default async function ProductPage({ params }: Props) {
     if (e instanceof ProductNotFoundError) notFound()
     throw e
   }
+
+  const [reviews, currentUser] = await Promise.all([
+    listReviews(id, { page: 1, limit: 10 }),
+    getCurrentUser(),
+  ])
 
   const breadcrumbItems = [
     {
@@ -53,6 +61,14 @@ export default async function ProductPage({ params }: Props) {
         <ProductDetailsShell
           gallery={<ProductImageGallery images={product.images} productName={product.name} />}
           purchasePanel={<ProductDetails product={product} />}
+        />
+
+        <ProductReviewsSection
+          productId={product.id}
+          productName={product.name}
+          ratingSummary={product.ratingSummary}
+          reviews={reviews}
+          currentUser={currentUser}
         />
       </div>
 

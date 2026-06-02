@@ -6,6 +6,7 @@ import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.ser
 import { getMyProducts, getMyProductById } from '@/features/seller/products/seller-product.service'
 import { getMyOrderItems } from '@/features/seller/orders/seller-order.service'
 import { getOnboardingStatus } from '@/features/storefront/storefront.service'
+import { listReviews } from '@/features/review/review.service'
 import type { SessionUser } from '@/types/auth'
 import { getSellerOnboardingState } from '@/types/seller'
 import { hasRole } from '@/lib/rbac/guards'
@@ -181,6 +182,34 @@ export async function getSellerOrdersPageData(user: SessionUser) {
   return {
     ...layout,
     orderItems,
+  }
+}
+
+export async function getSellerReviewsPageData(user: SessionUser) {
+  const layout = await getSellerLayoutData(user)
+
+  if (!layout.store) {
+    return {
+      ...layout,
+      reviews: [],
+    }
+  }
+
+  const products = await getMyProducts(user, { page: 1, limit: 50 })
+  const reviewLists = await Promise.all(
+    products.map(async (product) => {
+      const result = await listReviews(product.id, { page: 1, limit: 20 })
+      return result.items
+    }),
+  )
+
+  const reviews = reviewLists
+    .flat()
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+
+  return {
+    ...layout,
+    reviews,
   }
 }
 

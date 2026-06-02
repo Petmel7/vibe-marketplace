@@ -75,6 +75,24 @@ export default function ProductDetails({ product }: Props) {
 
           <p className="ui-price-hero">{formatPrice(presentation.price)}</p>
 
+          {product.ratingSummary.totalCount > 0 ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-copy-secondary">
+              <span className="font-semibold text-copy-strong">
+                {product.ratingSummary.averageRating.toFixed(1)} / 5
+              </span>
+              <span>
+                {product.ratingSummary.totalCount}{' '}
+                {product.ratingSummary.totalCount === 1
+                  ? 'відгук'
+                  : product.ratingSummary.totalCount < 5
+                    ? 'відгуки'
+                    : 'відгуків'}
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-copy-muted">Ще немає опублікованих відгуків про цей товар.</p>
+          )}
+
           {badgeChips.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2" aria-label="Marketplace badges">
               {badgeChips.map((badge) => (

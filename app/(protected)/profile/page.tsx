@@ -143,6 +143,29 @@ export default async function ProfileOverviewPage() {
       </div>
 
       <DashboardCard
+        title="Reviews & ratings"
+        description="Open the review hub to revisit products and leave verified buyer feedback from product pages."
+        action={<Link href="/profile/reviews" className="ui-link-muted">Open review hub</Link>}
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl bg-panel p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Review hub</p>
+            <p className="mt-3 text-3xl font-semibold text-copy-strong">
+              {data.viewed.items.length > 0 ? 'Ready' : '—'}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-panel p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Wishlist items</p>
+            <p className="mt-3 text-3xl font-semibold text-copy-strong">{data.wishlist.items.length}</p>
+          </div>
+          <div className="rounded-2xl bg-panel p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Recent products</p>
+            <p className="mt-3 text-3xl font-semibold text-copy-strong">{data.viewed.items.length}</p>
+          </div>
+        </div>
+      </DashboardCard>
+
+      <DashboardCard
         title="Recently viewed"
         description="A quick way back to products you explored recently."
         action={<Link href="/profile/wishlist" className="ui-link-muted">See saved items</Link>}

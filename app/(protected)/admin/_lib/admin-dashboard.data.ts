@@ -16,6 +16,8 @@ import {
 } from '@/features/admin/oversight/admin-oversight.schema'
 import { getPendingSellerQueue, getSuspendedSellers } from '@/features/moderation/seller/seller-moderation.service'
 import { getPendingProductQueue, getRejectedProducts } from '@/features/moderation/product/product-moderation.service'
+import { getAdminReviews } from '@/features/review/review.service'
+import { adminReviewListQuerySchema } from '@/features/review/review.schema'
 import type { SessionUser } from '@/types/auth'
 
 const moderationPaginationSchema = z.object({
@@ -147,4 +149,14 @@ export async function getAdminProductsPageData(user: SessionUser, searchParams: 
 
 export async function getAdminAnalyticsPageData(user: SessionUser) {
   return getMarketplaceAnalytics(user)
+}
+
+export async function getAdminReviewsPageData(user: SessionUser, searchParams: RawSearchParams) {
+  const filters = parseWithSchema(adminReviewListQuerySchema, searchParams)
+  const data = await getAdminReviews(user, filters)
+
+  return {
+    filters,
+    ...data,
+  }
 }
