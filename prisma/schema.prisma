@@ -9,35 +9,36 @@ datasource db {
 }
 
 model User {
-  id                   String               @id @db.Uuid
-  email                String               @unique
+  id                   String                @id @db.Uuid
+  email                String                @unique
   name                 String?
-  avatarUrl            String?              @map("avatar_url")
-  createdAt            DateTime             @default(now()) @map("created_at")
-  updatedAt            DateTime             @map("updated_at")
+  avatarUrl            String?               @map("avatar_url")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @map("updated_at")
   admin                AdminProfile?
   buyer                BuyerProfile?
   cart                 Cart?
   orders               Order[]
   reviews              Review[]
   seller               SellerProfile?
-  verifiedSellers      SellerProfile[]      @relation("VerifiedByUser")
+  verifiedSellers      SellerProfile[]       @relation("VerifiedByUser")
   addresses            ShippingAddress[]
   stores               Store[]
   profile              UserProfile?
-  assignedRoles        UserRoleAssignment[] @relation("AssignedByUser")
-  roles                UserRoleAssignment[] @relation("UserRoles")
+  assignedRoles        UserRoleAssignment[]  @relation("AssignedByUser")
+  roles                UserRoleAssignment[]  @relation("UserRoles")
   viewedProducts       ViewedProduct[]
   wishlist             Wishlist?
-  badgeRulesUpdated    ProductBadgeRule[]   @relation("ProductBadgeRuleUpdatedBy")
+  badgeRulesUpdated    ProductBadgeRule[]    @relation("ProductBadgeRuleUpdatedBy")
   emailEvents          EmailEvent[]
   emailLogs            EmailLog[]
   notifications        Notification[]
-  moderatedReviews     Review[]             @relation("ReviewModeratedBy")
-  reportedAbuseReports AbuseReport[]        @relation("AbuseReportReporter")
-  assignedAbuseReports AbuseReport[]        @relation("AbuseReportAssignedAdmin")
-  resolvedAbuseReports AbuseReport[]        @relation("AbuseReportResolvedBy")
-  abuseReportActions   AbuseReportAction[]  @relation("AbuseReportActionAdmin")
+  moderatedReviews     Review[]              @relation("ReviewModeratedBy")
+  reportedAbuseReports AbuseReport[]         @relation("AbuseReportReporter")
+  assignedAbuseReports AbuseReport[]         @relation("AbuseReportAssignedAdmin")
+  resolvedAbuseReports AbuseReport[]         @relation("AbuseReportResolvedBy")
+  abuseReportActions   AbuseReportAction[]   @relation("AbuseReportActionAdmin")
+  abuseReportEvidence  AbuseReportEvidence[] @relation("AbuseReportEvidenceUploadedBy")
 
   @@map("users")
 }
@@ -570,6 +571,7 @@ model AbuseReport {
   assignedAdmin   User?                 @relation("AbuseReportAssignedAdmin", fields: [assignedAdminId], references: [id])
   resolvedBy      User?                 @relation("AbuseReportResolvedBy", fields: [resolvedById], references: [id])
   actions         AbuseReportAction[]
+  evidence        AbuseReportEvidence[]
 
   @@index([reporterId], map: "abuse_reports_reporter_id_idx")
   @@index([targetType, targetId], map: "abuse_reports_target_type_target_id_idx")
@@ -597,6 +599,25 @@ model AbuseReportAction {
   @@index([actionType], map: "abuse_report_actions_action_type_idx")
   @@index([createdAt], map: "abuse_report_actions_created_at_idx")
   @@map("abuse_report_actions")
+}
+
+model AbuseReportEvidence {
+  id           String      @id @default(uuid()) @db.Uuid
+  reportId     String      @map("report_id") @db.Uuid
+  uploadedById String      @map("uploaded_by_id") @db.Uuid
+  url          String
+  storagePath  String      @map("storage_path")
+  fileName     String      @map("file_name")
+  fileType     String      @map("file_type")
+  fileSize     Int         @map("file_size")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  report       AbuseReport @relation(fields: [reportId], references: [id])
+  uploadedBy   User        @relation("AbuseReportEvidenceUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([reportId], map: "abuse_report_evidence_report_id_idx")
+  @@index([uploadedById], map: "abuse_report_evidence_uploaded_by_id_idx")
+  @@index([createdAt], map: "abuse_report_evidence_created_at_idx")
+  @@map("abuse_report_evidence")
 }
 
 model UserProfile {
