@@ -10,6 +10,7 @@ import type {
   ProductSummaryDto,
   ProductVariantDto,
 } from '@/features/products/product.dto'
+import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 import {
   findCategoriesByParentIds,
   findCategoryBySlug,
@@ -147,6 +148,30 @@ function toProductImageDto(product: ProductDetailProduct): ProductImageDto[] {
     isPrimary: image.isPrimary,
     position: image.position,
   }))
+}
+
+function toProductRatingSummaryDto(product: ProductDetailProduct): ReviewRatingSummaryDto {
+  if (!product.ratingSummary) {
+    return {
+      averageRating: 0,
+      totalCount: 0,
+      rating1Count: 0,
+      rating2Count: 0,
+      rating3Count: 0,
+      rating4Count: 0,
+      rating5Count: 0,
+    }
+  }
+
+  return {
+    averageRating: Number(product.ratingSummary.ratingAvg.toNumber().toFixed(2)),
+    totalCount: product.ratingSummary.ratingCount,
+    rating1Count: product.ratingSummary.rating1Count,
+    rating2Count: product.ratingSummary.rating2Count,
+    rating3Count: product.ratingSummary.rating3Count,
+    rating4Count: product.ratingSummary.rating4Count,
+    rating5Count: product.ratingSummary.rating5Count,
+  }
 }
 
 const DEFAULT_BADGE_PRIORITY: ProductBadgeDto['type'][] = [
@@ -490,6 +515,7 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     storeSlug: product.store.slug,
     categoryName: product.category?.name ?? null,
     categorySlug: product.category?.slug ?? null,
+    ratingSummary: toProductRatingSummaryDto(product),
     variants: product.variants.map(toProductVariantDto),
   }
 }

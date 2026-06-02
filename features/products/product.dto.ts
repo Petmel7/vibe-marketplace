@@ -1,4 +1,5 @@
 import type { MarketplaceBadgeSource, MarketplaceBadgeType } from '@/types/product-badges'
+import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 
 /**
  * Data Transfer Objects for the Product feature.
@@ -65,6 +66,7 @@ export interface ProductDetailDto extends ProductSummaryDto {
   storeSlug: string
   categoryName: string | null
   categorySlug: string | null
+  ratingSummary: ReviewRatingSummaryDto
   variants: ProductVariantDto[]
 }
 

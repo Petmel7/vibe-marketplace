@@ -96,6 +96,15 @@ import {
   RefundNotSupportedError,
   UnsupportedPaymentMethodError,
 } from './payment'
+import {
+  ReviewAlreadyExistsError,
+  ReviewModerationReasonRequiredError,
+  ReviewNotFoundError,
+  ReviewOwnershipError,
+  ReviewProductNotFoundError,
+  ReviewPurchaseRequiredError,
+  ReviewSelfReviewForbiddenError,
+} from './review'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -117,7 +126,10 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof SellerNotVerifiedError ||
     err instanceof StoreProvisioningRequiredError ||
     err instanceof UnauthorizedBadgeMutationError ||
-    err instanceof UnauthorizedBadgeRuleMutationError
+    err instanceof UnauthorizedBadgeRuleMutationError ||
+    err instanceof ReviewOwnershipError ||
+    err instanceof ReviewPurchaseRequiredError ||
+    err instanceof ReviewSelfReviewForbiddenError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -137,7 +149,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof BadgeRuleNotFoundError ||
     err instanceof EmailEventNotFoundError ||
     err instanceof NotificationNotFoundError ||
-    err instanceof PaymentNotFoundError
+    err instanceof PaymentNotFoundError ||
+    err instanceof ReviewNotFoundError ||
+    err instanceof ReviewProductNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -158,7 +172,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CheckoutPriceChangedError ||
     err instanceof CheckoutProductUnavailableError ||
     err instanceof EmailDuplicateEventError ||
-    err instanceof PaymentWebhookDuplicateError
+    err instanceof PaymentWebhookDuplicateError ||
+    err instanceof ReviewAlreadyExistsError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -194,7 +209,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof LiqPayStatusMappingError ||
     err instanceof InvalidPaymentTransitionError ||
     err instanceof UnsupportedPaymentMethodError ||
-    err instanceof RefundNotSupportedError
+    err instanceof RefundNotSupportedError ||
+    err instanceof ReviewModerationReasonRequiredError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

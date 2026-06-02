@@ -12,6 +12,30 @@ type ProductImageDetailPreview = Pick<
   ProductImage,
   'id' | 'url' | 'altText' | 'isPrimary' | 'position' | 'createdAt'
 >
+type ProductRatingSummaryPreview = Pick<
+  Prisma.ProductRatingSummaryGetPayload<{
+    select: {
+      productId: true
+      ratingAvg: true
+      ratingCount: true
+      rating1Count: true
+      rating2Count: true
+      rating3Count: true
+      rating4Count: true
+      rating5Count: true
+      updatedAt: true
+    }
+  }>,
+  | 'productId'
+  | 'ratingAvg'
+  | 'ratingCount'
+  | 'rating1Count'
+  | 'rating2Count'
+  | 'rating3Count'
+  | 'rating4Count'
+  | 'rating5Count'
+  | 'updatedAt'
+>
 
 export type ProductWithVariants = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
 export type ProductListProduct = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
@@ -19,6 +43,7 @@ export type CategoryNode = Pick<Category, 'id' | 'parentId'>
 export type ProductDetailProduct = Product & {
   variants: ProductVariant[]
   images: ProductImageDetailPreview[]
+  ratingSummary: ProductRatingSummaryPreview | null
   store: Pick<Prisma.StoreGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'>
   category: Pick<Prisma.CategoryGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'> | null
 }
@@ -299,6 +324,19 @@ export async function findProductById(
           createdAt: true,
         },
         orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      },
+      ratingSummary: {
+        select: {
+          productId: true,
+          ratingAvg: true,
+          ratingCount: true,
+          rating1Count: true,
+          rating2Count: true,
+          rating3Count: true,
+          rating4Count: true,
+          rating5Count: true,
+          updatedAt: true,
+        },
       },
     },
   })

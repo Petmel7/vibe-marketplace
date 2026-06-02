@@ -83,6 +83,7 @@ function makeDetailProduct(
     ...makeProduct(overrides),
     variants,
     images: [],
+    ratingSummary: null,
     store: {
       name: 'Test Store',
       slug: 'test-store',
@@ -585,6 +586,15 @@ describe('getProduct', () => {
       price: null,
       stock: 10,
     })
+    expect(result.ratingSummary).toEqual({
+      averageRating: 0,
+      totalCount: 0,
+      rating1Count: 0,
+      rating2Count: 0,
+      rating3Count: 0,
+      rating4Count: 0,
+      rating5Count: 0,
+    })
   })
 
   it('throws ProductNotFoundError when product does not exist', async () => {
@@ -652,6 +662,37 @@ describe('getProduct', () => {
     expect(result.inStock).toBe(true)
     expect(result.totalStock).toBe(3)
     expect(result.stockStatus).toBe('LOW_STOCK')
+  })
+
+  it('maps product rating summary into the detail DTO', async () => {
+    mockedRepository.findProductById.mockResolvedValue({
+      ...makeDetailProduct(),
+      ratingSummary: {
+        productId: 'prod-1',
+        ratingAvg: {
+          toNumber: () => 4.4,
+        },
+        ratingCount: 5,
+        rating1Count: 0,
+        rating2Count: 1,
+        rating3Count: 0,
+        rating4Count: 1,
+        rating5Count: 3,
+        updatedAt: new Date('2026-01-05T00:00:00.000Z'),
+      },
+    } as repository.ProductDetailProduct)
+
+    const result = await getProduct('prod-1')
+
+    expect(result.ratingSummary).toEqual({
+      averageRating: 4.4,
+      totalCount: 5,
+      rating1Count: 0,
+      rating2Count: 1,
+      rating3Count: 0,
+      rating4Count: 1,
+      rating5Count: 3,
+    })
   })
 
   it('returns a single prioritized badge in DEFAULT context when multiple badges exist internally', async () => {

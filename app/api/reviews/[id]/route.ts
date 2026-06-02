@@ -1,24 +1,22 @@
 import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
-import { productIdParamSchema } from '@/features/products/product.schema'
-import { createReview, listReviews } from '@/features/review/review.service'
-import { reviewCreateSchema, reviewListQuerySchema } from '@/features/review/review.schema'
+import { deleteMyReview, updateMyReview } from '@/features/review/review.service'
+import { reviewIdParamSchema, reviewUpdateSchema } from '@/features/review/review.schema'
 import { toErrorResponse } from '@/lib/errors/handleError'
 import { requireAuth } from '@/lib/session/getSession'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-export async function GET(
+export async function PATCH(
   request: NextRequest,
   { params }: RouteContext,
 ): Promise<Response> {
   try {
-    const { id } = productIdParamSchema.parse(await params)
-    const query = reviewListQuerySchema.parse({
-      page: request.nextUrl.searchParams.get('page') ?? undefined,
-      limit: request.nextUrl.searchParams.get('limit') ?? undefined,
-    })
-    const data = await listReviews(id, query)
+    const user = await requireAuth()
+    const { id } = reviewIdParamSchema.parse(await params)
+    const body = await request.json()
+    const input = reviewUpdateSchema.parse(body)
+    const data = await updateMyReview(user, id, input)
 
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
@@ -35,22 +33,20 @@ export async function GET(
       )
     }
 
-    return toErrorResponse('GET /api/products/[id]/reviews', error)
+    return toErrorResponse('PATCH /api/reviews/[id]', error)
   }
 }
 
-export async function POST(
-  request: NextRequest,
+export async function DELETE(
+  _request: NextRequest,
   { params }: RouteContext,
 ): Promise<Response> {
   try {
     const user = await requireAuth()
-    const { id } = productIdParamSchema.parse(await params)
-    const body = await request.json()
-    const input = reviewCreateSchema.parse(body)
-    const data = await createReview(user, id, input)
+    const { id } = reviewIdParamSchema.parse(await params)
+    const data = await deleteMyReview(user, id)
 
-    return Response.json({ success: true, data }, { status: 201 })
+    return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {
       return Response.json(
@@ -65,6 +61,6 @@ export async function POST(
       )
     }
 
-    return toErrorResponse('POST /api/products/[id]/reviews', error)
+    return toErrorResponse('DELETE /api/reviews/[id]', error)
   }
 }
