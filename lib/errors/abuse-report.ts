@@ -60,3 +60,48 @@ export class UnsupportedAbuseActionError extends Error {
     this.name = 'UnsupportedAbuseActionError'
   }
 }
+
+export class EvidenceUploadFailedError extends Error {
+  readonly code = 'EVIDENCE_UPLOAD_FAILED' as const
+
+  constructor(message = 'The evidence file could not be uploaded') {
+    super(message)
+    this.name = 'EvidenceUploadFailedError'
+  }
+}
+
+export class InvalidEvidenceFileError extends Error {
+  readonly code = 'INVALID_EVIDENCE_FILE' as const
+
+  constructor(message = 'The evidence file is invalid') {
+    super(message)
+    this.name = 'InvalidEvidenceFileError'
+  }
+}
+
+export class EvidenceLimitExceededError extends Error {
+  readonly code = 'EVIDENCE_LIMIT_EXCEEDED' as const
+
+  constructor(message = 'The report has reached the evidence upload limit') {
+    super(message)
+    this.name = 'EvidenceLimitExceededError'
+  }
+}
+
+export class EvidenceNotFoundError extends Error {
+  readonly code = 'EVIDENCE_NOT_FOUND' as const
+
+  constructor(message = 'Evidence file not found') {
+    super(message)
+    this.name = 'EvidenceNotFoundError'
+  }
+}
+
+export class EvidenceOwnershipError extends Error {
+  readonly code = 'FORBIDDEN' as const
+
+  constructor(message = 'You do not have access to this evidence file') {
+    super(message)
+    this.name = 'EvidenceOwnershipError'
+  }
+}

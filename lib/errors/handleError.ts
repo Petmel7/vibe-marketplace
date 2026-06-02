@@ -114,6 +114,11 @@ import {
   AbuseReportOwnershipError,
   AbuseReportTargetNotFoundError,
   DuplicateAbuseReportError,
+  EvidenceLimitExceededError,
+  EvidenceNotFoundError,
+  EvidenceOwnershipError,
+  EvidenceUploadFailedError,
+  InvalidEvidenceFileError,
   UnsupportedAbuseActionError,
 } from './abuse-report'
 import { logError } from '@/utils/logger'
@@ -141,7 +146,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ReviewOwnershipError ||
     err instanceof ReviewPurchaseRequiredError ||
     err instanceof ReviewSelfReviewForbiddenError ||
-    err instanceof AbuseReportOwnershipError
+    err instanceof AbuseReportOwnershipError ||
+    err instanceof EvidenceOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -165,7 +171,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ReviewNotFoundError ||
     err instanceof ReviewProductNotFoundError ||
     err instanceof AbuseReportNotFoundError ||
-    err instanceof AbuseReportTargetNotFoundError
+    err instanceof AbuseReportTargetNotFoundError ||
+    err instanceof EvidenceNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -229,7 +236,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RefundNotSupportedError ||
     err instanceof ReviewModerationReasonRequiredError ||
     err instanceof AbuseReportModerationError ||
-    err instanceof UnsupportedAbuseActionError
+    err instanceof UnsupportedAbuseActionError ||
+    err instanceof InvalidEvidenceFileError ||
+    err instanceof EvidenceLimitExceededError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -242,7 +251,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof EmailProviderError ||
     err instanceof EmailTemplateRenderError ||
     err instanceof DomainPaymentProviderError ||
-    err instanceof LiqPayConfigError
+    err instanceof LiqPayConfigError ||
+    err instanceof EvidenceUploadFailedError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
