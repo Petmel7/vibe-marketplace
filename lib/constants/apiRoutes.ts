@@ -1,4 +1,5 @@
 export const API_ROUTES = {
+  productSearch: '/api/products/search',
   authMe: '/api/auth/me',
   visitorInit: '/api/visitor/init',
   wishlist: '/api/wishlist',

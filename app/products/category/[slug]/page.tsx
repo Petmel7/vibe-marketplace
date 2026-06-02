@@ -1,39 +1,54 @@
 import { notFound } from 'next/navigation'
-import ProductCardGrid from '@/components/product/ProductCardGrid'
+import SearchResultsPageClient from '@/components/search/SearchResultsPageClient'
+import SearchErrorState from '@/components/search/SearchErrorState'
 import { fetchCategories } from '@/components/category/category.server'
-import { isRenderablePublicProduct } from '@/components/product/productListItem'
-import { listProductsByCategorySlug } from '@/features/products/product.service'
+import {
+  getSearchPageData,
+  type SearchPageSearchParams,
+} from '@/app/search/_lib/search-page.data'
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams: Promise<SearchPageSearchParams>
 }
 
-export default async function CategoryProductsPage({ params }: Props) {
-  const { slug } = await params
-  const [categories, result] = await Promise.all([
-    fetchCategories(),
-    listProductsByCategorySlug(slug, { page: 1, limit: 12 }),
-  ])
-
+export default async function CategoryProductsPage({
+  params,
+  searchParams,
+}: Props) {
+  const [{ slug }, resolvedSearchParams] = await Promise.all([params, searchParams])
+  const categories = await fetchCategories()
   const category = categories.find((item) => item.slug === slug)
 
   if (!category) {
     notFound()
   }
 
-  const visibleProducts = result.data.filter(isRenderablePublicProduct)
+  let data = null
+
+  try {
+    data = await getSearchPageData(resolvedSearchParams, {
+      category: category.slug,
+    })
+  } catch {
+    return (
+      <SearchErrorState
+        title="Не вдалося завантажити товари категорії"
+        resetHref={`/products/category/${slug}`}
+      />
+    )
+  }
 
   return (
-    <main className="pb-24 pt-4 md:pb-12">
-      <section className="space-y-6">
-        <h1 className="ui-heading-page">{category.name}</h1>
-
-        {visibleProducts.length > 0 ? (
-          <ProductCardGrid products={visibleProducts} />
-        ) : (
-          <p className="ui-body-muted">РЈ С†С–Р№ РєР°С‚РµРіРѕСЂС–С— РїРѕРєРё С‰Рѕ РЅРµРјР°С” С‚РѕРІР°СЂС–РІ.</p>
-        )}
-      </section>
-    </main>
+    <SearchResultsPageClient
+      title={category.name}
+      subtitle="Фільтруйте товари в категорії та знаходьте найкращі пропозиції."
+      pathname={`/products/category/${slug}`}
+      results={data.results}
+      state={data.state}
+      categoryTree={data.categoryTree}
+      flatCategories={data.flatCategories}
+      lockedCategory={{ slug: category.slug, name: category.name }}
+    />
   )
 }

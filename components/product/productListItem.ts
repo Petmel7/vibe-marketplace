@@ -1,5 +1,9 @@
 import type { ProductSummaryDto } from '@/features/products/product.dto'
-import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
+import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
+import type {
+  MarketplaceBadgeContext,
+  MarketplaceProductBadge,
+} from '@/types/product-badges'
 import { getImageUrl } from '@/utils/getImageUrl'
 
 export type ProductListItem = ProductSummaryDto & {
@@ -7,6 +11,7 @@ export type ProductListItem = ProductSummaryDto & {
   badgeContext?: MarketplaceBadgeContext
   imageAlt?: string | null
   storeName?: string | null
+  ratingSummary?: ReviewRatingSummaryDto
 }
 
 export function isRenderablePublicProduct(product: ProductListItem) {
@@ -15,9 +20,7 @@ export function isRenderablePublicProduct(product: ProductListItem) {
   return product.isActive !== false && (status === undefined || status === 'PUBLISHED')
 }
 
-export function toProductCardProps(
-  product: ProductListItem,
-) {
+export function toProductCardProps(product: ProductListItem) {
   return {
     id: product.id,
     name: product.name,
@@ -25,6 +28,7 @@ export function toProductCardProps(
     imageAlt: product.imageAlt ?? product.name,
     stockStatus: product.stockStatus,
     storeName: product.storeName ?? null,
+    ratingSummary: product.ratingSummary,
     badgeContext: product.badgeContext ?? 'DEFAULT',
     badges: product.badges,
     product: {

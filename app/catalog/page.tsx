@@ -1,19 +1,33 @@
-import ProductCardGrid from '@/components/product/ProductCardGrid'
-import { isRenderablePublicProduct } from '@/components/product/productListItem'
-import { listProducts } from '@/features/products/product.service'
+import SearchResultsPageClient from '@/components/search/SearchResultsPageClient'
+import SearchErrorState from '@/components/search/SearchErrorState'
+import {
+  getSearchPageData,
+  type SearchPageSearchParams,
+} from '@/app/search/_lib/search-page.data'
 
-export default async function Catalog() {
-  const result = await listProducts({
-    sort: 'newest',
-    page: 1,
-    limit: 12,
-  })
+interface CatalogPageProps {
+  searchParams: Promise<SearchPageSearchParams>
+}
 
-  const visibleProducts = result.items.filter(isRenderablePublicProduct)
+export default async function Catalog({ searchParams }: CatalogPageProps) {
+  const resolvedSearchParams = await searchParams
+  let data = null
 
-  if (visibleProducts.length === 0) {
-    return <p className="ui-body-muted">Товари поки що відсутні.</p>
+  try {
+    data = await getSearchPageData(resolvedSearchParams)
+  } catch {
+    return <SearchErrorState />
   }
 
-  return <ProductCardGrid products={visibleProducts} />
+  return (
+    <SearchResultsPageClient
+      title="Каталог"
+      subtitle="Знайдіть товари за категорією, ціною, рейтингом і бейджами маркетплейсу."
+      pathname="/catalog"
+      results={data.results}
+      state={data.state}
+      categoryTree={data.categoryTree}
+      flatCategories={data.flatCategories}
+    />
+  )
 }

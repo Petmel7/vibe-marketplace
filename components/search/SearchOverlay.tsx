@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
-import type { ProductSummaryDto } from '@/features/products/product.dto'
+import type { ProductSearchItemDto } from '@/features/products/product.dto'
 import { isRenderablePublicProduct } from '@/components/product/productListItem'
+import { API_ROUTES } from '@/lib/constants/apiRoutes'
 import SearchResultItem from './SearchResultItem'
 
 interface SearchOverlayProps {
@@ -14,45 +16,56 @@ interface SearchOverlayProps {
 type SearchState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; items: ProductSummaryDto[] }
+  | { status: 'success'; items: ProductSearchItemDto[] }
   | { status: 'error'; message: string }
 
-export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
+export default function SearchOverlay({
+  isOpen,
+  onClose,
+}: SearchOverlayProps) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' })
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     onClose()
     setQuery('')
     setSearchState({ status: 'idle' })
-  }
+  }, [onClose])
 
   useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => {
-        inputRef.current?.focus()
-      }, 50)
-      return () => clearTimeout(timer)
+    if (!isOpen) {
+      return
     }
-  }, [isOpen])
+
+    const timer = setTimeout(() => {
+      inputRef.current?.focus()
+    }, 50)
+
+    return () => clearTimeout(timer)
+  }, [handleClose, isOpen])
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      return
+    }
 
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        onClose()
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        handleClose()
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
+
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+  }, [handleClose, isOpen])
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
+
     return () => {
       document.body.style.overflow = ''
     }
@@ -67,20 +80,22 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     setSearchState({ status: 'loading' })
 
     try {
-      const res = await fetch(`/api/products/search?q=${encodeURIComponent(searchQuery)}&limit=10`)
-      const json = await res.json()
+      const response = await fetch(
+        `${API_ROUTES.productSearch}?q=${encodeURIComponent(searchQuery)}&limit=10`,
+      )
+      const payload = await response.json()
 
-      if (!res.ok || !json.success) {
+      if (!response.ok || !payload.success) {
         setSearchState({
           status: 'error',
-          message: json?.error?.message ?? 'Помилка пошуку',
+          message: payload?.error?.message ?? 'Помилка пошуку',
         })
         return
       }
 
       setSearchState({
         status: 'success',
-        items: json.data.data.filter(isRenderablePublicProduct),
+        items: payload.data.items.filter(isRenderablePublicProduct),
       })
     } catch {
       setSearchState({ status: 'error', message: 'Помилка мережі' })
@@ -88,8 +103,8 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   }, [])
 
   const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value
       setQuery(value)
 
       if (debounceTimerRef.current) {
@@ -102,10 +117,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       }
 
       debounceTimerRef.current = setTimeout(() => {
-        fetchResults(value)
+        void fetchResults(value)
       }, 300)
     },
-    [fetchResults]
+    [fetchResults],
   )
 
   useEffect(() => {
@@ -116,64 +131,110 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     }
   }, [])
 
-  if (!isOpen) return null
+  if (!isOpen) {
+    return null
+  }
 
   return (
-    <div className="ui-dialog-shell" role="dialog" aria-modal="true" aria-label="Пошук товарів">
-      <div className="ui-dialog-backdrop" onClick={onClose} aria-hidden="true" />
+    <div
+      className="ui-dialog-shell"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Пошук товарів"
+    >
+      <div className="ui-dialog-backdrop" onClick={handleClose} aria-hidden="true" />
 
       <div className="ui-dialog-panel">
         <div className="ui-dialog-header">
           <h2 className="text-lg font-semibold text-white">Пошук товарів</h2>
-          <button onClick={handleClose} aria-label="Закрити пошук" className="ui-dialog-close">
+          <button
+            onClick={handleClose}
+            aria-label="Закрити пошук"
+            className="ui-dialog-close"
+          >
             <X size={20} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="px-6 py-4 shrink-0">
-          <label htmlFor="search-overlay-input" className="sr-only">
-            Пошук товарів
-          </label>
-          <input
-            ref={inputRef}
-            id="search-overlay-input"
-            type="search"
-            value={query}
-            onChange={handleInputChange}
-            placeholder="Пошук товарів..."
-            autoComplete="off"
-            className="ui-surface-input"
-          />
+        <div className="shrink-0 px-6 py-4">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              const trimmedQuery = query.trim()
+
+              if (!trimmedQuery) {
+                return
+              }
+
+              handleClose()
+              router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`)
+            }}
+          >
+            <label htmlFor="search-overlay-input" className="sr-only">
+              Пошук товарів
+            </label>
+            <input
+              ref={inputRef}
+              id="search-overlay-input"
+              type="search"
+              value={query}
+              onChange={handleInputChange}
+              placeholder="Пошук товарів..."
+              autoComplete="off"
+              className="ui-surface-input"
+            />
+          </form>
         </div>
 
         <div className="ui-search-results">
-          {searchState.status === 'loading' && (
-            <div className="flex items-center justify-center py-12" aria-live="polite" aria-label="Завантаження...">
+          {searchState.status === 'loading' ? (
+            <div
+              className="flex items-center justify-center py-12"
+              aria-live="polite"
+              aria-label="Завантаження результатів"
+            >
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
             </div>
-          )}
+          ) : null}
 
-          {searchState.status === 'error' && (
+          {searchState.status === 'error' ? (
             <div className="py-12 text-center text-sm text-white/50" role="alert">
               {searchState.message}
             </div>
-          )}
+          ) : null}
 
-          {searchState.status === 'success' && searchState.items.length === 0 && (
+          {searchState.status === 'success' && searchState.items.length === 0 ? (
             <div className="py-12 text-center text-sm text-white/50" role="status">
               За вашим запитом нічого не знайдено
             </div>
-          )}
+          ) : null}
 
-          {searchState.status === 'success' && searchState.items.length > 0 && (
+          {searchState.status === 'success' && searchState.items.length > 0 ? (
             <ul role="list" aria-label="Результати пошуку">
               {searchState.items.map((product) => (
                 <li key={product.id}>
-                  <SearchResultItem product={product} onClose={onClose} />
+                  <SearchResultItem product={product} onClose={handleClose} />
                 </li>
               ))}
+              <li className="px-4 py-3">
+                <button
+                  type="button"
+                  className="w-full rounded-full border border-panelBorder px-4 py-3 text-sm text-copy-primary transition hover:border-white/20 hover:text-white"
+                  onClick={() => {
+                    const trimmedQuery = query.trim()
+                    handleClose()
+                    router.push(
+                      trimmedQuery
+                        ? `/search?q=${encodeURIComponent(trimmedQuery)}`
+                        : '/search',
+                    )
+                  }}
+                >
+                  Дивитися всі результати
+                </button>
+              </li>
             </ul>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

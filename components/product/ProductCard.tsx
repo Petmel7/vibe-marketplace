@@ -6,11 +6,19 @@ import { useState } from 'react'
 import WishlistToggleButton from '../wishlist/WishlistToggleButton'
 import ProductCardAddToCartButton from './ProductCardAddToCartButton'
 import ProductStockBadge from './ProductStockBadge'
-import { getDefaultProductVariantId, getProductCardDisplayState, type ProductCardProductLike } from './productCard.selectors'
+import {
+  getDefaultProductVariantId,
+  getProductCardDisplayState,
+  type ProductCardProductLike,
+} from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import type { ProductStockStatus } from '@/features/products/product.dto'
+import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 import { formatPrice } from '@/utils/formatters/price'
-import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
+import type {
+  MarketplaceBadgeContext,
+  MarketplaceProductBadge,
+} from '@/types/product-badges'
 
 const PRODUCT_CARD_FALLBACK_IMAGE = '/placeholder.png'
 
@@ -23,6 +31,7 @@ interface ProductCardProps {
   badgeContext?: MarketplaceBadgeContext
   badges?: MarketplaceProductBadge[]
   storeName?: string | null
+  ratingSummary?: ReviewRatingSummaryDto
   product: ProductCardProductLike
 }
 
@@ -35,6 +44,7 @@ export default function ProductCard({
   badgeContext,
   badges,
   storeName,
+  ratingSummary,
   product,
 }: ProductCardProps) {
   const [imageFailed, setImageFailed] = useState(false)
@@ -44,7 +54,9 @@ export default function ProductCard({
     badgeContext,
   })
   const defaultVariantId = getDefaultProductVariantId(product)
-  const resolvedImageUrl = imageFailed ? PRODUCT_CARD_FALLBACK_IMAGE : imageUrl || PRODUCT_CARD_FALLBACK_IMAGE
+  const resolvedImageUrl = imageFailed
+    ? PRODUCT_CARD_FALLBACK_IMAGE
+    : imageUrl || PRODUCT_CARD_FALLBACK_IMAGE
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-panelBorder bg-panel shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:shadow-lg">
@@ -56,7 +68,10 @@ export default function ProductCard({
         >
           <div className="relative aspect-[4/4.6] overflow-hidden border-b border-panelBorder bg-copy-base/40">
             {badgeChips.length > 0 ? (
-              <div className="absolute left-3 top-3 z-10 flex flex-wrap gap-2" aria-label="Marketplace badges">
+              <div
+                className="absolute left-3 top-3 z-10 flex flex-wrap gap-2"
+                aria-label="Marketplace badges"
+              >
                 {badgeChips.map((badge) => (
                   <span
                     key={badge.type}
@@ -104,7 +119,20 @@ export default function ProductCard({
 
           <div className="flex min-h-6 flex-wrap items-center gap-2">
             {stockStatus ? <ProductStockBadge status={stockStatus} /> : null}
-            {sku ? <span className="ui-meta-text"> Арт.: {sku}</span> : null}
+            {sku ? <span className="ui-meta-text">Арт.: {sku}</span> : null}
+          </div>
+
+          <div className="flex min-h-5 items-center gap-2 text-sm text-copy-muted">
+            {ratingSummary && ratingSummary.totalCount > 0 ? (
+              <>
+                <span className="font-medium text-amber-300">
+                  ★ {ratingSummary.averageRating.toFixed(1)}
+                </span>
+                <span>({ratingSummary.totalCount})</span>
+              </>
+            ) : (
+              <span>Без відгуків</span>
+            )}
           </div>
         </div>
 
