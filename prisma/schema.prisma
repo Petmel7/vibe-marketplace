@@ -33,6 +33,7 @@ model User {
   emailEvents       EmailEvent[]
   emailLogs         EmailLog[]
   notifications     Notification[]
+  moderatedReviews  Review[]             @relation("ReviewModeratedBy")
 
   @@map("users")
 }
@@ -107,6 +108,7 @@ model Product {
   moderationReason String?                  @map("moderation_reason")
   badges           ProductBadge[]
   metrics          ProductMetrics?
+  ratingSummary    ProductRatingSummary?
   variants         ProductVariant[]
   images           ProductImage[]
   category         Category?                @relation(fields: [categoryId], references: [id])
@@ -250,6 +252,7 @@ model OrderItem {
   unitPriceSnapshot   Decimal               @map("unit_price_snapshot") @db.Decimal(10, 2)
   fulfillmentStatus   ItemFulfillmentStatus @default(PENDING) @map("fulfillment_status")
   refunds             Refund[]
+  review              Review?
   order               Order                 @relation(fields: [orderId], references: [id])
   store               Store                 @relation(fields: [storeId], references: [id])
   variant             ProductVariant        @relation(fields: [variantId], references: [id])
@@ -397,20 +400,52 @@ model WishlistItem {
 }
 
 model Review {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  productId String   @map("product_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  rating    Int      @db.SmallInt
-  comment   String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  product   Product  @relation(fields: [productId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId          String       @map("product_id") @db.Uuid
+  userId             String       @map("user_id") @db.Uuid
+  orderItemId        String?      @unique @map("order_item_id") @db.Uuid
+  status             ReviewStatus @default(PUBLISHED)
+  rating             Int          @db.SmallInt
+  title              String?
+  comment            String?
+  pros               String?
+  cons               String?
+  sellerReply        String?      @map("seller_reply")
+  sellerRepliedAt    DateTime?    @map("seller_replied_at")
+  moderatedAt        DateTime?    @map("moderated_at")
+  moderatedBy        String?      @map("moderated_by") @db.Uuid
+  moderationReason   String?      @map("moderation_reason")
+  isVerifiedPurchase Boolean      @default(false) @map("is_verified_purchase")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  product            Product      @relation(fields: [productId], references: [id])
+  user               User         @relation(fields: [userId], references: [id])
+  orderItem          OrderItem?   @relation(fields: [orderItemId], references: [id])
+  moderator          User?        @relation("ReviewModeratedBy", fields: [moderatedBy], references: [id])
 
   @@unique([productId, userId])
-  @@index([productId])
+  @@index([productId], map: "reviews_product_id_idx")
   @@index([userId])
+  @@index([productId, status], map: "reviews_product_id_status_idx")
+  @@index([rating], map: "reviews_rating_idx")
+  @@index([isVerifiedPurchase], map: "reviews_is_verified_purchase_idx")
+  @@index([createdAt], map: "reviews_created_at_idx")
   @@map("reviews")
+}
+
+model ProductRatingSummary {
+  productId    String   @id @map("product_id") @db.Uuid
+  ratingAvg    Decimal  @default(0) @map("rating_avg") @db.Decimal(3, 2)
+  ratingCount  Int      @default(0) @map("rating_count")
+  rating1Count Int      @default(0) @map("rating_1_count")
+  rating2Count Int      @default(0) @map("rating_2_count")
+  rating3Count Int      @default(0) @map("rating_3_count")
+  rating4Count Int      @default(0) @map("rating_4_count")
+  rating5Count Int      @default(0) @map("rating_5_count")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  product      Product  @relation(fields: [productId], references: [id])
+
+  @@map("product_rating_summaries")
 }
 
 model ViewedProduct {
@@ -682,6 +717,13 @@ enum NotificationType {
   PRODUCT_REJECTED
   SELLER_NEW_ORDER
   ADMIN_ALERT
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  HIDDEN
 }
 
 enum PaymentProvider {
