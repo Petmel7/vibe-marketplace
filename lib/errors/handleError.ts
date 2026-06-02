@@ -121,6 +121,16 @@ import {
   InvalidEvidenceFileError,
   UnsupportedAbuseActionError,
 } from './abuse-report'
+import {
+  DisputeEvidenceLimitExceededError,
+  DisputeEvidenceUploadError,
+  DisputeNotFoundError,
+  DisputeOwnershipError,
+  DisputeValidationError,
+  DuplicateDisputeError,
+  InvalidDisputeEvidenceFileError,
+  InvalidDisputeTransitionError,
+} from './dispute'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -147,7 +157,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ReviewPurchaseRequiredError ||
     err instanceof ReviewSelfReviewForbiddenError ||
     err instanceof AbuseReportOwnershipError ||
-    err instanceof EvidenceOwnershipError
+    err instanceof EvidenceOwnershipError ||
+    err instanceof DisputeOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -172,7 +183,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ReviewProductNotFoundError ||
     err instanceof AbuseReportNotFoundError ||
     err instanceof AbuseReportTargetNotFoundError ||
-    err instanceof EvidenceNotFoundError
+    err instanceof EvidenceNotFoundError ||
+    err instanceof DisputeNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -195,7 +207,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof EmailDuplicateEventError ||
     err instanceof PaymentWebhookDuplicateError ||
     err instanceof ReviewAlreadyExistsError ||
-    err instanceof DuplicateAbuseReportError
+    err instanceof DuplicateAbuseReportError ||
+    err instanceof DuplicateDisputeError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -238,7 +251,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AbuseReportModerationError ||
     err instanceof UnsupportedAbuseActionError ||
     err instanceof InvalidEvidenceFileError ||
-    err instanceof EvidenceLimitExceededError
+    err instanceof EvidenceLimitExceededError ||
+    err instanceof DisputeValidationError ||
+    err instanceof InvalidDisputeEvidenceFileError ||
+    err instanceof DisputeEvidenceLimitExceededError ||
+    err instanceof InvalidDisputeTransitionError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -252,7 +269,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof EmailTemplateRenderError ||
     err instanceof DomainPaymentProviderError ||
     err instanceof LiqPayConfigError ||
-    err instanceof EvidenceUploadFailedError
+    err instanceof EvidenceUploadFailedError ||
+    err instanceof DisputeEvidenceUploadError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
