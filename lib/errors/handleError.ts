@@ -108,6 +108,14 @@ import {
   ReviewPurchaseRequiredError,
   ReviewSelfReviewForbiddenError,
 } from './review'
+import {
+  AbuseReportModerationError,
+  AbuseReportNotFoundError,
+  AbuseReportOwnershipError,
+  AbuseReportTargetNotFoundError,
+  DuplicateAbuseReportError,
+  UnsupportedAbuseActionError,
+} from './abuse-report'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -132,7 +140,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof UnauthorizedBadgeRuleMutationError ||
     err instanceof ReviewOwnershipError ||
     err instanceof ReviewPurchaseRequiredError ||
-    err instanceof ReviewSelfReviewForbiddenError
+    err instanceof ReviewSelfReviewForbiddenError ||
+    err instanceof AbuseReportOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -154,7 +163,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof NotificationNotFoundError ||
     err instanceof PaymentNotFoundError ||
     err instanceof ReviewNotFoundError ||
-    err instanceof ReviewProductNotFoundError
+    err instanceof ReviewProductNotFoundError ||
+    err instanceof AbuseReportNotFoundError ||
+    err instanceof AbuseReportTargetNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -176,7 +187,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof CheckoutProductUnavailableError ||
     err instanceof EmailDuplicateEventError ||
     err instanceof PaymentWebhookDuplicateError ||
-    err instanceof ReviewAlreadyExistsError
+    err instanceof ReviewAlreadyExistsError ||
+    err instanceof DuplicateAbuseReportError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -215,7 +227,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidPaymentTransitionError ||
     err instanceof UnsupportedPaymentMethodError ||
     err instanceof RefundNotSupportedError ||
-    err instanceof ReviewModerationReasonRequiredError
+    err instanceof ReviewModerationReasonRequiredError ||
+    err instanceof AbuseReportModerationError ||
+    err instanceof UnsupportedAbuseActionError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
