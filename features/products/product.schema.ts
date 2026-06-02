@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ProductBadgeType } from '@/app/generated/prisma/client'
 
 const optionalQueryNumber = (fieldName: string) =>
   z.preprocess(
@@ -99,9 +100,50 @@ export type ProductCategoryPaginationQuery = z.infer<typeof productCategoryPagin
  */
 export const productSearchQuerySchema = z.object({
   q: z
-    .string({ error: 'q is required' })
-    .min(1, { error: 'q must not be empty' })
-    .max(100, { error: 'q must not exceed 100 characters' }),
+    .string()
+    .trim()
+    .max(100, { error: 'q must not exceed 100 characters' })
+    .optional(),
+  category: z
+    .string()
+    .trim()
+    .min(1, { error: 'category must not be empty' })
+    .optional(),
+  minPrice: optionalQueryNumber('minPrice'),
+  maxPrice: optionalQueryNumber('maxPrice'),
+  inStock: z.preprocess((value) => {
+    if (value === '' || value == null) {
+      return undefined
+    }
+
+    if (typeof value === 'boolean') {
+      return value
+    }
+
+    if (typeof value === 'string') {
+      if (value === 'true') return true
+      if (value === 'false') return false
+    }
+
+    return value
+  }, z.boolean({ error: 'inStock must be true or false' }).optional()),
+  rating: z.preprocess(
+    (value) => (value === '' || value == null ? undefined : value),
+    z.coerce
+      .number({ error: 'rating must be a number' })
+      .int({ error: 'rating must be an integer' })
+      .min(1, { error: 'rating must be at least 1' })
+      .max(5, { error: 'rating must not exceed 5' })
+      .optional(),
+  ),
+  badge: z.nativeEnum(ProductBadgeType).optional(),
+  store: z
+    .string()
+    .trim()
+    .min(1, { error: 'store must not be empty' })
+    .max(120, { error: 'store must not exceed 120 characters' })
+    .optional(),
+  sort: z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'rating', 'popular']).optional(),
   page: z.coerce
     .number({ error: 'page must be a number' })
     .int({ error: 'page must be an integer' })
@@ -113,6 +155,18 @@ export const productSearchQuerySchema = z.object({
     .min(1, { error: 'limit must be at least 1' })
     .max(100, { error: 'limit must not exceed 100' })
     .default(12),
+}).superRefine((query, ctx) => {
+  if (
+    query.minPrice !== undefined &&
+    query.maxPrice !== undefined &&
+    query.minPrice > query.maxPrice
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'minPrice must be less than or equal to maxPrice',
+      path: ['minPrice'],
+    })
+  }
 })
 
 export type ProductSearchQuery = z.infer<typeof productSearchQuerySchema>

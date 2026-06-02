@@ -44,6 +44,7 @@ import {
   findCategoriesByParentIds,
   findCategoryBySlug,
   findProducts,
+  searchProducts,
 } from './product.repository'
 
 function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product {
@@ -104,6 +105,26 @@ describe('findProducts', () => {
           },
           orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
         },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        ratingSummary: {
+          select: {
+            productId: true,
+            ratingAvg: true,
+            ratingCount: true,
+            rating1Count: true,
+            rating2Count: true,
+            rating3Count: true,
+            rating4Count: true,
+            rating5Count: true,
+            updatedAt: true,
+          },
+        },
       },
     })
     expect(countMock).toHaveBeenCalledWith({ where })
@@ -133,6 +154,78 @@ describe('findProducts', () => {
       }),
     )
     expect(countMock).toHaveBeenCalledWith({ where })
+  })
+})
+
+describe('searchProducts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryRawMock
+      .mockResolvedValueOnce([{ id: 'prod-1' }])
+      .mockResolvedValueOnce([{ count: BigInt(1) }])
+      .mockResolvedValueOnce([{ id: 'cat-1', slug: 'dresses', name: 'Dresses', count: BigInt(1) }])
+      .mockResolvedValueOnce([{ id: 'store-1', slug: 'test-store', name: 'Test Store', count: BigInt(1) }])
+      .mockResolvedValueOnce([{ inStock: BigInt(1), outOfStock: BigInt(0) }])
+      .mockResolvedValueOnce([{ type: 'NEW', count: BigInt(1) }])
+      .mockResolvedValueOnce([{ min: { toString: () => '99.99' }, max: { toString: () => '99.99' } }])
+      .mockResolvedValueOnce([{ count: BigInt(0) }])
+      .mockResolvedValueOnce([{ count: BigInt(1) }])
+      .mockResolvedValueOnce([{ count: BigInt(1) }])
+      .mockResolvedValueOnce([{ count: BigInt(1) }])
+      .mockResolvedValueOnce([{ count: BigInt(1) }])
+    findManyMock.mockResolvedValue([
+      {
+        ...makeProduct(),
+        variants: [],
+        images: [],
+        store: {
+          id: 'store-1',
+          name: 'Test Store',
+          slug: 'test-store',
+        },
+        ratingSummary: null,
+      },
+    ])
+  })
+
+  it('returns hydrated items, totals, and facets for public search', async () => {
+    const result = await searchProducts({
+      q: 'jacket',
+      sort: 'relevance',
+      page: 1,
+      limit: 12,
+      inStock: true,
+    })
+
+    expect(queryRawMock).toHaveBeenCalledTimes(12)
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: ['prod-1'],
+        },
+      },
+      include: expect.objectContaining({
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      }),
+    })
+    expect(result.total).toBe(1)
+    expect(result.items).toHaveLength(1)
+    expect(result.facets.categories[0]).toEqual({
+      id: 'cat-1',
+      slug: 'dresses',
+      name: 'Dresses',
+      count: 1,
+    })
+    expect(result.facets.availability).toEqual({
+      inStock: 1,
+      outOfStock: 0,
+    })
   })
 })
 

@@ -72,6 +72,12 @@ function makeListProduct(
     ...makeProduct(overrides),
     variants,
     images: [],
+    store: {
+      id: 'store-1',
+      name: 'Test Store',
+      slug: 'test-store',
+    },
+    ratingSummary: null,
   } as repository.ProductListProduct
 }
 
@@ -135,24 +141,107 @@ describe('searchProducts', () => {
   })
 
   it('returns mapped product list with pagination metadata', async () => {
-    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [makeListProduct()], total: 1 })
+    vi.mocked(repository.searchProducts).mockResolvedValue({
+      items: [makeListProduct()],
+      total: 1,
+      page: 1,
+      limit: 12,
+      facets: {
+        categories: [{ id: 'cat-1', slug: 'dresses', name: 'Dresses', count: 1 }],
+        stores: [{ id: 'store-1', slug: 'test-store', name: 'Test Store', count: 1 }],
+        availability: { inStock: 1, outOfStock: 0 },
+        ratings: [{ minRating: 4, count: 1 }],
+        badges: [{ type: 'NEW', count: 1 }],
+        priceRange: { min: { toString: () => '99.99' } as never, max: { toString: () => '99.99' } as never },
+      },
+    })
 
     const result = await searchProducts({ q: 'jacket', page: 1, limit: 12 })
 
     expect(result.items).toHaveLength(1)
-    expect(result.total).toBe(1)
-    expect(result.totalPages).toBe(1)
-    expect(result.data[0]?.price).toBe('99.99')
-    expect(result.badgeContext).toBe('DEFAULT')
-    expect(result.meta.hasNextPage).toBe(false)
+    expect(result.pagination.total).toBe(1)
+    expect(result.pagination.totalPages).toBe(1)
+    expect(result.items[0]?.price).toBe('99.99')
+    expect(result.items[0]?.storeName).toBe('Test Store')
+    expect(result.facets.priceRange.min).toBe('99.99')
+    expect(result.sort).toBe('relevance')
+    expect(result.pagination.hasNextPage).toBe(false)
   })
 
-  it('passes q, page, and limit to the repository', async () => {
-    vi.mocked(repository.searchProducts).mockResolvedValue({ items: [], total: 0 })
+  it('passes filters and relevance sort to the repository', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
+    mockedRepository.findCategoriesByParentIds
+      .mockResolvedValueOnce([{ id: 'cat-child', parentId: 'cat-root' }])
+      .mockResolvedValueOnce([])
+    vi.mocked(repository.searchProducts).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 2,
+      limit: 10,
+      facets: {
+        categories: [],
+        stores: [],
+        availability: { inStock: 0, outOfStock: 0 },
+        ratings: [],
+        badges: [],
+        priceRange: { min: null, max: null },
+      },
+    })
 
-    await searchProducts({ q: 'hoodie', page: 2, limit: 10 })
+    await searchProducts({
+      q: 'hoodie',
+      category: 'clothing-shoes',
+      minPrice: 100,
+      maxPrice: 500,
+      inStock: true,
+      rating: 4,
+      badge: 'HIT',
+      store: 'test-store',
+      sort: 'relevance',
+      page: 2,
+      limit: 10,
+    })
 
-    expect(repository.searchProducts).toHaveBeenCalledWith({ q: 'hoodie', page: 2, limit: 10 })
+    expect(mockedRepository.findCategoryBySlug).toHaveBeenCalledWith('clothing-shoes')
+    expect(repository.searchProducts).toHaveBeenCalledWith({
+      q: 'hoodie',
+      categoryIds: ['cat-root', 'cat-child'],
+      minPrice: 100,
+      maxPrice: 500,
+      inStock: true,
+      rating: 4,
+      badge: 'HIT',
+      store: { slug: 'test-store' },
+      sort: 'relevance',
+      page: 2,
+      limit: 10,
+    })
+  })
+
+  it('falls back to newest sort when q is empty and sort is relevance', async () => {
+    vi.mocked(repository.searchProducts).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 12,
+      facets: {
+        categories: [],
+        stores: [],
+        availability: { inStock: 0, outOfStock: 0 },
+        ratings: [],
+        badges: [],
+        priceRange: { min: null, max: null },
+      },
+    })
+
+    await searchProducts({ q: '', sort: 'relevance', page: 1, limit: 12 })
+
+    expect(repository.searchProducts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        q: undefined,
+        sort: 'newest',
+      }),
+    )
   })
 })
 
@@ -294,6 +383,7 @@ describe('listProducts', () => {
         store: {
           isActive: true,
         },
+        AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
         categoryId: {
           in: ['cat-root', 'cat-parent', 'cat-leaf-a', 'cat-leaf-b'],
         },
@@ -353,6 +443,7 @@ describe('listProducts', () => {
         store: {
           isActive: true,
         },
+        AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
         storeId: 'store-abc',
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -379,9 +470,14 @@ describe('filtered product listings', () => {
         store: {
           isActive: true,
         },
-        publishedAt: {
-          gte: expect.any(Date),
-        },
+        AND: [
+          { OR: [{ categoryId: null }, { category: { isActive: true } }] },
+          {
+            publishedAt: {
+              gte: expect.any(Date),
+            },
+          },
+        ],
       },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       page: 1,
@@ -447,13 +543,18 @@ describe('filtered product listings', () => {
         store: {
           isActive: true,
         },
-        badges: {
-          some: {
-            type: 'HIT',
-            OR: [{ startsAt: null }, { startsAt: { lte: expect.any(Date) } }],
-            AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: expect.any(Date) } }] }],
+        AND: [
+          { OR: [{ categoryId: null }, { category: { isActive: true } }] },
+          {
+            badges: {
+              some: {
+                type: 'HIT',
+                OR: [{ startsAt: null }, { startsAt: { lte: expect.any(Date) } }],
+                AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: expect.any(Date) } }] }],
+              },
+            },
           },
-        },
+        ],
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       page: 2,
@@ -532,6 +633,7 @@ describe('listProductsByCategorySlug', () => {
         store: {
           isActive: true,
         },
+        AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
         categoryId: {
           in: ['cat-root', 'cat-leaf'],
         },

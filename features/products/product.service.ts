@@ -6,6 +6,11 @@ import type {
   ProductImageDto,
   ProductMarketplaceBadgeDto,
   ProductListDto,
+  ProductSearchAppliedFiltersDto,
+  ProductSearchDto,
+  ProductSearchFacetsDto,
+  ProductSearchItemDto,
+  ProductSearchSort,
   ProductStockStatus,
   ProductSummaryDto,
   ProductVariantDto,
@@ -22,6 +27,7 @@ import type {
   CategoryNode,
   ProductDetailProduct,
   ProductListProduct,
+  ProductSearchRepositoryResult,
 } from '@/features/products/product.repository'
 import type {
   ProductCategoryPaginationQuery,
@@ -29,6 +35,7 @@ import type {
   ProductPaginationQuery,
   ProductSearchQuery,
 } from '@/features/products/product.schema'
+import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
 import {
   recalculateProductMetricsAndBadges,
   resolveMarketplaceBadgesForProducts,
@@ -148,6 +155,36 @@ function toProductImageDto(product: ProductDetailProduct): ProductImageDto[] {
     isPrimary: image.isPrimary,
     position: image.position,
   }))
+}
+
+function toSearchProductItemDto(
+  product: ProductListProduct,
+  marketplaceBadges: ProductBadgeDto[] = [],
+): ProductSearchItemDto {
+  return {
+    ...toProductSummaryDto(product, product.variants, marketplaceBadges, 'DEFAULT'),
+    storeName: product.store.name,
+    storeSlug: product.store.slug,
+    ratingSummary: product.ratingSummary
+      ? {
+          averageRating: Number(product.ratingSummary.ratingAvg.toNumber().toFixed(2)),
+          totalCount: product.ratingSummary.ratingCount,
+          rating1Count: product.ratingSummary.rating1Count,
+          rating2Count: product.ratingSummary.rating2Count,
+          rating3Count: product.ratingSummary.rating3Count,
+          rating4Count: product.ratingSummary.rating4Count,
+          rating5Count: product.ratingSummary.rating5Count,
+        }
+      : {
+          averageRating: 0,
+          totalCount: 0,
+          rating1Count: 0,
+          rating2Count: 0,
+          rating3Count: 0,
+          rating4Count: 0,
+          rating5Count: 0,
+        },
+  }
 }
 
 function toProductRatingSummaryDto(product: ProductDetailProduct): ReviewRatingSummaryDto {
@@ -290,6 +327,11 @@ function buildCatalogWhereInput(params: {
   const { categoryIds, size, priceMin, priceMax, storeId, isNew, isHit } = params
   const now = new Date()
   const newBadgeWindowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const andConditions: Prisma.ProductWhereInput[] = [
+    {
+      OR: [{ categoryId: null }, { category: { isActive: true } }],
+    },
+  ]
 
   const priceFilter: Prisma.DecimalFilter<'Product'> | undefined =
     priceMin !== undefined || priceMax !== undefined
@@ -299,22 +341,23 @@ function buildCatalogWhereInput(params: {
         }
       : undefined
 
-  return {
-    isActive: true,
-    status: ProductStatus.PUBLISHED,
-    store: {
-      isActive: true,
-    },
-    ...(storeId ? { storeId } : {}),
-    ...(isNew !== undefined
-      ? isNew
-        ? { publishedAt: { gte: newBadgeWindowStart } }
+  if (isNew !== undefined) {
+    andConditions.push(
+      isNew
+        ? {
+            publishedAt: {
+              gte: newBadgeWindowStart,
+            },
+          }
         : {
             OR: [{ publishedAt: null }, { publishedAt: { lt: newBadgeWindowStart } }],
-          }
-      : {}),
-    ...(isHit !== undefined
-      ? isHit
+          },
+    )
+  }
+
+  if (isHit !== undefined) {
+    andConditions.push(
+      isHit
         ? {
             badges: {
               some: {
@@ -332,8 +375,18 @@ function buildCatalogWhereInput(params: {
                 AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }],
               },
             },
-          }
-      : {}),
+          },
+    )
+  }
+
+  return {
+    isActive: true,
+    status: ProductStatus.PUBLISHED,
+    store: {
+      isActive: true,
+    },
+    AND: andConditions,
+    ...(storeId ? { storeId } : {}),
     ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
     ...(priceFilter ? { price: priceFilter } : {}),
     ...(size
@@ -360,6 +413,45 @@ function mapSortToOrderBy(
   }
 
   return [{ createdAt: 'desc' }, { id: 'desc' }]
+}
+
+function resolveSearchSort(query: ProductSearchQuery): ProductSearchSort {
+  if (query.sort) {
+    if (query.sort === 'relevance' && !query.q?.trim()) {
+      return 'newest'
+    }
+
+    return query.sort
+  }
+
+  return query.q?.trim() ? 'relevance' : 'newest'
+}
+
+function buildAppliedSearchFilters(query: ProductSearchQuery): ProductSearchAppliedFiltersDto {
+  return {
+    q: query.q?.trim() || null,
+    category: query.category ?? null,
+    minPrice: query.minPrice ?? null,
+    maxPrice: query.maxPrice ?? null,
+    inStock: query.inStock ?? null,
+    rating: query.rating ?? null,
+    badge: query.badge ?? null,
+    store: query.store ?? null,
+  }
+}
+
+function toSearchFacetsDto(result: ProductSearchRepositoryResult): ProductSearchFacetsDto {
+  return {
+    categories: result.facets.categories,
+    stores: result.facets.stores,
+    availability: result.facets.availability,
+    ratings: result.facets.ratings,
+    badges: result.facets.badges,
+    priceRange: {
+      min: result.facets.priceRange.min?.toString() ?? null,
+      max: result.facets.priceRange.max?.toString() ?? null,
+    },
+  }
 }
 
 async function resolveCategoryTreeIds(rootCategoryId: string): Promise<string[]> {
@@ -480,12 +572,70 @@ export async function listProductsByCategorySlug(
  */
 export async function searchProducts(
   query: ProductSearchQuery
-): Promise<ProductListDto> {
-  const { q, page, limit } = query
+): Promise<ProductSearchDto> {
+  const sort = resolveSearchSort(query)
+  const appliedFilters = buildAppliedSearchFilters(query)
 
-  const { items, total } = await repositorySearchProducts({ q, page, limit })
+  let categoryIds: string[] | undefined
+  if (query.category) {
+    const categoryNode = await findCategoryBySlug(query.category)
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'DEFAULT')
+    if (!categoryNode) {
+      throw new InvalidFilterError('Category filter is invalid')
+    }
+
+    categoryIds = await resolveCategoryTreeIds(categoryNode.id)
+  }
+
+  const store = query.store?.trim()
+  const storeFilter = store
+    ? /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(store)
+      ? { id: store }
+      : { slug: store }
+    : undefined
+
+  try {
+    const result = await repositorySearchProducts({
+      q: query.q?.trim() || undefined,
+      categoryIds,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      inStock: query.inStock,
+      rating: query.rating,
+      badge: query.badge,
+      store: storeFilter,
+      sort,
+      page: query.page,
+      limit: query.limit,
+    })
+
+    const badgesByProductId = await resolveMarketplaceBadgesForProducts(
+      result.items.map((item) => ({
+        id: item.id,
+        status: item.status,
+        publishedAt: item.publishedAt,
+        isActive: item.isActive,
+      })),
+    )
+
+    return {
+      items: result.items.map((item) => toSearchProductItemDto(item, badgesByProductId.get(item.id) ?? [])),
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.total === 0 ? 0 : Math.ceil(result.total / result.limit),
+        hasNextPage: result.page * result.limit < result.total,
+      },
+      facets: toSearchFacetsDto(result),
+      appliedFilters,
+      sort,
+    }
+  } catch (error) {
+    throw new SearchExecutionError(
+      error instanceof Error ? error.message : 'Search query could not be executed',
+    )
+  }
 }
 
 /**

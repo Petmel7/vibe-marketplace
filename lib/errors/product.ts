@@ -67,3 +67,33 @@ export class UnauthorizedBadgeRuleMutationError extends Error {
     this.name = 'UnauthorizedBadgeRuleMutationError'
   }
 }
+
+export class InvalidSearchQueryError extends Error {
+  readonly code = 'INVALID_SEARCH_QUERY'
+  readonly statusCode = 400
+
+  constructor(msg = 'Search query is invalid') {
+    super(msg)
+    this.name = 'InvalidSearchQueryError'
+  }
+}
+
+export class InvalidFilterError extends Error {
+  readonly code = 'INVALID_FILTER'
+  readonly statusCode = 400
+
+  constructor(msg = 'One or more search filters are invalid') {
+    super(msg)
+    this.name = 'InvalidFilterError'
+  }
+}
+
+export class SearchExecutionError extends Error {
+  readonly code = 'SEARCH_EXECUTION_ERROR'
+  readonly statusCode = 500
+
+  constructor(msg = 'Search could not be executed') {
+    super(msg)
+    this.name = 'SearchExecutionError'
+  }
+}

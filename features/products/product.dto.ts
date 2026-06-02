@@ -11,6 +11,13 @@ import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 
 export type ProductBadgeContext = 'DEFAULT' | 'NEW' | 'HIT' | 'FEATURED'
 export type ProductStockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
+export type ProductSearchSort =
+  | 'relevance'
+  | 'newest'
+  | 'price_asc'
+  | 'price_desc'
+  | 'rating'
+  | 'popular'
 
 export interface ProductVariantDto {
   id: string
@@ -86,4 +93,72 @@ export interface ProductListDto {
   totalPages: number
   data: ProductSummaryDto[]
   meta: ProductListMetaDto
+}
+
+export interface ProductSearchItemDto extends ProductSummaryDto {
+  storeName: string
+  storeSlug: string
+  ratingSummary: ReviewRatingSummaryDto
+}
+
+export interface ProductSearchCategoryFacetDto {
+  id: string
+  slug: string
+  name: string
+  count: number
+}
+
+export interface ProductSearchStoreFacetDto {
+  id: string
+  slug: string
+  name: string
+  count: number
+}
+
+export interface ProductSearchRatingFacetDto {
+  minRating: number
+  count: number
+}
+
+export interface ProductSearchBadgeFacetDto {
+  type: MarketplaceBadgeType
+  count: number
+}
+
+export interface ProductSearchAvailabilityFacetDto {
+  inStock: number
+  outOfStock: number
+}
+
+export interface ProductSearchPriceRangeFacetDto {
+  min: string | null
+  max: string | null
+}
+
+export interface ProductSearchFacetsDto {
+  categories: ProductSearchCategoryFacetDto[]
+  stores: ProductSearchStoreFacetDto[]
+  availability: ProductSearchAvailabilityFacetDto
+  ratings: ProductSearchRatingFacetDto[]
+  badges: ProductSearchBadgeFacetDto[]
+  priceRange: ProductSearchPriceRangeFacetDto
+}
+
+export interface ProductSearchAppliedFiltersDto {
+  q: string | null
+  category: string | null
+  minPrice: number | null
+  maxPrice: number | null
+  inStock: boolean | null
+  rating: number | null
+  badge: MarketplaceBadgeType | null
+  store: string | null
+}
+
+export interface ProductSearchDto {
+  items: ProductSearchItemDto[]
+  pagination: ProductListMetaDto
+  facets: ProductSearchFacetsDto
+  appliedFilters: ProductSearchAppliedFiltersDto
+  sort: ProductSearchSort
 }

@@ -58,10 +58,13 @@ import {
 } from './admin'
 import {
   BadgeRuleNotFoundError,
+  InvalidFilterError,
   InvalidBadgeTransitionError,
+  InvalidSearchQueryError,
   InvalidBadgeRuleError,
   ProductBadgeConflictError,
   ProductMetricsCalculationError,
+  SearchExecutionError,
   UnauthorizedBadgeMutationError,
   UnauthorizedBadgeRuleMutationError,
 } from './product'
@@ -198,6 +201,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidSkuError ||
     err instanceof ProductImageLimitExceededError ||
     err instanceof InvalidBadgeTransitionError ||
+    err instanceof InvalidSearchQueryError ||
+    err instanceof InvalidFilterError ||
     err instanceof InvalidBadgeRuleError ||
     err instanceof CategoryCircularReferenceError ||
     err instanceof EmailRetryLimitExceededError ||
@@ -219,6 +224,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
   if (
     err instanceof UploadFailedError ||
     err instanceof ProductMetricsCalculationError ||
+    err instanceof SearchExecutionError ||
     err instanceof EmailProviderError ||
     err instanceof EmailTemplateRenderError ||
     err instanceof DomainPaymentProviderError ||
