@@ -39,6 +39,11 @@ model User {
   resolvedAbuseReports AbuseReport[]         @relation("AbuseReportResolvedBy")
   abuseReportActions   AbuseReportAction[]   @relation("AbuseReportActionAdmin")
   abuseReportEvidence  AbuseReportEvidence[] @relation("AbuseReportEvidenceUploadedBy")
+  openedDisputes       Dispute[]             @relation("DisputeOpenedBy")
+  respondedDisputes    Dispute[]             @relation("DisputeRespondent")
+  resolvedDisputes     Dispute[]             @relation("DisputeResolvedBy")
+  disputeMessages      DisputeMessage[]      @relation("DisputeMessageSender")
+  disputeEvidence      DisputeEvidence[]     @relation("DisputeEvidenceUploadedBy")
 
   @@map("users")
 }
@@ -59,6 +64,7 @@ model Store {
   products      Product[]
   owner         User           @relation(fields: [ownerId], references: [id], map: "stores_owner_id_user_fkey")
   sellerProfile SellerProfile? @relation("SellerStores", fields: [ownerId], references: [userId], map: "stores_owner_id_seller_fkey")
+  disputes      Dispute[]
 
   @@index([ownerId], map: "stores_ownerId_idx")
   @@index([isActive], map: "stores_isActive_idx")
@@ -244,6 +250,7 @@ model Order {
   items             OrderItem[]
   payments          Payment[]
   user              User        @relation(fields: [userId], references: [id])
+  disputes          Dispute[]
 
   @@index([userId], map: "orders_userId_idx")
   @@index([status])
@@ -270,6 +277,7 @@ model OrderItem {
   order               Order                 @relation(fields: [orderId], references: [id])
   store               Store                 @relation(fields: [storeId], references: [id])
   variant             ProductVariant        @relation(fields: [variantId], references: [id])
+  disputes            Dispute[]
 
   @@index([orderId], map: "order_items_orderId_idx")
   @@index([variantId], map: "order_items_variantId_idx")
@@ -620,6 +628,78 @@ model AbuseReportEvidence {
   @@map("abuse_report_evidence")
 }
 
+model Dispute {
+  id             String            @id @default(uuid()) @db.Uuid
+  orderId        String            @map("order_id") @db.Uuid
+  orderItemId    String?           @map("order_item_id") @db.Uuid
+  openedById     String            @map("opened_by_id") @db.Uuid
+  respondentId   String?           @map("respondent_id") @db.Uuid
+  storeId        String?           @map("store_id") @db.Uuid
+  reason         DisputeReason
+  status         DisputeStatus     @default(OPEN)
+  priority       DisputePriority   @default(NORMAL)
+  description    String
+  resolutionNote String?           @map("resolution_note")
+  resolvedById   String?           @map("resolved_by_id") @db.Uuid
+  resolvedAt     DateTime?         @map("resolved_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  order          Order             @relation(fields: [orderId], references: [id])
+  orderItem      OrderItem?        @relation(fields: [orderItemId], references: [id])
+  openedBy       User              @relation("DisputeOpenedBy", fields: [openedById], references: [id])
+  respondent     User?             @relation("DisputeRespondent", fields: [respondentId], references: [id])
+  store          Store?            @relation(fields: [storeId], references: [id])
+  resolvedBy     User?             @relation("DisputeResolvedBy", fields: [resolvedById], references: [id])
+  messages       DisputeMessage[]
+  evidence       DisputeEvidence[]
+
+  @@index([orderId], map: "disputes_order_id_idx")
+  @@index([orderItemId], map: "disputes_order_item_id_idx")
+  @@index([openedById], map: "disputes_opened_by_id_idx")
+  @@index([respondentId], map: "disputes_respondent_id_idx")
+  @@index([storeId], map: "disputes_store_id_idx")
+  @@index([resolvedById], map: "disputes_resolved_by_id_idx")
+  @@index([status], map: "disputes_status_idx")
+  @@index([reason], map: "disputes_reason_idx")
+  @@index([priority], map: "disputes_priority_idx")
+  @@index([createdAt], map: "disputes_created_at_idx")
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  disputeId  String   @map("dispute_id") @db.Uuid
+  senderId   String   @map("sender_id") @db.Uuid
+  message    String
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+  dispute    Dispute  @relation(fields: [disputeId], references: [id])
+  sender     User     @relation("DisputeMessageSender", fields: [senderId], references: [id])
+
+  @@index([disputeId], map: "dispute_messages_dispute_id_idx")
+  @@index([senderId], map: "dispute_messages_sender_id_idx")
+  @@index([createdAt], map: "dispute_messages_created_at_idx")
+  @@map("dispute_messages")
+}
+
+model DisputeEvidence {
+  id           String   @id @default(uuid()) @db.Uuid
+  disputeId    String   @map("dispute_id") @db.Uuid
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  storagePath  String   @map("storage_path")
+  fileName     String   @map("file_name")
+  fileType     String   @map("file_type")
+  fileSize     Int      @map("file_size")
+  createdAt    DateTime @default(now()) @map("created_at")
+  dispute      Dispute  @relation(fields: [disputeId], references: [id])
+  uploadedBy   User     @relation("DisputeEvidenceUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([disputeId], map: "dispute_evidence_dispute_id_idx")
+  @@index([uploadedById], map: "dispute_evidence_uploaded_by_id_idx")
+  @@index([createdAt], map: "dispute_evidence_created_at_idx")
+  @@map("dispute_evidence")
+}
+
 model UserProfile {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @unique @map("user_id") @db.Uuid
@@ -880,4 +960,34 @@ enum AbuseReportActionType {
   SUSPEND_SELLER
   SUSPEND_STORE
   ESCALATE
+}
+
+enum DisputeReason {
+  ITEM_NOT_RECEIVED
+  ITEM_NOT_AS_DESCRIBED
+  DAMAGED_ITEM
+  WRONG_ITEM
+  PAYMENT_ISSUE
+  REFUND_REQUEST
+  SELLER_ISSUE
+  BUYER_ISSUE
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  WAITING_BUYER
+  WAITING_SELLER
+  RESOLVED
+  REJECTED
+  ESCALATED
+  CLOSED
+}
+
+enum DisputePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
