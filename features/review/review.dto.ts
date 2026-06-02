@@ -1,5 +1,11 @@
 export type ReviewStatusDto = 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'HIDDEN'
 export type ReviewModerationActionDto = 'approve' | 'reject' | 'hide' | 'restore'
+export type ReviewEligibilityReasonDto =
+  | 'UNAUTHENTICATED'
+  | 'BUYER_ROLE_REQUIRED'
+  | 'PURCHASE_REQUIRED'
+  | 'SELF_REVIEW_FORBIDDEN'
+  | 'ALREADY_REVIEWED'
 
 export interface ReviewRatingSummaryDto {
   averageRating: number
@@ -43,6 +49,34 @@ export interface ReviewListDto {
   limit: number
   averageRating: number | null
   ratingSummary: ReviewRatingSummaryDto
+}
+
+export interface ReviewEligibilityDto {
+  canReview: boolean
+  hasReviewed: boolean
+  reason: ReviewEligibilityReasonDto | null
+  eligibleOrderItemId: string | null
+}
+
+export interface MyReviewDto {
+  id: string
+  productId: string
+  productName: string
+  productImageUrl: string | null
+  rating: number
+  status: ReviewStatusDto
+  title: string | null
+  comment: string | null
+  sellerReply: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MyReviewListDto {
+  items: MyReviewDto[]
+  total: number
+  page: number
+  limit: number
 }
 
 export interface ReviewMutationResultDto {

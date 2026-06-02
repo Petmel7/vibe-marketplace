@@ -1,4 +1,4 @@
-import { ReviewStatus } from '@/app/generated/prisma/client'
+import { ReviewStatus, UserRole } from '@/app/generated/prisma/client'
 import { requireAdmin, requireBuyer, requireSeller } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import {
@@ -12,6 +12,9 @@ import {
 } from '@/lib/errors/review'
 import type {
   AdminReviewListDto,
+  MyReviewDto,
+  MyReviewListDto,
+  ReviewEligibilityDto,
   ReviewDto,
   ReviewListDto,
   ReviewMutationResultDto,
@@ -19,6 +22,7 @@ import type {
 } from './review.dto'
 import type {
   AdminReviewListQuery,
+  MyReviewListQuery,
   ReviewCreateInput,
   ReviewListQuery,
   ReviewModerationInput,
@@ -35,9 +39,11 @@ import {
   findReviewById,
   findReviewByProductAndUser,
   listAdminReviews,
+  listReviewsByUserId,
   recalculateProductRatingSummary,
   updateReviewRecord,
   updateSellerReply,
+  type MyReviewRecord,
   type ReviewRecord,
 } from './review.repository'
 
@@ -109,6 +115,26 @@ function toReviewDto(review: ReviewRecord): ReviewDto {
   }
 }
 
+function resolveMyReviewProductImageUrl(review: MyReviewRecord): string | null {
+  return review.product.images[0]?.url ?? review.product.imageUrl ?? null
+}
+
+function toMyReviewDto(review: MyReviewRecord): MyReviewDto {
+  return {
+    id: review.id,
+    productId: review.productId,
+    productName: review.product.name,
+    productImageUrl: resolveMyReviewProductImageUrl(review),
+    rating: review.rating,
+    status: review.status,
+    title: review.title ?? null,
+    comment: review.comment ?? null,
+    sellerReply: review.sellerReply ?? null,
+    createdAt: review.createdAt.toISOString(),
+    updatedAt: review.updatedAt.toISOString(),
+  }
+}
+
 function assertReviewOwner(review: ReviewRecord | null, userId: string): asserts review is ReviewRecord {
   if (!review) {
     throw new ReviewNotFoundError()
@@ -166,6 +192,86 @@ export async function listReviews(
     limit,
     averageRating: ratingSummary.totalCount > 0 ? ratingSummary.averageRating : null,
     ratingSummary,
+  }
+}
+
+export async function getReviewEligibility(
+  user: SessionUser | null,
+  productId: string,
+): Promise<ReviewEligibilityDto> {
+  if (!user) {
+    return {
+      canReview: false,
+      hasReviewed: false,
+      reason: 'UNAUTHENTICATED',
+      eligibleOrderItemId: null,
+    }
+  }
+
+  if (!user.roles.includes(UserRole.BUYER)) {
+    return {
+      canReview: false,
+      hasReviewed: false,
+      reason: 'BUYER_ROLE_REQUIRED',
+      eligibleOrderItemId: null,
+    }
+  }
+
+  const product = await findProductReviewContext(productId)
+  if (!product) {
+    throw new ReviewProductNotFoundError()
+  }
+
+  if (product.store.ownerId === user.id) {
+    return {
+      canReview: false,
+      hasReviewed: false,
+      reason: 'SELF_REVIEW_FORBIDDEN',
+      eligibleOrderItemId: null,
+    }
+  }
+
+  const existingReview = await findReviewByProductAndUser(productId, user.id)
+  if (existingReview) {
+    return {
+      canReview: false,
+      hasReviewed: true,
+      reason: 'ALREADY_REVIEWED',
+      eligibleOrderItemId: existingReview.orderItemId,
+    }
+  }
+
+  const eligibleOrderItem = await findEligiblePurchasedOrderItem(productId, user.id)
+  if (!eligibleOrderItem) {
+    return {
+      canReview: false,
+      hasReviewed: false,
+      reason: 'PURCHASE_REQUIRED',
+      eligibleOrderItemId: null,
+    }
+  }
+
+  return {
+    canReview: true,
+    hasReviewed: false,
+    reason: null,
+    eligibleOrderItemId: eligibleOrderItem.id,
+  }
+}
+
+export async function getMyReviews(
+  user: SessionUser,
+  query: MyReviewListQuery,
+): Promise<MyReviewListDto> {
+  requireBuyer(user)
+
+  const { items, total } = await listReviewsByUserId(user.id, query)
+
+  return {
+    items: items.map(toMyReviewDto),
+    total,
+    page: query.page,
+    limit: query.limit,
   }
 }
 

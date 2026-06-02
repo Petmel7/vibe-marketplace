@@ -42,6 +42,7 @@ export const reviewListQuerySchema = z.object({
 })
 
 export type ReviewListQuery = z.infer<typeof reviewListQuerySchema>
+export type MyReviewListQuery = ReviewListQuery
 
 export const reviewIdParamSchema = z.object({
   id: z.string().uuid(),

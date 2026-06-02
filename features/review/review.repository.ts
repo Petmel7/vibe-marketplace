@@ -49,6 +49,7 @@ const REVIEW_SELECT = {
 const PRODUCT_REVIEW_CONTEXT_SELECT = {
   id: true,
   name: true,
+  imageUrl: true,
   store: {
     select: {
       id: true,
@@ -57,6 +58,36 @@ const PRODUCT_REVIEW_CONTEXT_SELECT = {
     },
   },
 } satisfies Prisma.ProductSelect
+
+const MY_REVIEW_SELECT = {
+  id: true,
+  productId: true,
+  rating: true,
+  status: true,
+  title: true,
+  comment: true,
+  sellerReply: true,
+  createdAt: true,
+  updatedAt: true,
+  product: {
+    select: {
+      id: true,
+      name: true,
+      imageUrl: true,
+      images: {
+        select: {
+          url: true,
+          isPrimary: true,
+          position: true,
+          createdAt: true,
+          id: true,
+        },
+        orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+        take: 1,
+      },
+    },
+  },
+} satisfies Prisma.ReviewSelect
 
 const PUBLISHED_REVIEW_WHERE = {
   status: ReviewStatus.PUBLISHED,
@@ -77,6 +108,10 @@ export type ReviewRecord = Prisma.ReviewGetPayload<{
 
 export type ProductReviewContext = Prisma.ProductGetPayload<{
   select: typeof PRODUCT_REVIEW_CONTEXT_SELECT
+}>
+
+export type MyReviewRecord = Prisma.ReviewGetPayload<{
+  select: typeof MY_REVIEW_SELECT
 }>
 
 type ProductRatingSummaryRecord = Prisma.ProductRatingSummaryGetPayload<{
@@ -197,6 +232,29 @@ export async function findEligiblePurchasedOrderItem(
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
   })
+}
+
+export async function listReviewsByUserId(
+  userId: string,
+  params: { page: number; limit: number },
+): Promise<{ items: MyReviewRecord[]; total: number }> {
+  const { page, limit } = params
+  const skip = (page - 1) * limit
+
+  const where: Prisma.ReviewWhereInput = { userId }
+
+  const [items, total] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip,
+      take: limit,
+      select: MY_REVIEW_SELECT,
+    }),
+    prisma.review.count({ where }),
+  ])
+
+  return { items, total }
 }
 
 export async function createReviewRecord(input: {

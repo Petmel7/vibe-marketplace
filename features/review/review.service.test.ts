@@ -13,6 +13,8 @@ import {
   createReview,
   deleteMyReview,
   getAdminReviews,
+  getMyReviews,
+  getReviewEligibility,
   listReviews,
   moderateReview,
   replyToReview,
@@ -106,6 +108,113 @@ function makeRatingSummary(overrides: Record<string, unknown> = {}) {
 describe('review.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('returns a safe ineligible state for anonymous review eligibility', async () => {
+    const result = await getReviewEligibility(null, 'product-1')
+
+    expect(result).toEqual({
+      canReview: false,
+      hasReviewed: false,
+      reason: 'UNAUTHENTICATED',
+      eligibleOrderItemId: null,
+    })
+    expect(mockRepository.findProductReviewContext).not.toHaveBeenCalled()
+  })
+
+  it('returns canReview true for an eligible purchased buyer', async () => {
+    mockRepository.findProductReviewContext.mockResolvedValue({
+      id: 'product-1',
+      name: 'Summer Dress',
+      imageUrl: 'https://example.com/legacy.jpg',
+      store: {
+        id: 'store-1',
+        name: 'Dress Store',
+        ownerId: sellerUser.id,
+      },
+    } as never)
+    mockRepository.findReviewByProductAndUser.mockResolvedValue(null)
+    mockRepository.findEligiblePurchasedOrderItem.mockResolvedValue({ id: 'order-item-1' })
+
+    const result = await getReviewEligibility(buyerUser, 'product-1')
+
+    expect(result).toEqual({
+      canReview: true,
+      hasReviewed: false,
+      reason: null,
+      eligibleOrderItemId: 'order-item-1',
+    })
+  })
+
+  it('returns purchase required for a non-purchaser review eligibility check', async () => {
+    mockRepository.findProductReviewContext.mockResolvedValue({
+      id: 'product-1',
+      name: 'Summer Dress',
+      imageUrl: null,
+      store: {
+        id: 'store-1',
+        name: 'Dress Store',
+        ownerId: sellerUser.id,
+      },
+    } as never)
+    mockRepository.findReviewByProductAndUser.mockResolvedValue(null)
+    mockRepository.findEligiblePurchasedOrderItem.mockResolvedValue(null)
+
+    const result = await getReviewEligibility(buyerUser, 'product-1')
+
+    expect(result).toEqual({
+      canReview: false,
+      hasReviewed: false,
+      reason: 'PURCHASE_REQUIRED',
+      eligibleOrderItemId: null,
+    })
+  })
+
+  it('returns self-review forbidden for the product owner eligibility check', async () => {
+    mockRepository.findProductReviewContext.mockResolvedValue({
+      id: 'product-1',
+      name: 'Summer Dress',
+      imageUrl: null,
+      store: {
+        id: 'store-1',
+        name: 'Dress Store',
+        ownerId: buyerUser.id,
+      },
+    } as never)
+
+    const result = await getReviewEligibility(buyerUser, 'product-1')
+
+    expect(result).toEqual({
+      canReview: false,
+      hasReviewed: false,
+      reason: 'SELF_REVIEW_FORBIDDEN',
+      eligibleOrderItemId: null,
+    })
+    expect(mockRepository.findReviewByProductAndUser).not.toHaveBeenCalled()
+  })
+
+  it('returns already reviewed when the buyer has an existing review', async () => {
+    mockRepository.findProductReviewContext.mockResolvedValue({
+      id: 'product-1',
+      name: 'Summer Dress',
+      imageUrl: null,
+      store: {
+        id: 'store-1',
+        name: 'Dress Store',
+        ownerId: sellerUser.id,
+      },
+    } as never)
+    mockRepository.findReviewByProductAndUser.mockResolvedValue(makeReviewRecord() as never)
+
+    const result = await getReviewEligibility(buyerUser, 'product-1')
+
+    expect(result).toEqual({
+      canReview: false,
+      hasReviewed: true,
+      reason: 'ALREADY_REVIEWED',
+      eligibleOrderItemId: 'order-item-1',
+    })
+    expect(mockRepository.findEligiblePurchasedOrderItem).not.toHaveBeenCalled()
   })
 
   it('returns only published reviews publicly and includes rating summary', async () => {
@@ -315,6 +424,66 @@ describe('review.service', () => {
       status: ReviewStatus.HIDDEN,
     })
     expect(result.items[0]?.status).toBe('HIDDEN')
+  })
+
+  it('returns only the current buyer review list with product snapshot fields', async () => {
+    mockRepository.listReviewsByUserId.mockResolvedValue({
+      items: [
+        {
+          id: 'review-1',
+          productId: 'product-1',
+          rating: 5,
+          status: ReviewStatus.PUBLISHED,
+          title: 'Amazing',
+          comment: 'Great purchase',
+          sellerReply: 'Thanks!',
+          createdAt: new Date('2026-06-01T12:00:00.000Z'),
+          updatedAt: new Date('2026-06-02T12:00:00.000Z'),
+          product: {
+            id: 'product-1',
+            name: 'Summer Dress',
+            imageUrl: 'https://example.com/legacy.jpg',
+            images: [
+              {
+                id: 'image-1',
+                url: 'https://example.com/primary.jpg',
+                isPrimary: true,
+                position: 0,
+                createdAt: new Date('2026-06-01T10:00:00.000Z'),
+              },
+            ],
+          },
+        },
+      ],
+      total: 1,
+    })
+
+    const result = await getMyReviews(buyerUser, { page: 1, limit: 20 })
+
+    expect(mockRepository.listReviewsByUserId).toHaveBeenCalledWith(buyerUser.id, {
+      page: 1,
+      limit: 20,
+    })
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'review-1',
+          productId: 'product-1',
+          productName: 'Summer Dress',
+          productImageUrl: 'https://example.com/primary.jpg',
+          rating: 5,
+          status: 'PUBLISHED',
+          title: 'Amazing',
+          comment: 'Great purchase',
+          sellerReply: 'Thanks!',
+          createdAt: '2026-06-01T12:00:00.000Z',
+          updatedAt: '2026-06-02T12:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    })
   })
 
   it('requires moderation reason when rejecting a review', async () => {
