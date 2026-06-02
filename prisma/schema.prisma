@@ -82,6 +82,7 @@ model Category {
   @@index([isActive], map: "categories_isActive_idx")
   @@index([position], map: "categories_position_idx")
   @@index([parentId, position], map: "categories_parentId_position_idx")
+  @@index([parentId, isActive, position], map: "categories_parentId_isActive_position_idx")
   @@map("categories")
 }
 
@@ -120,7 +121,12 @@ model Product {
   @@index([categoryId], map: "products_categoryId_idx")
   @@index([storeId], map: "products_storeId_idx")
   @@index([isActive], map: "products_isActive_idx")
+  @@index([price], map: "products_price_idx")
+  @@index([publishedAt], map: "products_publishedAt_idx")
   @@index([status])
+  @@index([status, isActive], map: "products_status_isActive_idx")
+  @@index([categoryId, status], map: "products_categoryId_status_idx")
+  @@index([storeId, status], map: "products_storeId_status_idx")
   @@index([searchVector], map: "products_searchVector_idx", type: Gin)
   @@map("products")
 }
@@ -179,6 +185,8 @@ model ProductMetrics {
 
   @@index([hitScore], map: "product_metrics_hitScore_idx")
   @@index([soldCount], map: "product_metrics_soldCount_idx")
+  @@index([wishlistCount], map: "product_metrics_wishlistCount_idx")
+  @@index([viewCount], map: "product_metrics_viewCount_idx")
   @@map("product_metrics")
 }
 
@@ -215,6 +223,7 @@ model ProductVariant {
   product    Product     @relation(fields: [productId], references: [id])
 
   @@index([productId], map: "product_variants_productId_idx")
+  @@index([productId, stock], map: "product_variants_productId_stock_idx")
   @@map("product_variants")
 }
 
@@ -445,6 +454,8 @@ model ProductRatingSummary {
   updatedAt    DateTime @updatedAt @map("updated_at")
   product      Product  @relation(fields: [productId], references: [id])
 
+  @@index([ratingAvg], map: "product_rating_summaries_rating_avg_idx")
+  @@index([ratingCount], map: "product_rating_summaries_rating_count_idx")
   @@map("product_rating_summaries")
 }
 
