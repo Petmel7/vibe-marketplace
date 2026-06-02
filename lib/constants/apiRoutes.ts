@@ -12,7 +12,10 @@ export const API_ROUTES = {
   notificationsReadAll: '/api/notifications/read-all',
   profileAddresses: '/api/profile/addresses',
   categoriesTree: '/api/categories/tree',
+  reports: '/api/reports',
+  profileReports: '/api/profile/reports',
   adminReviews: '/api/admin/reviews',
+  adminReports: '/api/admin/reports',
   adminBadgeRules: '/api/admin/badge-rules',
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
   adminCategories: '/api/admin/categories',
@@ -62,6 +65,18 @@ export function getSellerReviewReplyRoute(id: string) {
 
 export function getAdminReviewModerateRoute(id: string) {
   return `/api/admin/reviews/${id}/moderate`
+}
+
+export function getAdminReportRoute(id: string) {
+  return `${API_ROUTES.adminReports}/${id}`
+}
+
+export function getAdminReportStatusRoute(id: string) {
+  return `${API_ROUTES.adminReports}/${id}/status`
+}
+
+export function getAdminReportActionsRoute(id: string) {
+  return `${API_ROUTES.adminReports}/${id}/actions`
 }
 
 export function isAuthPagePath(pathname: string | null | undefined) {

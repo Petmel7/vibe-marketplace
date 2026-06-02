@@ -2,6 +2,7 @@
 
 import type { SessionUser } from '@/types/auth'
 import type { ProductReviewList, ReviewRatingSummary } from '@/types/reviews'
+import ReportButton from '@/components/abuse-reports/ReportButton'
 import ReviewEmptyState from './ReviewEmptyState'
 import ReviewList from './ReviewList'
 import ReviewSummaryCard from './ReviewSummaryCard'
@@ -76,6 +77,18 @@ export default function ProductReviewsSection({
 
         <ReviewList
           reviews={reviews.items}
+          renderAction={(review) =>
+            review.userId !== currentUser?.id ? (
+              <ReportButton
+                currentUser={currentUser}
+                targetType="REVIEW"
+                targetId={review.id}
+                triggerLabel="Поскаржитися"
+                triggerClassName="ui-secondary-button"
+                title="Поскаржитися на відгук"
+              />
+            ) : null
+          }
           emptyState={
             <ReviewEmptyState
               title="Поки що немає опублікованих відгуків"

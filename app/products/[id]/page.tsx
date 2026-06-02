@@ -60,7 +60,7 @@ export default async function ProductPage({ params }: Props) {
 
         <ProductDetailsShell
           gallery={<ProductImageGallery images={product.images} productName={product.name} />}
-          purchasePanel={<ProductDetails product={product} />}
+          purchasePanel={<ProductDetails product={product} currentUser={currentUser} />}
         />
 
         <ProductReviewsSection

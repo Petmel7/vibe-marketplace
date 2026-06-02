@@ -6,6 +6,7 @@ import EmptyState from '@/components/profile/EmptyState'
 import ProfileSection from '@/components/profile/ProfileSection'
 import StatusBadge from '@/components/profile/StatusBadge'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
+import ReportButton from '@/components/abuse-reports/ReportButton'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { formatPrice } from '@/utils/formatters/price'
@@ -67,6 +68,13 @@ export default async function ProfileOrderDetailPage({
         <p className="text-sm text-copy-muted">
           Created {new Date(order.createdAt).toLocaleDateString('uk-UA')}
         </p>
+        <ReportButton
+          currentUser={user}
+          targetType="ORDER"
+          targetId={order.id}
+          triggerLabel="Повідомити про проблему"
+          title="Поскаржитися на замовлення"
+        />
         <Link href="/profile/orders" className="ui-link-muted">
           Back to orders
         </Link>

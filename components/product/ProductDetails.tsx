@@ -12,6 +12,7 @@ import ProductCharacteristics from './ProductCharacteristics'
 import ProductInfoSection from './ProductInfoSection'
 import ProductPurchasePanel from './ProductPurchasePanel'
 import ProductStockBadge from './ProductStockBadge'
+import ReportButton from '@/components/abuse-reports/ReportButton'
 import {
   getDefaultProductVariantId,
   getProductPresentationState,
@@ -19,6 +20,7 @@ import {
 import { resolveProductBadgeChips } from './productBadges'
 import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
 import type { ProductDetailDto } from '@/features/products/product.dto'
+import type { SessionUser } from '@/types/auth'
 import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
 import { formatPrice } from '@/utils/formatters/price'
 
@@ -27,9 +29,10 @@ interface Props {
     badges?: MarketplaceProductBadge[]
     badgeContext?: MarketplaceBadgeContext
   }
+  currentUser: SessionUser | null
 }
 
-export default function ProductDetails({ product }: Props) {
+export default function ProductDetails({ product, currentUser }: Props) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
     getDefaultProductVariantId(product),
   )
@@ -58,6 +61,14 @@ export default function ProductDetails({ product }: Props) {
                   </Link>
                 ) : null}
                 <span className="text-sm text-copy-muted">{product.storeName}</span>
+                <ReportButton
+                  currentUser={currentUser}
+                  targetType="STORE"
+                  targetId={product.storeId}
+                  triggerLabel="Поскаржитися на магазин"
+                  triggerClassName="rounded-full border border-panelBorder bg-copy-base px-3 py-1 text-xs font-medium text-copy-muted transition hover:border-brand-accent/40 hover:text-copy-strong"
+                  title="Поскаржитися на магазин"
+                />
               </div>
 
               <h1 className="ui-heading-product">{product.name}</h1>
@@ -65,6 +76,14 @@ export default function ProductDetails({ product }: Props) {
 
             <div className="shrink-0 pt-1">
               <div className="flex items-center gap-3">
+                <ReportButton
+                  currentUser={currentUser}
+                  targetType="PRODUCT"
+                  targetId={product.id}
+                  triggerLabel="Поскаржитися"
+                  triggerClassName="ui-secondary-button"
+                  title="Поскаржитися на товар"
+                />
                 <WishlistToggleButton productId={product.id} />
                 <button aria-label="Поділитися" className="ui-icon-button">
                   <Share2 size={24} color="#A5A8AD" />
