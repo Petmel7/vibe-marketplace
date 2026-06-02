@@ -1,4 +1,5 @@
 import AbuseReportStatusBadge from './AbuseReportStatusBadge'
+import MyReportEvidenceSection from './MyReportEvidenceSection'
 import ReportTargetPreview from './ReportTargetPreview'
 import type { MyReport } from '@/types/abuse-reports'
 
@@ -54,6 +55,8 @@ export default function MyReportsList({ reports }: { reports: MyReport[] }) {
                 <span>Оновлено {new Date(report.resolvedAt).toLocaleDateString('uk-UA')}</span>
               ) : null}
             </div>
+
+            <MyReportEvidenceSection reportId={report.id} />
 
             {report.resolutionNote ? (
               <div className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-4">

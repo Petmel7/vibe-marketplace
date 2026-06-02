@@ -71,12 +71,24 @@ export function getAdminReportRoute(id: string) {
   return `${API_ROUTES.adminReports}/${id}`
 }
 
+export function getReportEvidenceRoute(id: string) {
+  return `${API_ROUTES.reports}/${id}/evidence`
+}
+
+export function getReportEvidenceItemRoute(id: string, evidenceId: string) {
+  return `${getReportEvidenceRoute(id)}/${evidenceId}`
+}
+
 export function getAdminReportStatusRoute(id: string) {
   return `${API_ROUTES.adminReports}/${id}/status`
 }
 
 export function getAdminReportActionsRoute(id: string) {
   return `${API_ROUTES.adminReports}/${id}/actions`
+}
+
+export function getAdminReportEvidenceRoute(id: string) {
+  return `${API_ROUTES.adminReports}/${id}/evidence`
 }
 
 export function isAuthPagePath(pathname: string | null | undefined) {

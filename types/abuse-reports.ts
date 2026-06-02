@@ -46,6 +46,15 @@ export type AbuseReportTargetPreview = {
   orderId?: string | null
 }
 
+export type AbuseReportEvidence = {
+  id: string
+  url: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+}
+
 export type ReportAction = {
   id: string
   reportId: string
@@ -98,6 +107,10 @@ export type MyReportListResponse = {
   page: number
   limit: number
   total: number
+}
+
+export type AbuseReportEvidenceListResponse = {
+  items: AbuseReportEvidence[]
 }
 
 export type AdminReportQueueResponse = {

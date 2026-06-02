@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useId, useRef } from 'react'
+import EvidencePreviewList from './EvidencePreviewList'
+import EvidenceUploadField from './EvidenceUploadField'
 import ReportReasonSelect from './ReportReasonSelect'
 import type { AbuseReportTargetType } from '@/types/abuse-reports'
 import { useReportDialog } from '@/hooks/useReportDialog'
@@ -57,7 +59,7 @@ export default function ReportDialog({
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${descriptionId}-title`}
-            className="w-full max-w-xl rounded-[28px] border border-panelBorder bg-background p-6 shadow-2xl"
+            className="w-full max-w-2xl rounded-[28px] border border-panelBorder bg-background p-6 shadow-2xl"
           >
             <div className="space-y-2">
               <h2 id={`${descriptionId}-title`} className="text-xl font-semibold text-copy-strong">
@@ -65,11 +67,11 @@ export default function ReportDialog({
               </h2>
               <p className="text-sm text-copy-muted">
                 {description ??
-                  'Опишіть проблему, і команда безпеки маркетплейсу перевірить звернення.'}
+                  'Опишіть проблему, і команда безпеки маркетплейсу перевірить звернення. За потреби додайте скриншоти або PDF-докази.'}
               </p>
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div className="mt-5 space-y-5">
               <label className="block space-y-2">
                 <span className="block text-sm font-medium text-copy-strong">Причина</span>
                 <ReportReasonSelect
@@ -94,6 +96,33 @@ export default function ReportDialog({
                   placeholder="Що саме сталося?"
                 />
               </label>
+
+              <EvidenceUploadField
+                disabled={dialog.isPending}
+                errorMessage={dialog.fileErrorMessage}
+                selectedCount={dialog.selectedFiles.length}
+                onFilesSelected={dialog.addFiles}
+              />
+
+              {dialog.selectedFiles.length > 0 ? (
+                <EvidencePreviewList
+                  files={dialog.selectedFiles}
+                  onRemoveFile={dialog.removeFile}
+                  emptyMessage="Файли ще не вибрані."
+                />
+              ) : null}
+
+              {dialog.uploadStatus ? (
+                <p className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-3 text-sm text-copy-secondary">
+                  {dialog.uploadStatus.completed < dialog.uploadStatus.total
+                    ? `Завантажуємо докази: ${dialog.uploadStatus.completed}/${dialog.uploadStatus.total}. ${
+                        dialog.uploadStatus.currentFileName
+                          ? `Поточний файл: ${dialog.uploadStatus.currentFileName}`
+                          : ''
+                      }`
+                    : `Докази оброблено: ${dialog.uploadStatus.completed}/${dialog.uploadStatus.total}.`}
+                </p>
+              ) : null}
 
               {dialog.errorMessage ? (
                 <p
@@ -123,7 +152,7 @@ export default function ReportDialog({
                 type="button"
                 className="ui-primary-button disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={dialog.isPending}
-                onClick={dialog.submit}
+                onClick={() => void dialog.submit()}
               >
                 {dialog.isPending ? 'Надсилаємо...' : 'Надіслати скаргу'}
               </button>

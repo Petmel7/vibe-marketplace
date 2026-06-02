@@ -1,5 +1,6 @@
 import AbuseReportStatusBadge from './AbuseReportStatusBadge'
 import AbuseReportActionDialog from './AbuseReportActionDialog'
+import AdminEvidenceViewer from './AdminEvidenceViewer'
 import ReportTargetPreview from './ReportTargetPreview'
 import type { ReportDetail } from '@/types/abuse-reports'
 
@@ -100,6 +101,8 @@ export default function AdminReportDetail({ report }: { report: ReportDetail }) 
       </section>
 
       <aside className="space-y-6">
+        <AdminEvidenceViewer reportId={report.id} />
+
         <section className="ui-elevated-panel p-5 sm:p-6">
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-copy-strong">Статус скарги</h2>
