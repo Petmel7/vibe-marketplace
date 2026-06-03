@@ -1,4 +1,6 @@
 import type {
+  PromotionDiscountType,
+  PromotionOwnerType,
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
@@ -22,6 +24,17 @@ export type OrderPaymentSummaryDto = {
   paidAt: string | null
 }
 
+export type OrderPromotionSummaryDto = {
+  promotionId: string
+  promotionCode: string
+  ownerType: PromotionOwnerType
+  storeId: string | null
+  promotionName: string | null
+  discountType: PromotionDiscountType
+  discountValue: string
+  discountAmount: string
+}
+
 export type OrderSummaryDto = {
   id: string
   status: string
@@ -29,6 +42,7 @@ export type OrderSummaryDto = {
   itemCount: number
   createdAt: Date
   storeNames: string[]
+  promotion: OrderPromotionSummaryDto | null
 } & OrderPaymentSummaryDto
 
 export type OrderDetailDto = {
@@ -39,6 +53,7 @@ export type OrderDetailDto = {
   note: string | null
   createdAt: Date
   items: OrderItemDto[]
+  promotion: OrderPromotionSummaryDto | null
 } & OrderPaymentSummaryDto
 
 export type SellerOrderItemDto = {

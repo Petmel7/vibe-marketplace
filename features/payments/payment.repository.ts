@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import {
   OrderStatus,
   PromotionDiscountType,
+  PromotionOwnerType,
   Prisma,
   PaymentMethod,
   PaymentStatus,
@@ -236,6 +237,11 @@ export async function submitCheckoutOrderWithPayment(data: {
         | {
             promotionId: string
             promotionCode: string
+            ownerType: PromotionOwnerType
+            storeId: string | null
+            promotionName: string | null
+            discountType: PromotionDiscountType
+            discountValue: Decimal
             discountAmount: Decimal
           }
         | null = null
@@ -311,6 +317,11 @@ export async function submitCheckoutOrderWithPayment(data: {
         promotionSnapshot = {
           promotionId: promotion.id,
           promotionCode: promotion.code,
+          ownerType: promotion.ownerType,
+          storeId: promotion.storeId,
+          promotionName: promotion.name,
+          discountType: promotion.discountType,
+          discountValue: new Decimal(promotion.discountValue.toString()),
           discountAmount: recalculatedDiscount,
         }
       }
@@ -392,6 +403,11 @@ export async function submitCheckoutOrderWithPayment(data: {
             orderId: order.id,
             promotionId: promotionSnapshot.promotionId,
             promotionCode: promotionSnapshot.promotionCode,
+            ownerType: promotionSnapshot.ownerType,
+            storeId: promotionSnapshot.storeId,
+            promotionName: promotionSnapshot.promotionName,
+            discountType: promotionSnapshot.discountType,
+            discountValue: promotionSnapshot.discountValue,
             discountAmount: promotionSnapshot.discountAmount,
           },
         })

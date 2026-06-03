@@ -67,6 +67,21 @@ function makePayment(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeOrderPromotion(overrides: Record<string, unknown> = {}) {
+  return {
+    promotionId: 'promo-001',
+    promotionCode: 'SAVE10',
+    ownerType: 'MARKETPLACE',
+    storeId: null,
+    promotionName: 'Save 10',
+    discountType: 'PERCENTAGE',
+    discountValue: { toString: () => '10.00' },
+    discountAmount: { toString: () => '10.00' },
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    ...overrides,
+  }
+}
+
 function makeOrder(overrides: Record<string, unknown> = {}) {
   return {
     id: ORDER_ID,
@@ -79,6 +94,7 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date('2026-01-01'),
     items: [makeOrderItem()],
     payments: [makePayment()],
+    orderPromotion: null,
     ...overrides,
   }
 }
@@ -188,6 +204,89 @@ describe('getMyOrderById', () => {
     expect(result.paymentMethod).toBe('CASH_ON_DELIVERY')
     expect(result.paymentStatus).toBe('PENDING')
     expect(result.paidAt).toBeNull()
+    expect(result.promotion).toBeNull()
+  })
+
+  it('returns marketplace promotion snapshot fields from order history', async () => {
+    const order = makeOrder({
+      orderPromotion: makeOrderPromotion(),
+    })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    const result = await getMyOrderById(mockBuyer, ORDER_ID)
+
+    expect(result.promotion).toEqual({
+      promotionId: 'promo-001',
+      promotionCode: 'SAVE10',
+      ownerType: 'MARKETPLACE',
+      storeId: null,
+      promotionName: 'Save 10',
+      discountType: 'PERCENTAGE',
+      discountValue: '10.00',
+      discountAmount: '10.00',
+    })
+  })
+
+  it('returns seller promotion snapshot fields from order history', async () => {
+    const order = makeOrder({
+      orderPromotion: makeOrderPromotion({
+        promotionCode: 'STORE20',
+        ownerType: 'SELLER',
+        storeId: STORE_ID,
+        promotionName: 'Store 20%',
+        discountType: 'FIXED_AMOUNT',
+        discountValue: { toString: () => '20.00' },
+        discountAmount: { toString: () => '20.00' },
+      }),
+    })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    const result = await getMyOrderById(mockBuyer, ORDER_ID)
+
+    expect(result.promotion).toEqual({
+      promotionId: 'promo-001',
+      promotionCode: 'STORE20',
+      ownerType: 'SELLER',
+      storeId: STORE_ID,
+      promotionName: 'Store 20%',
+      discountType: 'FIXED_AMOUNT',
+      discountValue: '20.00',
+      discountAmount: '20.00',
+    })
+  })
+
+  it('prefers immutable order promotion snapshot fields over any changed live promotion context', async () => {
+    const order = makeOrder({
+      orderPromotion: {
+        ...makeOrderPromotion({
+          ownerType: 'SELLER',
+          storeId: STORE_ID,
+          promotionName: 'Historical Seller Promo',
+          discountType: 'FIXED_AMOUNT',
+          discountValue: { toString: () => '15.00' },
+          discountAmount: { toString: () => '15.00' },
+        }),
+        promotion: {
+          ownerType: 'MARKETPLACE',
+          storeId: null,
+          name: 'Changed Live Promotion',
+          discountType: 'PERCENTAGE',
+          discountValue: { toString: () => '99.00' },
+        },
+      },
+    })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    const result = await getMyOrderById(mockBuyer, ORDER_ID)
+
+    expect(result.promotion).toMatchObject({
+      ownerType: 'SELLER',
+      storeId: STORE_ID,
+      promotionName: 'Historical Seller Promo',
+      discountType: 'FIXED_AMOUNT',
+      discountValue: '15.00',
+      discountAmount: '15.00',
+    })
   })
 
   it('exposes the latest card payment status for webhook-driven orders', async () => {

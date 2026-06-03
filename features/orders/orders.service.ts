@@ -2,6 +2,8 @@ import type {
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
+  PromotionDiscountType,
+  PromotionOwnerType,
 } from '@/app/generated/prisma/client'
 import { requireBuyer, requireSeller, requireAdmin } from '@/lib/auth/guards'
 import { assertOrderOwner } from '@/lib/auth/orderGuards'
@@ -70,6 +72,36 @@ function toOrderPaymentSummaryDto(order: {
   }
 }
 
+function toOrderPromotionSummaryDto(order: {
+  orderPromotion?: {
+    promotionId: string
+    promotionCode: string
+    ownerType: PromotionOwnerType
+    storeId: string | null
+    promotionName: string | null
+    discountType: PromotionDiscountType
+    discountValue: { toString(): string }
+    discountAmount: { toString(): string }
+  } | null
+}) {
+  const promotion = order.orderPromotion ?? null
+
+  if (!promotion) {
+    return null
+  }
+
+  return {
+    promotionId: promotion.promotionId,
+    promotionCode: promotion.promotionCode,
+    ownerType: promotion.ownerType,
+    storeId: promotion.storeId,
+    promotionName: promotion.promotionName,
+    discountType: promotion.discountType,
+    discountValue: promotion.discountValue.toString(),
+    discountAmount: promotion.discountAmount.toString(),
+  }
+}
+
 function toOrderItemDto(item: {
   id: string
   productNameSnapshot: string
@@ -95,6 +127,16 @@ function toOrderSummaryDto(order: {
   status: string
   totalAmount: { toString(): string }
   createdAt: Date
+  orderPromotion?: {
+    promotionId: string
+    promotionCode: string
+    ownerType: PromotionOwnerType
+    storeId: string | null
+    promotionName: string | null
+    discountType: PromotionDiscountType
+    discountValue: { toString(): string }
+    discountAmount: { toString(): string }
+  } | null
   payments?: Array<{
     id: string
     provider: PaymentProvider
@@ -116,6 +158,7 @@ function toOrderSummaryDto(order: {
     itemCount,
     createdAt: order.createdAt,
     storeNames,
+    promotion: toOrderPromotionSummaryDto(order),
     ...toOrderPaymentSummaryDto(order),
   }
 }
@@ -127,6 +170,16 @@ function toOrderDetailDto(order: {
   shippingAddressId: string | null
   note: string | null
   createdAt: Date
+  orderPromotion?: {
+    promotionId: string
+    promotionCode: string
+    ownerType: PromotionOwnerType
+    storeId: string | null
+    promotionName: string | null
+    discountType: PromotionDiscountType
+    discountValue: { toString(): string }
+    discountAmount: { toString(): string }
+  } | null
   payments?: Array<{
     id: string
     provider: PaymentProvider
@@ -152,6 +205,7 @@ function toOrderDetailDto(order: {
     note: order.note,
     createdAt: order.createdAt,
     items: order.items.map(toOrderItemDto),
+    promotion: toOrderPromotionSummaryDto(order),
     ...toOrderPaymentSummaryDto(order),
   }
 }
