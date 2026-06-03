@@ -1,4 +1,5 @@
 import type { ProductStockStatus } from '@/features/products/product.dto'
+import type { AppliedPromotionDto } from '@/features/promotions/promotions.dto'
 import type {
   CheckoutPaymentMethod,
   PaymentHostedCheckoutActionDto,
@@ -11,6 +12,7 @@ export type CheckoutInput = {
   shippingAddressId?: string | null
   expectedSubtotal?: string | null
   expectedTotal?: string | null
+  couponCode?: string | null
   note?: string
   paymentMethod: CheckoutPaymentMethod
 }
@@ -72,8 +74,10 @@ export type CheckoutPreviewResponseDto = {
   items: CheckoutPreviewItemDto[]
   itemCount: number
   subtotal: string
+  discountAmount: string
   shippingAmount: string
   total: string
+  appliedPromotion: AppliedPromotionDto | null
   defaultShippingAddress: CheckoutAddressOptionDto | null
   addressOptions: CheckoutAddressOptionDto[]
   blockingIssues: CheckoutBlockingIssueDto[]

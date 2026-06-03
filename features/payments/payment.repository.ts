@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import {
   OrderStatus,
+  PromotionDiscountType,
   Prisma,
   PaymentMethod,
   PaymentStatus,
@@ -10,6 +11,14 @@ import {
 import { prisma } from '@/lib/prisma'
 import { CheckoutStockUnavailableError } from '@/lib/errors/checkout'
 import { PaymentWebhookDuplicateError } from '@/lib/errors/payment'
+import {
+  PromotionExpiredError,
+  PromotionInactiveError,
+  PromotionMinimumAmountError,
+  PromotionNotFoundError,
+  PromotionUsageLimitReachedError,
+  PromotionUserLimitReachedError,
+} from '@/lib/errors/promotion'
 import type { PaymentDiagnosticsQueryDto } from './payment.dto'
 
 const paymentDetailInclude = {
@@ -178,6 +187,8 @@ export async function submitCheckoutOrderWithPayment(data: {
   shippingAddressId: string
   note?: string
   orderStatus: string
+  subtotalAmount: Decimal
+  discountAmount: Decimal
   totalAmount: Decimal
   items: Array<{
     variantId: string
@@ -194,6 +205,13 @@ export async function submitCheckoutOrderWithPayment(data: {
     variantId: string
     qty: number
   }>
+  promotion: {
+    promotionId: string
+    promotionCode: string
+    discountAmount: Decimal
+    subtotalAmount: Decimal
+    userId: string
+  } | null
   payment: {
     provider: PaymentProvider
     providerPaymentId: string | null
@@ -210,84 +228,192 @@ export async function submitCheckoutOrderWithPayment(data: {
     attemptErrorMessage?: string | null
   }
 }) {
-  return prisma.$transaction(async (tx) => {
-    const order = await tx.order.create({
-      data: {
-        id: data.orderId,
-        userId: data.userId,
-        status: data.orderStatus as OrderStatus,
-        totalAmount: data.totalAmount,
-        shippingAddressId: data.shippingAddressId,
-        note: data.note ?? null,
-        updatedAt: new Date(),
-      },
-    })
+  return prisma.$transaction(
+    async (tx) => {
+      let promotionSnapshot:
+        | {
+            promotionId: string
+            promotionCode: string
+            discountAmount: Decimal
+          }
+        | null = null
 
-    await tx.orderItem.createMany({
-      data: data.items.map((item) => ({
-        ...item,
-        orderId: order.id,
-      })),
-    })
+      if (data.promotion) {
+        const promotion = await tx.promotion.findUnique({
+          where: { id: data.promotion.promotionId },
+        })
 
-    for (const { variantId, qty } of data.stockUpdates) {
-      const updated = await tx.productVariant.updateMany({
-        where: {
-          id: variantId,
-          stock: { gte: qty },
-        },
+        if (!promotion) {
+          throw new PromotionNotFoundError()
+        }
+
+        const now = new Date()
+        if (!promotion.isActive) {
+          throw new PromotionInactiveError()
+        }
+
+        if (promotion.startsAt > now || (promotion.endsAt != null && promotion.endsAt < now)) {
+          throw new PromotionExpiredError()
+        }
+
+        if (promotion.minOrderAmount != null) {
+          const minimumAmount = new Decimal(promotion.minOrderAmount.toString())
+          if (data.promotion.subtotalAmount.lessThan(minimumAmount)) {
+            throw new PromotionMinimumAmountError(
+              `Order subtotal must be at least ${minimumAmount.toFixed(2)} to use this promotion`,
+            )
+          }
+        }
+
+        const [totalUsageCount, userUsageCount] = await Promise.all([
+          promotion.usageLimit != null
+            ? tx.promotionUsage.count({
+                where: { promotionId: promotion.id },
+              })
+            : Promise.resolve(0),
+          promotion.usageLimitPerUser != null
+            ? tx.promotionUsage.count({
+                where: {
+                  promotionId: promotion.id,
+                  userId: data.promotion.userId,
+                },
+              })
+            : Promise.resolve(0),
+        ])
+
+        if (promotion.usageLimit != null && totalUsageCount >= promotion.usageLimit) {
+          throw new PromotionUsageLimitReachedError()
+        }
+
+        if (promotion.usageLimitPerUser != null && userUsageCount >= promotion.usageLimitPerUser) {
+          throw new PromotionUserLimitReachedError()
+        }
+
+        let recalculatedDiscount =
+          promotion.discountType === PromotionDiscountType.PERCENTAGE
+            ? data.promotion.subtotalAmount.mul(promotion.discountValue.toString()).div(100)
+            : new Decimal(promotion.discountValue.toString())
+
+        if (promotion.maxDiscountAmount != null) {
+          recalculatedDiscount = Decimal.min(
+            recalculatedDiscount,
+            new Decimal(promotion.maxDiscountAmount.toString()),
+          )
+        }
+
+        recalculatedDiscount = Decimal.min(
+          recalculatedDiscount,
+          data.promotion.subtotalAmount,
+        ).toDecimalPlaces(2)
+
+        promotionSnapshot = {
+          promotionId: promotion.id,
+          promotionCode: promotion.code,
+          discountAmount: recalculatedDiscount,
+        }
+      }
+
+      const order = await tx.order.create({
         data: {
-          stock: { decrement: qty },
+          id: data.orderId,
+          userId: data.userId,
+          status: data.orderStatus as OrderStatus,
+          totalAmount: data.totalAmount,
+          shippingAddressId: data.shippingAddressId,
+          note: data.note ?? null,
+          updatedAt: new Date(),
         },
       })
 
-      if (updated.count === 0) {
-        const variant = await tx.productVariant.findUnique({
-          where: { id: variantId },
-          select: { stock: true },
+      await tx.orderItem.createMany({
+        data: data.items.map((item) => ({
+          ...item,
+          orderId: order.id,
+        })),
+      })
+
+      for (const { variantId, qty } of data.stockUpdates) {
+        const updated = await tx.productVariant.updateMany({
+          where: {
+            id: variantId,
+            stock: { gte: qty },
+          },
+          data: {
+            stock: { decrement: qty },
+          },
         })
 
-        throw new CheckoutStockUnavailableError(variantId, variant?.stock ?? 0, qty)
+        if (updated.count === 0) {
+          const variant = await tx.productVariant.findUnique({
+            where: { id: variantId },
+            select: { stock: true },
+          })
+
+          throw new CheckoutStockUnavailableError(variantId, variant?.stock ?? 0, qty)
+        }
       }
-    }
 
-    const payment = await tx.payment.create({
-      data: {
-        id: data.paymentId,
-        orderId: order.id,
-        provider: data.payment.provider,
-        providerPaymentId: data.payment.providerPaymentId,
-        status: data.payment.status,
-        method: data.payment.method,
-        amount: data.payment.amount,
-        currency: data.payment.currency,
-        checkoutUrl: data.payment.checkoutUrl,
-        failureReason: data.payment.failureReason,
-        paidAt: data.payment.paidAt,
-        expiresAt: data.payment.expiresAt,
-      },
-    })
+      const payment = await tx.payment.create({
+        data: {
+          id: data.paymentId,
+          orderId: order.id,
+          provider: data.payment.provider,
+          providerPaymentId: data.payment.providerPaymentId,
+          status: data.payment.status,
+          method: data.payment.method,
+          amount: data.payment.amount,
+          currency: data.payment.currency,
+          checkoutUrl: data.payment.checkoutUrl,
+          failureReason: data.payment.failureReason,
+          paidAt: data.payment.paidAt,
+          expiresAt: data.payment.expiresAt,
+        },
+      })
 
-    await tx.paymentAttempt.create({
-      data: {
-        paymentId: payment.id,
-        provider: data.payment.provider,
-        status: data.payment.status,
-        amount: data.payment.amount,
-        requestPayload: data.payment.attemptRequestPayload,
-        ...(data.payment.attemptResponsePayload !== undefined
-          ? { responsePayload: data.payment.attemptResponsePayload }
-          : {}),
-        errorMessage: data.payment.attemptErrorMessage ?? null,
-      },
-    })
+      await tx.paymentAttempt.create({
+        data: {
+          paymentId: payment.id,
+          provider: data.payment.provider,
+          status: data.payment.status,
+          amount: data.payment.amount,
+          requestPayload: data.payment.attemptRequestPayload,
+          ...(data.payment.attemptResponsePayload !== undefined
+            ? { responsePayload: data.payment.attemptResponsePayload }
+            : {}),
+          errorMessage: data.payment.attemptErrorMessage ?? null,
+        },
+      })
 
-    await tx.cartItem.deleteMany({
-      where: { cartId: data.cartId },
-    })
+      if (promotionSnapshot) {
+        await tx.orderPromotion.create({
+          data: {
+            orderId: order.id,
+            promotionId: promotionSnapshot.promotionId,
+            promotionCode: promotionSnapshot.promotionCode,
+            discountAmount: promotionSnapshot.discountAmount,
+          },
+        })
 
-    return { order, payment }
-  })
+        await tx.promotionUsage.create({
+          data: {
+            promotionId: promotionSnapshot.promotionId,
+            userId: data.userId,
+            orderId: order.id,
+            discountAmount: promotionSnapshot.discountAmount,
+          },
+        })
+      }
+
+      await tx.cartItem.deleteMany({
+        where: { cartId: data.cartId },
+      })
+
+      return { order, payment }
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  )
 }
 
 export async function applySuccessfulPayment(input: {

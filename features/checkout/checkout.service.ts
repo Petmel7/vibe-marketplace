@@ -12,6 +12,10 @@ import type {
   CheckoutPreviewResponseDto,
   CheckoutResponseDto,
 } from './checkout.dto'
+import type {
+  CheckoutPromotionPreviewDto,
+  ResolvedPromotionForCheckoutDto,
+} from '@/features/promotions/promotions.dto'
 import {
   findShippingAddress,
   getCartWithItems,
@@ -19,6 +23,11 @@ import {
   listShippingAddressesByUserId,
   submitCheckoutOrder,
 } from './checkout.repository'
+import {
+  buildCheckoutPromotionPreview,
+  normalizeCouponCode,
+  resolvePromotionForCheckout,
+} from '@/features/promotions/promotions.service'
 import {
   createCheckoutIdentifiers,
   prepareCheckoutPayment,
@@ -67,6 +76,13 @@ type PreparedCheckoutItem = {
   productStatus: ProductStatus
   productIsActive: boolean
   storeIsActive: boolean
+}
+
+type PreparedCheckoutPricing = {
+  subtotal: Decimal
+  discountAmount: Decimal
+  total: Decimal
+  appliedPromotion: ResolvedPromotionForCheckoutDto | null
 }
 
 function deriveVariantStockStatus(stock: number): ProductStockStatus {
@@ -176,6 +192,38 @@ function sumItemCount(items: PreparedCheckoutItem[]): number {
 
 function sumSubtotal(items: PreparedCheckoutItem[]): Decimal {
   return items.reduce((sum, item) => sum.plus(item.lineTotal), new Decimal(0))
+}
+
+async function resolveCheckoutPricing(input: {
+  userId: string
+  cartId: string | null
+  items: PreparedCheckoutItem[]
+  couponCode?: string | null
+}): Promise<PreparedCheckoutPricing> {
+  const subtotal = sumSubtotal(input.items)
+  const normalizedCouponCode = normalizeCouponCode(input.couponCode)
+  const appliedPromotion =
+    input.items.length > 0
+      ? await resolvePromotionForCheckout({
+          userId: input.userId,
+          subtotal,
+          couponCode: normalizedCouponCode,
+        })
+      : null
+  const discountAmount = appliedPromotion
+    ? new Decimal(appliedPromotion.discountAmount)
+    : new Decimal(0)
+  const total = Decimal.max(
+    subtotal.minus(discountAmount).plus(SHIPPING_PLACEHOLDER_AMOUNT),
+    new Decimal(0),
+  )
+
+  return {
+    subtotal,
+    discountAmount,
+    total,
+    appliedPromotion,
+  }
 }
 
 function buildBlockingIssues(
@@ -300,21 +348,62 @@ export async function getCheckoutPreview(
   const addressOptions = addresses.map(toAddressOptionDto)
   const defaultShippingAddress = addressOptions.find((address) => address.isDefault) ?? addressOptions[0] ?? null
   const blockingIssues = buildBlockingIssues(preparedItems, addressOptions.length > 0)
-  const subtotal = sumSubtotal(preparedItems)
-  const total = subtotal.plus(SHIPPING_PLACEHOLDER_AMOUNT)
+  const pricing = await resolveCheckoutPricing({
+    userId: user.id,
+    cartId: cart?.id ?? null,
+    items: preparedItems,
+  })
 
   return {
     cartId: cart?.id ?? null,
     items: preparedItems.map(toPreviewItemDto),
     itemCount: sumItemCount(preparedItems),
-    subtotal: subtotal.toFixed(2),
+    subtotal: pricing.subtotal.toFixed(2),
+    discountAmount: pricing.discountAmount.toFixed(2),
     shippingAmount: SHIPPING_PLACEHOLDER_AMOUNT.toFixed(2),
-    total: total.toFixed(2),
+    total: pricing.total.toFixed(2),
+    appliedPromotion: pricing.appliedPromotion
+      ? buildCheckoutPromotionPreview({
+          cartId: cart?.id ?? null,
+          subtotal: pricing.subtotal,
+          appliedPromotion: pricing.appliedPromotion,
+        }).appliedPromotion
+      : null,
     defaultShippingAddress,
     addressOptions,
     blockingIssues,
     canCheckout: blockingIssues.length === 0,
   }
+}
+
+export async function applyCheckoutPromotion(
+  user: SessionUser,
+  input: { cartId?: string; couponCode: string },
+): Promise<CheckoutPromotionPreviewDto> {
+  requireBuyer(user)
+
+  const cart = await loadCheckoutCart(user.id, input.cartId)
+  if (!cart) {
+    throw new EmptyCartError('Cart not found')
+  }
+
+  const preparedItems = cart.items.map(prepareCheckoutItem)
+  if (preparedItems.length === 0) {
+    throw new EmptyCartError()
+  }
+
+  const pricing = await resolveCheckoutPricing({
+    userId: user.id,
+    cartId: cart.id,
+    items: preparedItems,
+    couponCode: input.couponCode,
+  })
+
+  return buildCheckoutPromotionPreview({
+    cartId: cart.id,
+    subtotal: pricing.subtotal,
+    appliedPromotion: pricing.appliedPromotion,
+  })
 }
 
 export async function checkout(
@@ -345,13 +434,17 @@ export async function checkout(
   const blockingIssues = buildBlockingIssues(preparedItems, true)
   assertCheckoutIssues(blockingIssues)
 
-  const subtotal = sumSubtotal(preparedItems)
-  const total = subtotal.plus(SHIPPING_PLACEHOLDER_AMOUNT)
-  ensureExpectedTotals(data, subtotal, total)
+  const pricing = await resolveCheckoutPricing({
+    userId: user.id,
+    cartId: cart.id,
+    items: preparedItems,
+    couponCode: data.couponCode,
+  })
+  ensureExpectedTotals(data, pricing.subtotal, pricing.total)
   const { orderId, paymentId } = createCheckoutIdentifiers()
   const preparedPayment = await prepareCheckoutPayment(
     data.paymentMethod,
-    total,
+    pricing.total,
     `${user.id}:${cart.id}:${paymentId}`,
     orderId,
     paymentId,
@@ -366,7 +459,9 @@ export async function checkout(
     shippingAddressId: address.id,
     note: data.note,
     orderStatus,
-    totalAmount: total,
+    subtotalAmount: pricing.subtotal,
+    discountAmount: pricing.discountAmount,
+    totalAmount: pricing.total,
     items: preparedItems.map((item) => ({
       variantId: item.variantId,
       storeId: item.storeId,
@@ -382,12 +477,21 @@ export async function checkout(
       variantId: item.variantId,
       qty: item.quantity,
     })),
+    promotion: pricing.appliedPromotion
+      ? {
+          promotionId: pricing.appliedPromotion.id,
+          promotionCode: pricing.appliedPromotion.code,
+          discountAmount: pricing.discountAmount,
+          subtotalAmount: pricing.subtotal,
+          userId: user.id,
+        }
+      : null,
     payment: {
       provider: preparedPayment.provider,
       providerPaymentId: preparedPayment.providerPaymentId,
       status: preparedPayment.status,
       method: preparedPayment.method,
-      amount: total,
+      amount: pricing.total,
       currency: preparedPayment.currency,
       checkoutUrl: preparedPayment.checkoutUrl,
       failureReason: preparedPayment.failureReason,
@@ -431,7 +535,7 @@ export async function checkout(
       payment.method === 'CARD' ? resolveHostedCheckoutRedirectUrl(payment.id) : payment.checkoutUrl,
     nextAction: preparedPayment.nextAction,
     paymentAction: preparedPayment.checkoutAction,
-    totalAmount: total.toFixed(2),
+    totalAmount: pricing.total.toFixed(2),
     itemCount: sumItemCount(preparedItems),
     status: order.status,
     createdAt: order.createdAt,

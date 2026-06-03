@@ -145,6 +145,17 @@ import {
   PayoutOwnershipError,
   SellerBalanceNotFoundError,
 } from './payout'
+import {
+  InvalidPromotionCodeError,
+  PromotionDeleteConflictError,
+  PromotionDuplicateCodeError,
+  PromotionExpiredError,
+  PromotionInactiveError,
+  PromotionMinimumAmountError,
+  PromotionNotFoundError,
+  PromotionUsageLimitReachedError,
+  PromotionUserLimitReachedError,
+} from './promotion'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -203,6 +214,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RiskProfileNotFoundError ||
     err instanceof RiskSubjectNotFoundError ||
     err instanceof PayoutNotFoundError ||
+    err instanceof PromotionNotFoundError ||
     err instanceof SellerBalanceNotFoundError
   )
     return Response.json(
@@ -228,7 +240,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ReviewAlreadyExistsError ||
     err instanceof DuplicateAbuseReportError ||
     err instanceof DuplicateDisputeError ||
-    err instanceof DuplicateLedgerEntryError
+    err instanceof DuplicateLedgerEntryError ||
+    err instanceof PromotionDuplicateCodeError ||
+    err instanceof PromotionDeleteConflictError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -279,7 +293,13 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RiskValidationError ||
     err instanceof InsufficientAvailableBalanceError ||
     err instanceof InvalidPayoutTransitionError ||
-    err instanceof CommissionCalculationError
+    err instanceof CommissionCalculationError ||
+    err instanceof InvalidPromotionCodeError ||
+    err instanceof PromotionInactiveError ||
+    err instanceof PromotionExpiredError ||
+    err instanceof PromotionUsageLimitReachedError ||
+    err instanceof PromotionUserLimitReachedError ||
+    err instanceof PromotionMinimumAmountError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

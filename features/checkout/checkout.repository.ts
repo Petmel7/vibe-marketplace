@@ -73,9 +73,18 @@ export async function submitCheckoutOrder(data: {
   shippingAddressId: string
   note?: string
   orderStatus: string
+  subtotalAmount: Decimal
+  discountAmount: Decimal
   totalAmount: Decimal
   items: CheckoutOrderItemCreateInput[]
   stockUpdates: CheckoutStockUpdate[]
+  promotion: {
+    promotionId: string
+    promotionCode: string
+    discountAmount: Decimal
+    subtotalAmount: Decimal
+    userId: string
+  } | null
   payment: {
     provider: PaymentProvider
     providerPaymentId: string | null

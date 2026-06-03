@@ -10,6 +10,7 @@ export const checkoutSchema = z.object({
   shippingAddressId: z.string().uuid().nullish(),
   expectedSubtotal: moneyStringSchema.nullish(),
   expectedTotal: moneyStringSchema.nullish(),
+  couponCode: z.string().trim().min(1).max(64).nullish(),
   note: z.string().max(500).optional(),
   paymentMethod: checkoutPaymentMethodSchema.default('CASH_ON_DELIVERY'),
 })
