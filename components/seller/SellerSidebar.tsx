@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/seller', label: 'Overview' },
   { href: '/seller/products', label: 'Products' },
   { href: '/seller/orders', label: 'Orders' },
+  { href: '/seller/finance', label: 'Finance' },
   { href: '/seller/disputes', label: 'Disputes' },
   { href: '/seller/reviews', label: 'Reviews' },
   { href: '/seller/inventory', label: 'Inventory' },
@@ -53,7 +54,9 @@ export default function SellerSidebar({
       <nav aria-label="Seller navigation" className="ui-elevated-panel p-3">
         <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/seller' && pathname?.startsWith(`${item.href}/`))
             return (
               <Link
                 key={item.href}

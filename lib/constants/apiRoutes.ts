@@ -26,6 +26,12 @@ export const API_ROUTES = {
   adminRiskUsers: '/api/admin/risk/users',
   adminRiskStores: '/api/admin/risk/stores',
   adminRiskRecalculate: '/api/admin/risk/recalculate',
+  sellerFinanceSummary: '/api/seller/finance/summary',
+  sellerFinanceLedger: '/api/seller/finance/ledger',
+  sellerFinancePayouts: '/api/seller/finance/payouts',
+  adminPayouts: '/api/admin/payouts',
+  adminSellerBalances: '/api/admin/seller-balances',
+  adminSellerBalancesRecalculate: '/api/admin/seller-balances/recalculate',
 } as const
 
 export const AUTH_PAGE_PATHS = ['/login', '/register'] as const
@@ -74,6 +80,14 @@ export function getAdminRiskUserRoute(id: string) {
 
 export function getAdminRiskStoreRoute(id: string) {
   return `${API_ROUTES.adminRiskStores}/${id}`
+}
+
+export function getAdminPayoutDetailRoute(id: string) {
+  return `${API_ROUTES.adminPayouts}/${id}`
+}
+
+export function getAdminPayoutStatusRoute(id: string) {
+  return `${getAdminPayoutDetailRoute(id)}/status`
 }
 
 export function getWishlistItemRoute(productId: string) {
