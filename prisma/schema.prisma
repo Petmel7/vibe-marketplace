@@ -44,6 +44,8 @@ model User {
   resolvedDisputes     Dispute[]             @relation("DisputeResolvedBy")
   disputeMessages      DisputeMessage[]      @relation("DisputeMessageSender")
   disputeEvidence      DisputeEvidence[]     @relation("DisputeEvidenceUploadedBy")
+  riskProfile          RiskProfile?          @relation("UserRiskProfile")
+  riskSignals          RiskSignal[]          @relation("UserRiskSignals")
 
   @@map("users")
 }
@@ -65,6 +67,8 @@ model Store {
   owner         User           @relation(fields: [ownerId], references: [id], map: "stores_owner_id_user_fkey")
   sellerProfile SellerProfile? @relation("SellerStores", fields: [ownerId], references: [userId], map: "stores_owner_id_seller_fkey")
   disputes      Dispute[]
+  riskProfile   RiskProfile?   @relation("StoreRiskProfile")
+  riskSignals   RiskSignal[]   @relation("StoreRiskSignals")
 
   @@index([ownerId], map: "stores_ownerId_idx")
   @@index([isActive], map: "stores_isActive_idx")
@@ -700,6 +704,45 @@ model DisputeEvidence {
   @@map("dispute_evidence")
 }
 
+model RiskProfile {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String?   @unique(map: "risk_profiles_user_id_key") @map("user_id") @db.Uuid
+  storeId          String?   @unique(map: "risk_profiles_store_id_key") @map("store_id") @db.Uuid
+  score            Decimal   @default(0) @db.Decimal(10, 2)
+  level            RiskLevel @default(LOW)
+  lastCalculatedAt DateTime? @map("last_calculated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  user             User?     @relation("UserRiskProfile", fields: [userId], references: [id])
+  store            Store?    @relation("StoreRiskProfile", fields: [storeId], references: [id])
+
+  @@index([userId], map: "risk_profiles_user_id_idx")
+  @@index([storeId], map: "risk_profiles_store_id_idx")
+  @@index([score], map: "risk_profiles_score_idx")
+  @@index([level], map: "risk_profiles_level_idx")
+  @@map("risk_profiles")
+}
+
+model RiskSignal {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String?        @map("user_id") @db.Uuid
+  storeId    String?        @map("store_id") @db.Uuid
+  sourceType String         @map("source_type")
+  sourceId   String         @map("source_id")
+  signalType RiskSignalType @map("signal_type")
+  weight     Decimal        @db.Decimal(10, 2)
+  metadata   Json?
+  createdAt  DateTime       @default(now()) @map("created_at")
+  user       User?          @relation("UserRiskSignals", fields: [userId], references: [id])
+  store      Store?         @relation("StoreRiskSignals", fields: [storeId], references: [id])
+
+  @@index([userId], map: "risk_signals_user_id_idx")
+  @@index([storeId], map: "risk_signals_store_id_idx")
+  @@index([signalType], map: "risk_signals_signal_type_idx")
+  @@index([createdAt], map: "risk_signals_created_at_idx")
+  @@map("risk_signals")
+}
+
 model UserProfile {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @unique @map("user_id") @db.Uuid
@@ -990,4 +1033,23 @@ enum DisputePriority {
   NORMAL
   HIGH
   URGENT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskSignalType {
+  ABUSE_REPORT_CREATED
+  DISPUTE_OPENED
+  DISPUTE_LOST
+  PAYMENT_FAILED
+  REFUND_ISSUED
+  PRODUCT_REJECTED
+  SELLER_SUSPENDED
+  REVIEW_HIDDEN
+  ORDER_CANCELLED
 }
