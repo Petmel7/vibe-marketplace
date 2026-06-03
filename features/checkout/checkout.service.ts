@@ -60,6 +60,7 @@ type CheckoutCartItem = CheckoutCart['items'][number]
 type PreparedCheckoutItem = {
   cartItemId: string
   productId: string
+  categoryId: string | null
   variantId: string
   storeId: string
   productName: string
@@ -112,6 +113,7 @@ function prepareCheckoutItem(item: CheckoutCartItem): PreparedCheckoutItem {
   return {
     cartItemId: item.id,
     productId: item.variant.product.id,
+    categoryId: item.variant.product.categoryId ?? null,
     variantId: item.variant.id,
     storeId: item.variant.product.store.id,
     productName: item.variant.product.name,
@@ -206,7 +208,12 @@ async function resolveCheckoutPricing(input: {
     input.items.length > 0
       ? await resolvePromotionForCheckout({
           userId: input.userId,
-          subtotal,
+          items: input.items.map((item) => ({
+            storeId: item.storeId,
+            productId: item.productId,
+            categoryId: item.categoryId,
+            lineTotal: item.lineTotal,
+          })),
           couponCode: normalizedCouponCode,
         })
       : null
@@ -477,13 +484,15 @@ export async function checkout(
       variantId: item.variantId,
       qty: item.quantity,
     })),
-    promotion: pricing.appliedPromotion
+      promotion: pricing.appliedPromotion
       ? {
           promotionId: pricing.appliedPromotion.id,
           promotionCode: pricing.appliedPromotion.code,
           discountAmount: pricing.discountAmount,
-          subtotalAmount: pricing.subtotal,
+          eligibleSubtotalAmount: new Decimal(pricing.appliedPromotion.eligibleSubtotal),
           userId: user.id,
+          ownerType: pricing.appliedPromotion.ownerType,
+          storeId: pricing.appliedPromotion.storeId,
         }
       : null,
     payment: {

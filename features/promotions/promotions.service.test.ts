@@ -4,16 +4,24 @@ vi.mock('@/features/promotions/promotions.repository', () => ({
   countPromotionUsages: vi.fn(),
   countPromotionUsagesByUser: vi.fn(),
   countPromotions: vi.fn(),
+  countSellerPromotions: vi.fn(),
   createPromotion: vi.fn(),
   deletePromotion: vi.fn(),
+  findOwnedProductsInStoreByIds: vi.fn(),
+  findOwnedStoreById: vi.fn(),
   findPromotionByCode: vi.fn(),
   findPromotionById: vi.fn(),
+  findSellerPromotionById: vi.fn(),
+  findStoreProductCategoryIds: vi.fn(),
   listAutomaticPromotions: vi.fn(),
   listPromotions: vi.fn(),
+  listSellerPromotions: vi.fn(),
+  replacePromotionTargets: vi.fn(),
   updatePromotion: vi.fn(),
 }))
 vi.mock('@/lib/auth/guards', () => ({
   requireAdmin: vi.fn(),
+  requireSeller: vi.fn(),
 }))
 
 import * as repo from '@/features/promotions/promotions.repository'
@@ -21,14 +29,18 @@ import * as guards from '@/lib/auth/guards'
 import {
   buildCheckoutPromotionPreview,
   createAdminPromotion,
+  createSellerPromotion,
   deleteAdminPromotion,
+  getSellerPromotionById,
   resolvePromotionForCheckout,
 } from '@/features/promotions/promotions.service'
 import {
   InvalidPromotionCodeError,
+  InvalidPromotionTargetError,
   PromotionExpiredError,
   PromotionInactiveError,
   PromotionMinimumAmountError,
+  PromotionNotFoundError,
   PromotionUsageLimitReachedError,
   PromotionUserLimitReachedError,
 } from '@/lib/errors/promotion'
@@ -44,12 +56,20 @@ const adminUser: SessionUser = {
   roles: ['ADMIN'],
 }
 
+const sellerUser: SessionUser = {
+  id: '22222222-2222-4222-8222-222222222222',
+  email: 'seller@example.com',
+  roles: ['SELLER'],
+}
+
 function makePromotion(overrides: Record<string, unknown> = {}) {
   return {
     id: 'promo-1',
     code: 'SAVE10',
     name: 'Save 10',
     description: null,
+    ownerType: 'MARKETPLACE',
+    storeId: null,
     type: 'COUPON_CODE',
     discountType: 'PERCENTAGE',
     discountValue: { toString: () => '10.00' },
@@ -63,6 +83,8 @@ function makePromotion(overrides: Record<string, unknown> = {}) {
     createdById: adminUser.id,
     createdAt: new Date('2026-06-01T00:00:00.000Z'),
     updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+    store: null,
+    targets: [],
     _count: {
       usages: 0,
       orderPromotions: 0,
@@ -74,22 +96,46 @@ function makePromotion(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.requireAdmin.mockReturnValue(undefined)
+  mockGuards.requireSeller.mockReturnValue(undefined)
   mockRepo.countPromotionUsages.mockResolvedValue(0)
   mockRepo.countPromotionUsagesByUser.mockResolvedValue(0)
+  mockRepo.findOwnedStoreById.mockResolvedValue({
+    id: 'store-1',
+    name: 'Seller Store',
+    ownerId: sellerUser.id,
+  } as never)
+  mockRepo.findOwnedProductsInStoreByIds.mockResolvedValue([])
+  mockRepo.findStoreProductCategoryIds.mockResolvedValue([])
 })
 
 describe('resolvePromotionForCheckout', () => {
-  it('calculates percentage coupon discounts', async () => {
+  const items = [
+    {
+      storeId: 'store-1',
+      productId: 'product-1',
+      categoryId: 'category-1',
+      lineTotal: new Decimal('100.00'),
+    },
+    {
+      storeId: 'store-2',
+      productId: 'product-2',
+      categoryId: 'category-2',
+      lineTotal: new Decimal('50.00'),
+    },
+  ]
+
+  it('calculates marketplace percentage coupon discounts', async () => {
     mockRepo.findPromotionByCode.mockResolvedValue(makePromotion() as never)
 
     const result = await resolvePromotionForCheckout({
       userId: 'buyer-1',
-      subtotal: new Decimal('200.00'),
+      items,
       couponCode: 'save10',
       now: new Date('2026-06-03T10:00:00.000Z'),
     })
 
-    expect(result?.discountAmount).toBe('20.00')
+    expect(result?.discountAmount).toBe('15.00')
+    expect(result?.eligibleSubtotal).toBe('150.00')
     expect(mockRepo.findPromotionByCode).toHaveBeenCalledWith('SAVE10')
   })
 
@@ -103,7 +149,7 @@ describe('resolvePromotionForCheckout', () => {
 
     const result = await resolvePromotionForCheckout({
       userId: 'buyer-1',
-      subtotal: new Decimal('99.98'),
+      items,
       couponCode: 'fixed15',
       now: new Date('2026-06-03T10:00:00.000Z'),
     })
@@ -114,14 +160,14 @@ describe('resolvePromotionForCheckout', () => {
   it('enforces minimum order amount', async () => {
     mockRepo.findPromotionByCode.mockResolvedValue(
       makePromotion({
-        minOrderAmount: { toString: () => '150.00' },
+        minOrderAmount: { toString: () => '200.00' },
       }) as never,
     )
 
     await expect(
       resolvePromotionForCheckout({
         userId: 'buyer-1',
-        subtotal: new Decimal('99.98'),
+        items,
         couponCode: 'save10',
         now: new Date('2026-06-03T10:00:00.000Z'),
       }),
@@ -138,7 +184,7 @@ describe('resolvePromotionForCheckout', () => {
     await expect(
       resolvePromotionForCheckout({
         userId: 'buyer-1',
-        subtotal: new Decimal('99.98'),
+        items,
         couponCode: 'save10',
         now: new Date('2026-06-03T10:00:00.000Z'),
       }),
@@ -155,7 +201,7 @@ describe('resolvePromotionForCheckout', () => {
     await expect(
       resolvePromotionForCheckout({
         userId: 'buyer-1',
-        subtotal: new Decimal('99.98'),
+        items,
         couponCode: 'save10',
         now: new Date('2026-06-03T10:00:00.000Z'),
       }),
@@ -173,7 +219,7 @@ describe('resolvePromotionForCheckout', () => {
     await expect(
       resolvePromotionForCheckout({
         userId: 'buyer-1',
-        subtotal: new Decimal('99.98'),
+        items,
         couponCode: 'save10',
         now: new Date('2026-06-03T10:00:00.000Z'),
       }),
@@ -191,7 +237,7 @@ describe('resolvePromotionForCheckout', () => {
     await expect(
       resolvePromotionForCheckout({
         userId: 'buyer-1',
-        subtotal: new Decimal('99.98'),
+        items,
         couponCode: 'save10',
         now: new Date('2026-06-03T10:00:00.000Z'),
       }),
@@ -204,11 +250,76 @@ describe('resolvePromotionForCheckout', () => {
     await expect(
       resolvePromotionForCheckout({
         userId: 'buyer-1',
-        subtotal: new Decimal('99.98'),
+        items,
         couponCode: 'missing',
         now: new Date('2026-06-03T10:00:00.000Z'),
       }),
     ).rejects.toBeInstanceOf(InvalidPromotionCodeError)
+  })
+
+  it('applies seller product coupons only to eligible items', async () => {
+    mockRepo.findPromotionByCode.mockResolvedValue(
+      makePromotion({
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        targets: [
+          {
+            id: 'target-1',
+            targetType: 'PRODUCT',
+            targetId: 'product-1',
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }) as never,
+    )
+
+    const result = await resolvePromotionForCheckout({
+      userId: 'buyer-1',
+      items,
+      couponCode: 'save10',
+      now: new Date('2026-06-03T10:00:00.000Z'),
+    })
+
+    expect(result?.discountAmount).toBe('10.00')
+    expect(result?.eligibleSubtotal).toBe('100.00')
+    expect(result?.ownerType).toBe('SELLER')
+    expect(result?.storeId).toBe('store-1')
+  })
+
+  it('chooses the best automatic promotion across marketplace and seller scopes', async () => {
+    mockRepo.listAutomaticPromotions.mockResolvedValue([
+      makePromotion({
+        id: 'promo-market',
+        code: 'AUTO5',
+        type: 'AUTOMATIC_DISCOUNT',
+        discountValue: { toString: () => '5.00' },
+      }),
+      makePromotion({
+        id: 'promo-seller',
+        code: 'STORE20',
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        type: 'AUTOMATIC_DISCOUNT',
+        discountValue: { toString: () => '20.00' },
+        targets: [
+          {
+            id: 'target-store-1',
+            targetType: 'STORE',
+            targetId: 'store-1',
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }),
+    ] as never)
+
+    const result = await resolvePromotionForCheckout({
+      userId: 'buyer-1',
+      items,
+      now: new Date('2026-06-03T10:00:00.000Z'),
+    })
+
+    expect(result?.code).toBe('STORE20')
+    expect(result?.discountAmount).toBe('20.00')
   })
 })
 
@@ -235,6 +346,8 @@ describe('admin promotions', () => {
     expect(mockRepo.createPromotion).toHaveBeenCalledWith(
       expect.objectContaining({
         code: 'SAVE10',
+        ownerType: 'MARKETPLACE',
+        storeId: null,
       }),
     )
   })
@@ -256,6 +369,115 @@ describe('admin promotions', () => {
   })
 })
 
+describe('seller promotions', () => {
+  it('creates a seller store coupon', async () => {
+    mockRepo.createPromotion.mockResolvedValue(
+      makePromotion({
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        targets: [
+          {
+            id: 'target-store-1',
+            targetType: 'STORE',
+            targetId: 'store-1',
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }) as never,
+    )
+
+    const result = await createSellerPromotion(sellerUser, {
+      code: 'store10',
+      name: 'Store 10%',
+      description: null,
+      storeId: 'store-1',
+      targets: [{ targetType: 'STORE', targetId: 'store-1' }],
+      type: 'COUPON_CODE',
+      discountType: 'PERCENTAGE',
+      discountValue: '10.00',
+      startsAt: '2026-06-01T00:00:00.000Z',
+      endsAt: '2026-06-30T23:59:59.000Z',
+      isActive: true,
+    })
+
+    expect(mockRepo.createPromotion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        code: 'STORE10',
+        targets: [{ targetType: 'STORE', targetId: 'store-1' }],
+      }),
+    )
+    expect(result.storeId).toBe('store-1')
+    expect(result.ownerType).toBe('SELLER')
+  })
+
+  it('creates a seller product coupon', async () => {
+    mockRepo.findOwnedProductsInStoreByIds.mockResolvedValue([
+      { id: 'product-1', categoryId: 'category-1' },
+    ] as never)
+    mockRepo.createPromotion.mockResolvedValue(
+      makePromotion({
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        targets: [
+          {
+            id: 'target-product-1',
+            targetType: 'PRODUCT',
+            targetId: 'product-1',
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }) as never,
+    )
+
+    const result = await createSellerPromotion(sellerUser, {
+      code: 'shirt15',
+      name: 'Shirt 15',
+      description: null,
+      storeId: 'store-1',
+      targets: [{ targetType: 'PRODUCT', targetId: 'product-1' }],
+      type: 'COUPON_CODE',
+      discountType: 'FIXED_AMOUNT',
+      discountValue: '15.00',
+      startsAt: '2026-06-01T00:00:00.000Z',
+      endsAt: '2026-06-30T23:59:59.000Z',
+      isActive: true,
+    })
+
+    expect(mockRepo.findOwnedProductsInStoreByIds).toHaveBeenCalledWith('store-1', ['product-1'])
+    expect(result.targets[0]?.targetType).toBe('PRODUCT')
+  })
+
+  it('prevents sellers from targeting another store product', async () => {
+    mockRepo.findOwnedProductsInStoreByIds.mockResolvedValue([] as never)
+
+    await expect(
+      createSellerPromotion(sellerUser, {
+        code: 'bad15',
+        name: 'Bad 15',
+        description: null,
+        storeId: 'store-1',
+        targets: [{ targetType: 'PRODUCT', targetId: 'other-store-product' }],
+        type: 'COUPON_CODE',
+        discountType: 'FIXED_AMOUNT',
+        discountValue: '15.00',
+        startsAt: '2026-06-01T00:00:00.000Z',
+        endsAt: '2026-06-30T23:59:59.000Z',
+        isActive: true,
+      }),
+    ).rejects.toBeInstanceOf(InvalidPromotionTargetError)
+  })
+
+  it('does not expose another seller promotion', async () => {
+    mockRepo.findSellerPromotionById.mockResolvedValue(null)
+
+    await expect(getSellerPromotionById(sellerUser, 'promo-foreign')).rejects.toBeInstanceOf(
+      PromotionNotFoundError,
+    )
+  })
+})
+
 describe('buildCheckoutPromotionPreview', () => {
   it('returns a stable checkout promotion preview DTO', () => {
     const result = buildCheckoutPromotionPreview({
@@ -265,10 +487,13 @@ describe('buildCheckoutPromotionPreview', () => {
         id: 'promo-1',
         code: 'SAVE10',
         name: 'Save 10',
+        ownerType: 'MARKETPLACE',
+        storeId: null,
         type: 'COUPON_CODE',
         discountType: 'PERCENTAGE',
         discountValue: '10.00',
         discountAmount: '12.00',
+        eligibleSubtotal: '120.00',
       },
     })
 
@@ -281,6 +506,8 @@ describe('buildCheckoutPromotionPreview', () => {
         id: 'promo-1',
         code: 'SAVE10',
         name: 'Save 10',
+        ownerType: 'MARKETPLACE',
+        storeId: null,
         type: 'COUPON_CODE',
         discountType: 'PERCENTAGE',
         discountValue: '10.00',

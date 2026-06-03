@@ -78,3 +78,21 @@ export class PromotionDeleteConflictError extends Error {
     this.name = 'PromotionDeleteConflictError'
   }
 }
+
+export class PromotionOwnershipError extends Error {
+  code = 'PROMOTION_OWNERSHIP_ERROR'
+
+  constructor(message = 'You do not have access to this promotion') {
+    super(message)
+    this.name = 'PromotionOwnershipError'
+  }
+}
+
+export class InvalidPromotionTargetError extends Error {
+  code = 'INVALID_PROMOTION_TARGET'
+
+  constructor(message = 'Promotion target configuration is invalid') {
+    super(message)
+    this.name = 'InvalidPromotionTargetError'
+  }
+}

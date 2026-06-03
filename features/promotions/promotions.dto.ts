@@ -1,5 +1,7 @@
 import type {
   PromotionDiscountType,
+  PromotionOwnerType,
+  PromotionTargetType,
   PromotionType,
 } from '@/app/generated/prisma/client'
 
@@ -9,6 +11,7 @@ export type PromotionQueryDto = {
   type?: PromotionType
   isActive?: boolean
   code?: string
+  storeId?: string
 }
 
 export type CreatePromotionInputDto = {
@@ -29,6 +32,21 @@ export type CreatePromotionInputDto = {
 
 export type UpdatePromotionInputDto = Partial<CreatePromotionInputDto>
 
+export type PromotionTargetInputDto = {
+  targetType: PromotionTargetType
+  targetId: string
+}
+
+export type CreateSellerPromotionInputDto = CreatePromotionInputDto & {
+  storeId: string
+  targets: PromotionTargetInputDto[]
+}
+
+export type UpdateSellerPromotionInputDto = Partial<CreatePromotionInputDto> & {
+  storeId?: string
+  targets?: PromotionTargetInputDto[]
+}
+
 export type UpdatePromotionStatusInputDto = {
   isActive: boolean
 }
@@ -43,6 +61,8 @@ export type PromotionSummaryDto = {
   code: string
   name: string
   description: string | null
+  ownerType: PromotionOwnerType
+  storeId: string | null
   type: PromotionType
   discountType: PromotionDiscountType
   discountValue: string
@@ -59,8 +79,16 @@ export type PromotionSummaryDto = {
   totalUsageCount: number
 }
 
+export type PromotionTargetDto = {
+  id: string
+  targetType: PromotionTargetType
+  targetId: string
+  createdAt: string
+}
+
 export type PromotionDto = PromotionSummaryDto & {
   orderPromotionCount: number
+  targets: PromotionTargetDto[]
 }
 
 export type PromotionListDto = {
@@ -74,6 +102,8 @@ export type AppliedPromotionDto = {
   id: string
   code: string
   name: string
+  ownerType: PromotionOwnerType
+  storeId: string | null
   type: PromotionType
   discountType: PromotionDiscountType
   discountValue: string
@@ -92,8 +122,11 @@ export type ResolvedPromotionForCheckoutDto = {
   id: string
   code: string
   name: string
+  ownerType: PromotionOwnerType
+  storeId: string | null
   type: PromotionType
   discountType: PromotionDiscountType
   discountValue: string
   discountAmount: string
+  eligibleSubtotal: string
 }

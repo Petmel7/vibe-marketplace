@@ -209,8 +209,10 @@ export async function submitCheckoutOrderWithPayment(data: {
     promotionId: string
     promotionCode: string
     discountAmount: Decimal
-    subtotalAmount: Decimal
+    eligibleSubtotalAmount: Decimal
     userId: string
+    ownerType: string
+    storeId: string | null
   } | null
   payment: {
     provider: PaymentProvider
@@ -258,7 +260,7 @@ export async function submitCheckoutOrderWithPayment(data: {
 
         if (promotion.minOrderAmount != null) {
           const minimumAmount = new Decimal(promotion.minOrderAmount.toString())
-          if (data.promotion.subtotalAmount.lessThan(minimumAmount)) {
+          if (data.promotion.eligibleSubtotalAmount.lessThan(minimumAmount)) {
             throw new PromotionMinimumAmountError(
               `Order subtotal must be at least ${minimumAmount.toFixed(2)} to use this promotion`,
             )
@@ -291,7 +293,7 @@ export async function submitCheckoutOrderWithPayment(data: {
 
         let recalculatedDiscount =
           promotion.discountType === PromotionDiscountType.PERCENTAGE
-            ? data.promotion.subtotalAmount.mul(promotion.discountValue.toString()).div(100)
+            ? data.promotion.eligibleSubtotalAmount.mul(promotion.discountValue.toString()).div(100)
             : new Decimal(promotion.discountValue.toString())
 
         if (promotion.maxDiscountAmount != null) {
@@ -303,7 +305,7 @@ export async function submitCheckoutOrderWithPayment(data: {
 
         recalculatedDiscount = Decimal.min(
           recalculatedDiscount,
-          data.promotion.subtotalAmount,
+          data.promotion.eligibleSubtotalAmount,
         ).toDecimalPlaces(2)
 
         promotionSnapshot = {

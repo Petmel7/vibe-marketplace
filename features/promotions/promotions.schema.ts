@@ -1,5 +1,6 @@
 import {
   PromotionDiscountType,
+  PromotionTargetType,
   PromotionType,
 } from '@/app/generated/prisma/client'
 import { z } from 'zod'
@@ -43,6 +44,12 @@ export const promotionQuerySchema = paginationSchema.extend({
   type: z.nativeEnum(PromotionType).optional(),
   isActive: z.coerce.boolean().optional(),
   code: z.string().trim().max(64).optional(),
+  storeId: z.string().uuid().optional(),
+})
+
+const promotionTargetInputSchema = z.object({
+  targetType: z.nativeEnum(PromotionTargetType),
+  targetId: z.string().uuid(),
 })
 
 type PromotionValidationInput = {
@@ -134,6 +141,64 @@ export const updatePromotionSchema = updatePromotionBaseSchema.superRefine((inpu
 export const updatePromotionStatusSchema = z.object({
   isActive: z.boolean(),
 })
+
+const sellerPromotionBaseSchema = createPromotionBaseSchema.extend({
+  storeId: z.string().uuid(),
+  targets: z.array(promotionTargetInputSchema).min(1, 'At least one promotion target is required'),
+})
+
+export const createSellerPromotionSchema = sellerPromotionBaseSchema.superRefine((input, ctx) => {
+  applyPromotionValidationRules(input, ctx)
+
+  const targetTypes = new Set(input.targets.map((target) => target.targetType))
+  if (targetTypes.size > 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['targets'],
+      message: 'Seller promotions must target a single scope type per promotion',
+    })
+  }
+
+  if (targetTypes.has(PromotionTargetType.STORE)) {
+    if (input.targets.length !== 1 || input.targets[0]?.targetId !== input.storeId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['targets'],
+        message: 'Store promotions must target exactly the selected store',
+      })
+    }
+  }
+})
+
+const updateSellerPromotionBaseSchema = createPromotionBaseSchema
+  .partial()
+  .extend({
+    storeId: z.string().uuid().optional(),
+    targets: z.array(promotionTargetInputSchema).min(1).optional(),
+  })
+
+export const updateSellerPromotionSchema = updateSellerPromotionBaseSchema
+  .superRefine((input, ctx) => {
+    if (Object.keys(input).length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'At least one promotion field must be provided',
+      })
+    }
+
+    applyPromotionValidationRules(input, ctx)
+
+    if (input.targets) {
+      const targetTypes = new Set(input.targets.map((target) => target.targetType))
+      if (targetTypes.size > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['targets'],
+          message: 'Seller promotions must target a single scope type per promotion',
+        })
+      }
+    }
+  })
 
 export const applyCheckoutPromotionSchema = z.object({
   cartId: z.string().uuid().optional(),

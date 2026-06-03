@@ -147,12 +147,14 @@ import {
 } from './payout'
 import {
   InvalidPromotionCodeError,
+  InvalidPromotionTargetError,
   PromotionDeleteConflictError,
   PromotionDuplicateCodeError,
   PromotionExpiredError,
   PromotionInactiveError,
   PromotionMinimumAmountError,
   PromotionNotFoundError,
+  PromotionOwnershipError,
   PromotionUsageLimitReachedError,
   PromotionUserLimitReachedError,
 } from './promotion'
@@ -184,7 +186,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AbuseReportOwnershipError ||
     err instanceof EvidenceOwnershipError ||
     err instanceof DisputeOwnershipError ||
-    err instanceof PayoutOwnershipError
+    err instanceof PayoutOwnershipError ||
+    err instanceof PromotionOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -295,6 +298,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidPayoutTransitionError ||
     err instanceof CommissionCalculationError ||
     err instanceof InvalidPromotionCodeError ||
+    err instanceof InvalidPromotionTargetError ||
     err instanceof PromotionInactiveError ||
     err instanceof PromotionExpiredError ||
     err instanceof PromotionUsageLimitReachedError ||

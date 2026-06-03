@@ -1,16 +1,20 @@
 import Decimal from 'decimal.js'
 import {
   PromotionDiscountType,
+  PromotionOwnerType,
+  PromotionTargetType,
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
-import { requireAdmin } from '@/lib/auth/guards'
+import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import {
   InvalidPromotionCodeError,
+  InvalidPromotionTargetError,
   PromotionDeleteConflictError,
   PromotionExpiredError,
   PromotionInactiveError,
   PromotionMinimumAmountError,
   PromotionNotFoundError,
+  PromotionOwnershipError,
   PromotionUserLimitReachedError,
   PromotionUsageLimitReachedError,
 } from '@/lib/errors/promotion'
@@ -18,28 +22,46 @@ import type {
   AppliedPromotionDto,
   CheckoutPromotionPreviewDto,
   CreatePromotionInputDto,
+  CreateSellerPromotionInputDto,
   PromotionDto,
   PromotionListDto,
   PromotionQueryDto,
   PromotionSummaryDto,
+  PromotionTargetDto,
+  PromotionTargetInputDto,
   ResolvedPromotionForCheckoutDto,
   UpdatePromotionInputDto,
   UpdatePromotionStatusInputDto,
+  UpdateSellerPromotionInputDto,
 } from './promotions.dto'
 import {
   countPromotionUsages,
   countPromotionUsagesByUser,
   countPromotions,
+  countSellerPromotions,
   createPromotion,
   deletePromotion,
+  findOwnedProductsInStoreByIds,
+  findOwnedStoreById,
   findPromotionByCode,
   findPromotionById,
+  findSellerPromotionById,
+  findStoreProductCategoryIds,
   listAutomaticPromotions,
   listPromotions,
+  listSellerPromotions,
+  replacePromotionTargets,
   updatePromotion,
 } from './promotions.repository'
 
 type PromotionRecord = NonNullable<Awaited<ReturnType<typeof findPromotionById>>>
+
+type PromotionEligibleItemInput = {
+  storeId: string
+  productId: string
+  categoryId: string | null
+  lineTotal: Decimal
+}
 
 function normalizePromotionCode(code: string) {
   return code.trim().toUpperCase()
@@ -51,12 +73,23 @@ function toNullableString(
   return value ? value.toString() : null
 }
 
+function toPromotionTargetDto(target: PromotionRecord['targets'][number]): PromotionTargetDto {
+  return {
+    id: target.id,
+    targetType: target.targetType,
+    targetId: target.targetId,
+    createdAt: target.createdAt.toISOString(),
+  }
+}
+
 function toPromotionSummaryDto(promotion: PromotionRecord): PromotionSummaryDto {
   return {
     id: promotion.id,
     code: promotion.code,
     name: promotion.name,
     description: promotion.description ?? null,
+    ownerType: promotion.ownerType,
+    storeId: promotion.storeId ?? null,
     type: promotion.type,
     discountType: promotion.discountType,
     discountValue: promotion.discountValue.toString(),
@@ -78,6 +111,7 @@ function toPromotionDto(promotion: PromotionRecord): PromotionDto {
   return {
     ...toPromotionSummaryDto(promotion),
     orderPromotionCount: promotion._count.orderPromotions,
+    targets: promotion.targets.map(toPromotionTargetDto),
   }
 }
 
@@ -86,6 +120,8 @@ function toAppliedPromotionDto(input: ResolvedPromotionForCheckoutDto): AppliedP
     id: input.id,
     code: input.code,
     name: input.name,
+    ownerType: input.ownerType,
+    storeId: input.storeId,
     type: input.type,
     discountType: input.discountType,
     discountValue: input.discountValue,
@@ -93,21 +129,21 @@ function toAppliedPromotionDto(input: ResolvedPromotionForCheckoutDto): AppliedP
   }
 }
 
-function calculateDiscountAmount(promotion: PromotionRecord, subtotal: Decimal): Decimal {
-  if (subtotal.lte(0)) {
+function calculateDiscountAmount(promotion: PromotionRecord, eligibleSubtotal: Decimal): Decimal {
+  if (eligibleSubtotal.lte(0)) {
     return new Decimal(0)
   }
 
   let discount =
     promotion.discountType === PromotionDiscountType.PERCENTAGE
-      ? subtotal.mul(promotion.discountValue.toString()).div(100)
+      ? eligibleSubtotal.mul(promotion.discountValue.toString()).div(100)
       : new Decimal(promotion.discountValue.toString())
 
   if (promotion.maxDiscountAmount) {
     discount = Decimal.min(discount, new Decimal(promotion.maxDiscountAmount.toString()))
   }
 
-  return Decimal.min(discount, subtotal).toDecimalPlaces(2)
+  return Decimal.min(discount, eligibleSubtotal).toDecimalPlaces(2)
 }
 
 function assertPromotionWindow(promotion: PromotionRecord, now: Date) {
@@ -120,13 +156,13 @@ function assertPromotionWindow(promotion: PromotionRecord, now: Date) {
   }
 }
 
-function assertMinimumAmount(promotion: PromotionRecord, subtotal: Decimal) {
+function assertMinimumAmount(promotion: PromotionRecord, eligibleSubtotal: Decimal) {
   if (!promotion.minOrderAmount) {
     return
   }
 
   const minimum = new Decimal(promotion.minOrderAmount.toString())
-  if (subtotal.lessThan(minimum)) {
+  if (eligibleSubtotal.lessThan(minimum)) {
     throw new PromotionMinimumAmountError(
       `Order subtotal must be at least ${minimum.toFixed(2)} to use this promotion`,
     )
@@ -153,32 +189,81 @@ async function assertUsageLimits(
   }
 }
 
+function resolveEligibleItemsForPromotion(
+  promotion: PromotionRecord,
+  items: PromotionEligibleItemInput[],
+): PromotionEligibleItemInput[] {
+  if (promotion.ownerType === PromotionOwnerType.MARKETPLACE) {
+    return items
+  }
+
+  const targetIds = new Set(promotion.targets.map((target) => target.targetId))
+  const targetType = promotion.targets[0]?.targetType
+
+  if (!promotion.storeId || !targetType || targetIds.size === 0) {
+    return []
+  }
+
+  switch (targetType) {
+    case PromotionTargetType.STORE:
+      return items.filter((item) => item.storeId === promotion.storeId)
+    case PromotionTargetType.PRODUCT:
+      return items.filter(
+        (item) => item.storeId === promotion.storeId && targetIds.has(item.productId),
+      )
+    case PromotionTargetType.CATEGORY:
+      return items.filter(
+        (item) =>
+          item.storeId === promotion.storeId &&
+          item.categoryId != null &&
+          targetIds.has(item.categoryId),
+      )
+    default:
+      return []
+  }
+}
+
+function sumEligibleSubtotal(items: PromotionEligibleItemInput[]): Decimal {
+  return items.reduce((sum, item) => sum.plus(item.lineTotal), new Decimal(0))
+}
+
 async function validatePromotionForCheckout(input: {
   promotion: PromotionRecord
   userId: string
-  subtotal: Decimal
+  items: PromotionEligibleItemInput[]
   now: Date
 }): Promise<ResolvedPromotionForCheckoutDto> {
   assertPromotionWindow(input.promotion, input.now)
-  assertMinimumAmount(input.promotion, input.subtotal)
+
+  const eligibleItems = resolveEligibleItemsForPromotion(input.promotion, input.items)
+  const eligibleSubtotal = sumEligibleSubtotal(eligibleItems)
+
+  if (eligibleSubtotal.lte(0)) {
+    throw new InvalidPromotionCodeError('This promotion does not apply to items in your cart')
+  }
+
+  assertMinimumAmount(input.promotion, eligibleSubtotal)
   await assertUsageLimits(input.promotion, input.userId)
 
-  const discountAmount = calculateDiscountAmount(input.promotion, input.subtotal)
+  const discountAmount = calculateDiscountAmount(input.promotion, eligibleSubtotal)
 
   return {
     id: input.promotion.id,
     code: input.promotion.code,
     name: input.promotion.name,
+    ownerType: input.promotion.ownerType,
+    storeId: input.promotion.storeId ?? null,
     type: input.promotion.type,
     discountType: input.promotion.discountType,
     discountValue: input.promotion.discountValue.toString(),
     discountAmount: discountAmount.toFixed(2),
+    eligibleSubtotal: eligibleSubtotal.toFixed(2),
   }
 }
 
 function toPromotionMutationData(
   createdById: string | undefined,
-  input: CreatePromotionInputDto | UpdatePromotionInputDto,
+  input: CreatePromotionInputDto | UpdatePromotionInputDto | UpdateSellerPromotionInputDto,
 ) {
   const normalizedCode = input.code ? normalizePromotionCode(input.code) : undefined
 
@@ -218,6 +303,57 @@ function toPromotionMutationData(
   }
 }
 
+async function assertSellerPromotionTargetsOwned(input: {
+  ownerId: string
+  storeId: string
+  targets: PromotionTargetInputDto[]
+}) {
+  const store = await findOwnedStoreById(input.ownerId, input.storeId)
+  if (!store) {
+    throw new PromotionOwnershipError('You do not own the selected store')
+  }
+
+  const targetTypes = new Set(input.targets.map((target) => target.targetType))
+  if (targetTypes.size !== 1) {
+    throw new InvalidPromotionTargetError(
+      'Seller promotions must target a single scope type per promotion',
+    )
+  }
+
+  const targetType = input.targets[0]?.targetType
+  if (!targetType) {
+    throw new InvalidPromotionTargetError('At least one promotion target is required')
+  }
+
+  if (targetType === PromotionTargetType.STORE) {
+    if (input.targets.length !== 1 || input.targets[0]?.targetId !== input.storeId) {
+      throw new InvalidPromotionTargetError('Store promotions must target the selected store only')
+    }
+
+    return
+  }
+
+  if (targetType === PromotionTargetType.PRODUCT) {
+    const productIds = input.targets.map((target) => target.targetId)
+    const products = await findOwnedProductsInStoreByIds(input.storeId, productIds)
+    if (products.length !== productIds.length) {
+      throw new InvalidPromotionTargetError('One or more product targets do not belong to the selected store')
+    }
+
+    return
+  }
+
+  if (targetType === PromotionTargetType.CATEGORY) {
+    const categoryIds = input.targets.map((target) => target.targetId)
+    const ownedCategoryIds = await findStoreProductCategoryIds(input.storeId, categoryIds)
+    if (ownedCategoryIds.length !== new Set(categoryIds).size) {
+      throw new InvalidPromotionTargetError(
+        'Category targets must match categories used by products in the selected store',
+      )
+    }
+  }
+}
+
 export async function getAdminPromotions(
   user: SessionUser,
   query: PromotionQueryDto,
@@ -252,6 +388,8 @@ export async function createAdminPromotion(
 ): Promise<PromotionDto> {
   requireAdmin(user)
   const promotion = await createPromotion({
+    ownerType: PromotionOwnerType.MARKETPLACE,
+    storeId: null,
     code: normalizePromotionCode(input.code),
     name: input.name.trim(),
     description: input.description?.trim() || null,
@@ -326,9 +464,150 @@ export async function deleteAdminPromotion(user: SessionUser, promotionId: strin
   await deletePromotion(promotionId)
 }
 
+export async function getSellerPromotions(
+  user: SessionUser,
+  query: PromotionQueryDto,
+): Promise<PromotionListDto> {
+  requireSeller(user)
+  const [items, total] = await Promise.all([
+    listSellerPromotions(user.id, query),
+    countSellerPromotions(user.id, query),
+  ])
+
+  return {
+    items: items.map((item) => toPromotionSummaryDto(item as PromotionRecord)),
+    page: query.page,
+    limit: query.limit,
+    total,
+  }
+}
+
+export async function getSellerPromotionById(
+  user: SessionUser,
+  promotionId: string,
+): Promise<PromotionDto> {
+  requireSeller(user)
+  const promotion = await findSellerPromotionById(user.id, promotionId)
+  if (!promotion) {
+    throw new PromotionNotFoundError()
+  }
+
+  return toPromotionDto(promotion as PromotionRecord)
+}
+
+export async function createSellerPromotion(
+  user: SessionUser,
+  input: CreateSellerPromotionInputDto,
+): Promise<PromotionDto> {
+  requireSeller(user)
+  await assertSellerPromotionTargetsOwned({
+    ownerId: user.id,
+    storeId: input.storeId,
+    targets: input.targets,
+  })
+
+  const promotion = await createPromotion({
+    ownerType: PromotionOwnerType.SELLER,
+    storeId: input.storeId,
+    code: normalizePromotionCode(input.code),
+    name: input.name.trim(),
+    description: input.description?.trim() || null,
+    type: input.type,
+    discountType: input.discountType,
+    discountValue: new Decimal(input.discountValue).toDecimalPlaces(2),
+    minOrderAmount:
+      input.minOrderAmount == null ? null : new Decimal(input.minOrderAmount).toDecimalPlaces(2),
+    maxDiscountAmount:
+      input.maxDiscountAmount == null ? null : new Decimal(input.maxDiscountAmount).toDecimalPlaces(2),
+    usageLimit: input.usageLimit ?? null,
+    usageLimitPerUser: input.usageLimitPerUser ?? null,
+    startsAt: new Date(input.startsAt),
+    endsAt: input.endsAt == null ? null : new Date(input.endsAt),
+    isActive: input.isActive ?? true,
+    createdById: user.id,
+    updatedAt: new Date(),
+    targets: input.targets,
+  })
+
+  return toPromotionDto(promotion as PromotionRecord)
+}
+
+export async function updateSellerPromotion(
+  user: SessionUser,
+  promotionId: string,
+  input: UpdateSellerPromotionInputDto,
+): Promise<PromotionDto> {
+  requireSeller(user)
+  const existing = await findSellerPromotionById(user.id, promotionId)
+  if (!existing) {
+    throw new PromotionNotFoundError()
+  }
+
+  const targetStoreId = input.storeId ?? existing.storeId
+  if (!targetStoreId) {
+    throw new InvalidPromotionTargetError('Seller promotions must belong to a store')
+  }
+
+  if (input.storeId && input.storeId !== existing.storeId) {
+    throw new InvalidPromotionTargetError('Seller promotions cannot be moved to another store')
+  }
+
+  if (input.targets) {
+    await assertSellerPromotionTargetsOwned({
+      ownerId: user.id,
+      storeId: targetStoreId,
+      targets: input.targets,
+    })
+  }
+
+  const updated = await updatePromotion(promotionId, {
+    ...toPromotionMutationData(undefined, input),
+    updatedAt: new Date(),
+  })
+
+  const promotion = input.targets
+    ? await replacePromotionTargets(promotionId, input.targets)
+    : updated
+
+  return toPromotionDto((promotion ?? updated) as PromotionRecord)
+}
+
+export async function updateSellerPromotionStatus(
+  user: SessionUser,
+  promotionId: string,
+  input: UpdatePromotionStatusInputDto,
+): Promise<PromotionDto> {
+  requireSeller(user)
+  const existing = await findSellerPromotionById(user.id, promotionId)
+  if (!existing) {
+    throw new PromotionNotFoundError()
+  }
+
+  const promotion = await updatePromotion(promotionId, {
+    isActive: input.isActive,
+    updatedAt: new Date(),
+  })
+
+  return toPromotionDto(promotion as PromotionRecord)
+}
+
+export async function deleteSellerPromotion(user: SessionUser, promotionId: string): Promise<void> {
+  requireSeller(user)
+  const promotion = await findSellerPromotionById(user.id, promotionId)
+  if (!promotion) {
+    throw new PromotionNotFoundError()
+  }
+
+  if (promotion._count.usages > 0 || promotion._count.orderPromotions > 0) {
+    throw new PromotionDeleteConflictError()
+  }
+
+  await deletePromotion(promotionId)
+}
+
 export async function resolvePromotionForCheckout(input: {
   userId: string
-  subtotal: Decimal
+  items: PromotionEligibleItemInput[]
   couponCode?: string | null
   now?: Date
 }): Promise<ResolvedPromotionForCheckoutDto | null> {
@@ -343,7 +622,7 @@ export async function resolvePromotionForCheckout(input: {
     return validatePromotionForCheckout({
       promotion: promotion as PromotionRecord,
       userId: input.userId,
-      subtotal: input.subtotal,
+      items: input.items,
       now,
     })
   }
@@ -357,7 +636,7 @@ export async function resolvePromotionForCheckout(input: {
       const resolved = await validatePromotionForCheckout({
         promotion: promotion as PromotionRecord,
         userId: input.userId,
-        subtotal: input.subtotal,
+        items: input.items,
         now,
       })
       const discountAmount = new Decimal(resolved.discountAmount)
@@ -365,15 +644,14 @@ export async function resolvePromotionForCheckout(input: {
         bestPromotion = resolved
         bestDiscount = discountAmount
       }
-    } catch (
-      error
-    ) {
+    } catch (error) {
       if (
         error instanceof PromotionInactiveError ||
         error instanceof PromotionExpiredError ||
         error instanceof PromotionMinimumAmountError ||
         error instanceof PromotionUsageLimitReachedError ||
-        error instanceof PromotionUserLimitReachedError
+        error instanceof PromotionUserLimitReachedError ||
+        error instanceof InvalidPromotionCodeError
       ) {
         continue
       }

@@ -269,6 +269,8 @@ beforeEach(() => {
             id: appliedPromotion.id,
             code: appliedPromotion.code,
             name: appliedPromotion.name,
+            ownerType: appliedPromotion.ownerType,
+            storeId: appliedPromotion.storeId,
             type: appliedPromotion.type,
             discountType: appliedPromotion.discountType,
             discountValue: appliedPromotion.discountValue,
@@ -348,10 +350,13 @@ describe('checkout preview', () => {
       id: 'promo-1',
       code: 'AUTO10',
       name: 'Automatic 10%',
+      ownerType: 'MARKETPLACE',
+      storeId: null,
       type: 'AUTOMATIC_DISCOUNT',
       discountType: 'PERCENTAGE',
       discountValue: '10.00',
       discountAmount: '10.00',
+      eligibleSubtotal: '99.98',
     })
 
     const preview = await getCheckoutPreview(mockUser, { cartId: CART_ID })
@@ -421,10 +426,13 @@ describe('checkout submit', () => {
       id: 'promo-1',
       code: 'SAVE10',
       name: 'Save 10',
+      ownerType: 'MARKETPLACE',
+      storeId: null,
       type: 'COUPON_CODE',
       discountType: 'FIXED_AMOUNT',
       discountValue: '10.00',
       discountAmount: '10.00',
+      eligibleSubtotal: '99.98',
     })
 
     const result = await checkout(mockUser, {
@@ -436,7 +444,13 @@ describe('checkout submit', () => {
     const payload = mockRepo.submitCheckoutOrder.mock.calls[0][0]
     expect(mockPromotionsService.resolvePromotionForCheckout).toHaveBeenCalledWith({
       userId: USER_ID,
-      subtotal: expect.anything(),
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          storeId: STORE_ID,
+          productId: PRODUCT_ID,
+          lineTotal: expect.anything(),
+        }),
+      ]),
       couponCode: 'SAVE10',
     })
     expect(payload.totalAmount.toFixed(2)).toBe('89.98')
@@ -445,6 +459,8 @@ describe('checkout submit', () => {
       promotionId: 'promo-1',
       promotionCode: 'SAVE10',
       userId: USER_ID,
+      ownerType: 'MARKETPLACE',
+      storeId: null,
     })
     expect(result.totalAmount).toBe('89.98')
   })
@@ -457,10 +473,13 @@ describe('checkout submit', () => {
       id: 'promo-2',
       code: 'FIXED15',
       name: 'Fixed 15',
+      ownerType: 'MARKETPLACE',
+      storeId: null,
       type: 'COUPON_CODE',
       discountType: 'FIXED_AMOUNT',
       discountValue: '15.00',
       discountAmount: '15.00',
+      eligibleSubtotal: '99.98',
     })
 
     const result = await applyCheckoutPromotion(mockUser, { couponCode: 'fixed15' })
@@ -470,6 +489,61 @@ describe('checkout submit', () => {
     expect(result.discountAmount).toBe('15.00')
     expect(result.total).toBe('84.98')
     expect(result.appliedPromotion?.code).toBe('FIXED15')
+  })
+
+  it('applies seller coupon discounts only to eligible cart items', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart({}, [
+        makeCartItem(),
+        makeCartItem({
+          id: 'item-0000-0000-0000-000000000099',
+          variant: makeVariant({
+            id: 'vari-0000-0000-0000-000000000099',
+            product: makeProduct({
+              id: 'prod-0000-0000-0000-000000000099',
+              storeId: 'stor-0000-0000-0000-000000000099',
+              store: makeStore({
+                id: 'stor-0000-0000-0000-000000000099',
+                name: 'Other Store',
+                slug: 'other-store',
+              }),
+            }),
+          }),
+        }),
+      ]) as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockRepo.findShippingAddress.mockResolvedValue(
+      makeAddress() as unknown as Awaited<ReturnType<typeof mockRepo.findShippingAddress>>,
+    )
+    mockPromotionsService.resolvePromotionForCheckout.mockResolvedValueOnce({
+      id: 'promo-seller-1',
+      code: 'STORE20',
+      name: 'Store 20%',
+      ownerType: 'SELLER',
+      storeId: STORE_ID,
+      type: 'COUPON_CODE',
+      discountType: 'PERCENTAGE',
+      discountValue: '20.00',
+      discountAmount: '20.00',
+      eligibleSubtotal: '99.98',
+    })
+
+    const result = await checkout(mockUser, {
+      ...checkoutInput,
+      couponCode: 'store20',
+      expectedTotal: '179.96',
+    })
+
+    const payload = mockRepo.submitCheckoutOrder.mock.calls[0][0]
+    expect(payload.discountAmount.toFixed(2)).toBe('20.00')
+    expect(payload.promotion).toMatchObject({
+      promotionId: 'promo-seller-1',
+      promotionCode: 'STORE20',
+      ownerType: 'SELLER',
+      storeId: STORE_ID,
+    })
+    expect(payload.promotion?.eligibleSubtotalAmount.toFixed(2)).toBe('99.98')
+    expect(result.totalAmount).toBe('179.96')
   })
 
   it('does not fail checkout when order created email enqueue fails', async () => {

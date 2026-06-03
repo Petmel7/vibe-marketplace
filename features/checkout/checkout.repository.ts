@@ -82,8 +82,10 @@ export async function submitCheckoutOrder(data: {
     promotionId: string
     promotionCode: string
     discountAmount: Decimal
-    subtotalAmount: Decimal
+    eligibleSubtotalAmount: Decimal
     userId: string
+    ownerType: string
+    storeId: string | null
   } | null
   payment: {
     provider: PaymentProvider
