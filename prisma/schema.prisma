@@ -80,6 +80,7 @@ model Store {
   sellerLedgerEntries SellerLedgerEntry[]
   sellerBalance       SellerBalance?
   payouts             Payout[]
+  promotions          Promotion[]
 
   @@index([ownerId], map: "stores_ownerId_idx")
   @@index([isActive], map: "stores_isActive_idx")
@@ -500,6 +501,8 @@ model Promotion {
   code              String                @unique
   name              String
   description       String?
+  ownerType         PromotionOwnerType    @default(MARKETPLACE) @map("owner_type")
+  storeId           String?               @map("store_id") @db.Uuid
   type              PromotionType
   discountType      PromotionDiscountType @map("discount_type")
   discountValue     Decimal               @map("discount_value") @db.Decimal(12, 2)
@@ -514,14 +517,31 @@ model Promotion {
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")
   createdBy         User                  @relation("PromotionCreatedBy", fields: [createdById], references: [id])
+  store             Store?                @relation(fields: [storeId], references: [id])
   usages            PromotionUsage[]
   orderPromotions   OrderPromotion[]
+  targets           PromotionTarget[]
 
+  @@index([ownerType], map: "promotions_owner_type_idx")
+  @@index([storeId], map: "promotions_store_id_idx")
   @@index([isActive], map: "promotions_is_active_idx")
   @@index([startsAt], map: "promotions_starts_at_idx")
   @@index([endsAt], map: "promotions_ends_at_idx")
   @@index([createdById], map: "promotions_created_by_id_idx")
   @@map("promotions")
+}
+
+model PromotionTarget {
+  id         String              @id @default(uuid()) @db.Uuid
+  promotionId String             @map("promotion_id") @db.Uuid
+  targetType PromotionTargetType @map("target_type")
+  targetId   String              @map("target_id") @db.Uuid
+  createdAt  DateTime            @default(now()) @map("created_at")
+  promotion  Promotion           @relation(fields: [promotionId], references: [id])
+
+  @@index([promotionId], map: "promotion_targets_promotion_id_idx")
+  @@index([targetType, targetId], map: "promotion_targets_target_type_target_id_idx")
+  @@map("promotion_targets")
 }
 
 model PromotionUsage {
@@ -1277,4 +1297,15 @@ enum PromotionType {
 enum PromotionDiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+}
+
+enum PromotionOwnerType {
+  MARKETPLACE
+  SELLER
+}
+
+enum PromotionTargetType {
+  STORE
+  PRODUCT
+  CATEGORY
 }
