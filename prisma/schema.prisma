@@ -563,16 +563,23 @@ model PromotionUsage {
 }
 
 model OrderPromotion {
-  id             String    @id @default(uuid()) @db.Uuid
-  orderId        String    @unique(map: "order_promotions_order_id_key") @map("order_id") @db.Uuid
-  promotionId    String    @map("promotion_id") @db.Uuid
-  promotionCode  String    @map("promotion_code")
-  discountAmount Decimal   @map("discount_amount") @db.Decimal(12, 2)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  order          Order     @relation(fields: [orderId], references: [id])
-  promotion      Promotion @relation(fields: [promotionId], references: [id])
+  id             String                @id @default(uuid()) @db.Uuid
+  orderId        String                @unique(map: "order_promotions_order_id_key") @map("order_id") @db.Uuid
+  promotionId    String                @map("promotion_id") @db.Uuid
+  promotionCode  String                @map("promotion_code")
+  ownerType      PromotionOwnerType    @map("owner_type")
+  storeId        String?               @map("store_id") @db.Uuid
+  promotionName  String?               @map("promotion_name")
+  discountType   PromotionDiscountType @map("discount_type")
+  discountValue  Decimal               @map("discount_value") @db.Decimal(12, 2)
+  discountAmount Decimal               @map("discount_amount") @db.Decimal(12, 2)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  order          Order                 @relation(fields: [orderId], references: [id])
+  promotion      Promotion             @relation(fields: [promotionId], references: [id])
 
   @@index([promotionId], map: "order_promotions_promotion_id_idx")
+  @@index([ownerType], map: "order_promotions_owner_type_idx")
+  @@index([storeId], map: "order_promotions_store_id_idx")
   @@index([createdAt], map: "order_promotions_created_at_idx")
   @@map("order_promotions")
 }
