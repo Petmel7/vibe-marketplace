@@ -46,29 +46,38 @@ model User {
   disputeEvidence      DisputeEvidence[]     @relation("DisputeEvidenceUploadedBy")
   riskProfile          RiskProfile?          @relation("UserRiskProfile")
   riskSignals          RiskSignal[]          @relation("UserRiskSignals")
+  platformCommissions  PlatformCommission[]  @relation("PlatformCommissionSeller")
+  sellerLedgerEntries  SellerLedgerEntry[]   @relation("SellerLedgerEntrySeller")
+  sellerBalances       SellerBalance[]       @relation("SellerBalanceSeller")
+  payouts              Payout[]              @relation("PayoutSeller")
+  createdPayouts       Payout[]              @relation("PayoutCreatedBy")
 
   @@map("users")
 }
 
 model Store {
-  id            String         @id @default(uuid()) @db.Uuid
-  ownerId       String         @map("owner_id") @db.Uuid
-  name          String
-  slug          String         @unique
-  description   String?
-  logoUrl       String?        @map("logo_url")
-  isActive      Boolean        @default(true) @map("is_active")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @map("updated_at")
-  bannerUrl     String?        @map("banner_url")
-  isPrimary     Boolean        @default(false) @map("is_primary")
-  orderItems    OrderItem[]
-  products      Product[]
-  owner         User           @relation(fields: [ownerId], references: [id], map: "stores_owner_id_user_fkey")
-  sellerProfile SellerProfile? @relation("SellerStores", fields: [ownerId], references: [userId], map: "stores_owner_id_seller_fkey")
-  disputes      Dispute[]
-  riskProfile   RiskProfile?   @relation("StoreRiskProfile")
-  riskSignals   RiskSignal[]   @relation("StoreRiskSignals")
+  id                  String               @id @default(uuid()) @db.Uuid
+  ownerId             String               @map("owner_id") @db.Uuid
+  name                String
+  slug                String               @unique
+  description         String?
+  logoUrl             String?              @map("logo_url")
+  isActive            Boolean              @default(true) @map("is_active")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @map("updated_at")
+  bannerUrl           String?              @map("banner_url")
+  isPrimary           Boolean              @default(false) @map("is_primary")
+  orderItems          OrderItem[]
+  products            Product[]
+  owner               User                 @relation(fields: [ownerId], references: [id], map: "stores_owner_id_user_fkey")
+  sellerProfile       SellerProfile?       @relation("SellerStores", fields: [ownerId], references: [userId], map: "stores_owner_id_seller_fkey")
+  disputes            Dispute[]
+  riskProfile         RiskProfile?         @relation("StoreRiskProfile")
+  riskSignals         RiskSignal[]         @relation("StoreRiskSignals")
+  platformCommissions PlatformCommission[]
+  sellerLedgerEntries SellerLedgerEntry[]
+  sellerBalance       SellerBalance?
+  payouts             Payout[]
 
   @@index([ownerId], map: "stores_ownerId_idx")
   @@index([isActive], map: "stores_isActive_idx")
@@ -282,6 +291,8 @@ model OrderItem {
   store               Store                 @relation(fields: [storeId], references: [id])
   variant             ProductVariant        @relation(fields: [variantId], references: [id])
   disputes            Dispute[]
+  platformCommission  PlatformCommission?
+  sellerLedgerEntries SellerLedgerEntry[]
 
   @@index([orderId], map: "order_items_orderId_idx")
   @@index([variantId], map: "order_items_variantId_idx")
@@ -368,6 +379,116 @@ model Refund {
   @@index([status], map: "refunds_status_idx")
   @@index([orderItemId], map: "refunds_order_item_id_idx")
   @@map("refunds")
+}
+
+model PlatformCommission {
+  id               String    @id @default(uuid()) @db.Uuid
+  orderItemId      String    @unique(map: "platform_commissions_order_item_id_key") @map("order_item_id") @db.Uuid
+  storeId          String    @map("store_id") @db.Uuid
+  sellerId         String    @map("seller_id") @db.Uuid
+  grossAmount      Decimal   @map("gross_amount") @db.Decimal(12, 2)
+  commissionRate   Decimal   @map("commission_rate") @db.Decimal(5, 4)
+  commissionAmount Decimal   @map("commission_amount") @db.Decimal(12, 2)
+  sellerNetAmount  Decimal   @map("seller_net_amount") @db.Decimal(12, 2)
+  currency         String    @db.VarChar(3)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  orderItem        OrderItem @relation(fields: [orderItemId], references: [id])
+  store            Store     @relation(fields: [storeId], references: [id])
+  seller           User      @relation("PlatformCommissionSeller", fields: [sellerId], references: [id])
+
+  @@index([storeId], map: "platform_commissions_store_id_idx")
+  @@index([sellerId], map: "platform_commissions_seller_id_idx")
+  @@index([createdAt], map: "platform_commissions_created_at_idx")
+  @@map("platform_commissions")
+}
+
+model SellerLedgerEntry {
+  id          String                  @id @default(uuid()) @db.Uuid
+  storeId     String                  @map("store_id") @db.Uuid
+  sellerId    String                  @map("seller_id") @db.Uuid
+  orderItemId String?                 @map("order_item_id") @db.Uuid
+  payoutId    String?                 @map("payout_id") @db.Uuid
+  type        SellerLedgerEntryType
+  status      SellerLedgerEntryStatus
+  amount      Decimal                 @db.Decimal(12, 2)
+  currency    String                  @db.VarChar(3)
+  description String
+  availableAt DateTime?               @map("available_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  orderItem   OrderItem?              @relation(fields: [orderItemId], references: [id])
+  payout      Payout?                 @relation(fields: [payoutId], references: [id])
+  payoutItem  PayoutItem?
+  seller      User                    @relation("SellerLedgerEntrySeller", fields: [sellerId], references: [id])
+  store       Store                   @relation(fields: [storeId], references: [id])
+
+  @@index([storeId], map: "seller_ledger_entries_store_id_idx")
+  @@index([sellerId], map: "seller_ledger_entries_seller_id_idx")
+  @@index([orderItemId], map: "seller_ledger_entries_order_item_id_idx")
+  @@index([payoutId], map: "seller_ledger_entries_payout_id_idx")
+  @@index([type], map: "seller_ledger_entries_type_idx")
+  @@index([status], map: "seller_ledger_entries_status_idx")
+  @@index([availableAt], map: "seller_ledger_entries_available_at_idx")
+  @@index([createdAt], map: "seller_ledger_entries_created_at_idx")
+  @@map("seller_ledger_entries")
+}
+
+model SellerBalance {
+  id              String   @id @default(uuid()) @db.Uuid
+  storeId         String   @unique(map: "seller_balances_store_id_key") @map("store_id") @db.Uuid
+  sellerId        String   @map("seller_id") @db.Uuid
+  pendingAmount   Decimal  @default(0) @map("pending_amount") @db.Decimal(12, 2)
+  availableAmount Decimal  @default(0) @map("available_amount") @db.Decimal(12, 2)
+  paidOutAmount   Decimal  @default(0) @map("paid_out_amount") @db.Decimal(12, 2)
+  currency        String   @db.VarChar(3)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  seller          User     @relation("SellerBalanceSeller", fields: [sellerId], references: [id])
+  store           Store    @relation(fields: [storeId], references: [id])
+
+  @@index([sellerId], map: "seller_balances_seller_id_idx")
+  @@map("seller_balances")
+}
+
+model Payout {
+  id            String              @id @default(uuid()) @db.Uuid
+  storeId       String              @map("store_id") @db.Uuid
+  sellerId      String              @map("seller_id") @db.Uuid
+  amount        Decimal             @db.Decimal(12, 2)
+  currency      String              @db.VarChar(3)
+  method        PayoutMethod
+  status        PayoutStatus        @default(PENDING)
+  reference     String?
+  adminNote     String?             @map("admin_note")
+  createdById   String              @map("created_by_id") @db.Uuid
+  paidAt        DateTime?           @map("paid_at")
+  failedAt      DateTime?           @map("failed_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  createdBy     User                @relation("PayoutCreatedBy", fields: [createdById], references: [id])
+  items         PayoutItem[]
+  ledgerEntries SellerLedgerEntry[]
+  seller        User                @relation("PayoutSeller", fields: [sellerId], references: [id])
+  store         Store               @relation(fields: [storeId], references: [id])
+
+  @@index([storeId], map: "payouts_store_id_idx")
+  @@index([sellerId], map: "payouts_seller_id_idx")
+  @@index([status], map: "payouts_status_idx")
+  @@index([createdById], map: "payouts_created_by_id_idx")
+  @@index([createdAt], map: "payouts_created_at_idx")
+  @@map("payouts")
+}
+
+model PayoutItem {
+  id            String            @id @default(uuid()) @db.Uuid
+  payoutId      String            @map("payout_id") @db.Uuid
+  ledgerEntryId String            @unique(map: "payout_items_ledger_entry_id_key") @map("ledger_entry_id") @db.Uuid
+  amount        Decimal           @db.Decimal(12, 2)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  ledgerEntry   SellerLedgerEntry @relation(fields: [ledgerEntryId], references: [id])
+  payout        Payout            @relation(fields: [payoutId], references: [id])
+
+  @@index([payoutId], map: "payout_items_payout_id_idx")
+  @@index([createdAt], map: "payout_items_created_at_idx")
+  @@map("payout_items")
 }
 
 model Cart {
@@ -1052,4 +1173,32 @@ enum RiskSignalType {
   SELLER_SUSPENDED
   REVIEW_HIDDEN
   ORDER_CANCELLED
+}
+
+enum SellerLedgerEntryType {
+  CREDIT
+  DEBIT
+  HOLD
+  REFUND
+  ADJUSTMENT
+}
+
+enum SellerLedgerEntryStatus {
+  PENDING
+  AVAILABLE
+  PAID_OUT
+  CANCELLED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PayoutMethod {
+  MANUAL
+  BANK_TRANSFER
 }
