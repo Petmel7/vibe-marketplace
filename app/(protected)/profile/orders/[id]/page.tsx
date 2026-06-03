@@ -7,6 +7,7 @@ import ProfileSection from '@/components/profile/ProfileSection'
 import StatusBadge from '@/components/profile/StatusBadge'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import ReportButton from '@/components/abuse-reports/ReportButton'
+import DisputeFormDialog from '@/components/disputes/DisputeFormDialog'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { formatPrice } from '@/utils/formatters/price'
@@ -75,6 +76,12 @@ export default async function ProfileOrderDetailPage({
           triggerLabel="Повідомити про проблему"
           title="Поскаржитися на замовлення"
         />
+        <DisputeFormDialog
+          orderId={order.id}
+          title="Відкрити суперечку по замовленню"
+          description="Опишіть проблему з усім замовленням або використайте кнопку нижче для конкретної позиції."
+          triggerLabel="Відкрити суперечку"
+        />
         <Link href="/profile/orders" className="ui-link-muted">
           Back to orders
         </Link>
@@ -128,6 +135,16 @@ export default async function ProfileOrderDetailPage({
                       <dd className="mt-1 text-copy-primary">{item.variantSnapshot || 'Standard option'}</dd>
                     </div>
                   </dl>
+
+                  <div className="pt-2">
+                    <DisputeFormDialog
+                      orderId={order.id}
+                      orderItemId={item.id}
+                      title="Відкрити суперечку по товару"
+                      description={`Опишіть проблему саме для позиції "${item.productNameSnapshot}".`}
+                      triggerLabel="Суперечка по цій позиції"
+                    />
+                  </div>
                 </div>
               </article>
             ))}

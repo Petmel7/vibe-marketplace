@@ -13,9 +13,11 @@ export const API_ROUTES = {
   profileAddresses: '/api/profile/addresses',
   categoriesTree: '/api/categories/tree',
   reports: '/api/reports',
+  disputes: '/api/disputes',
   profileReports: '/api/profile/reports',
   adminReviews: '/api/admin/reviews',
   adminReports: '/api/admin/reports',
+  adminDisputes: '/api/admin/disputes',
   adminBadgeRules: '/api/admin/badge-rules',
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
   adminCategories: '/api/admin/categories',
@@ -37,6 +39,30 @@ export function getAdminEmailRetryRoute(id: string) {
 
 export function getOrderRoute(id: string) {
   return `/api/orders/${id}`
+}
+
+export function getDisputeRoute(id: string) {
+  return `${API_ROUTES.disputes}/${id}`
+}
+
+export function getDisputeMessagesRoute(id: string) {
+  return `${getDisputeRoute(id)}/messages`
+}
+
+export function getDisputeEvidenceRoute(id: string) {
+  return `${getDisputeRoute(id)}/evidence`
+}
+
+export function getAdminDisputeRoute(id: string) {
+  return `${API_ROUTES.adminDisputes}/${id}`
+}
+
+export function getAdminDisputeStatusRoute(id: string) {
+  return `${getAdminDisputeRoute(id)}/status`
+}
+
+export function getAdminDisputeResolveRoute(id: string) {
+  return `${getAdminDisputeRoute(id)}/resolve`
 }
 
 export function getWishlistItemRoute(productId: string) {
