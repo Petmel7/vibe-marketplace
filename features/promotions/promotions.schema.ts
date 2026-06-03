@@ -23,7 +23,7 @@ const promotionCodeSchema = z
   .min(1, 'Promotion code is required')
   .max(64, 'Promotion code must be 64 characters or fewer')
 
-const basePromotionSchema = z.object({
+export const createPromotionBaseSchema = z.object({
   code: promotionCodeSchema,
   name: z.string().trim().min(1, 'Promotion name is required').max(255),
   description: z.string().trim().max(2000).nullish(),
@@ -36,7 +36,7 @@ const basePromotionSchema = z.object({
   usageLimitPerUser: z.coerce.number().int().min(1).nullish(),
   startsAt: isoDateTimeSchema,
   endsAt: isoDateTimeSchema.nullish(),
-  isActive: z.boolean().optional().default(true),
+  isActive: z.boolean().optional(),
 })
 
 export const promotionQuerySchema = paginationSchema.extend({
@@ -45,12 +45,27 @@ export const promotionQuerySchema = paginationSchema.extend({
   code: z.string().trim().max(64).optional(),
 })
 
-export const createPromotionSchema = basePromotionSchema.superRefine((input, ctx) => {
-  const discountValue = Number.parseFloat(input.discountValue)
-  const minOrderAmount = input.minOrderAmount ? Number.parseFloat(input.minOrderAmount) : null
-  const maxDiscountAmount = input.maxDiscountAmount ? Number.parseFloat(input.maxDiscountAmount) : null
+type PromotionValidationInput = {
+  discountType?: PromotionDiscountType
+  discountValue?: string | null
+  minOrderAmount?: string | null
+  maxDiscountAmount?: string | null
+  startsAt?: string | null
+  endsAt?: string | null
+}
 
-  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+function applyPromotionValidationRules(
+  input: PromotionValidationInput,
+  ctx: z.RefinementCtx,
+) {
+  const discountValue =
+    typeof input.discountValue === 'string' ? Number.parseFloat(input.discountValue) : null
+  const minOrderAmount =
+    typeof input.minOrderAmount === 'string' ? Number.parseFloat(input.minOrderAmount) : null
+  const maxDiscountAmount =
+    typeof input.maxDiscountAmount === 'string' ? Number.parseFloat(input.maxDiscountAmount) : null
+
+  if (discountValue != null && (!Number.isFinite(discountValue) || discountValue <= 0)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['discountValue'],
@@ -58,7 +73,11 @@ export const createPromotionSchema = basePromotionSchema.superRefine((input, ctx
     })
   }
 
-  if (input.discountType === PromotionDiscountType.PERCENTAGE && discountValue > 100) {
+  if (
+    input.discountType === PromotionDiscountType.PERCENTAGE &&
+    discountValue != null &&
+    discountValue > 100
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['discountValue'],
@@ -82,7 +101,7 @@ export const createPromotionSchema = basePromotionSchema.superRefine((input, ctx
     })
   }
 
-  if (input.endsAt) {
+  if (input.startsAt && input.endsAt) {
     const startsAt = new Date(input.startsAt)
     const endsAt = new Date(input.endsAt)
     if (endsAt <= startsAt) {
@@ -93,12 +112,23 @@ export const createPromotionSchema = basePromotionSchema.superRefine((input, ctx
       })
     }
   }
+}
+
+export const createPromotionSchema = createPromotionBaseSchema.superRefine((input, ctx) => {
+  applyPromotionValidationRules(input, ctx)
 })
 
-export const updatePromotionSchema = createPromotionSchema
-  .partial()
-  .refine((input) => Object.keys(input).length > 0, {
-    message: 'At least one promotion field must be provided',
+export const updatePromotionBaseSchema = createPromotionBaseSchema.partial()
+
+export const updatePromotionSchema = updatePromotionBaseSchema.superRefine((input, ctx) => {
+  if (Object.keys(input).length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'At least one promotion field must be provided',
+    })
+  }
+
+  applyPromotionValidationRules(input, ctx)
   })
 
 export const updatePromotionStatusSchema = z.object({
