@@ -12,6 +12,8 @@ import PaymentMethodSelector from './PaymentMethodSelector'
 import CheckoutSubmitButton from './CheckoutSubmitButton'
 import CheckoutSummary from './CheckoutSummary'
 import LiqPayPaymentHandoff from './LiqPayPaymentHandoff'
+import CouponInput from './CouponInput'
+import AppliedCouponCard from './AppliedCouponCard'
 
 export default function CheckoutClient({
   initialCartId,
@@ -23,18 +25,26 @@ export default function CheckoutClient({
     isLoading,
     isSubmitting,
     isSavingAddress,
+    isApplyingCoupon,
     paymentHandoffAction,
     loadError,
     submitError,
     addressError,
     paymentMethodError,
+    couponCode,
+    couponError,
+    couponSuccessMessage,
+    appliedCouponCode,
     isEmpty,
     canSubmit,
     selectedAddressId,
     selectedPaymentMethod,
     setSelectedAddressId,
     setSelectedPaymentMethod,
+    setCouponCode,
     submitCheckout,
+    applyCoupon,
+    removeCoupon,
     addAddress,
   } = useCheckout(initialCartId)
 
@@ -100,6 +110,36 @@ export default function CheckoutClient({
       </div>
 
       <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+        <DashboardCard
+          title="Coupon"
+          description="Apply a marketplace coupon and refresh totals from the backend before placing the order."
+        >
+          <div className="space-y-4">
+            <CouponInput
+              value={couponCode}
+              onChange={setCouponCode}
+              onApply={() => {
+                void applyCoupon()
+              }}
+              disabled={isSubmitting}
+              isApplying={isApplyingCoupon}
+              errorMessage={couponError}
+              successMessage={couponSuccessMessage}
+            />
+
+            {preview.appliedPromotion ? (
+              <AppliedCouponCard
+                promotion={preview.appliedPromotion}
+                removable={Boolean(appliedCouponCode)}
+                disabled={isSubmitting || isApplyingCoupon}
+                onRemove={() => {
+                  void removeCoupon()
+                }}
+              />
+            ) : null}
+          </div>
+        </DashboardCard>
+
         <CheckoutSummary preview={preview} paymentMethod={selectedPaymentMethod} />
         <DashboardCard
           title="Підтвердження"

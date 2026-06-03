@@ -7,6 +7,7 @@ export const API_ROUTES = {
   cartItems: '/api/cart/items',
   checkoutPreview: '/api/checkout',
   checkoutSubmit: '/api/checkout',
+  checkoutPromotionApply: '/api/checkout/promotions/apply',
   notifications: '/api/notifications',
   notificationsUnreadCount: '/api/notifications/unread-count',
   notificationsReadAll: '/api/notifications/read-all',
@@ -20,6 +21,7 @@ export const API_ROUTES = {
   adminDisputes: '/api/admin/disputes',
   adminBadgeRules: '/api/admin/badge-rules',
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
+  adminPromotions: '/api/admin/promotions',
   adminCategories: '/api/admin/categories',
   adminCategoryReorder: '/api/admin/categories/reorder',
   adminEmails: '/api/admin/emails',
@@ -84,6 +86,14 @@ export function getAdminRiskStoreRoute(id: string) {
 
 export function getAdminPayoutDetailRoute(id: string) {
   return `${API_ROUTES.adminPayouts}/${id}`
+}
+
+export function getAdminPromotionDetailRoute(id: string) {
+  return `${API_ROUTES.adminPromotions}/${id}`
+}
+
+export function getAdminPromotionStatusRoute(id: string) {
+  return `${getAdminPromotionDetailRoute(id)}/status`
 }
 
 export function getAdminPayoutStatusRoute(id: string) {

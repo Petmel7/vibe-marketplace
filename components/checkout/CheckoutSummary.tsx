@@ -25,6 +25,12 @@ export default function CheckoutSummary({
           <dt>Subtotal</dt>
           <dd className="text-copy-primary">{formatPrice(preview.subtotal)}</dd>
         </div>
+        {Number(preview.discountAmount) > 0 ? (
+          <div className="flex items-center justify-between gap-4">
+            <dt>Discount</dt>
+            <dd className="text-copy-primary">-{formatPrice(preview.discountAmount)}</dd>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-4">
           <dt>Shipping</dt>
           <dd className="text-copy-primary">{formatPrice(preview.shippingAmount)}</dd>
@@ -33,6 +39,15 @@ export default function CheckoutSummary({
           <dt>Payment</dt>
           <dd className="text-copy-primary">{getPaymentMethodLabel(paymentMethod)}</dd>
         </div>
+        {preview.appliedPromotion ? (
+          <div className="flex items-center justify-between gap-4">
+            <dt>Promotion</dt>
+            <dd className="text-right text-copy-primary">
+              <span className="block font-medium">{preview.appliedPromotion.code}</span>
+              <span className="block text-xs text-copy-muted">{preview.appliedPromotion.name}</span>
+            </dd>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-4 border-t border-panelBorder pt-3 text-base font-semibold text-copy-strong">
           <dt>Total</dt>
           <dd>{formatPrice(preview.total)}</dd>
