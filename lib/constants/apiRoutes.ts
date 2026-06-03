@@ -23,6 +23,9 @@ export const API_ROUTES = {
   adminCategories: '/api/admin/categories',
   adminCategoryReorder: '/api/admin/categories/reorder',
   adminEmails: '/api/admin/emails',
+  adminRiskUsers: '/api/admin/risk/users',
+  adminRiskStores: '/api/admin/risk/stores',
+  adminRiskRecalculate: '/api/admin/risk/recalculate',
 } as const
 
 export const AUTH_PAGE_PATHS = ['/login', '/register'] as const
@@ -63,6 +66,14 @@ export function getAdminDisputeStatusRoute(id: string) {
 
 export function getAdminDisputeResolveRoute(id: string) {
   return `${getAdminDisputeRoute(id)}/resolve`
+}
+
+export function getAdminRiskUserRoute(id: string) {
+  return `${API_ROUTES.adminRiskUsers}/${id}`
+}
+
+export function getAdminRiskStoreRoute(id: string) {
+  return `${API_ROUTES.adminRiskStores}/${id}`
 }
 
 export function getWishlistItemRoute(productId: string) {
