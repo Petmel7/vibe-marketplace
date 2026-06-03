@@ -1,15 +1,28 @@
 export const PROMOTION_TYPES = ['COUPON_CODE', 'AUTOMATIC_DISCOUNT'] as const
 export const PROMOTION_DISCOUNT_TYPES = ['PERCENTAGE', 'FIXED_AMOUNT'] as const
 export const PROMOTION_DISPLAY_STATUSES = ['ACTIVE', 'SCHEDULED', 'EXPIRED', 'DISABLED'] as const
+export const PROMOTION_OWNER_TYPES = ['MARKETPLACE', 'SELLER'] as const
+export const PROMOTION_TARGET_TYPES = ['STORE', 'PRODUCT', 'CATEGORY'] as const
 
 export type PromotionType = (typeof PROMOTION_TYPES)[number]
 export type PromotionDiscountType = (typeof PROMOTION_DISCOUNT_TYPES)[number]
 export type PromotionDisplayStatus = (typeof PROMOTION_DISPLAY_STATUSES)[number]
+export type PromotionOwnerType = (typeof PROMOTION_OWNER_TYPES)[number]
+export type PromotionTargetType = (typeof PROMOTION_TARGET_TYPES)[number]
+
+export type PromotionTarget = {
+  id: string
+  targetType: PromotionTargetType
+  targetId: string
+  createdAt: string
+}
 
 export type AppliedPromotion = {
   id: string
   code: string
   name: string
+  ownerType: PromotionOwnerType
+  storeId: string | null
   type: PromotionType
   discountType: PromotionDiscountType
   discountValue: string
@@ -29,6 +42,8 @@ export type PromotionSummary = {
   code: string
   name: string
   description: string | null
+  ownerType: PromotionOwnerType
+  storeId: string | null
   type: PromotionType
   discountType: PromotionDiscountType
   discountValue: string
@@ -47,6 +62,7 @@ export type PromotionSummary = {
 
 export type PromotionDetail = PromotionSummary & {
   orderPromotionCount: number
+  targets: PromotionTarget[]
 }
 
 export type PromotionListResponse = {
@@ -54,6 +70,26 @@ export type PromotionListResponse = {
   page: number
   limit: number
   total: number
+}
+
+export type SellerPromotionProductOption = {
+  id: string
+  name: string
+  price: string
+  status: string
+}
+
+export type SellerPromotionCategoryOption = {
+  id: string
+  name: string
+  parentId: string | null
+  level: number
+}
+
+export type SellerPromotionStoreContext = {
+  id: string
+  name: string
+  slug: string
 }
 
 export function getPromotionTypeLabel(type: PromotionType) {
@@ -104,6 +140,26 @@ export function getPromotionDisplayStatusLabel(status: PromotionDisplayStatus) {
       return 'Expired'
     case 'DISABLED':
       return 'Disabled'
+  }
+}
+
+export function getPromotionOwnerLabel(ownerType: PromotionOwnerType) {
+  switch (ownerType) {
+    case 'MARKETPLACE':
+      return 'Marketplace coupon'
+    case 'SELLER':
+      return 'Store coupon'
+  }
+}
+
+export function getPromotionTargetTypeLabel(targetType: PromotionTargetType) {
+  switch (targetType) {
+    case 'STORE':
+      return 'Whole store'
+    case 'PRODUCT':
+      return 'Selected products'
+    case 'CATEGORY':
+      return 'Selected categories'
   }
 }
 

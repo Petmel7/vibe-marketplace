@@ -28,6 +28,7 @@ export const API_ROUTES = {
   adminRiskUsers: '/api/admin/risk/users',
   adminRiskStores: '/api/admin/risk/stores',
   adminRiskRecalculate: '/api/admin/risk/recalculate',
+  sellerPromotions: '/api/seller/promotions',
   sellerFinanceSummary: '/api/seller/finance/summary',
   sellerFinanceLedger: '/api/seller/finance/ledger',
   sellerFinancePayouts: '/api/seller/finance/payouts',
@@ -94,6 +95,14 @@ export function getAdminPromotionDetailRoute(id: string) {
 
 export function getAdminPromotionStatusRoute(id: string) {
   return `${getAdminPromotionDetailRoute(id)}/status`
+}
+
+export function getSellerPromotionDetailRoute(id: string) {
+  return `${API_ROUTES.sellerPromotions}/${id}`
+}
+
+export function getSellerPromotionStatusRoute(id: string) {
+  return `${getSellerPromotionDetailRoute(id)}/status`
 }
 
 export function getAdminPayoutStatusRoute(id: string) {

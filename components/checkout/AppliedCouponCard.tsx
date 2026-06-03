@@ -1,4 +1,4 @@
-import type { AppliedPromotion } from '@/types/promotions'
+import { getPromotionOwnerLabel, type AppliedPromotion } from '@/types/promotions'
 import { formatPrice } from '@/utils/formatters/price'
 
 export default function AppliedCouponCard({
@@ -13,6 +13,7 @@ export default function AppliedCouponCard({
   disabled?: boolean
 }) {
   const isAutomatic = promotion.type === 'AUTOMATIC_DISCOUNT'
+  const ownerLabel = getPromotionOwnerLabel(promotion.ownerType)
 
   return (
     <div className="rounded-2xl border border-brand-accent/25 bg-brand-accent/10 p-4">
@@ -25,6 +26,7 @@ export default function AppliedCouponCard({
             {promotion.code}
           </h3>
           <p className="text-sm text-copy-secondary">{promotion.name}</p>
+          <p className="text-sm text-copy-muted">{ownerLabel}</p>
         </div>
 
         <div className="flex items-center gap-3">
