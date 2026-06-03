@@ -1,6 +1,7 @@
 import { ReviewStatus, UserRole } from '@/app/generated/prisma/client'
 import { requireAdmin, requireBuyer, requireSeller } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { recordReviewHiddenRiskSignal } from '@/features/risk/risk.service'
 import {
   ReviewAlreadyExistsError,
   ReviewModerationReasonRequiredError,
@@ -46,6 +47,7 @@ import {
   type MyReviewRecord,
   type ReviewRecord,
 } from './review.repository'
+import { logError } from '@/utils/logger'
 
 const DEFAULT_CREATE_REVIEW_STATUS = ReviewStatus.PENDING
 
@@ -413,5 +415,16 @@ export async function moderateReview(
   })
 
   await recalculateProductRatingSummary(updated.productId)
+  if (updated.status === ReviewStatus.HIDDEN) {
+    void recordReviewHiddenRiskSignal({
+      reviewId: updated.id,
+      reviewerUserId: updated.userId,
+      storeId: updated.product.store.id,
+      productId: updated.productId,
+      reason: updated.moderationReason,
+    }).catch((error) => {
+      logError('review:moderate-risk-signal', error)
+    })
+  }
   return toReviewDto(updated)
 }

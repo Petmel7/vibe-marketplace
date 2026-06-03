@@ -11,6 +11,9 @@ vi.mock('@/features/notifications/events/notification.events', () => ({
   emitSellerApprovedNotificationEvent: vi.fn(),
   emitSellerRejectedNotificationEvent: vi.fn(),
 }))
+vi.mock('@/features/risk/risk.service', () => ({
+  recordSellerSuspensionRiskSignals: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/seller/seller-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
@@ -22,6 +25,7 @@ import {
   emitSellerApprovedNotificationEvent,
   emitSellerRejectedNotificationEvent,
 } from '@/features/notifications/events/notification.events'
+import * as riskService from '@/features/risk/risk.service'
 import {
   approveSeller,
   rejectSeller,
@@ -42,6 +46,7 @@ const mockEmitSellerApprovedEmailEvent = vi.mocked(emitSellerApprovedEmailEvent)
 const mockEmitSellerRejectedEmailEvent = vi.mocked(emitSellerRejectedEmailEvent)
 const mockEmitSellerApprovedNotificationEvent = vi.mocked(emitSellerApprovedNotificationEvent)
 const mockEmitSellerRejectedNotificationEvent = vi.mocked(emitSellerRejectedNotificationEvent)
+const mockRiskService = vi.mocked(riskService)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -88,6 +93,7 @@ beforeEach(() => {
   mockEmitSellerRejectedEmailEvent.mockResolvedValue(null)
   mockEmitSellerApprovedNotificationEvent.mockResolvedValue({} as never)
   mockEmitSellerRejectedNotificationEvent.mockResolvedValue({} as never)
+  mockRiskService.recordSellerSuspensionRiskSignals.mockResolvedValue([] as never)
 })
 
 // ---------------------------------------------------------------------------
@@ -205,6 +211,11 @@ describe('suspendSeller', () => {
       'Policy violation',
     )
     expect(mockRepo.deactivateSellerStores).toHaveBeenCalledWith(SELLER_USER_ID)
+    expect(mockRiskService.recordSellerSuspensionRiskSignals).toHaveBeenCalledWith({
+      sellerUserId: SELLER_USER_ID,
+      sellerId: SELLER_ID,
+      reason: 'Policy violation',
+    })
     expect(result.verificationStatus).toBe('SUSPENDED')
   })
 

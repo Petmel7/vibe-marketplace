@@ -14,6 +14,9 @@ vi.mock('@/features/notifications/events/notification.events', () => ({
   emitProductApprovedNotificationEvent: vi.fn(),
   emitProductRejectedNotificationEvent: vi.fn(),
 }))
+vi.mock('@/features/risk/risk.service', () => ({
+  recordProductRejectedRiskSignal: vi.fn(),
+}))
 
 import * as repo from '@/features/moderation/product/product-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
@@ -26,6 +29,7 @@ import {
   emitProductApprovedNotificationEvent,
   emitProductRejectedNotificationEvent,
 } from '@/features/notifications/events/notification.events'
+import * as riskService from '@/features/risk/risk.service'
 import {
   getPendingProductQueue,
   approveProduct,
@@ -45,6 +49,7 @@ const mockEmitProductApprovedEmailEvent = vi.mocked(emitProductApprovedEmailEven
 const mockEmitProductRejectedEmailEvent = vi.mocked(emitProductRejectedEmailEvent)
 const mockEmitProductApprovedNotificationEvent = vi.mocked(emitProductApprovedNotificationEvent)
 const mockEmitProductRejectedNotificationEvent = vi.mocked(emitProductRejectedNotificationEvent)
+const mockRiskService = vi.mocked(riskService)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -114,6 +119,7 @@ beforeEach(() => {
   mockEmitProductRejectedEmailEvent.mockResolvedValue(null)
   mockEmitProductApprovedNotificationEvent.mockResolvedValue({} as never)
   mockEmitProductRejectedNotificationEvent.mockResolvedValue({} as never)
+  mockRiskService.recordProductRejectedRiskSignal.mockResolvedValue(null as never)
 })
 
 describe('getPendingProductQueue', () => {
@@ -212,6 +218,12 @@ describe('rejectProduct', () => {
     expect(mockBadgeService.syncSystemNewBadgeForProduct).toHaveBeenCalledWith(updated)
     expect(mockEmitProductRejectedNotificationEvent).toHaveBeenCalledWith({
       productId: PRODUCT_ID,
+      reason: 'Violates content policy',
+    })
+    expect(mockRiskService.recordProductRejectedRiskSignal).toHaveBeenCalledWith({
+      productId: PRODUCT_ID,
+      ownerUserId: 'user-uuid-seller-001',
+      storeId: STORE_ID,
       reason: 'Violates content policy',
     })
   })

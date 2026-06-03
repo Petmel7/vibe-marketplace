@@ -23,6 +23,7 @@ import {
   emitProductApprovedNotificationEvent,
   emitProductRejectedNotificationEvent,
 } from '@/features/notifications/events/notification.events'
+import { recordProductRejectedRiskSignal } from '@/features/risk/risk.service'
 import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
@@ -123,6 +124,14 @@ export async function rejectProduct(
   })
   void emitProductRejectedNotificationEvent({ productId: updated.id, reason }).catch((error) => {
     logError('product-moderation:reject-notification', error)
+  })
+  void recordProductRejectedRiskSignal({
+    productId: updated.id,
+    ownerUserId: updated.store.ownerId,
+    storeId: updated.store.id,
+    reason,
+  }).catch((error) => {
+    logError('product-moderation:reject-risk-signal', error)
   })
   return toProductModerationDto(updated)
 }

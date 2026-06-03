@@ -16,11 +16,13 @@ import {
 import * as abuseReportRepository from './abuse-reports.repository'
 import * as abuseReportService from './abuse-reports.service'
 import * as notificationsService from '@/features/notifications/notifications.service'
+import * as riskService from '@/features/risk/risk.service'
 import * as reviewService from '@/features/review/review.service'
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('./abuse-reports.repository')
 vi.mock('@/features/notifications/notifications.service')
+vi.mock('@/features/risk/risk.service')
 vi.mock('@/features/review/review.service')
 vi.mock('@/utils/logger', () => ({
   logError: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock('@/utils/logger', () => ({
 
 const mockRepository = vi.mocked(abuseReportRepository)
 const mockNotifications = vi.mocked(notificationsService)
+const mockRiskService = vi.mocked(riskService)
 const mockReviewService = vi.mocked(reviewService)
 
 const buyerUser: SessionUser = {
@@ -130,6 +133,7 @@ describe('abuse-reports.service', () => {
     vi.clearAllMocks()
     mockNotifications.createAdminNotification.mockResolvedValue([] as never)
     mockNotifications.notifyUser.mockResolvedValue({} as never)
+    mockRiskService.recordAbuseReportCreatedRiskSignals.mockResolvedValue(undefined as never)
   })
 
   it('allows an authenticated user to create a product report', async () => {
@@ -151,6 +155,13 @@ describe('abuse-reports.service', () => {
       reason: AbuseReportReason.SPAM,
       description: 'Підозрілий товар',
     })
+    expect(mockRiskService.recordAbuseReportCreatedRiskSignals).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportId: 'report-1',
+        reporterId: buyerUser.id,
+        targetType: AbuseReportTargetType.PRODUCT,
+      }),
+    )
     expect(result.id).toBe('report-1')
     expect(result.targetPreview?.productName).toBe('Summer Dress')
   })

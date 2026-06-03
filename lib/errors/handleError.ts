@@ -131,6 +131,11 @@ import {
   InvalidDisputeEvidenceFileError,
   InvalidDisputeTransitionError,
 } from './dispute'
+import {
+  RiskProfileNotFoundError,
+  RiskSubjectNotFoundError,
+  RiskValidationError,
+} from './risk'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -184,7 +189,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof AbuseReportNotFoundError ||
     err instanceof AbuseReportTargetNotFoundError ||
     err instanceof EvidenceNotFoundError ||
-    err instanceof DisputeNotFoundError
+    err instanceof DisputeNotFoundError ||
+    err instanceof RiskProfileNotFoundError ||
+    err instanceof RiskSubjectNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -255,7 +262,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof DisputeValidationError ||
     err instanceof InvalidDisputeEvidenceFileError ||
     err instanceof DisputeEvidenceLimitExceededError ||
-    err instanceof InvalidDisputeTransitionError
+    err instanceof InvalidDisputeTransitionError ||
+    err instanceof RiskValidationError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

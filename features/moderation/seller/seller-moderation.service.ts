@@ -23,6 +23,7 @@ import {
   emitSellerApprovedNotificationEvent,
   emitSellerRejectedNotificationEvent,
 } from '@/features/notifications/events/notification.events'
+import { recordSellerSuspensionRiskSignals } from '@/features/risk/risk.service'
 import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
@@ -154,6 +155,13 @@ export async function suspendSeller(
   const updated = await updateSellerVerificationStatus(sellerId, 'SUSPENDED', admin.id, reason)
   // Deactivate all stores owned by this seller
   await deactivateSellerStores(seller.userId)
+  void recordSellerSuspensionRiskSignals({
+    sellerUserId: seller.userId,
+    sellerId,
+    reason,
+  }).catch((error) => {
+    logError('seller-moderation:suspend-risk-signal', error)
+  })
   return toSellerModerationDto(updated)
 }
 

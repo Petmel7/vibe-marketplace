@@ -27,6 +27,7 @@ import {
   createAdminNotification,
   notifyUser,
 } from '@/features/notifications/notifications.service'
+import { recordAbuseReportCreatedRiskSignals } from '@/features/risk/risk.service'
 import type {
   AdminReportQueueDto,
   MyReportDto,
@@ -533,6 +534,16 @@ export async function createReport(
 
   void notifyAdminsAboutNewReport(created).catch((error) => {
     logError('abuse-reports:create-report:notify-admins', error)
+  })
+  void recordAbuseReportCreatedRiskSignals({
+    reportId: created.id,
+    reporterId: user.id,
+    targetType: input.targetType,
+    targetId: input.targetId,
+    reason: input.reason,
+    targetContext: target as Parameters<typeof recordAbuseReportCreatedRiskSignals>[0]['targetContext'],
+  }).catch((error) => {
+    logError('abuse-reports:create-report:risk-signal', error)
   })
 
   return toSummaryDto(created)

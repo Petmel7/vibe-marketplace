@@ -30,11 +30,16 @@ vi.mock('@/features/notifications/events/notification.events', () => ({
   emitPaymentSucceededNotificationEvent: vi.fn(),
   emitSellerNewOrderNotificationEvents: vi.fn(),
 }))
+vi.mock('@/features/risk/risk.service', () => ({
+  recordPaymentFailedRiskSignal: vi.fn(),
+  recordRefundIssuedRiskSignals: vi.fn(),
+}))
 
 import * as repo from '@/features/payments/payment.repository'
 import * as authGuards from '@/lib/auth/guards'
 import * as emailEvents from '@/features/email/events/email.events'
 import * as notificationEvents from '@/features/notifications/events/notification.events'
+import * as riskService from '@/features/risk/risk.service'
 import {
   getAdminPayments,
   markManualPaymentPaid,
@@ -54,6 +59,7 @@ const mockRepo = vi.mocked(repo)
 const mockAuthGuards = vi.mocked(authGuards)
 const mockEmailEvents = vi.mocked(emailEvents)
 const mockNotificationEvents = vi.mocked(notificationEvents)
+const mockRiskService = vi.mocked(riskService)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -97,8 +103,19 @@ function makePayment(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     order: {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      userId: 'buyer-1',
       status: 'pending',
       totalAmount: { toString: () => '99.98' },
+      items: [
+        {
+          storeId: 'store-1',
+          store: {
+            id: 'store-1',
+            ownerId: 'seller-1',
+            name: 'Store 1',
+          },
+        },
+      ],
     },
     attempts: [],
     refunds: [],
@@ -116,6 +133,8 @@ beforeEach(() => {
   mockNotificationEvents.emitPaymentFailedNotificationEvent.mockResolvedValue(null)
   mockNotificationEvents.emitPaymentSucceededNotificationEvent.mockResolvedValue(null)
   mockNotificationEvents.emitSellerNewOrderNotificationEvents.mockResolvedValue([])
+  mockRiskService.recordPaymentFailedRiskSignal.mockResolvedValue(null as never)
+  mockRiskService.recordRefundIssuedRiskSignals.mockResolvedValue([] as never)
   process.env.LIQPAY_PUBLIC_KEY = 'test-public-key'
   process.env.LIQPAY_PRIVATE_KEY = LIQPAY_PRIVATE_KEY
   process.env.LIQPAY_SANDBOX = 'false'
@@ -330,6 +349,13 @@ describe('processPaymentWebhook', () => {
     expect(mockNotificationEvents.emitPaymentFailedNotificationEvent).toHaveBeenCalledWith({
       paymentId: '99999999-9999-4999-8999-999999999999',
     })
+    expect(mockRiskService.recordPaymentFailedRiskSignal).toHaveBeenCalledWith({
+      paymentId: '99999999-9999-4999-8999-999999999999',
+      userId: 'buyer-1',
+      orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      paymentMethod: 'CARD',
+      paymentProvider: 'LIQPAY',
+    })
     expect(result.status).toBe('FAILED')
   })
 
@@ -467,6 +493,12 @@ describe('admin payment mutations', () => {
     })
 
     expect(result.status).toBe('REFUNDED')
+    expect(mockRiskService.recordRefundIssuedRiskSignals).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refundId: 'refund-1',
+        orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      }),
+    )
   })
 
   it('throws when admin asks for a payment that does not exist', async () => {

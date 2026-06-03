@@ -9,6 +9,7 @@ import {
 } from '@/lib/errors/review'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import * as reviewRepository from './review.repository'
+import * as riskService from '@/features/risk/risk.service'
 import {
   createReview,
   deleteMyReview,
@@ -23,6 +24,7 @@ import {
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('./review.repository')
+vi.mock('@/features/risk/risk.service')
 vi.mock('@/lib/auth/guards', () => ({
   requireBuyer: vi.fn(),
   requireSeller: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock('@/lib/auth/guards', () => ({
 }))
 
 const mockRepository = vi.mocked(reviewRepository)
+const mockRiskService = vi.mocked(riskService)
 
 const buyerUser: SessionUser = {
   id: 'buyer-1',
@@ -108,6 +111,7 @@ function makeRatingSummary(overrides: Record<string, unknown> = {}) {
 describe('review.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRiskService.recordReviewHiddenRiskSignal.mockResolvedValue(null as never)
   })
 
   it('returns a safe ineligible state for anonymous review eligibility', async () => {
@@ -520,5 +524,34 @@ describe('review.service', () => {
     )
     expect(mockRepository.recalculateProductRatingSummary).toHaveBeenCalledWith('product-1')
     expect(result.status).toBe('PUBLISHED')
+  })
+
+  it('records a review-hidden risk signal when admin hides a review', async () => {
+    mockRepository.findReviewById.mockResolvedValue(
+      makeReviewRecord({ status: ReviewStatus.PUBLISHED }) as never,
+    )
+    mockRepository.updateReviewRecord.mockResolvedValue(
+      makeReviewRecord({
+        status: ReviewStatus.HIDDEN,
+        moderatedAt: new Date('2026-06-01T16:30:00.000Z'),
+        moderatedBy: adminUser.id,
+        moderationReason: 'Spam content',
+      }) as never,
+    )
+    mockRepository.recalculateProductRatingSummary.mockResolvedValue(makeRatingSummary() as never)
+
+    const result = await moderateReview(adminUser, 'review-1', {
+      action: 'hide',
+      moderationReason: 'Spam content',
+    })
+
+    expect(mockRiskService.recordReviewHiddenRiskSignal).toHaveBeenCalledWith({
+      reviewId: 'review-1',
+      reviewerUserId: buyerUser.id,
+      storeId: 'store-1',
+      productId: 'product-1',
+      reason: 'Spam content',
+    })
+    expect(result.status).toBe('HIDDEN')
   })
 })

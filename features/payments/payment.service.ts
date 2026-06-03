@@ -13,6 +13,10 @@ import {
   emitPaymentSucceededNotificationEvent,
   emitSellerNewOrderNotificationEvents,
 } from '@/features/notifications/events/notification.events'
+import {
+  recordPaymentFailedRiskSignal,
+  recordRefundIssuedRiskSignals,
+} from '@/features/risk/risk.service'
 import { logError } from '@/utils/logger'
 import {
   applyFailedPayment,
@@ -60,7 +64,22 @@ type PaymentRecord = NonNullable<Awaited<ReturnType<typeof findPaymentById>>>
 type PaymentListRecord = Awaited<ReturnType<typeof listPayments>>[number]
 type PaymentCheckoutSession = NonNullable<Awaited<ReturnType<typeof findPaymentCheckoutSessionById>>>
 
-function toPaymentDto(payment: PaymentRecord): PaymentDto {
+function toPaymentDto(payment: {
+  id: string
+  orderId: string
+  provider: PaymentProvider
+  providerPaymentId: string | null
+  status: PaymentStatus
+  method: PaymentMethod
+  amount: { toString(): string }
+  currency: string
+  checkoutUrl: string | null
+  failureReason: string | null
+  paidAt: Date | null
+  expiresAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}): PaymentDto {
   return {
     id: payment.id,
     orderId: payment.orderId,
@@ -177,6 +196,21 @@ function assertPaymentAmountMatchesOrder(
   if (event.currency && event.currency !== payment.currency) {
     throw new mismatchError('Webhook currency does not match the stored payment record')
   }
+}
+
+function getUniqueOrderStoresForRisk(payment: PaymentRecord) {
+  const stores = new Map<string, { storeId: string; ownerId: string }>()
+
+  for (const item of payment.order.items ?? []) {
+    if (!stores.has(item.storeId)) {
+      stores.set(item.storeId, {
+        storeId: item.store.id,
+        ownerId: item.store.ownerId,
+      })
+    }
+  }
+
+  return [...stores.values()]
 }
 
 export function resolveHostedCheckoutRedirectUrl(paymentId: string) {
@@ -337,7 +371,7 @@ export async function refundPaymentByAdmin(
     reason: input.reason ?? null,
   })
 
-  await createRefundRecord({
+  const refund = await createRefundRecord({
     paymentId: payment.id,
     providerRefundId: refundResult.providerRefundId,
     status: refundResult.status,
@@ -349,6 +383,16 @@ export async function refundPaymentByAdmin(
     paymentId: payment.id,
     amount: refundAmount,
     fullAmount: refundAmount.equals(new Decimal(payment.amount.toString())),
+  })
+
+  void recordRefundIssuedRiskSignals({
+    refundId: refund.id,
+    orderId: payment.orderId,
+    amount: refundAmount.toFixed(2),
+    reason: input.reason ?? null,
+    stores: getUniqueOrderStoresForRisk(payment),
+  }).catch((error) => {
+    logError('payments:refund:risk-signal', error)
   })
 
   const updated = await findPaymentById(payment.id)
@@ -450,7 +494,7 @@ export async function processPaymentWebhook(
       payment.status !== PaymentStatus.REFUNDED &&
       payment.status !== PaymentStatus.PARTIALLY_REFUNDED
     ) {
-      await createRefundRecord({
+      const refund = await createRefundRecord({
         paymentId: payment.id,
         providerRefundId: parsedEvent.providerEventId,
         status: 'SUCCEEDED',
@@ -462,6 +506,16 @@ export async function processPaymentWebhook(
         paymentId: payment.id,
         amount: new Decimal(payment.amount.toString()),
         fullAmount: true,
+      })
+
+      void recordRefundIssuedRiskSignals({
+        refundId: refund.id,
+        orderId: payment.orderId,
+        amount: payment.amount.toString(),
+        reason: 'LiqPay reversed payment',
+        stores: getUniqueOrderStoresForRisk(payment),
+      }).catch((error) => {
+        logError('payments:webhook:refund-risk-signal', error)
       })
     }
   } else if (
@@ -479,6 +533,15 @@ export async function processPaymentWebhook(
       })
       void emitPaymentFailedNotificationEvent({ paymentId: payment.id }).catch((error) => {
         logError('payments:webhook:payment-failed-notification', error)
+      })
+      void recordPaymentFailedRiskSignal({
+        paymentId: payment.id,
+        userId: payment.order.userId,
+        orderId: payment.orderId,
+        paymentMethod: payment.method,
+        paymentProvider: payment.provider,
+      }).catch((error) => {
+        logError('payments:webhook:payment-failed-risk-signal', error)
       })
     }
   } else if (

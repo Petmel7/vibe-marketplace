@@ -5,6 +5,10 @@ import {
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { createAdminNotification, notifyUser } from '@/features/notifications/notifications.service'
+import {
+  recordDisputeLostRiskSignal,
+  recordDisputeOpenedRiskSignal,
+} from '@/features/risk/risk.service'
 import { requireAdmin, requireBuyer, requireSeller } from '@/lib/auth/guards'
 import {
   DisputeEvidenceLimitExceededError,
@@ -500,6 +504,17 @@ export async function createDispute(
   })
 
   sendDisputeOpenedNotifications(created)
+  runNonBlocking(
+    'disputes:create:risk-signal',
+    recordDisputeOpenedRiskSignal({
+      disputeId: created.id,
+      respondentId: created.respondentId,
+      storeId: created.storeId,
+      orderId: created.orderId,
+      reason: created.reason,
+      priority: created.priority,
+    }),
+  )
 
   return toDisputeDetailDto(created, 'buyer')
 }
@@ -693,6 +708,19 @@ export async function resolveAdminDispute(
   })
 
   sendDisputeStatusChangedNotifications(updated)
+  if (updated.status === DisputeStatus.RESOLVED) {
+    runNonBlocking(
+      'disputes:resolve:risk-signal',
+      recordDisputeLostRiskSignal({
+        disputeId: updated.id,
+        respondentId: updated.respondentId,
+        storeId: updated.storeId,
+        orderId: updated.orderId,
+        status: updated.status,
+        resolutionNote: updated.resolutionNote,
+      }),
+    )
+  }
 
   return toDisputeDetailDto(updated, 'admin')
 }

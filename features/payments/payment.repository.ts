@@ -13,7 +13,22 @@ import { PaymentWebhookDuplicateError } from '@/lib/errors/payment'
 import type { PaymentDiagnosticsQueryDto } from './payment.dto'
 
 const paymentDetailInclude = {
-  order: true,
+  order: {
+    include: {
+      items: {
+        select: {
+          storeId: true,
+          store: {
+            select: {
+              id: true,
+              ownerId: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  },
   attempts: {
     orderBy: { createdAt: 'desc' },
   },

@@ -11,12 +11,14 @@ import {
   DuplicateDisputeError,
 } from '@/lib/errors/dispute'
 import * as notificationsService from '@/features/notifications/notifications.service'
+import * as riskService from '@/features/risk/risk.service'
 import * as disputeRepository from './disputes.repository'
 import * as disputeStorageRepository from './disputes.storage.repository'
 import {
   addDisputeMessage,
   createDispute,
   getDisputeById,
+  resolveAdminDispute,
   updateAdminDisputeStatus,
   uploadDisputeEvidence,
 } from './disputes.service'
@@ -25,11 +27,13 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('./disputes.repository')
 vi.mock('./disputes.storage.repository')
 vi.mock('@/features/notifications/notifications.service')
+vi.mock('@/features/risk/risk.service')
 vi.mock('@/utils/logger', () => ({ logError: vi.fn() }))
 
 const mockRepository = vi.mocked(disputeRepository)
 const mockStorage = vi.mocked(disputeStorageRepository)
 const mockNotifications = vi.mocked(notificationsService)
+const mockRiskService = vi.mocked(riskService)
 
 const buyerUser: SessionUser = {
   id: 'buyer-1',
@@ -175,6 +179,8 @@ describe('disputes.service', () => {
     vi.clearAllMocks()
     mockNotifications.createAdminNotification.mockResolvedValue([] as never)
     mockNotifications.notifyUser.mockResolvedValue({} as never)
+    mockRiskService.recordDisputeOpenedRiskSignal.mockResolvedValue(null as never)
+    mockRiskService.recordDisputeLostRiskSignal.mockResolvedValue(null as never)
     mockStorage.createSignedDisputeEvidenceUrl.mockResolvedValue('https://signed.example/evidence')
   })
 
@@ -214,6 +220,14 @@ describe('disputes.service', () => {
           disputeId: 'dispute-1',
           orderId: 'order-1',
         }),
+      }),
+    )
+    expect(mockRiskService.recordDisputeOpenedRiskSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disputeId: 'dispute-1',
+        orderId: 'order-1',
+        respondentId: sellerUser.id,
+        storeId: 'store-1',
       }),
     )
     expect(result.id).toBe('dispute-1')
@@ -283,6 +297,34 @@ describe('disputes.service', () => {
     )
     expect(mockNotifications.notifyUser).toHaveBeenCalled()
     expect(result.status).toBe(DisputeStatus.UNDER_REVIEW)
+  })
+
+  it('records a dispute-lost risk signal when admins resolve a seller-actionable dispute', async () => {
+    mockRepository.findDisputeById.mockResolvedValue(
+      makeDisputeRecord({ status: DisputeStatus.UNDER_REVIEW }) as never,
+    )
+    mockRepository.updateDisputeStatusRecord.mockResolvedValue(
+      makeDisputeRecord({
+        status: DisputeStatus.RESOLVED,
+        resolutionNote: 'Refund recommended',
+        updatedAt: new Date('2026-06-02T11:20:00.000Z'),
+      }) as never,
+    )
+
+    const result = await resolveAdminDispute(adminUser, 'dispute-1', {
+      status: DisputeStatus.RESOLVED,
+      resolutionNote: 'Refund recommended',
+    })
+
+    expect(mockRiskService.recordDisputeLostRiskSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disputeId: 'dispute-1',
+        respondentId: sellerUser.id,
+        storeId: 'store-1',
+        status: DisputeStatus.RESOLVED,
+      }),
+    )
+    expect(result.status).toBe(DisputeStatus.RESOLVED)
   })
 
   it('hides internal notes from buyers and sellers but keeps them visible for admins', async () => {
