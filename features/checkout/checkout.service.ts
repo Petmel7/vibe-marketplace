@@ -25,6 +25,7 @@ import {
   resolveHostedCheckoutRedirectUrl,
   resolveCheckoutOrderStatus,
 } from '@/features/payments/payment.service'
+import { materializeSellerFinanceForOrderAction } from '@/features/payouts/payouts.service'
 import {
   EmptyCartError,
   CartOwnershipError,
@@ -413,6 +414,9 @@ export async function checkout(
     logError('checkout:order-created-notification', error)
   })
   if (payment.method === 'CASH_ON_DELIVERY' && order.status === 'confirmed') {
+    void materializeSellerFinanceForOrderAction(order.id).catch((error) => {
+      logError('checkout:seller-finance-materialization', error)
+    })
     void emitSellerNewOrderNotificationEventsForOrder({ orderId: order.id }).catch((error) => {
       logError('checkout:seller-new-order-notification', error)
     })

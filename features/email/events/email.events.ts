@@ -3,6 +3,7 @@ import { enqueueEmailEvent } from '../queue/email.queue'
 import {
   findOrderNotificationContext,
   findPaymentNotificationContext,
+  findPayoutNotificationContext,
   findProductNotificationContext,
   findUserNotificationContext,
 } from '../email.repository'
@@ -12,6 +13,7 @@ import type {
   PaymentFailedEmailPayload,
   PaymentSucceededEmailPayload,
   SellerNewOrderEmailPayload,
+  SellerPayoutPaidEmailPayload,
 } from '../email.dto'
 
 function buildAppUrl(path: string): string {
@@ -197,6 +199,34 @@ function buildSellerNewOrderPayload(input: {
   }
 }
 
+function buildSellerPayoutPaidPayload(input: {
+  payout: {
+    amount: { toString(): string }
+    currency: string
+    id: string
+    method: string
+    paidAt: Date | null
+    status: string
+    store: { name: string }
+    seller: {
+      email: string | null
+      name?: string | null
+      profile?: { displayName?: string | null } | null
+    }
+  }
+}): SellerPayoutPaidEmailPayload {
+  return {
+    amount: input.payout.amount.toString(),
+    currency: input.payout.currency,
+    paidAt: input.payout.paidAt?.toISOString() ?? null,
+    payoutId: input.payout.id,
+    payoutMethod: input.payout.method,
+    payoutStatus: input.payout.status,
+    sellerName: input.payout.seller.profile?.displayName ?? input.payout.seller.name ?? null,
+    storeName: input.payout.store.name,
+  }
+}
+
 export async function emitWelcomeEmailEvent(input: {
   email: string
   userId: string
@@ -368,6 +398,22 @@ export async function emitSellerNewOrderEmailEvents(input: {
       })
     }),
   )
+}
+
+export async function emitSellerPayoutPaidEmailEvent(input: { payoutId: string }) {
+  const payout = await findPayoutNotificationContext(input.payoutId)
+  if (!payout?.seller.email) {
+    return null
+  }
+
+  return enqueueEmailEvent({
+    eventType: 'SELLER_PAYOUT_PAID',
+    dedupeKey: `seller-payout-paid:${payout.id}:${payout.seller.id}`,
+    recipientEmail: payout.seller.email,
+    recipientUserId: payout.seller.id,
+    template: 'SELLER_PAYOUT_PAID_EMAIL',
+    payload: buildSellerPayoutPaidPayload({ payout }),
+  })
 }
 
 export async function emitSellerApprovedEmailEvent(input: {

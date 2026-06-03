@@ -34,12 +34,16 @@ vi.mock('@/features/risk/risk.service', () => ({
   recordPaymentFailedRiskSignal: vi.fn(),
   recordRefundIssuedRiskSignals: vi.fn(),
 }))
+vi.mock('@/features/payouts/payouts.service', () => ({
+  materializeSellerFinanceForOrderAction: vi.fn(),
+}))
 
 import * as repo from '@/features/payments/payment.repository'
 import * as authGuards from '@/lib/auth/guards'
 import * as emailEvents from '@/features/email/events/email.events'
 import * as notificationEvents from '@/features/notifications/events/notification.events'
 import * as riskService from '@/features/risk/risk.service'
+import * as payoutService from '@/features/payouts/payouts.service'
 import {
   getAdminPayments,
   markManualPaymentPaid,
@@ -60,6 +64,7 @@ const mockAuthGuards = vi.mocked(authGuards)
 const mockEmailEvents = vi.mocked(emailEvents)
 const mockNotificationEvents = vi.mocked(notificationEvents)
 const mockRiskService = vi.mocked(riskService)
+const mockPayoutService = vi.mocked(payoutService)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -135,6 +140,12 @@ beforeEach(() => {
   mockNotificationEvents.emitSellerNewOrderNotificationEvents.mockResolvedValue([])
   mockRiskService.recordPaymentFailedRiskSignal.mockResolvedValue(null as never)
   mockRiskService.recordRefundIssuedRiskSignals.mockResolvedValue([] as never)
+  mockPayoutService.materializeSellerFinanceForOrderAction.mockResolvedValue({
+    orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    createdCommissionCount: 1,
+    createdLedgerEntryCount: 1,
+    skippedOrderItemCount: 0,
+  } as never)
   process.env.LIQPAY_PUBLIC_KEY = 'test-public-key'
   process.env.LIQPAY_PRIVATE_KEY = LIQPAY_PRIVATE_KEY
   process.env.LIQPAY_SANDBOX = 'false'
@@ -233,6 +244,9 @@ describe('processPaymentWebhook', () => {
     expect(mockNotificationEvents.emitSellerNewOrderNotificationEvents).toHaveBeenCalledWith({
       paymentId: '99999999-9999-4999-8999-999999999999',
     })
+    expect(mockPayoutService.materializeSellerFinanceForOrderAction).toHaveBeenCalledWith(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    )
     expect(mockRepo.markWebhookProcessed).toHaveBeenCalledWith('webhook-1', expect.any(Date))
     expect(result.status).toBe('SUCCEEDED')
     expect(result.duplicate).toBe(false)

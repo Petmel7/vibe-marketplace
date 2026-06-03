@@ -62,6 +62,17 @@ export const sellerNewOrderEmailPayloadSchema = z.object({
   totalAmount: z.string().min(1),
 })
 
+export const sellerPayoutPaidEmailPayloadSchema = z.object({
+  amount: z.string().min(1),
+  currency: z.string().trim().min(1),
+  paidAt: z.string().datetime().nullable(),
+  payoutId: z.uuid(),
+  payoutMethod: z.string().trim().min(1),
+  payoutStatus: z.string().trim().min(1),
+  sellerName: z.string().trim().min(1).nullable(),
+  storeName: z.string().trim().min(1),
+})
+
 export const sellerApprovedEmailPayloadSchema = z.object({
   businessName: z.string().trim().min(1).nullable(),
 })
@@ -91,6 +102,7 @@ export const emailTemplatePayloadSchemaMap = {
   PRODUCT_REJECTED_EMAIL: productRejectedEmailPayloadSchema,
   SELLER_APPROVED_EMAIL: sellerApprovedEmailPayloadSchema,
   SELLER_NEW_ORDER_EMAIL: sellerNewOrderEmailPayloadSchema,
+  SELLER_PAYOUT_PAID_EMAIL: sellerPayoutPaidEmailPayloadSchema,
   SELLER_REJECTED_EMAIL: sellerRejectedEmailPayloadSchema,
   WELCOME_EMAIL: welcomeEmailPayloadSchema,
 } as const

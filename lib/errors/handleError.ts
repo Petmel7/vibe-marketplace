@@ -136,6 +136,15 @@ import {
   RiskSubjectNotFoundError,
   RiskValidationError,
 } from './risk'
+import {
+  CommissionCalculationError,
+  DuplicateLedgerEntryError,
+  InsufficientAvailableBalanceError,
+  InvalidPayoutTransitionError,
+  PayoutNotFoundError,
+  PayoutOwnershipError,
+  SellerBalanceNotFoundError,
+} from './payout'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -163,7 +172,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ReviewSelfReviewForbiddenError ||
     err instanceof AbuseReportOwnershipError ||
     err instanceof EvidenceOwnershipError ||
-    err instanceof DisputeOwnershipError
+    err instanceof DisputeOwnershipError ||
+    err instanceof PayoutOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -191,7 +201,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof EvidenceNotFoundError ||
     err instanceof DisputeNotFoundError ||
     err instanceof RiskProfileNotFoundError ||
-    err instanceof RiskSubjectNotFoundError
+    err instanceof RiskSubjectNotFoundError ||
+    err instanceof PayoutNotFoundError ||
+    err instanceof SellerBalanceNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -215,7 +227,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof PaymentWebhookDuplicateError ||
     err instanceof ReviewAlreadyExistsError ||
     err instanceof DuplicateAbuseReportError ||
-    err instanceof DuplicateDisputeError
+    err instanceof DuplicateDisputeError ||
+    err instanceof DuplicateLedgerEntryError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -263,7 +276,10 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidDisputeEvidenceFileError ||
     err instanceof DisputeEvidenceLimitExceededError ||
     err instanceof InvalidDisputeTransitionError ||
-    err instanceof RiskValidationError
+    err instanceof RiskValidationError ||
+    err instanceof InsufficientAvailableBalanceError ||
+    err instanceof InvalidPayoutTransitionError ||
+    err instanceof CommissionCalculationError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

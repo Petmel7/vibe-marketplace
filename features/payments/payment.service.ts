@@ -17,6 +17,7 @@ import {
   recordPaymentFailedRiskSignal,
   recordRefundIssuedRiskSignals,
 } from '@/features/risk/risk.service'
+import { materializeSellerFinanceForOrderAction } from '@/features/payouts/payouts.service'
 import { logError } from '@/utils/logger'
 import {
   applyFailedPayment,
@@ -487,6 +488,9 @@ export async function processPaymentWebhook(
       })
       void emitSellerNewOrderNotificationEvents({ paymentId: payment.id }).catch((error) => {
         logError('payments:webhook:seller-new-order-notification', error)
+      })
+      void materializeSellerFinanceForOrderAction(payment.orderId).catch((error) => {
+        logError('payments:webhook:seller-finance-materialization', error)
       })
     }
   } else if (parsedEvent.status === PaymentStatus.REFUNDED) {

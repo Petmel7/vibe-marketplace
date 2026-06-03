@@ -356,3 +356,35 @@ export async function findProductNotificationContext(productId: string) {
     },
   })
 }
+
+export async function findPayoutNotificationContext(payoutId: string) {
+  return prisma.payout.findUnique({
+    where: { id: payoutId },
+    select: {
+      id: true,
+      amount: true,
+      currency: true,
+      paidAt: true,
+      method: true,
+      status: true,
+      store: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      seller: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          profile: {
+            select: {
+              displayName: true,
+            },
+          },
+        },
+      },
+    },
+  })
+}

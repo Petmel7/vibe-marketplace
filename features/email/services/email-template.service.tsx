@@ -15,6 +15,7 @@ import ProductApprovedEmail from '../templates/ProductApprovedEmail'
 import ProductRejectedEmail from '../templates/ProductRejectedEmail'
 import SellerApprovedEmail from '../templates/SellerApprovedEmail'
 import SellerNewOrderEmail from '../templates/SellerNewOrderEmail'
+import SellerPayoutPaidEmail from '../templates/SellerPayoutPaidEmail'
 import SellerRejectedEmail from '../templates/SellerRejectedEmail'
 import WelcomeEmail from '../templates/WelcomeEmail'
 
@@ -65,6 +66,10 @@ const templateDefinitions: {
   SELLER_NEW_ORDER_EMAIL: {
     render: (payload) => <SellerNewOrderEmail {...payload} />,
     subject: (payload) => `New paid order for ${payload.storeName}`,
+  },
+  SELLER_PAYOUT_PAID_EMAIL: {
+    render: (payload) => <SellerPayoutPaidEmail {...payload} />,
+    subject: (payload) => `Payout sent for ${payload.storeName}`,
   },
 }
 

@@ -16,6 +16,9 @@ vi.mock('@/features/payments/payment.service', () => ({
   resolveHostedCheckoutRedirectUrl: vi.fn(),
   resolveCheckoutOrderStatus: vi.fn(),
 }))
+vi.mock('@/features/payouts/payouts.service', () => ({
+  materializeSellerFinanceForOrderAction: vi.fn(),
+}))
 
 import * as repo from '@/features/checkout/checkout.repository'
 import * as guards from '@/lib/auth/guards'
@@ -25,6 +28,7 @@ import {
   emitSellerNewOrderNotificationEventsForOrder,
 } from '@/features/notifications/events/notification.events'
 import * as paymentService from '@/features/payments/payment.service'
+import * as payoutService from '@/features/payouts/payouts.service'
 import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import {
   CartOwnershipError,
@@ -45,6 +49,7 @@ const mockEmitSellerNewOrderNotificationEventsForOrder = vi.mocked(
   emitSellerNewOrderNotificationEventsForOrder,
 )
 const mockPaymentService = vi.mocked(paymentService)
+const mockPayoutService = vi.mocked(payoutService)
 
 const USER_ID = 'user-0000-0000-0000-000000000001'
 const CART_ID = 'cart-0000-0000-0000-000000000002'
@@ -215,6 +220,12 @@ beforeEach(() => {
   mockEmitOrderCreatedEmailEvent.mockResolvedValue(null)
   mockEmitOrderCreatedNotificationEvent.mockResolvedValue(null)
   mockEmitSellerNewOrderNotificationEventsForOrder.mockResolvedValue([])
+  mockPayoutService.materializeSellerFinanceForOrderAction.mockResolvedValue({
+    orderId: ORDER_ID,
+    createdCommissionCount: 1,
+    createdLedgerEntryCount: 1,
+    skippedOrderItemCount: 0,
+  } as never)
   mockPaymentService.prepareCheckoutPayment.mockResolvedValue({
     provider: 'MANUAL',
     providerPaymentId: mockPayment.id,
@@ -341,6 +352,7 @@ describe('checkout submit', () => {
     expect(mockEmitOrderCreatedEmailEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
     expect(mockEmitOrderCreatedNotificationEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
     expect(mockEmitSellerNewOrderNotificationEventsForOrder).toHaveBeenCalledWith({ orderId: ORDER_ID })
+    expect(mockPayoutService.materializeSellerFinanceForOrderAction).toHaveBeenCalledWith(ORDER_ID)
   })
 
   it('does not fail checkout when order created email enqueue fails', async () => {

@@ -11,6 +11,7 @@ export const EMAIL_EVENT_TYPES = [
   'PAYMENT_SUCCEEDED',
   'PAYMENT_FAILED',
   'SELLER_NEW_ORDER',
+  'SELLER_PAYOUT_PAID',
   'SELLER_APPROVED',
   'SELLER_REJECTED',
   'PRODUCT_APPROVED',
@@ -24,6 +25,7 @@ export const EMAIL_TEMPLATE_KEYS = [
   'PAYMENT_SUCCEEDED_EMAIL',
   'PAYMENT_FAILED_EMAIL',
   'SELLER_NEW_ORDER_EMAIL',
+  'SELLER_PAYOUT_PAID_EMAIL',
   'SELLER_APPROVED_EMAIL',
   'SELLER_REJECTED_EMAIL',
   'PRODUCT_APPROVED_EMAIL',
@@ -90,6 +92,17 @@ export interface SellerNewOrderEmailPayload {
   totalAmount: string
 }
 
+export interface SellerPayoutPaidEmailPayload {
+  amount: string
+  currency: string
+  paidAt: string | null
+  payoutId: string
+  payoutMethod: string
+  payoutStatus: string
+  sellerName: string | null
+  storeName: string
+}
+
 export interface SellerApprovedEmailPayload {
   businessName: string | null
 }
@@ -119,6 +132,7 @@ export type EmailTemplatePayloadMap = {
   PRODUCT_REJECTED_EMAIL: ProductRejectedEmailPayload
   SELLER_APPROVED_EMAIL: SellerApprovedEmailPayload
   SELLER_NEW_ORDER_EMAIL: SellerNewOrderEmailPayload
+  SELLER_PAYOUT_PAID_EMAIL: SellerPayoutPaidEmailPayload
   SELLER_REJECTED_EMAIL: SellerRejectedEmailPayload
   WELCOME_EMAIL: WelcomeEmailPayload
 }
