@@ -11,6 +11,18 @@ export async function findStoreShippingSettingsByStoreId(storeId: string) {
   })
 }
 
+export async function listStoreShippingSettingsByStoreIds(storeIds: string[]) {
+  if (storeIds.length === 0) {
+    return []
+  }
+
+  return prisma.storeShippingSettings.findMany({
+    where: {
+      storeId: { in: storeIds },
+    },
+  })
+}
+
 export async function upsertStoreShippingSettings(input: {
   storeId: string
   provider: ShippingProvider
@@ -60,9 +72,14 @@ export async function findOrderShipmentsByOrderId(orderId: string) {
       status: true,
       recipientCityRef: true,
       recipientCityName: true,
+      recipientStreet: true,
+      recipientBuilding: true,
+      recipientApartment: true,
       recipientWarehouseRef: true,
       recipientWarehouseName: true,
       trackingNumber: true,
+      isReturnShipment: true,
+      originalShipmentId: true,
     },
   })
 }
@@ -74,10 +91,15 @@ const shipmentDetailSelect = {
   provider: true,
   deliveryType: true,
   status: true,
+  originalShipmentId: true,
+  isReturnShipment: true,
   recipientName: true,
   recipientPhone: true,
   recipientCityRef: true,
   recipientCityName: true,
+  recipientStreet: true,
+  recipientBuilding: true,
+  recipientApartment: true,
   recipientWarehouseRef: true,
   recipientWarehouseName: true,
   estimatedCost: true,
@@ -98,6 +120,22 @@ const shipmentDetailSelect = {
       id: true,
       name: true,
       ownerId: true,
+    },
+  },
+  originalShipment: {
+    select: {
+      id: true,
+      status: true,
+      trackingNumber: true,
+    },
+  },
+  returnShipments: {
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      status: true,
+      trackingNumber: true,
+      createdAt: true,
     },
   },
   items: {
@@ -162,11 +200,37 @@ export async function countShipmentsByStoreId(input: {
   })
 }
 
+export async function listTrackableShipments(input?: {
+  shipmentId?: string
+  limit?: number
+}) {
+  return prisma.shipment.findMany({
+    where: {
+      provider: ShippingProvider.NOVA_POSHTA,
+      trackingNumber: { not: null },
+      ...(input?.shipmentId ? { id: input.shipmentId } : {}),
+      status: {
+        in: [
+          ShipmentStatus.LABEL_CREATED,
+          ShipmentStatus.SHIPPED,
+          ShipmentStatus.IN_TRANSIT,
+          ShipmentStatus.ARRIVED,
+          ShipmentStatus.READY_TO_SHIP,
+        ],
+      },
+    },
+    orderBy: [{ updatedAt: 'asc' }],
+    take: input?.limit ?? 50,
+    select: shipmentDetailSelect,
+  })
+}
+
 export async function updateShipmentById(input: {
   id: string
   trackingNumber?: string | null
   providerShipmentId?: string | null
   status?: ShipmentStatus
+  estimatedCost?: Prisma.Decimal | null
 }) {
   const data: Prisma.ShipmentUpdateInput = {
     updatedAt: new Date(),
@@ -184,10 +248,76 @@ export async function updateShipmentById(input: {
     data.status = input.status
   }
 
+  if (input.estimatedCost !== undefined) {
+    data.estimatedCost = input.estimatedCost
+  }
+
   return prisma.shipment.update({
     where: { id: input.id },
     data,
     select: shipmentDetailSelect,
+  })
+}
+
+export async function createReturnShipment(input: {
+  originalShipmentId: string
+  orderId: string
+  storeId: string
+  provider: ShippingProvider
+  deliveryType: Prisma.ShipmentCreateInput['deliveryType']
+  recipientName: string
+  recipientPhone: string
+  recipientCityRef: string
+  recipientCityName: string
+  recipientStreet?: string | null
+  recipientBuilding?: string | null
+  recipientApartment?: string | null
+  recipientWarehouseRef?: string | null
+  recipientWarehouseName?: string | null
+  estimatedCost?: Prisma.Decimal | null
+  currency: string
+  items: Array<{
+    orderItemId: string
+    quantity: number
+  }>
+}) {
+  return prisma.$transaction(async (tx) => {
+    const shipment = await tx.shipment.create({
+      data: {
+        orderId: input.orderId,
+        storeId: input.storeId,
+        originalShipmentId: input.originalShipmentId,
+        isReturnShipment: true,
+        provider: input.provider,
+        deliveryType: input.deliveryType,
+        status: ShipmentStatus.PENDING,
+        recipientName: input.recipientName,
+        recipientPhone: input.recipientPhone,
+        recipientCityRef: input.recipientCityRef,
+        recipientCityName: input.recipientCityName,
+        recipientStreet: input.recipientStreet ?? null,
+        recipientBuilding: input.recipientBuilding ?? null,
+        recipientApartment: input.recipientApartment ?? null,
+        recipientWarehouseRef: input.recipientWarehouseRef ?? null,
+        recipientWarehouseName: input.recipientWarehouseName ?? null,
+        estimatedCost: input.estimatedCost ?? null,
+        currency: input.currency,
+      },
+      select: { id: true },
+    })
+
+    await tx.shipmentItem.createMany({
+      data: input.items.map((item) => ({
+        shipmentId: shipment.id,
+        orderItemId: item.orderItemId,
+        quantity: item.quantity,
+      })),
+    })
+
+    return tx.shipment.findUniqueOrThrow({
+      where: { id: shipment.id },
+      select: shipmentDetailSelect,
+    })
   })
 }
 

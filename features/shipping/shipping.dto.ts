@@ -19,8 +19,15 @@ export type NovaPoshtaWarehouseDto = {
 }
 
 export type NovaPoshtaEstimateInput = {
-  cityRef: string
-  warehouseRef: string
+  deliveryType: ShippingDeliveryType
+  senderCityRef?: string | null
+  senderWarehouseRef?: string | null
+  recipientCityRef: string
+  recipientWarehouseRef?: string | null
+  recipientStreet?: string | null
+  recipientBuilding?: string | null
+  recipientApartment?: string | null
+  seatsAmount?: number
 }
 
 export type NovaPoshtaEstimateDto = {
@@ -59,6 +66,9 @@ export type CheckoutDeliverySelectionInput = {
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null
+  recipientStreet?: string | null
+  recipientBuilding?: string | null
+  recipientApartment?: string | null
   recipientWarehouseRef?: string | null
   recipientWarehouseName?: string | null
 }
@@ -70,8 +80,13 @@ export type CheckoutDeliverySelectionDto = {
   recipientPhone: string | null
   recipientCityRef: string | null
   recipientCityName: string | null
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
+  estimatedCost: string | null
+  currency: 'UAH'
   isComplete: boolean
 }
 
@@ -82,8 +97,13 @@ export type ResolvedCheckoutDeliverySelectionDto = {
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
-  recipientWarehouseRef: string
-  recipientWarehouseName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
+  recipientWarehouseRef: string | null
+  recipientWarehouseName: string | null
+  estimatedCost: string | null
+  currency: 'UAH'
 }
 
 export type ShipmentSnapshotDto = {
@@ -93,14 +113,20 @@ export type ShipmentSnapshotDto = {
   status: ShipmentStatus
   recipientCityRef: string
   recipientCityName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
   trackingNumber: string | null
+  isReturnShipment: boolean
+  originalShipmentId: string | null
 }
 
 export type NovaPoshtaCreateShipmentInput = {
   shipmentId: string
   orderId: string
+  deliveryType: ShippingDeliveryType
   senderName: string
   senderPhone: string
   senderCityRef: string
@@ -111,8 +137,11 @@ export type NovaPoshtaCreateShipmentInput = {
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
-  recipientWarehouseRef: string
-  recipientWarehouseName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
+  recipientWarehouseRef: string | null
+  recipientWarehouseName: string | null
   cargoDescription: string
   seatsAmount: number
   declaredCost: string
@@ -143,6 +172,38 @@ export type ShipmentListQueryDto = {
   status?: ShipmentStatus
 }
 
+export type BulkCreateShipmentTtnInput = {
+  shipmentIds: string[]
+}
+
+export type BulkCreateShipmentTtnResultDto = {
+  shipmentId: string
+  success: boolean
+  trackingNumber: string | null
+  errorMessage: string | null
+}
+
+export type BulkCreateShipmentTtnResponseDto = {
+  results: BulkCreateShipmentTtnResultDto[]
+}
+
+export type ShipmentSyncInput = {
+  shipmentId?: string
+  limit?: number
+}
+
+export type ShipmentSyncResultDto = {
+  shipmentId: string
+  previousStatus: ShipmentStatus
+  currentStatus: ShipmentStatus
+  trackingNumber: string | null
+  changed: boolean
+}
+
+export type ShipmentSyncResponseDto = {
+  results: ShipmentSyncResultDto[]
+}
+
 export type SellerShipmentItemDto = {
   orderItemId: string
   productNameSnapshot: string
@@ -155,13 +216,18 @@ export type SellerShipmentDto = {
   orderId: string
   storeId: string
   storeName: string
+  originalShipmentId: string | null
   provider: ShippingProvider
   deliveryType: ShippingDeliveryType
   status: ShipmentStatus
+  isReturnShipment: boolean
   recipientName: string
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
   trackingNumber: string | null
@@ -195,8 +261,12 @@ export type ShipmentDraftDto = {
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
-  recipientWarehouseRef: string
-  recipientWarehouseName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
+  recipientWarehouseRef: string | null
+  recipientWarehouseName: string | null
+  estimatedCost: string | null
   currency: 'UAH'
   items: Array<{
     orderItemId: string

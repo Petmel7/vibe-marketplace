@@ -45,9 +45,14 @@ export type OrderShipmentSummaryDto = {
   status: ShipmentStatus
   recipientCityRef: string
   recipientCityName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
   trackingNumber: string | null
+  isReturnShipment: boolean
+  originalShipmentId: string | null
 }
 
 export type OrderSummaryDto = {

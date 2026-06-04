@@ -26,6 +26,7 @@ vi.mock('@/features/promotions/promotions.service', () => ({
 }))
 vi.mock('@/features/shipping/shipping.service', () => ({
   buildCheckoutDeliverySelectionDto: vi.fn(),
+  estimateCheckoutDeliveryTotal: vi.fn(),
   resolveCheckoutDeliverySelection: vi.fn(),
 }))
 
@@ -286,16 +287,25 @@ beforeEach(() => {
     }
   })
   mockShippingService.buildCheckoutDeliverySelectionDto.mockImplementation((input) => ({
-    supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE'],
+    supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE', 'NOVA_POSHTA_COURIER'],
     selectedDeliveryType: input.deliveryType ?? null,
     recipientName: input.recipientName ?? null,
     recipientPhone: input.recipientPhone ?? null,
     recipientCityRef: input.recipientCityRef ?? null,
     recipientCityName: input.recipientCityName ?? null,
+    recipientStreet: input.recipientStreet ?? null,
+    recipientBuilding: input.recipientBuilding ?? null,
+    recipientApartment: input.recipientApartment ?? null,
     recipientWarehouseRef: input.recipientWarehouseRef ?? null,
     recipientWarehouseName: input.recipientWarehouseName ?? null,
+    estimatedCost: null,
+    currency: 'UAH',
     isComplete: false,
   }))
+  mockShippingService.estimateCheckoutDeliveryTotal.mockResolvedValue({
+    estimatedCost: '0.00',
+    currency: 'UAH',
+  })
   mockShippingService.resolveCheckoutDeliverySelection.mockResolvedValue(null)
   mockRepo.submitCheckoutOrder.mockResolvedValue(
     {
@@ -325,7 +335,10 @@ describe('checkout preview', () => {
     expect(preview.appliedPromotion).toBeNull()
     expect(preview.defaultShippingAddress?.id).toBe(ADDRESS_ID)
     expect(preview.addressOptions).toHaveLength(1)
-    expect(preview.deliverySelection.supportedDeliveryTypes).toEqual(['NOVA_POSHTA_WAREHOUSE'])
+    expect(preview.deliverySelection.supportedDeliveryTypes).toEqual([
+      'NOVA_POSHTA_WAREHOUSE',
+      'NOVA_POSHTA_COURIER',
+    ])
     expect(preview.blockingIssues).toEqual([])
     expect(preview.canCheckout).toBe(true)
     expect(preview.items[0].storeId).toBe(STORE_ID)
@@ -795,15 +808,24 @@ describe('checkout submit', () => {
       makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
     )
     mockShippingService.buildCheckoutDeliverySelectionDto.mockReturnValueOnce({
-      supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE'],
+      supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE', 'NOVA_POSHTA_COURIER'],
       selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
       recipientName: 'John Doe',
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-ref',
       recipientCityName: 'Kyiv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
       recipientWarehouseRef: 'warehouse-ref',
       recipientWarehouseName: 'Warehouse 1',
+      estimatedCost: null,
+      currency: 'UAH',
       isComplete: true,
+    })
+    mockShippingService.estimateCheckoutDeliveryTotal.mockResolvedValueOnce({
+      estimatedCost: '80.00',
+      currency: 'UAH',
     })
     mockShippingService.resolveCheckoutDeliverySelection.mockResolvedValueOnce({
       provider: 'NOVA_POSHTA',
@@ -812,8 +834,13 @@ describe('checkout submit', () => {
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-ref',
       recipientCityName: 'Kyiv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
       recipientWarehouseRef: 'warehouse-ref',
       recipientWarehouseName: 'Warehouse 1',
+      estimatedCost: null,
+      currency: 'UAH',
     } as never)
 
     await checkout(mockUser, {

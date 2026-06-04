@@ -200,8 +200,13 @@ export async function submitCheckoutOrderWithPayment(data: {
     recipientPhone: string
     recipientCityRef: string
     recipientCityName: string
-    recipientWarehouseRef: string
-    recipientWarehouseName: string
+    recipientStreet: string | null
+    recipientBuilding: string | null
+    recipientApartment: string | null
+    recipientWarehouseRef: string | null
+    recipientWarehouseName: string | null
+    estimatedCost: string | null
+    currency: 'UAH'
   } | null
   note?: string
   orderStatus: string
@@ -423,8 +428,12 @@ export async function submitCheckoutOrderWithPayment(data: {
               recipientPhone: draft.recipientPhone,
               recipientCityRef: draft.recipientCityRef,
               recipientCityName: draft.recipientCityName,
+              recipientStreet: draft.recipientStreet,
+              recipientBuilding: draft.recipientBuilding,
+              recipientApartment: draft.recipientApartment,
               recipientWarehouseRef: draft.recipientWarehouseRef,
               recipientWarehouseName: draft.recipientWarehouseName,
+              estimatedCost: draft.estimatedCost ? new Decimal(draft.estimatedCost) : null,
               currency: draft.currency,
             },
           })

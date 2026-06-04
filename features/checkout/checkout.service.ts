@@ -53,12 +53,11 @@ import {
 import { logError } from '@/utils/logger'
 import {
   buildCheckoutDeliverySelectionDto,
+  estimateCheckoutDeliveryTotal,
   resolveCheckoutDeliverySelection,
 } from '@/features/shipping/shipping.service'
 
 const LOW_STOCK_THRESHOLD = 3
-const SHIPPING_PLACEHOLDER_AMOUNT = new Decimal(0)
-
 type CheckoutCart = NonNullable<Awaited<ReturnType<typeof getCartWithItems>>>
 type CheckoutCartItem = CheckoutCart['items'][number]
 
@@ -87,6 +86,7 @@ type PreparedCheckoutItem = {
 type PreparedCheckoutPricing = {
   subtotal: Decimal
   discountAmount: Decimal
+  shippingAmount: Decimal
   total: Decimal
   appliedPromotion: ResolvedPromotionForCheckoutDto | null
 }
@@ -205,6 +205,7 @@ async function resolveCheckoutPricing(input: {
   userId: string
   cartId: string | null
   items: PreparedCheckoutItem[]
+  shippingAmount?: Decimal
   couponCode?: string | null
 }): Promise<PreparedCheckoutPricing> {
   const subtotal = sumSubtotal(input.items)
@@ -225,14 +226,16 @@ async function resolveCheckoutPricing(input: {
   const discountAmount = appliedPromotion
     ? new Decimal(appliedPromotion.discountAmount)
     : new Decimal(0)
+  const shippingAmount = input.shippingAmount ?? new Decimal(0)
   const total = Decimal.max(
-    subtotal.minus(discountAmount).plus(SHIPPING_PLACEHOLDER_AMOUNT),
+    subtotal.minus(discountAmount).plus(shippingAmount),
     new Decimal(0),
   )
 
   return {
     subtotal,
     discountAmount,
+    shippingAmount,
     total,
     appliedPromotion,
   }
@@ -360,6 +363,19 @@ export async function getCheckoutPreview(
   const addressOptions = addresses.map(toAddressOptionDto)
   const defaultShippingAddress = addressOptions.find((address) => address.isDefault) ?? addressOptions[0] ?? null
   const deliverySelection = buildCheckoutDeliverySelectionDto(input)
+  const resolvedDeliverySelection = deliverySelection.isComplete
+    ? await resolveCheckoutDeliverySelection(input)
+    : null
+  const deliveryEstimate = resolvedDeliverySelection
+    ? await estimateCheckoutDeliveryTotal({
+        orderItems: preparedItems.map((item) => ({
+          id: item.cartItemId,
+          storeId: item.storeId,
+          quantity: item.quantity,
+        })),
+        deliverySelection: resolvedDeliverySelection,
+      })
+    : null
   const blockingIssues = buildBlockingIssues(
     preparedItems,
     addressOptions.length > 0 || deliverySelection.isComplete,
@@ -368,6 +384,7 @@ export async function getCheckoutPreview(
     userId: user.id,
     cartId: cart?.id ?? null,
     items: preparedItems,
+    shippingAmount: new Decimal(deliveryEstimate?.estimatedCost ?? '0'),
   })
 
   return {
@@ -376,7 +393,7 @@ export async function getCheckoutPreview(
     itemCount: sumItemCount(preparedItems),
     subtotal: pricing.subtotal.toFixed(2),
     discountAmount: pricing.discountAmount.toFixed(2),
-    shippingAmount: SHIPPING_PLACEHOLDER_AMOUNT.toFixed(2),
+    shippingAmount: pricing.shippingAmount.toFixed(2),
     total: pricing.total.toFixed(2),
     appliedPromotion: pricing.appliedPromotion
       ? buildCheckoutPromotionPreview({
@@ -387,7 +404,11 @@ export async function getCheckoutPreview(
       : null,
     defaultShippingAddress,
     addressOptions,
-    deliverySelection,
+    deliverySelection: {
+      ...deliverySelection,
+      estimatedCost: deliveryEstimate?.estimatedCost ?? deliverySelection.estimatedCost,
+      currency: deliveryEstimate?.currency ?? deliverySelection.currency,
+    },
     blockingIssues,
     canCheckout: blockingIssues.length === 0,
   }
@@ -413,6 +434,7 @@ export async function applyCheckoutPromotion(
     userId: user.id,
     cartId: cart.id,
     items: preparedItems,
+    shippingAmount: new Decimal(0),
     couponCode: input.couponCode,
   })
 
@@ -458,10 +480,22 @@ export async function checkout(
   const blockingIssues = buildBlockingIssues(preparedItems, true)
   assertCheckoutIssues(blockingIssues)
 
+  const deliveryEstimate = resolvedDeliverySelection
+    ? await estimateCheckoutDeliveryTotal({
+        orderItems: preparedItems.map((item) => ({
+          id: item.cartItemId,
+          storeId: item.storeId,
+          quantity: item.quantity,
+        })),
+        deliverySelection: resolvedDeliverySelection,
+      })
+    : null
+
   const pricing = await resolveCheckoutPricing({
     userId: user.id,
     cartId: cart.id,
     items: preparedItems,
+    shippingAmount: new Decimal(deliveryEstimate?.estimatedCost ?? '0'),
     couponCode: data.couponCode,
   })
   ensureExpectedTotals(data, pricing.subtotal, pricing.total)

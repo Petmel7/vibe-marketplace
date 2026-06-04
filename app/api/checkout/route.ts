@@ -25,6 +25,9 @@ export async function GET(request: NextRequest): Promise<Response> {
       recipientPhone: request.nextUrl.searchParams.get('recipientPhone') ?? undefined,
       recipientCityRef: request.nextUrl.searchParams.get('recipientCityRef') ?? undefined,
       recipientCityName: request.nextUrl.searchParams.get('recipientCityName') ?? undefined,
+      recipientStreet: request.nextUrl.searchParams.get('recipientStreet') ?? undefined,
+      recipientBuilding: request.nextUrl.searchParams.get('recipientBuilding') ?? undefined,
+      recipientApartment: request.nextUrl.searchParams.get('recipientApartment') ?? undefined,
       recipientWarehouseRef: request.nextUrl.searchParams.get('recipientWarehouseRef') ?? undefined,
       recipientWarehouseName:
         request.nextUrl.searchParams.get('recipientWarehouseName') ?? undefined,

@@ -15,7 +15,7 @@ import type {
   NovaPoshtaTrackingEventDto,
   NovaPoshtaWarehouseDto,
 } from '../shipping.dto'
-import { ShipmentStatus } from '@/app/generated/prisma/client'
+import { ShipmentStatus, ShippingDeliveryType } from '@/app/generated/prisma/client'
 
 type NovaPoshtaConfig = {
   apiKey: string
@@ -56,7 +56,14 @@ type NovaPoshtaShipmentStatusResponse = {
   ScheduledDeliveryDate?: string
 }
 
+type NovaPoshtaEstimateResponse = {
+  AssessedCost?: number | string
+  Cost?: number | string
+}
+
 const DEFAULT_API_URL = 'https://api.novaposhta.ua/v2.0/json/'
+const FALLBACK_WAREHOUSE_ESTIMATE = '80.00'
+const FALLBACK_COURIER_ESTIMATE = '120.00'
 
 function getConfigFromEnv(): NovaPoshtaConfig {
   const apiKey = process.env.NOVA_POSHTA_API_KEY?.trim()
@@ -162,10 +169,56 @@ export class NovaPoshtaProvider {
   }
 
   async estimateDelivery(input: NovaPoshtaEstimateInput): Promise<NovaPoshtaEstimateDto> {
-    void input
-    return {
-      estimatedCost: null,
-      currency: 'UAH',
+    const fallbackEstimate =
+      input.deliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER
+        ? FALLBACK_COURIER_ESTIMATE
+        : FALLBACK_WAREHOUSE_ESTIMATE
+
+    if (!input.senderCityRef?.trim() || !input.recipientCityRef.trim()) {
+      return {
+        estimatedCost: fallbackEstimate,
+        currency: 'UAH',
+      }
+    }
+
+    try {
+      const providerResponse = await this.request<NovaPoshtaEstimateResponse>(
+        'InternetDocument',
+        'getDocumentPrice',
+        {
+          CitySender: input.senderCityRef.trim(),
+          CityRecipient: input.recipientCityRef.trim(),
+          Weight: '1',
+          ServiceType:
+            input.deliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER
+              ? 'WarehouseDoors'
+              : 'WarehouseWarehouse',
+          Cost: '1000',
+          SeatsAmount: String(Math.max(1, input.seatsAmount ?? 1)),
+        },
+      )
+
+      const estimate = providerResponse[0]
+      const rawCost = estimate?.Cost ?? estimate?.AssessedCost
+      if (rawCost == null) {
+        return {
+          estimatedCost: fallbackEstimate,
+          currency: 'UAH',
+        }
+      }
+
+      const numericCost = Number(rawCost)
+      return {
+        estimatedCost: Number.isFinite(numericCost)
+          ? numericCost.toFixed(2)
+          : fallbackEstimate,
+        currency: 'UAH',
+      }
+    } catch {
+      return {
+        estimatedCost: fallbackEstimate,
+        currency: 'UAH',
+      }
     }
   }
 
@@ -226,6 +279,7 @@ export class NovaPoshtaProvider {
 
   async createShipment(input: NovaPoshtaCreateShipmentInput): Promise<NovaPoshtaCreateShipmentDto> {
     const cargoDescription = input.cargoDescription.trim() || `Shipment ${input.shipmentId}`
+    const isCourier = input.deliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER
     const providerResponse = await this.request<NovaPoshtaShipmentCreateResponse>(
       'InternetDocument',
       'save',
@@ -234,6 +288,7 @@ export class NovaPoshtaProvider {
         PaymentMethod: 'Cash',
         DateTime: new Date().toISOString().slice(0, 10),
         CargoType: 'Cargo',
+        ServiceType: isCourier ? 'WarehouseDoors' : 'WarehouseWarehouse',
         SeatsAmount: String(Math.max(1, input.seatsAmount)),
         Description: cargoDescription.slice(0, 90),
         Cost: input.declaredCost,
@@ -243,7 +298,16 @@ export class NovaPoshtaProvider {
         ContactSender: input.senderName,
         SendersPhone: input.senderPhone,
         CityRecipient: input.recipientCityRef,
-        RecipientAddress: input.recipientWarehouseRef,
+        ...(isCourier
+          ? {
+              RecipientAddressName: input.recipientStreet ?? undefined,
+              RecipientHouse: input.recipientBuilding ?? undefined,
+              RecipientFlat: input.recipientApartment ?? undefined,
+              RecipientStreet: input.recipientStreet ?? undefined,
+            }
+          : {
+              RecipientAddress: input.recipientWarehouseRef,
+            }),
         ContactRecipient: input.recipientName,
         RecipientsPhone: input.recipientPhone,
       },

@@ -18,6 +18,9 @@ export type CheckoutInput = {
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null
+  recipientStreet?: string | null
+  recipientBuilding?: string | null
+  recipientApartment?: string | null
   recipientWarehouseRef?: string | null
   recipientWarehouseName?: string | null
   expectedSubtotal?: string | null
@@ -34,6 +37,9 @@ export type CheckoutPreviewInput = {
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null
+  recipientStreet?: string | null
+  recipientBuilding?: string | null
+  recipientApartment?: string | null
   recipientWarehouseRef?: string | null
   recipientWarehouseName?: string | null
 }

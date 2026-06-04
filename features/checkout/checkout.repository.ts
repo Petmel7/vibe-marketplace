@@ -85,8 +85,13 @@ export async function submitCheckoutOrder(data: {
     recipientPhone: string
     recipientCityRef: string
     recipientCityName: string
-    recipientWarehouseRef: string
-    recipientWarehouseName: string
+    recipientStreet: string | null
+    recipientBuilding: string | null
+    recipientApartment: string | null
+    recipientWarehouseRef: string | null
+    recipientWarehouseName: string | null
+    estimatedCost: string | null
+    currency: 'UAH'
   } | null
   note?: string
   orderStatus: string

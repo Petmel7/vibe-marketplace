@@ -175,11 +175,14 @@ import {
   NovaPoshtaCreateShipmentError,
   NovaPoshtaTrackingError,
   NovaPoshtaWarehouseNotFoundError,
+  ShipmentAlreadyReturnedError,
   ShipmentAlreadyHasTrackingError,
   ShipmentCreationError,
   ShipmentInvalidStateError,
   ShipmentNotFoundError,
   ShipmentOwnershipError,
+  ShipmentReturnCreationError,
+  ShipmentSyncError,
   ShippingProviderError,
   StoreShippingSettingsRequiredError,
   StoreShippingSettingsNotConfiguredError,
@@ -343,6 +346,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RefundOrderNotEligibleError ||
     err instanceof InvalidShippingSelectionError ||
     err instanceof StoreShippingSettingsNotConfiguredError ||
+    err instanceof ShipmentAlreadyReturnedError ||
     err instanceof ShipmentAlreadyHasTrackingError ||
     err instanceof ShipmentInvalidStateError ||
     err instanceof StoreShippingSettingsRequiredError
@@ -364,6 +368,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RefundLedgerReversalError ||
     err instanceof ShippingProviderError ||
     err instanceof ShipmentCreationError ||
+    err instanceof ShipmentReturnCreationError ||
+    err instanceof ShipmentSyncError ||
     err instanceof NovaPoshtaCreateShipmentError ||
     err instanceof NovaPoshtaTrackingError ||
     err instanceof NovaPoshtaCancelShipmentError

@@ -25,6 +25,33 @@ export class NovaPoshtaWarehouseNotFoundError extends Error {
   }
 }
 
+export class NovaPoshtaCreateShipmentError extends Error {
+  code = 'NOVA_POSHTA_CREATE_SHIPMENT_ERROR'
+
+  constructor(message = 'Nova Poshta shipment could not be created') {
+    super(message)
+    this.name = 'NovaPoshtaCreateShipmentError'
+  }
+}
+
+export class NovaPoshtaTrackingError extends Error {
+  code = 'NOVA_POSHTA_TRACKING_ERROR'
+
+  constructor(message = 'Nova Poshta tracking data could not be loaded') {
+    super(message)
+    this.name = 'NovaPoshtaTrackingError'
+  }
+}
+
+export class NovaPoshtaCancelShipmentError extends Error {
+  code = 'NOVA_POSHTA_CANCEL_SHIPMENT_ERROR'
+
+  constructor(message = 'Nova Poshta shipment could not be cancelled') {
+    super(message)
+    this.name = 'NovaPoshtaCancelShipmentError'
+  }
+}
+
 export class InvalidShippingSelectionError extends Error {
   code = 'INVALID_SHIPPING_SELECTION'
 
@@ -97,29 +124,29 @@ export class StoreShippingSettingsRequiredError extends Error {
   }
 }
 
-export class NovaPoshtaCreateShipmentError extends Error {
-  code = 'NOVA_POSHTA_CREATE_SHIPMENT_ERROR'
+export class ShipmentSyncError extends Error {
+  code = 'SHIPMENT_SYNC_ERROR'
 
-  constructor(message = 'Nova Poshta shipment could not be created') {
+  constructor(message = 'Shipment statuses could not be synchronized') {
     super(message)
-    this.name = 'NovaPoshtaCreateShipmentError'
+    this.name = 'ShipmentSyncError'
   }
 }
 
-export class NovaPoshtaTrackingError extends Error {
-  code = 'NOVA_POSHTA_TRACKING_ERROR'
+export class ShipmentReturnCreationError extends Error {
+  code = 'SHIPMENT_RETURN_CREATION_ERROR'
 
-  constructor(message = 'Nova Poshta tracking data could not be loaded') {
+  constructor(message = 'Return shipment could not be created') {
     super(message)
-    this.name = 'NovaPoshtaTrackingError'
+    this.name = 'ShipmentReturnCreationError'
   }
 }
 
-export class NovaPoshtaCancelShipmentError extends Error {
-  code = 'NOVA_POSHTA_CANCEL_SHIPMENT_ERROR'
+export class ShipmentAlreadyReturnedError extends Error {
+  code = 'SHIPMENT_ALREADY_RETURNED'
 
-  constructor(message = 'Nova Poshta shipment could not be cancelled') {
+  constructor(message = 'Return shipment already exists for this shipment') {
     super(message)
-    this.name = 'NovaPoshtaCancelShipmentError'
+    this.name = 'ShipmentAlreadyReturnedError'
   }
 }

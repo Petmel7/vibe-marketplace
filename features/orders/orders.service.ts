@@ -173,9 +173,14 @@ function toOrderShipmentSummaryDto(shipment: {
   status: ShipmentStatus
   recipientCityRef: string
   recipientCityName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
   trackingNumber: string | null
+  isReturnShipment: boolean
+  originalShipmentId: string | null
 }) {
   return {
     id: shipment.id,
@@ -184,9 +189,14 @@ function toOrderShipmentSummaryDto(shipment: {
     status: shipment.status,
     recipientCityRef: shipment.recipientCityRef,
     recipientCityName: shipment.recipientCityName,
+    recipientStreet: shipment.recipientStreet,
+    recipientBuilding: shipment.recipientBuilding,
+    recipientApartment: shipment.recipientApartment,
     recipientWarehouseRef: shipment.recipientWarehouseRef,
     recipientWarehouseName: shipment.recipientWarehouseName,
     trackingNumber: shipment.trackingNumber,
+    isReturnShipment: shipment.isReturnShipment,
+    originalShipmentId: shipment.originalShipmentId,
   }
 }
 
@@ -204,9 +214,14 @@ function toOrderDetailDto(order: {
     status: ShipmentStatus
     recipientCityRef: string
     recipientCityName: string
+    recipientStreet: string | null
+    recipientBuilding: string | null
+    recipientApartment: string | null
     recipientWarehouseRef: string | null
     recipientWarehouseName: string | null
     trackingNumber: string | null
+    isReturnShipment: boolean
+    originalShipmentId: string | null
   }>
   orderPromotion?: {
     promotionId: string

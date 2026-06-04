@@ -4,16 +4,21 @@ import {
   ShippingDeliveryType,
   ShippingProvider,
 } from '@/app/generated/prisma/client'
-import { requireSeller } from '@/lib/auth/guards'
+import Decimal from 'decimal.js'
+import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import { findStoreByUserId } from '@/features/store/store.repository'
 import { StoreNotFoundError, StoreOwnershipError } from '@/lib/errors/seller'
 import {
   InvalidShippingSelectionError,
+  NovaPoshtaCreateShipmentError,
   NovaPoshtaWarehouseNotFoundError,
+  ShipmentAlreadyReturnedError,
   ShipmentAlreadyHasTrackingError,
   ShipmentInvalidStateError,
   ShipmentNotFoundError,
   ShipmentOwnershipError,
+  ShipmentReturnCreationError,
+  ShipmentSyncError,
   StoreShippingSettingsRequiredError,
 } from '@/lib/errors/shipping'
 import { createOrderNotification } from '@/features/notifications/notifications.service'
@@ -22,21 +27,29 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 import type {
   CheckoutDeliverySelectionDto,
   CheckoutDeliverySelectionInput,
+  BulkCreateShipmentTtnResponseDto,
+  NovaPoshtaEstimateDto,
+  NovaPoshtaEstimateInput,
   NovaPoshtaCityDto,
   NovaPoshtaWarehouseDto,
   ResolvedCheckoutDeliverySelectionDto,
   SellerShipmentDto,
   SellerShipmentListDto,
+  ShipmentSyncResponseDto,
   ShipmentDraftDto,
   ShipmentDraftInputItem,
   ShipmentListQueryDto,
+  ShipmentSyncResultDto,
   StoreShippingSettingsDto,
   UpdateStoreShippingSettingsInput,
 } from './shipping.dto'
 import {
   countShipmentsByStoreId,
+  createReturnShipment,
   findShipmentById,
   findStoreShippingSettingsByStoreId,
+  listStoreShippingSettingsByStoreIds,
+  listTrackableShipments,
   listShipmentsByStoreId,
   updateShipmentById,
   upsertStoreShippingSettings,
@@ -61,6 +74,24 @@ const BUYER_VISIBLE_STATUS_NOTIFICATIONS = new Set<ShipmentStatus>([
   ShipmentStatus.IN_TRANSIT,
   ShipmentStatus.ARRIVED,
   ShipmentStatus.DELIVERED,
+  ShipmentStatus.RETURNED,
+  ShipmentStatus.FAILED,
+])
+
+const SELLER_VISIBLE_STATUS_NOTIFICATIONS = new Set<ShipmentStatus>([
+  ShipmentStatus.SHIPPED,
+  ShipmentStatus.ARRIVED,
+  ShipmentStatus.DELIVERED,
+  ShipmentStatus.RETURNED,
+  ShipmentStatus.FAILED,
+])
+
+const TRACKING_SYNCABLE_SHIPMENT_STATUSES = new Set<ShipmentStatus>([
+  ShipmentStatus.READY_TO_SHIP,
+  ShipmentStatus.LABEL_CREATED,
+  ShipmentStatus.SHIPPED,
+  ShipmentStatus.IN_TRANSIT,
+  ShipmentStatus.ARRIVED,
 ])
 
 function runNonBlocking(label: string, task: Promise<unknown>) {
@@ -109,13 +140,18 @@ function toSellerShipmentDto(
     orderId: shipment.orderId,
     storeId: shipment.storeId,
     storeName: shipment.store.name,
+    originalShipmentId: shipment.originalShipmentId,
     provider: shipment.provider,
     deliveryType: shipment.deliveryType,
     status: shipment.status,
+    isReturnShipment: shipment.isReturnShipment,
     recipientName: shipment.recipientName,
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
     recipientCityName: shipment.recipientCityName,
+    recipientStreet: shipment.recipientStreet,
+    recipientBuilding: shipment.recipientBuilding,
+    recipientApartment: shipment.recipientApartment,
     recipientWarehouseRef: shipment.recipientWarehouseRef,
     recipientWarehouseName: shipment.recipientWarehouseName,
     trackingNumber: shipment.trackingNumber,
@@ -147,15 +183,28 @@ function isConfigured(input: UpdateStoreShippingSettingsInput) {
 function assertShipmentHasRecipientSnapshot(
   shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
 ) {
-  if (
-    !shipment.recipientName.trim() ||
-    !shipment.recipientPhone.trim() ||
-    !shipment.recipientCityRef.trim() ||
-    !shipment.recipientCityName.trim() ||
-    !shipment.recipientWarehouseRef?.trim() ||
-    !shipment.recipientWarehouseName?.trim()
-  ) {
+  const hasBaseSnapshot =
+    shipment.recipientName.trim() &&
+    shipment.recipientPhone.trim() &&
+    shipment.recipientCityRef.trim() &&
+    shipment.recipientCityName.trim()
+
+  if (!hasBaseSnapshot) {
     throw new ShipmentInvalidStateError('Shipment recipient snapshot is incomplete')
+  }
+
+  if (
+    shipment.deliveryType === ShippingDeliveryType.NOVA_POSHTA_WAREHOUSE &&
+    (!shipment.recipientWarehouseRef?.trim() || !shipment.recipientWarehouseName?.trim())
+  ) {
+    throw new ShipmentInvalidStateError('Shipment warehouse snapshot is incomplete')
+  }
+
+  if (
+    shipment.deliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER &&
+    (!shipment.recipientStreet?.trim() || !shipment.recipientBuilding?.trim())
+  ) {
+    throw new ShipmentInvalidStateError('Shipment courier address snapshot is incomplete')
   }
 }
 
@@ -170,11 +219,8 @@ function assertShipmentHasItems(
 function assertShipmentCanCreateTtn(
   shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
 ) {
-  if (
-    shipment.provider !== ShippingProvider.NOVA_POSHTA ||
-    shipment.deliveryType !== ShippingDeliveryType.NOVA_POSHTA_WAREHOUSE
-  ) {
-    throw new ShipmentInvalidStateError('Only Nova Poshta warehouse shipments can create TTNs')
+  if (shipment.provider !== ShippingProvider.NOVA_POSHTA) {
+    throw new ShipmentInvalidStateError('Only Nova Poshta shipments can create TTNs')
   }
 
   if (shipment.trackingNumber || shipment.providerShipmentId) {
@@ -183,6 +229,42 @@ function assertShipmentCanCreateTtn(
 
   if (!TTN_CREATABLE_SHIPMENT_STATUSES.has(shipment.status)) {
     throw new ShipmentInvalidStateError('Shipment status does not allow TTN creation')
+  }
+}
+
+function assertShipmentCanCreateReturn(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+) {
+  if (shipment.isReturnShipment) {
+    throw new ShipmentInvalidStateError('Return shipment cannot create another return shipment')
+  }
+
+  if (shipment.returnShipments.length > 0) {
+    throw new ShipmentAlreadyReturnedError()
+  }
+
+  if (
+    shipment.status !== ShipmentStatus.ARRIVED &&
+    shipment.status !== ShipmentStatus.DELIVERED &&
+    shipment.status !== ShipmentStatus.FAILED
+  ) {
+    throw new ShipmentInvalidStateError('Shipment status does not allow return creation yet')
+  }
+}
+
+function assertShipmentCanSync(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+) {
+  if (shipment.provider !== ShippingProvider.NOVA_POSHTA) {
+    throw new ShipmentInvalidStateError('Only Nova Poshta shipments can sync status')
+  }
+
+  if (!shipment.trackingNumber?.trim()) {
+    throw new ShipmentInvalidStateError('Shipment does not have a tracking number yet')
+  }
+
+  if (!TRACKING_SYNCABLE_SHIPMENT_STATUSES.has(shipment.status)) {
+    throw new ShipmentInvalidStateError('Shipment status cannot be synchronized')
   }
 }
 
@@ -289,6 +371,96 @@ async function notifyBuyerAboutShipment(
   })
 }
 
+async function notifySellerAboutShipment(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+  input: {
+    title: string
+    message: string
+  },
+) {
+  return createOrderNotification({
+    userId: shipment.store.ownerId,
+    type: NotificationType.ORDER_SHIPPED,
+    title: input.title,
+    message: input.message,
+    actionUrl: `/seller/shipments/${shipment.id}`,
+    metadata: {
+      shipmentId: shipment.id,
+      orderId: shipment.orderId,
+      storeId: shipment.storeId,
+      provider: shipment.provider,
+      deliveryType: shipment.deliveryType,
+      status: shipment.status,
+      trackingNumber: shipment.trackingNumber,
+      isSellerContext: true,
+    },
+  })
+}
+
+function getShipmentDestinationLabel(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+) {
+  if (
+    shipment.deliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER &&
+    shipment.recipientStreet &&
+    shipment.recipientBuilding
+  ) {
+    return `${shipment.recipientStreet}, ${shipment.recipientBuilding}${
+      shipment.recipientApartment ? `, кв. ${shipment.recipientApartment}` : ''
+    }`
+  }
+
+  return shipment.recipientWarehouseName ?? 'відділення Нова Пошта'
+}
+
+function buildShipmentLifecycleNotificationCopy(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+  status: ShipmentStatus,
+) {
+  const orderToken = shipment.orderId.slice(0, 8)
+  const destinationLabel = getShipmentDestinationLabel(shipment)
+
+  switch (status) {
+    case ShipmentStatus.LABEL_CREATED:
+      return {
+        title: 'Створено ТТН для відправлення',
+        message: `Для замовлення #${orderToken} створено ТТН ${shipment.trackingNumber ?? ''}. Відправлення буде доставлено у ${destinationLabel}.`.trim(),
+      }
+    case ShipmentStatus.SHIPPED:
+      return {
+        title: 'Замовлення передано на відправку',
+        message: `Відправлення за замовленням #${orderToken} передано до Nova Poshta.`,
+      }
+    case ShipmentStatus.IN_TRANSIT:
+      return {
+        title: 'Відправлення в дорозі',
+        message: `Відправлення за замовленням #${orderToken} вже в дорозі.`,
+      }
+    case ShipmentStatus.ARRIVED:
+      return {
+        title: 'Відправлення прибуло',
+        message: `Відправлення за замовленням #${orderToken} прибуло до ${destinationLabel}.`,
+      }
+    case ShipmentStatus.DELIVERED:
+      return {
+        title: 'Відправлення вручено',
+        message: `Відправлення за замовленням #${orderToken} позначено як доставлене.`,
+      }
+    case ShipmentStatus.RETURNED:
+      return {
+        title: 'Відправлення повернуто',
+        message: `Відправлення за замовленням #${orderToken} повернуто назад.`,
+      }
+    case ShipmentStatus.FAILED:
+      return {
+        title: 'Проблема з відправленням',
+        message: `У Nova Poshta виникла проблема з відправленням #${orderToken}. Ми вже перевіряємо деталі.`,
+      }
+    default:
+      return null
+  }
+}
+
 function buildShipmentStatusNotificationCopy(
   shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
   status: ShipmentStatus,
@@ -335,26 +507,39 @@ export function buildCheckoutDeliverySelectionDto(
   const recipientPhone = input.recipientPhone?.trim() || null
   const recipientCityRef = input.recipientCityRef?.trim() || null
   const recipientCityName = input.recipientCityName?.trim() || null
+  const recipientStreet = input.recipientStreet?.trim() || null
+  const recipientBuilding = input.recipientBuilding?.trim() || null
+  const recipientApartment = input.recipientApartment?.trim() || null
   const recipientWarehouseRef = input.recipientWarehouseRef?.trim() || null
   const recipientWarehouseName = input.recipientWarehouseName?.trim() || null
+  const isWarehouse = selectedDeliveryType === ShippingDeliveryType.NOVA_POSHTA_WAREHOUSE
+  const isCourier = selectedDeliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER
 
   return {
-    supportedDeliveryTypes: [ShippingDeliveryType.NOVA_POSHTA_WAREHOUSE],
+    supportedDeliveryTypes: [
+      ShippingDeliveryType.NOVA_POSHTA_WAREHOUSE,
+      ShippingDeliveryType.NOVA_POSHTA_COURIER,
+    ],
     selectedDeliveryType,
     recipientName,
     recipientPhone,
     recipientCityRef,
     recipientCityName,
+    recipientStreet,
+    recipientBuilding,
+    recipientApartment,
     recipientWarehouseRef,
     recipientWarehouseName,
+    estimatedCost: null,
+    currency: 'UAH',
     isComplete: Boolean(
       selectedDeliveryType &&
         recipientName &&
         recipientPhone &&
         recipientCityRef &&
         recipientCityName &&
-        recipientWarehouseRef &&
-        recipientWarehouseName,
+        ((isWarehouse && recipientWarehouseRef && recipientWarehouseName) ||
+          (isCourier && recipientStreet && recipientBuilding)),
     ),
   }
 }
@@ -365,6 +550,12 @@ export async function searchNovaPoshtaCities(query: string): Promise<NovaPoshtaC
 
 export async function getNovaPoshtaWarehouses(cityRef: string): Promise<NovaPoshtaWarehouseDto[]> {
   return getNovaPoshtaProvider().getWarehouses(cityRef)
+}
+
+export async function estimateNovaPoshtaDelivery(
+  input: NovaPoshtaEstimateInput,
+): Promise<NovaPoshtaEstimateDto> {
+  return getNovaPoshtaProvider().estimateDelivery(input)
 }
 
 export async function getMyStoreShippingSettings(user: SessionUser): Promise<StoreShippingSettingsDto> {
@@ -447,6 +638,9 @@ export async function resolveCheckoutDeliverySelection(
     recipientPhone: selection.recipientPhone,
     recipientCityRef: selection.recipientCityRef,
     recipientCityName: selection.recipientCityName,
+    recipientStreet: selection.recipientStreet,
+    recipientBuilding: selection.recipientBuilding,
+    recipientApartment: selection.recipientApartment,
     recipientWarehouseRef: selection.recipientWarehouseRef,
     recipientWarehouseName: selection.recipientWarehouseName,
   })
@@ -455,13 +649,15 @@ export async function resolveCheckoutDeliverySelection(
     throw new InvalidShippingSelectionError('Nova Poshta delivery selection is incomplete')
   }
 
-  const warehouses = await getNovaPoshtaProvider().assertCityHasWarehouses(parsed.data.recipientCityRef)
-  const matchedWarehouse = warehouses.find(
-    (warehouse) => warehouse.ref === parsed.data.recipientWarehouseRef,
-  )
+  if (parsed.data.deliveryType === ShippingDeliveryType.NOVA_POSHTA_WAREHOUSE) {
+    const warehouses = await getNovaPoshtaProvider().assertCityHasWarehouses(parsed.data.recipientCityRef)
+    const matchedWarehouse = warehouses.find(
+      (warehouse) => warehouse.ref === parsed.data.recipientWarehouseRef,
+    )
 
-  if (!matchedWarehouse) {
-    throw new NovaPoshtaWarehouseNotFoundError()
+    if (!matchedWarehouse) {
+      throw new NovaPoshtaWarehouseNotFoundError()
+    }
   }
 
   return {
@@ -471,8 +667,120 @@ export async function resolveCheckoutDeliverySelection(
     recipientPhone: parsed.data.recipientPhone,
     recipientCityRef: parsed.data.recipientCityRef,
     recipientCityName: parsed.data.recipientCityName,
-    recipientWarehouseRef: parsed.data.recipientWarehouseRef,
-    recipientWarehouseName: parsed.data.recipientWarehouseName,
+    recipientStreet: parsed.data.recipientStreet?.trim() ?? null,
+    recipientBuilding: parsed.data.recipientBuilding?.trim() ?? null,
+    recipientApartment: parsed.data.recipientApartment?.trim() ?? null,
+    recipientWarehouseRef: parsed.data.recipientWarehouseRef?.trim() ?? null,
+    recipientWarehouseName: parsed.data.recipientWarehouseName?.trim() ?? null,
+    estimatedCost: null,
+    currency: 'UAH',
+  }
+}
+
+export async function estimateCheckoutDeliveryTotal(input: {
+  orderItems: ShipmentDraftInputItem[]
+  deliverySelection: ResolvedCheckoutDeliverySelectionDto
+}): Promise<NovaPoshtaEstimateDto> {
+  const drafts = buildShipmentDrafts({
+    orderItems: input.orderItems,
+    deliverySelection: input.deliverySelection,
+  })
+
+  if (drafts.length === 0) {
+    return { estimatedCost: '0.00', currency: 'UAH' }
+  }
+
+  const settings = await listStoreShippingSettingsByStoreIds(drafts.map((draft) => draft.storeId))
+  const settingsByStoreId = new Map(settings.map((setting) => [setting.storeId, setting]))
+
+  const estimates = await Promise.all(
+    drafts.map(async (draft) => {
+      const storeSettings = settingsByStoreId.get(draft.storeId)
+      return estimateNovaPoshtaDelivery({
+        deliveryType: draft.deliveryType,
+        senderCityRef: storeSettings?.senderCityRef ?? null,
+        senderWarehouseRef: storeSettings?.senderWarehouseRef ?? null,
+        recipientCityRef: draft.recipientCityRef,
+        recipientWarehouseRef: draft.recipientWarehouseRef,
+        recipientStreet: draft.recipientStreet,
+        recipientBuilding: draft.recipientBuilding,
+        recipientApartment: draft.recipientApartment,
+        seatsAmount: draft.items.reduce((sum, item) => sum + item.quantity, 0),
+      })
+    }),
+  )
+
+  const total = estimates.reduce(
+    (sum, estimate) => sum.plus(estimate.estimatedCost ?? '0'),
+    new Decimal(0),
+  )
+
+  return {
+    estimatedCost: total.toFixed(2),
+    currency: 'UAH',
+  }
+}
+
+async function getShipmentByIdOrThrow(shipmentId: string) {
+  const shipment = await findShipmentById(shipmentId)
+  if (!shipment) {
+    throw new ShipmentNotFoundError()
+  }
+
+  return shipment
+}
+
+async function getAdminShipment(shipmentId: string) {
+  return getShipmentByIdOrThrow(shipmentId)
+}
+
+async function syncShipmentRecord(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+): Promise<ShipmentSyncResultDto> {
+  assertShipmentCanSync(shipment)
+
+  const status = await getNovaPoshtaProvider().getShipmentStatus({
+    trackingNumber: shipment.trackingNumber!,
+  })
+
+  const statusChanged = shipment.status !== status.internalStatus
+  const providerShipmentChanged =
+    status.providerShipmentId != null && shipment.providerShipmentId !== status.providerShipmentId
+  const trackingChanged =
+    status.trackingNumber != null && shipment.trackingNumber !== status.trackingNumber
+
+  const updated =
+    statusChanged || providerShipmentChanged || trackingChanged
+      ? await updateShipmentById({
+          id: shipment.id,
+          status: status.internalStatus,
+          providerShipmentId: status.providerShipmentId ?? shipment.providerShipmentId,
+          trackingNumber: status.trackingNumber ?? shipment.trackingNumber,
+        })
+      : shipment
+
+  if (statusChanged) {
+    const notificationCopy = buildShipmentLifecycleNotificationCopy(updated, updated.status)
+    if (notificationCopy && BUYER_VISIBLE_STATUS_NOTIFICATIONS.has(updated.status)) {
+      runNonBlocking(
+        'shipping:sync-status:buyer-notification',
+        notifyBuyerAboutShipment(updated, notificationCopy),
+      )
+    }
+    if (notificationCopy && SELLER_VISIBLE_STATUS_NOTIFICATIONS.has(updated.status)) {
+      runNonBlocking(
+        'shipping:sync-status:seller-notification',
+        notifySellerAboutShipment(updated, notificationCopy),
+      )
+    }
+  }
+
+  return {
+    shipmentId: shipment.id,
+    previousStatus: shipment.status,
+    currentStatus: updated.status,
+    trackingNumber: updated.trackingNumber,
+    changed: statusChanged || providerShipmentChanged || trackingChanged,
   }
 }
 
@@ -545,6 +853,7 @@ export async function createMyShipmentTtn(
   const providerResult = await getNovaPoshtaProvider().createShipment({
     shipmentId: shipment.id,
     orderId: shipment.orderId,
+    deliveryType: shipment.deliveryType,
     senderName: settings.senderName,
     senderPhone: settings.senderPhone,
     senderCityRef: settings.senderCityRef,
@@ -555,8 +864,11 @@ export async function createMyShipmentTtn(
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
     recipientCityName: shipment.recipientCityName,
-    recipientWarehouseRef: shipment.recipientWarehouseRef ?? '',
-    recipientWarehouseName: shipment.recipientWarehouseName ?? '',
+    recipientStreet: shipment.recipientStreet,
+    recipientBuilding: shipment.recipientBuilding,
+    recipientApartment: shipment.recipientApartment,
+    recipientWarehouseRef: shipment.recipientWarehouseRef,
+    recipientWarehouseName: shipment.recipientWarehouseName,
     cargoDescription: resolveShipmentCargoDescription(shipment),
     seatsAmount,
     declaredCost: resolveShipmentDeclaredCost(shipment),
@@ -569,7 +881,7 @@ export async function createMyShipmentTtn(
     status: ShipmentStatus.LABEL_CREATED,
   })
 
-  const notificationCopy = buildShipmentStatusNotificationCopy(updated, ShipmentStatus.LABEL_CREATED)
+  const notificationCopy = buildShipmentLifecycleNotificationCopy(updated, ShipmentStatus.LABEL_CREATED)
   if (notificationCopy) {
     runNonBlocking(
       'shipping:create-ttn:buyer-notification',
@@ -586,37 +898,8 @@ export async function refreshMyShipmentStatus(
 ): Promise<SellerShipmentDto> {
   const { shipment } = await getOwnedSellerShipment(user, shipmentId)
   assertShipmentCanRefresh(shipment)
-
-  const status = await getNovaPoshtaProvider().getShipmentStatus({
-    trackingNumber: shipment.trackingNumber!,
-  })
-
-  const statusChanged = shipment.status !== status.internalStatus
-  const providerShipmentChanged =
-    status.providerShipmentId != null && shipment.providerShipmentId !== status.providerShipmentId
-  const trackingChanged =
-    status.trackingNumber != null && shipment.trackingNumber !== status.trackingNumber
-
-  const updated =
-    statusChanged || providerShipmentChanged || trackingChanged
-      ? await updateShipmentById({
-          id: shipment.id,
-          status: status.internalStatus,
-          providerShipmentId: status.providerShipmentId ?? shipment.providerShipmentId,
-          trackingNumber: status.trackingNumber ?? shipment.trackingNumber,
-        })
-      : shipment
-
-  if (statusChanged && BUYER_VISIBLE_STATUS_NOTIFICATIONS.has(updated.status)) {
-    const notificationCopy = buildShipmentStatusNotificationCopy(updated, updated.status)
-    if (notificationCopy) {
-      runNonBlocking(
-        'shipping:refresh-status:buyer-notification',
-        notifyBuyerAboutShipment(updated, notificationCopy),
-      )
-    }
-  }
-
+  const result = await syncShipmentRecord(shipment)
+  const updated = result.changed ? await getShipmentByIdOrThrow(shipment.id) : shipment
   return toSellerShipmentDto(updated)
 }
 
@@ -640,6 +923,188 @@ export async function cancelMyShipment(
   })
 
   return toSellerShipmentDto(updated)
+}
+
+export async function bulkCreateMyShipmentTtns(
+  user: SessionUser,
+  shipmentIds: string[],
+): Promise<BulkCreateShipmentTtnResponseDto> {
+  const uniqueShipmentIds = [...new Set(shipmentIds)]
+
+  const results = await Promise.all(
+    uniqueShipmentIds.map(async (shipmentId) => {
+      try {
+        const shipment = await createMyShipmentTtn(user, shipmentId)
+        return {
+          shipmentId,
+          success: true,
+          trackingNumber: shipment.trackingNumber,
+          errorMessage: null,
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Shipment TTN could not be created'
+        return {
+          shipmentId,
+          success: false,
+          trackingNumber: null,
+          errorMessage: message,
+        }
+      }
+    }),
+  )
+
+  return { results }
+}
+
+export async function createMyReturnShipment(
+  user: SessionUser,
+  shipmentId: string,
+): Promise<SellerShipmentDto> {
+  const { shipment, store } = await getOwnedSellerShipment(user, shipmentId)
+  assertShipmentCanCreateReturn(shipment)
+
+  const settings = await findStoreShippingSettingsByStoreId(store.id)
+  if (
+    !settings?.isConfigured ||
+    !settings.senderName.trim() ||
+    !settings.senderPhone.trim() ||
+    !settings.senderCityRef.trim() ||
+    !settings.senderCityName.trim()
+  ) {
+    throw new StoreShippingSettingsRequiredError()
+  }
+
+  try {
+    const returnShipment = await createReturnShipment({
+      originalShipmentId: shipment.id,
+      orderId: shipment.orderId,
+      storeId: shipment.storeId,
+      provider: shipment.provider,
+      deliveryType: shipment.deliveryType,
+      recipientName: settings.senderName,
+      recipientPhone: settings.senderPhone,
+      recipientCityRef: settings.senderCityRef,
+      recipientCityName: settings.senderCityName,
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: settings.senderWarehouseRef,
+      recipientWarehouseName: settings.senderWarehouseName,
+      estimatedCost: shipment.estimatedCost ? new Decimal(shipment.estimatedCost.toString()) : null,
+      currency: shipment.currency,
+      items: shipment.items.map((item) => ({
+        orderItemId: item.orderItemId,
+        quantity: item.quantity,
+      })),
+    })
+
+    return toSellerShipmentDto(returnShipment)
+  } catch (error) {
+    if (
+      error instanceof ShipmentInvalidStateError ||
+      error instanceof ShipmentAlreadyReturnedError ||
+      error instanceof StoreShippingSettingsRequiredError
+    ) {
+      throw error
+    }
+
+    throw new ShipmentReturnCreationError()
+  }
+}
+
+export async function createAdminReturnShipment(
+  user: SessionUser,
+  shipmentId: string,
+): Promise<SellerShipmentDto> {
+  requireAdmin(user)
+  const shipment = await getAdminShipment(shipmentId)
+  assertShipmentCanCreateReturn(shipment)
+
+  const settings = await findStoreShippingSettingsByStoreId(shipment.storeId)
+  if (
+    !settings?.isConfigured ||
+    !settings.senderName.trim() ||
+    !settings.senderPhone.trim() ||
+    !settings.senderCityRef.trim() ||
+    !settings.senderCityName.trim()
+  ) {
+    throw new StoreShippingSettingsRequiredError()
+  }
+
+  try {
+    const returnShipment = await createReturnShipment({
+      originalShipmentId: shipment.id,
+      orderId: shipment.orderId,
+      storeId: shipment.storeId,
+      provider: shipment.provider,
+      deliveryType: shipment.deliveryType,
+      recipientName: settings.senderName,
+      recipientPhone: settings.senderPhone,
+      recipientCityRef: settings.senderCityRef,
+      recipientCityName: settings.senderCityName,
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: settings.senderWarehouseRef,
+      recipientWarehouseName: settings.senderWarehouseName,
+      estimatedCost: shipment.estimatedCost ? new Decimal(shipment.estimatedCost.toString()) : null,
+      currency: shipment.currency,
+      items: shipment.items.map((item) => ({
+        orderItemId: item.orderItemId,
+        quantity: item.quantity,
+      })),
+    })
+
+    return toSellerShipmentDto(returnShipment)
+  } catch (error) {
+    if (
+      error instanceof ShipmentInvalidStateError ||
+      error instanceof ShipmentAlreadyReturnedError ||
+      error instanceof StoreShippingSettingsRequiredError
+    ) {
+      throw error
+    }
+
+    throw new ShipmentReturnCreationError()
+  }
+}
+
+export async function syncShipmentStatus(
+  shipmentId: string,
+): Promise<ShipmentSyncResultDto> {
+  const shipment = await getAdminShipment(shipmentId)
+
+  try {
+    return await syncShipmentRecord(shipment)
+  } catch (error) {
+    if (error instanceof ShipmentInvalidStateError) {
+      throw error
+    }
+
+    throw new ShipmentSyncError()
+  }
+}
+
+export async function syncPendingShipments(limit = 50): Promise<ShipmentSyncResponseDto> {
+  const shipments = await listTrackableShipments({ limit })
+  const results: ShipmentSyncResultDto[] = []
+
+  for (const shipment of shipments) {
+    try {
+      results.push(await syncShipmentRecord(shipment))
+    } catch (error) {
+      logError('shipping:sync-pending-shipment', error)
+      results.push({
+        shipmentId: shipment.id,
+        previousStatus: shipment.status,
+        currentStatus: shipment.status,
+        trackingNumber: shipment.trackingNumber,
+        changed: false,
+      })
+    }
+  }
+
+  return { results }
 }
 
 export function buildShipmentDrafts(input: {
@@ -667,8 +1132,12 @@ export function buildShipmentDrafts(input: {
       recipientPhone: input.deliverySelection.recipientPhone,
       recipientCityRef: input.deliverySelection.recipientCityRef,
       recipientCityName: input.deliverySelection.recipientCityName,
+      recipientStreet: input.deliverySelection.recipientStreet,
+      recipientBuilding: input.deliverySelection.recipientBuilding,
+      recipientApartment: input.deliverySelection.recipientApartment,
       recipientWarehouseRef: input.deliverySelection.recipientWarehouseRef,
       recipientWarehouseName: input.deliverySelection.recipientWarehouseName,
+      estimatedCost: input.deliverySelection.estimatedCost,
       currency: 'UAH',
       items: [
         {
