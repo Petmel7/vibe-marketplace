@@ -158,6 +158,16 @@ import {
   PromotionUsageLimitReachedError,
   PromotionUserLimitReachedError,
 } from './promotion'
+import {
+  DuplicateRefundRequestError,
+  InvalidRefundTransitionError,
+  RefundAmountExceededError,
+  RefundLedgerReversalError,
+  RefundOrderNotEligibleError,
+  RefundPaymentNotEligibleError,
+  RefundRequestNotFoundError,
+  RefundRequestOwnershipError,
+} from './refund'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -187,7 +197,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof EvidenceOwnershipError ||
     err instanceof DisputeOwnershipError ||
     err instanceof PayoutOwnershipError ||
-    err instanceof PromotionOwnershipError
+    err instanceof PromotionOwnershipError ||
+    err instanceof RefundRequestOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -218,7 +229,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RiskSubjectNotFoundError ||
     err instanceof PayoutNotFoundError ||
     err instanceof PromotionNotFoundError ||
-    err instanceof SellerBalanceNotFoundError
+    err instanceof SellerBalanceNotFoundError ||
+    err instanceof RefundRequestNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -245,7 +257,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof DuplicateDisputeError ||
     err instanceof DuplicateLedgerEntryError ||
     err instanceof PromotionDuplicateCodeError ||
-    err instanceof PromotionDeleteConflictError
+    err instanceof PromotionDeleteConflictError ||
+    err instanceof DuplicateRefundRequestError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -303,7 +316,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof PromotionExpiredError ||
     err instanceof PromotionUsageLimitReachedError ||
     err instanceof PromotionUserLimitReachedError ||
-    err instanceof PromotionMinimumAmountError
+    err instanceof PromotionMinimumAmountError ||
+    err instanceof InvalidRefundTransitionError ||
+    err instanceof RefundAmountExceededError ||
+    err instanceof RefundPaymentNotEligibleError ||
+    err instanceof RefundOrderNotEligibleError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -318,7 +335,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof DomainPaymentProviderError ||
     err instanceof LiqPayConfigError ||
     err instanceof EvidenceUploadFailedError ||
-    err instanceof DisputeEvidenceUploadError
+    err instanceof DisputeEvidenceUploadError ||
+    err instanceof RefundLedgerReversalError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
