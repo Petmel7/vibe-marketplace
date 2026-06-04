@@ -7,6 +7,10 @@ import type {
   PaymentNextAction,
   PaymentStatus,
 } from '@/types/payments'
+import type {
+  CheckoutDeliverySelection,
+  ShippingDeliveryType,
+} from '@/types/shipping'
 
 export type CheckoutAddressOption = {
   id: string
@@ -67,6 +71,7 @@ export type CheckoutPreview = {
   appliedPromotion: AppliedPromotion | null
   defaultShippingAddress: CheckoutAddressOption | null
   addressOptions: CheckoutAddressOption[]
+  deliverySelection: CheckoutDeliverySelection
   blockingIssues: CheckoutBlockingIssue[]
   canCheckout: boolean
 }
@@ -74,6 +79,13 @@ export type CheckoutPreview = {
 export type CheckoutSubmitPayload = {
   cartId: string
   shippingAddressId?: string | null
+  deliveryType?: ShippingDeliveryType | null
+  recipientName?: string | null
+  recipientPhone?: string | null
+  recipientCityRef?: string | null
+  recipientCityName?: string | null
+  recipientWarehouseRef?: string | null
+  recipientWarehouseName?: string | null
   expectedSubtotal?: string | null
   expectedTotal?: string | null
   couponCode?: string | null

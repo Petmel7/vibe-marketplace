@@ -10,14 +10,50 @@ import { useCartStore } from '@/store/cartStore'
 import type { CheckoutPreview, CheckoutResponse } from '@/types/checkout'
 import type { CheckoutPaymentMethod, HostedPaymentAction } from '@/types/payments'
 import type { CheckoutPromotionPreview } from '@/types/promotions'
+import type {
+  CheckoutDeliveryMode,
+  NovaPoshtaCity,
+  NovaPoshtaWarehouse,
+} from '@/types/shipping'
 
-function buildCheckoutPreviewUrl(cartId?: string) {
-  if (!cartId) {
-    return API_ROUTES.checkoutPreview
+function buildCheckoutPreviewUrl(
+  cartId?: string,
+  deliveryPayload?: {
+    deliveryType?: 'NOVA_POSHTA_WAREHOUSE' | null
+    recipientName?: string | null
+    recipientPhone?: string | null
+    recipientCityRef?: string | null
+    recipientCityName?: string | null
+    recipientWarehouseRef?: string | null
+    recipientWarehouseName?: string | null
+  },
+) {
+  const params = new URLSearchParams()
+
+  if (cartId) {
+    params.set('cartId', cartId)
   }
 
-  const params = new URLSearchParams({ cartId })
-  return `${API_ROUTES.checkoutPreview}?${params.toString()}`
+  if (deliveryPayload?.deliveryType) {
+    params.set('deliveryType', deliveryPayload.deliveryType)
+  }
+
+  const pairs = [
+    ['recipientName', deliveryPayload?.recipientName],
+    ['recipientPhone', deliveryPayload?.recipientPhone],
+    ['recipientCityRef', deliveryPayload?.recipientCityRef],
+    ['recipientCityName', deliveryPayload?.recipientCityName],
+    ['recipientWarehouseRef', deliveryPayload?.recipientWarehouseRef],
+    ['recipientWarehouseName', deliveryPayload?.recipientWarehouseName],
+  ] as const
+
+  for (const [key, value] of pairs) {
+    if (value?.trim()) {
+      params.set(key, value.trim())
+    }
+  }
+
+  return params.size > 0 ? `${API_ROUTES.checkoutPreview}?${params.toString()}` : API_ROUTES.checkoutPreview
 }
 
 function getFriendlyCheckoutError(error: unknown, fallback: string) {
@@ -86,6 +122,11 @@ export function useCheckout(initialCartId?: string) {
   const setCartItemCount = useCartStore((state) => state.setItemCount)
   const [preview, setPreview] = useState<CheckoutPreview | null>(null)
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [deliveryMode, setDeliveryMode] = useState<CheckoutDeliveryMode>('ADDRESS')
+  const [recipientName, setRecipientName] = useState('')
+  const [recipientPhone, setRecipientPhone] = useState('')
+  const [selectedCity, setSelectedCity] = useState<NovaPoshtaCity | null>(null)
+  const [selectedWarehouse, setSelectedWarehouse] = useState<NovaPoshtaWarehouse | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<CheckoutPaymentMethod>('CASH_ON_DELIVERY')
   const [couponCode, setCouponCode] = useState('')
@@ -97,6 +138,7 @@ export function useCheckout(initialCartId?: string) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
+  const [deliveryError, setDeliveryError] = useState<string | null>(null)
   const [paymentMethodError, setPaymentMethodError] = useState<string | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
   const [couponSuccessMessage, setCouponSuccessMessage] = useState<string | null>(null)
@@ -106,6 +148,22 @@ export function useCheckout(initialCartId?: string) {
   useEffect(() => {
     appliedCouponCodeRef.current = appliedCouponCode
   }, [appliedCouponCode])
+
+  const getDeliveryPayload = useCallback(() => {
+    if (deliveryMode !== 'NOVA_POSHTA') {
+      return undefined
+    }
+
+    return {
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE' as const,
+      recipientName,
+      recipientPhone,
+      recipientCityRef: selectedCity?.ref ?? null,
+      recipientCityName: selectedCity?.name ?? null,
+      recipientWarehouseRef: selectedWarehouse?.ref ?? null,
+      recipientWarehouseName: selectedWarehouse?.name ?? null,
+    }
+  }, [deliveryMode, recipientName, recipientPhone, selectedCity, selectedWarehouse])
 
   const applyCouponToCart = useCallback(
     async (
@@ -148,13 +206,17 @@ export function useCheckout(initialCartId?: string) {
   )
 
   const loadPreview = useCallback(
-    async (nextCartId?: string, preserveSelection = true) => {
+    async (
+      nextCartId?: string,
+      preserveSelection = true,
+      deliveryPayloadOverride?: ReturnType<typeof getDeliveryPayload>,
+    ) => {
       setIsLoading(true)
       setLoadError(null)
 
       try {
         const data = await apiClient.get<CheckoutPreview>(
-          buildCheckoutPreviewUrl(nextCartId ?? initialCartId),
+          buildCheckoutPreviewUrl(nextCartId ?? initialCartId, deliveryPayloadOverride),
         )
 
         let nextPreview = data
@@ -195,6 +257,13 @@ export function useCheckout(initialCartId?: string) {
 
           return nextPreview.defaultShippingAddress?.id ?? nextPreview.addressOptions[0]?.id ?? ''
         })
+
+        if (!preserveSelection) {
+          const hasSavedAddress = Boolean(
+            nextPreview.defaultShippingAddress?.id ?? nextPreview.addressOptions[0]?.id,
+          )
+          setDeliveryMode(hasSavedAddress ? 'ADDRESS' : 'NOVA_POSHTA')
+        }
       } catch (error) {
         setLoadError(
           getFriendlyCheckoutError(error, 'Unable to load checkout preview right now.'),
@@ -211,7 +280,7 @@ export function useCheckout(initialCartId?: string) {
   }, [initialCartId, loadPreview])
 
   const submitCheckout = useCallback(async () => {
-    if (!preview?.cartId || !selectedAddressId || isSubmitting) {
+    if (!preview?.cartId || isSubmitting) {
       return null
     }
 
@@ -223,12 +292,41 @@ export function useCheckout(initialCartId?: string) {
     setIsSubmitting(true)
     setSubmitError(null)
     setPaymentMethodError(null)
+    setAddressError(null)
+    setDeliveryError(null)
     setPaymentHandoffAction(null)
+
+    const usingAddress = deliveryMode === 'ADDRESS'
+
+    if (usingAddress && !selectedAddressId) {
+      setAddressError('Оберіть збережену адресу доставки або переключіться на Нова Пошта.')
+      setIsSubmitting(false)
+      return null
+    }
+
+    if (
+      !usingAddress &&
+      (!recipientName.trim() ||
+        !recipientPhone.trim() ||
+        !selectedCity ||
+        !selectedWarehouse)
+    ) {
+      setDeliveryError('Заповніть дані отримувача, місто та відділення Нова Пошта.')
+      setIsSubmitting(false)
+      return null
+    }
 
     try {
       const result = await apiClient.post<CheckoutResponse>(API_ROUTES.checkoutSubmit, {
         cartId: preview.cartId,
-        shippingAddressId: selectedAddressId,
+        shippingAddressId: usingAddress ? selectedAddressId : null,
+        deliveryType: usingAddress ? null : 'NOVA_POSHTA_WAREHOUSE',
+        recipientName: usingAddress ? null : recipientName.trim(),
+        recipientPhone: usingAddress ? null : recipientPhone.trim(),
+        recipientCityRef: usingAddress ? null : selectedCity?.ref ?? null,
+        recipientCityName: usingAddress ? null : selectedCity?.name ?? null,
+        recipientWarehouseRef: usingAddress ? null : selectedWarehouse?.ref ?? null,
+        recipientWarehouseName: usingAddress ? null : selectedWarehouse?.name ?? null,
         expectedSubtotal: preview.subtotal,
         expectedTotal: preview.total,
         couponCode: appliedCouponCodeRef.current,
@@ -266,7 +364,7 @@ export function useCheckout(initialCartId?: string) {
       )
 
       if (shouldRefreshPreviewAfterError(error)) {
-        await loadPreview(preview.cartId)
+        await loadPreview(preview.cartId, true, getDeliveryPayload())
       }
 
       return null
@@ -275,11 +373,17 @@ export function useCheckout(initialCartId?: string) {
     }
   }, [
     isSubmitting,
+    getDeliveryPayload,
     loadPreview,
     preview,
+    deliveryMode,
+    recipientName,
+    recipientPhone,
     router,
+    selectedCity,
     selectedAddressId,
     selectedPaymentMethod,
+    selectedWarehouse,
     setCartItemCount,
   ])
 
@@ -294,7 +398,7 @@ export function useCheckout(initialCartId?: string) {
           payload,
         )
 
-        await loadPreview(preview?.cartId ?? undefined, false)
+        await loadPreview(preview?.cartId ?? undefined, false, getDeliveryPayload())
         setSelectedAddressId(address.id)
         return address
       } catch (error) {
@@ -306,7 +410,7 @@ export function useCheckout(initialCartId?: string) {
         setIsSavingAddress(false)
       }
     },
-    [loadPreview, preview?.cartId],
+    [getDeliveryPayload, loadPreview, preview?.cartId],
   )
 
   const selectedAddress = useMemo(
@@ -339,21 +443,31 @@ export function useCheckout(initialCartId?: string) {
     setCouponCode('')
     setCouponError(null)
     setCouponSuccessMessage(null)
-    await loadPreview(preview?.cartId ?? undefined)
-  }, [loadPreview, preview?.cartId])
+    await loadPreview(preview?.cartId ?? undefined, true, getDeliveryPayload())
+  }, [getDeliveryPayload, loadPreview, preview?.cartId])
 
   const hasBlockingIssues = (preview?.blockingIssues.length ?? 0) > 0
   const isEmpty = (preview?.items.length ?? 0) === 0
+  const hasCompleteNovaPoshtaSelection =
+    Boolean(recipientName.trim()) &&
+    Boolean(recipientPhone.trim()) &&
+    Boolean(selectedCity?.ref) &&
+    Boolean(selectedWarehouse?.ref)
   const canSubmit =
     Boolean(preview?.cartId) &&
     !isEmpty &&
     !hasBlockingIssues &&
-    Boolean(selectedAddressId) &&
+    (deliveryMode === 'ADDRESS' ? Boolean(selectedAddressId) : hasCompleteNovaPoshtaSelection) &&
     !isSubmitting
 
   return {
     preview,
     selectedAddressId,
+    deliveryMode,
+    recipientName,
+    recipientPhone,
+    selectedCity,
+    selectedWarehouse,
     selectedAddress,
     isLoading,
     isSubmitting,
@@ -363,6 +477,7 @@ export function useCheckout(initialCartId?: string) {
     loadError,
     submitError,
     addressError,
+    deliveryError,
     paymentMethodError,
     couponCode,
     couponError,
@@ -371,6 +486,11 @@ export function useCheckout(initialCartId?: string) {
     isEmpty,
     canSubmit,
     setSelectedAddressId,
+    setDeliveryMode,
+    setRecipientName,
+    setRecipientPhone,
+    setSelectedCity,
+    setSelectedWarehouse,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     setCouponCode,

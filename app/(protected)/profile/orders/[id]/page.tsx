@@ -9,6 +9,7 @@ import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import ReportButton from '@/components/abuse-reports/ReportButton'
 import DisputeFormDialog from '@/components/disputes/DisputeFormDialog'
 import RefundRequestDialog from '@/components/refunds/RefundRequestDialog'
+import OrderShipmentCard from '@/components/shipping/OrderShipmentCard'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { formatPrice } from '@/utils/formatters/price'
@@ -249,6 +250,19 @@ export default async function ProfileOrderDetailPage({
               />
             )}
           </DashboardCard>
+
+          {order.shipments.length > 0 ? (
+            <DashboardCard
+              title="Shipment snapshots"
+              description="Per-store delivery snapshots saved during checkout."
+            >
+              <div className="grid gap-4">
+                {order.shipments.map((shipment) => (
+                  <OrderShipmentCard key={shipment.id} shipment={shipment} />
+                ))}
+              </div>
+            </DashboardCard>
+          ) : null}
 
           {order.note ? (
             <DashboardCard title="Order note" description="Additional delivery context attached to this order.">

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerStoreSettingsForm from '@/components/seller/SellerStoreSettingsForm'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
+import SellerShippingSettingsForm from '@/components/shipping/SellerShippingSettingsForm'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getSellerStorePageData, getSellerStorefrontRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
@@ -44,6 +45,8 @@ export default async function SellerStorePage({
         store={data.store}
         setupHint={setup}
       />
+
+      {data.store ? <SellerShippingSettingsForm /> : null}
     </SellerSection>
   )
 }

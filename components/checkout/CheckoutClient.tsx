@@ -7,6 +7,7 @@ import type { CreateAddressDto } from '@/features/address/address.dto'
 import { useCheckout } from '@/hooks/useCheckout'
 import CheckoutAddressSelector from './CheckoutAddressSelector'
 import CheckoutBlockingIssues from './CheckoutBlockingIssues'
+import CheckoutDeliverySection from './CheckoutDeliverySection'
 import CheckoutItemList from './CheckoutItemList'
 import PaymentMethodSelector from './PaymentMethodSelector'
 import CheckoutSubmitButton from './CheckoutSubmitButton'
@@ -30,6 +31,7 @@ export default function CheckoutClient({
     loadError,
     submitError,
     addressError,
+    deliveryError,
     paymentMethodError,
     couponCode,
     couponError,
@@ -38,8 +40,18 @@ export default function CheckoutClient({
     isEmpty,
     canSubmit,
     selectedAddressId,
+    deliveryMode,
+    recipientName,
+    recipientPhone,
+    selectedCity,
+    selectedWarehouse,
     selectedPaymentMethod,
     setSelectedAddressId,
+    setDeliveryMode,
+    setRecipientName,
+    setRecipientPhone,
+    setSelectedCity,
+    setSelectedWarehouse,
     setSelectedPaymentMethod,
     setCouponCode,
     submitCheckout,
@@ -99,14 +111,33 @@ export default function CheckoutClient({
           disabled={isSubmitting}
           errorMessage={paymentMethodError}
         />
-        <CheckoutAddressSelector
-          addresses={preview.addressOptions}
-          selectedAddressId={selectedAddressId}
-          onSelect={setSelectedAddressId}
-          onAddAddress={handleAddAddress}
-          isSaving={isSavingAddress}
-          errorMessage={addressError}
+        <CheckoutDeliverySection
+          deliveryMode={deliveryMode}
+          onDeliveryModeChange={setDeliveryMode}
+          recipientName={recipientName}
+          recipientPhone={recipientPhone}
+          selectedCity={selectedCity}
+          selectedWarehouse={selectedWarehouse}
+          onRecipientNameChange={setRecipientName}
+          onRecipientPhoneChange={setRecipientPhone}
+          onCityChange={setSelectedCity}
+          onWarehouseChange={setSelectedWarehouse}
+          hasSavedAddresses={preview.addressOptions.length > 0}
         />
+        {deliveryMode === 'ADDRESS' ? (
+          <CheckoutAddressSelector
+            addresses={preview.addressOptions}
+            selectedAddressId={selectedAddressId}
+            onSelect={setSelectedAddressId}
+            onAddAddress={handleAddAddress}
+            isSaving={isSavingAddress}
+            errorMessage={addressError}
+          />
+        ) : deliveryError ? (
+          <p className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary">
+            {deliveryError}
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">

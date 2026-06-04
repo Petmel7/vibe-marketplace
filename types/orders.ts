@@ -4,6 +4,7 @@ import type {
   PaymentProvider,
   PaymentStatus,
 } from '@/types/payments'
+import type { OrderShipment } from '@/types/shipping'
 
 export type CheckoutOrderItem = {
   id: string
@@ -28,6 +29,7 @@ export type CheckoutOrderDetail = {
   paymentStatus: PaymentStatus | null
   paidAt: string | null
   items: CheckoutOrderItem[]
+  shipments: OrderShipment[]
 }
 
 export function toCheckoutOrderDetail(order: OrderDetailDto): CheckoutOrderDetail {
@@ -43,6 +45,17 @@ export function toCheckoutOrderDetail(order: OrderDetailDto): CheckoutOrderDetai
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
     paidAt: order.paidAt,
+    shipments: order.shipments.map((shipment) => ({
+      id: shipment.id,
+      provider: shipment.provider,
+      deliveryType: shipment.deliveryType,
+      status: shipment.status,
+      recipientCityRef: shipment.recipientCityRef,
+      recipientCityName: shipment.recipientCityName,
+      recipientWarehouseRef: shipment.recipientWarehouseRef,
+      recipientWarehouseName: shipment.recipientWarehouseName,
+      trackingNumber: shipment.trackingNumber,
+    })),
     items: order.items.map((item) => ({
       id: item.id,
       productNameSnapshot: item.productNameSnapshot,
