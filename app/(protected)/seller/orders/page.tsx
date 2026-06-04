@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import EmptyState from '@/components/profile/EmptyState'
 import FulfillmentStatusBadge from '@/components/seller/FulfillmentStatusBadge'
@@ -104,6 +105,12 @@ export default async function SellerOrdersPage() {
           </table>
         )}
       </SellerTable>
+
+      <div className="flex flex-wrap gap-3">
+        <Link href="/seller/refunds" className="ui-secondary-button">
+          Open refund center
+        </Link>
+      </div>
     </SellerSection>
   )
 }

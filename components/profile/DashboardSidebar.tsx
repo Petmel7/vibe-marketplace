@@ -9,6 +9,7 @@ import { ROLE_VALUES, hasRole } from '@/lib/constants/roles'
 const NAV_ITEMS = [
   { href: '/profile', label: 'Overview' },
   { href: '/profile/orders', label: 'Orders' },
+  { href: '/profile/refunds', label: 'Refunds' },
   { href: '/profile/disputes', label: 'Disputes' },
   { href: '/profile/reports', label: 'Reports' },
   { href: '/profile/addresses', label: 'Addresses' },

@@ -8,6 +8,7 @@ export const API_ROUTES = {
   checkoutPreview: '/api/checkout',
   checkoutSubmit: '/api/checkout',
   checkoutPromotionApply: '/api/checkout/promotions/apply',
+  refunds: '/api/refunds',
   notifications: '/api/notifications',
   notificationsUnreadCount: '/api/notifications/unread-count',
   notificationsReadAll: '/api/notifications/read-all',
@@ -32,9 +33,11 @@ export const API_ROUTES = {
   sellerFinanceSummary: '/api/seller/finance/summary',
   sellerFinanceLedger: '/api/seller/finance/ledger',
   sellerFinancePayouts: '/api/seller/finance/payouts',
+  sellerRefunds: '/api/seller/refunds',
   adminPayouts: '/api/admin/payouts',
   adminSellerBalances: '/api/admin/seller-balances',
   adminSellerBalancesRecalculate: '/api/admin/seller-balances/recalculate',
+  adminRefunds: '/api/admin/refunds',
 } as const
 
 export const AUTH_PAGE_PATHS = ['/login', '/register'] as const
@@ -55,6 +58,42 @@ export function getOrderRoute(id: string) {
 
 export function getDisputeRoute(id: string) {
   return `${API_ROUTES.disputes}/${id}`
+}
+
+export function getRefundRoute(id: string) {
+  return `${API_ROUTES.refunds}/${id}`
+}
+
+export function getSellerRefundRoute(id: string) {
+  return `${API_ROUTES.sellerRefunds}/${id}`
+}
+
+export function getAdminRefundRoute(id: string) {
+  return `${API_ROUTES.adminRefunds}/${id}`
+}
+
+export function getAdminRefundStatusRoute(id: string) {
+  return `${getAdminRefundRoute(id)}/status`
+}
+
+export function getAdminRefundApproveRoute(id: string) {
+  return `${getAdminRefundRoute(id)}/approve`
+}
+
+export function getAdminRefundRejectRoute(id: string) {
+  return `${getAdminRefundRoute(id)}/reject`
+}
+
+export function getAdminRefundMarkProcessingRoute(id: string) {
+  return `${getAdminRefundRoute(id)}/mark-processing`
+}
+
+export function getAdminRefundMarkSucceededRoute(id: string) {
+  return `${getAdminRefundRoute(id)}/mark-succeeded`
+}
+
+export function getAdminRefundMarkFailedRoute(id: string) {
+  return `${getAdminRefundRoute(id)}/mark-failed`
 }
 
 export function getDisputeMessagesRoute(id: string) {

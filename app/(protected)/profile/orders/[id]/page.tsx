@@ -8,10 +8,41 @@ import StatusBadge from '@/components/profile/StatusBadge'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import ReportButton from '@/components/abuse-reports/ReportButton'
 import DisputeFormDialog from '@/components/disputes/DisputeFormDialog'
+import RefundRequestDialog from '@/components/refunds/RefundRequestDialog'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { formatPrice } from '@/utils/formatters/price'
 import { getOrderDetailPageData } from '@/app/(protected)/profile/_lib/profile-dashboard.data'
+
+const REFUND_ELIGIBLE_ORDER_STATUSES = new Set([
+  'confirmed',
+  'paid',
+  'processing',
+  'shipped',
+  'delivered',
+])
+
+const CARD_REFUND_ELIGIBLE_PAYMENT_STATUSES = new Set([
+  'SUCCEEDED',
+  'PARTIALLY_REFUNDED',
+  'REFUNDED',
+])
+
+function canRequestRefund(order: {
+  status: string
+  paymentMethod: string | null
+  paymentStatus: string | null
+}) {
+  if (!REFUND_ELIGIBLE_ORDER_STATUSES.has(order.status)) {
+    return false
+  }
+
+  if (order.paymentMethod === 'CASH_ON_DELIVERY') {
+    return true
+  }
+
+  return Boolean(order.paymentStatus && CARD_REFUND_ELIGIBLE_PAYMENT_STATUSES.has(order.paymentStatus))
+}
 
 async function getOrderDetailViewState(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, id: string) {
   try {
@@ -69,6 +100,9 @@ export default async function ProfileOrderDetailPage({
         <p className="text-sm text-copy-muted">
           Created {new Date(order.createdAt).toLocaleDateString('uk-UA')}
         </p>
+        <Link href="/profile/refunds" className="ui-link-muted">
+          Open refunds
+        </Link>
         <ReportButton
           currentUser={user}
           targetType="ORDER"
@@ -137,13 +171,24 @@ export default async function ProfileOrderDetailPage({
                   </dl>
 
                   <div className="pt-2">
-                    <DisputeFormDialog
-                      orderId={order.id}
-                      orderItemId={item.id}
-                      title="Відкрити суперечку по товару"
-                      description={`Опишіть проблему саме для позиції "${item.productNameSnapshot}".`}
-                      triggerLabel="Суперечка по цій позиції"
-                    />
+                    <div className="flex flex-wrap gap-3">
+                      {canRequestRefund(order) ? (
+                        <RefundRequestDialog
+                          orderId={order.id}
+                          orderItemId={item.id}
+                          productName={item.productNameSnapshot}
+                          suggestedAmount={(Number(item.unitPriceSnapshot) * item.quantity).toFixed(2)}
+                          triggerLabel="Запросити повернення"
+                        />
+                      ) : null}
+                      <DisputeFormDialog
+                        orderId={order.id}
+                        orderItemId={item.id}
+                        title="Відкрити суперечку по товару"
+                        description={`Опишіть проблему саме для позиції "${item.productNameSnapshot}".`}
+                        triggerLabel="Суперечка по цій позиції"
+                      />
+                    </div>
                   </div>
                 </div>
               </article>
