@@ -7,11 +7,13 @@ import {
   getShippingProviderLabel,
 } from '@/types/shipping'
 
-export default function OrderShipmentCard({
+export default function ShipmentTrackingCard({
   shipment,
 }: {
   shipment: OrderShipment
 }) {
+  const statusDescription = getShipmentStatusDescription(shipment.status)
+
   return (
     <article className="rounded-2xl border border-panelBorder bg-panel px-4 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -26,9 +28,7 @@ export default function OrderShipmentCard({
         <ShipmentStatusBadge status={shipment.status} />
       </div>
 
-      <p className="mt-3 text-sm text-copy-secondary">
-        {getShipmentStatusDescription(shipment.status)}
-      </p>
+      <p className="mt-3 text-sm text-copy-secondary">{statusDescription}</p>
 
       <dl className="mt-4 space-y-3 text-sm text-copy-secondary">
         <div className="flex items-start justify-between gap-4">

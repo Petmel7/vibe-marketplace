@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/seller', label: 'Overview' },
   { href: '/seller/products', label: 'Products' },
   { href: '/seller/orders', label: 'Orders' },
+  { href: '/seller/shipments', label: 'Shipments' },
   { href: '/seller/promotions', label: 'Promotions' },
   { href: '/seller/finance', label: 'Finance' },
   { href: '/seller/refunds', label: 'Refunds' },

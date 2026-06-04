@@ -32,6 +32,7 @@ export const API_ROUTES = {
   adminRiskStores: '/api/admin/risk/stores',
   adminRiskRecalculate: '/api/admin/risk/recalculate',
   sellerPromotions: '/api/seller/promotions',
+  sellerShipments: '/api/seller/shipments',
   sellerStoreShippingSettings: '/api/seller/store/shipping-settings',
   sellerFinanceSummary: '/api/seller/finance/summary',
   sellerFinanceLedger: '/api/seller/finance/ledger',
@@ -145,6 +146,22 @@ export function getSellerPromotionDetailRoute(id: string) {
 
 export function getSellerPromotionStatusRoute(id: string) {
   return `${getSellerPromotionDetailRoute(id)}/status`
+}
+
+export function getSellerShipmentRoute(id: string) {
+  return `${API_ROUTES.sellerShipments}/${id}`
+}
+
+export function getSellerShipmentCreateTtnRoute(id: string) {
+  return `${getSellerShipmentRoute(id)}/create-ttn`
+}
+
+export function getSellerShipmentRefreshStatusRoute(id: string) {
+  return `${getSellerShipmentRoute(id)}/refresh-status`
+}
+
+export function getSellerShipmentCancelRoute(id: string) {
+  return `${getSellerShipmentRoute(id)}/cancel`
 }
 
 export function getAdminPayoutStatusRoute(id: string) {

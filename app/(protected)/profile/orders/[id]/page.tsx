@@ -9,7 +9,7 @@ import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import ReportButton from '@/components/abuse-reports/ReportButton'
 import DisputeFormDialog from '@/components/disputes/DisputeFormDialog'
 import RefundRequestDialog from '@/components/refunds/RefundRequestDialog'
-import OrderShipmentCard from '@/components/shipping/OrderShipmentCard'
+import ShipmentTrackingCard from '@/components/shipping/ShipmentTrackingCard'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { OrderAccessError, OrderNotFoundError } from '@/lib/errors/orders'
 import { formatPrice } from '@/utils/formatters/price'
@@ -258,7 +258,7 @@ export default async function ProfileOrderDetailPage({
             >
               <div className="grid gap-4">
                 {order.shipments.map((shipment) => (
-                  <OrderShipmentCard key={shipment.id} shipment={shipment} />
+                  <ShipmentTrackingCard key={shipment.id} shipment={shipment} />
                 ))}
               </div>
             </DashboardCard>

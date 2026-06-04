@@ -7,8 +7,10 @@ import SellerMetricCard from '@/components/seller/SellerMetricCard'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
+import ShipmentStatusBadge from '@/components/shipping/ShipmentStatusBadge'
 import { getCurrentUser } from '@/lib/session/getSession'
 import type { SellerFulfillmentStatus } from '@/types/seller'
+import type { ShipmentStatus } from '@/types/shipping'
 import { formatPrice } from '@/utils/formatters/price'
 import { getSellerOverviewData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
@@ -88,6 +90,7 @@ export default async function SellerOverviewPage() {
                 <tr>
                   <th className="px-5 py-3 font-medium">Item</th>
                   <th className="px-5 py-3 font-medium">Buyer shipping</th>
+                  <th className="px-5 py-3 font-medium">Shipment</th>
                   <th className="px-5 py-3 font-medium">Fulfillment</th>
                 </tr>
               </thead>
@@ -111,6 +114,21 @@ export default async function SellerOverviewPage() {
                         </>
                       ) : (
                         <p className="text-copy-muted">Address unavailable</p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-copy-secondary">
+                      {item.shipment ? (
+                        <div className="space-y-2">
+                          <ShipmentStatusBadge status={item.shipment.status as ShipmentStatus} />
+                          <p className="text-copy-primary">
+                            {item.shipment.trackingNumber ?? 'ТТН ще не створено'}
+                          </p>
+                          <Link href={`/seller/shipments/${item.shipment.id}`} className="ui-link-muted">
+                            {item.shipment.trackingNumber ? 'Відкрити shipment' : 'Підготувати shipment'}
+                          </Link>
+                        </div>
+                      ) : (
+                        <p className="text-copy-muted">Shipment unavailable</p>
                       )}
                     </td>
                     <td className="px-5 py-4">
