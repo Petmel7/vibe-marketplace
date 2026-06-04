@@ -20,6 +20,14 @@ export async function GET(request: NextRequest): Promise<Response> {
     const user = await requireAuth()
     const parsed = checkoutPreviewSchema.safeParse({
       cartId: request.nextUrl.searchParams.get('cartId') ?? undefined,
+      deliveryType: request.nextUrl.searchParams.get('deliveryType') ?? undefined,
+      recipientName: request.nextUrl.searchParams.get('recipientName') ?? undefined,
+      recipientPhone: request.nextUrl.searchParams.get('recipientPhone') ?? undefined,
+      recipientCityRef: request.nextUrl.searchParams.get('recipientCityRef') ?? undefined,
+      recipientCityName: request.nextUrl.searchParams.get('recipientCityName') ?? undefined,
+      recipientWarehouseRef: request.nextUrl.searchParams.get('recipientWarehouseRef') ?? undefined,
+      recipientWarehouseName:
+        request.nextUrl.searchParams.get('recipientWarehouseName') ?? undefined,
     })
 
     if (!parsed.success) {

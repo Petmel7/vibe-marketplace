@@ -8,6 +8,8 @@ import {
   PaymentStatus,
   RefundStatus,
   type PaymentProvider,
+  type ShippingDeliveryType,
+  type ShippingProvider,
 } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { CheckoutStockUnavailableError } from '@/lib/errors/checkout'
@@ -20,6 +22,11 @@ import {
   PromotionUsageLimitReachedError,
   PromotionUserLimitReachedError,
 } from '@/lib/errors/promotion'
+import {
+  buildShipmentDrafts,
+  filterMissingShipmentDrafts,
+} from '@/features/shipping/shipping.service'
+import { ShipmentCreationError } from '@/lib/errors/shipping'
 import type { PaymentDiagnosticsQueryDto } from './payment.dto'
 
 const paymentDetailInclude = {
@@ -185,7 +192,17 @@ export async function submitCheckoutOrderWithPayment(data: {
   paymentId: string
   userId: string
   cartId: string
-  shippingAddressId: string
+  shippingAddressId: string | null
+  deliverySelection: {
+    provider: ShippingProvider
+    deliveryType: ShippingDeliveryType
+    recipientName: string
+    recipientPhone: string
+    recipientCityRef: string
+    recipientCityName: string
+    recipientWarehouseRef: string
+    recipientWarehouseName: string
+  } | null
   note?: string
   orderStatus: string
   subtotalAmount: Decimal
@@ -363,6 +380,66 @@ export async function submitCheckoutOrderWithPayment(data: {
           })
 
           throw new CheckoutStockUnavailableError(variantId, variant?.stock ?? 0, qty)
+        }
+      }
+
+      if (data.deliverySelection) {
+        const orderItems = await tx.orderItem.findMany({
+          where: { orderId: order.id },
+          select: {
+            id: true,
+            storeId: true,
+            quantity: true,
+          },
+        })
+
+        const shipmentDrafts = buildShipmentDrafts({
+          orderItems,
+          deliverySelection: data.deliverySelection,
+        })
+
+        const existingShipments = await tx.shipment.findMany({
+          where: { orderId: order.id },
+          select: {
+            id: true,
+            storeId: true,
+          },
+        })
+
+        const missingDrafts = filterMissingShipmentDrafts(
+          shipmentDrafts,
+          existingShipments.map((shipment) => shipment.storeId),
+        )
+
+        for (const draft of missingDrafts) {
+          const shipment = await tx.shipment.create({
+            data: {
+              orderId: order.id,
+              storeId: draft.storeId,
+              provider: draft.provider,
+              deliveryType: draft.deliveryType,
+              status: draft.status,
+              recipientName: draft.recipientName,
+              recipientPhone: draft.recipientPhone,
+              recipientCityRef: draft.recipientCityRef,
+              recipientCityName: draft.recipientCityName,
+              recipientWarehouseRef: draft.recipientWarehouseRef,
+              recipientWarehouseName: draft.recipientWarehouseName,
+              currency: draft.currency,
+            },
+          })
+
+          try {
+            await tx.shipmentItem.createMany({
+              data: draft.items.map((item) => ({
+                shipmentId: shipment.id,
+                orderItemId: item.orderItemId,
+                quantity: item.quantity,
+              })),
+            })
+          } catch {
+            throw new ShipmentCreationError()
+          }
         }
       }
 

@@ -1,7 +1,14 @@
 import Decimal from 'decimal.js'
 import { CheckoutStockUnavailableError } from '@/lib/errors/checkout'
 import { submitCheckoutOrderWithPayment } from '@/features/payments/payment.repository'
-import { type PaymentMethod, type PaymentProvider, type PaymentStatus, type Prisma } from '@/app/generated/prisma/client'
+import {
+  type PaymentMethod,
+  type PaymentProvider,
+  type PaymentStatus,
+  type Prisma,
+  type ShippingDeliveryType,
+  type ShippingProvider,
+} from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 
 const checkoutCartInclude = {
@@ -70,7 +77,17 @@ export async function submitCheckoutOrder(data: {
   paymentId: string
   userId: string
   cartId: string
-  shippingAddressId: string
+  shippingAddressId: string | null
+  deliverySelection: {
+    provider: ShippingProvider
+    deliveryType: ShippingDeliveryType
+    recipientName: string
+    recipientPhone: string
+    recipientCityRef: string
+    recipientCityName: string
+    recipientWarehouseRef: string
+    recipientWarehouseName: string
+  } | null
   note?: string
   orderStatus: string
   subtotalAmount: Decimal

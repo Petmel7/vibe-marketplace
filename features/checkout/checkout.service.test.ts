@@ -24,6 +24,10 @@ vi.mock('@/features/promotions/promotions.service', () => ({
   normalizeCouponCode: vi.fn(),
   resolvePromotionForCheckout: vi.fn(),
 }))
+vi.mock('@/features/shipping/shipping.service', () => ({
+  buildCheckoutDeliverySelectionDto: vi.fn(),
+  resolveCheckoutDeliverySelection: vi.fn(),
+}))
 
 import * as repo from '@/features/checkout/checkout.repository'
 import * as guards from '@/lib/auth/guards'
@@ -35,16 +39,17 @@ import {
 import * as paymentService from '@/features/payments/payment.service'
 import * as payoutService from '@/features/payouts/payouts.service'
 import * as promotionsService from '@/features/promotions/promotions.service'
+import * as shippingService from '@/features/shipping/shipping.service'
 import { applyCheckoutPromotion, checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import {
   CartOwnershipError,
-  CheckoutAddressRequiredError,
   CheckoutPriceChangedError,
   CheckoutProductUnavailableError,
   CheckoutStockUnavailableError,
   EmptyCartError,
   InvalidShippingAddressError,
 } from '@/lib/errors/checkout'
+import { InvalidShippingSelectionError } from '@/lib/errors/shipping'
 import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRepo = vi.mocked(repo)
@@ -57,6 +62,7 @@ const mockEmitSellerNewOrderNotificationEventsForOrder = vi.mocked(
 const mockPaymentService = vi.mocked(paymentService)
 const mockPayoutService = vi.mocked(payoutService)
 const mockPromotionsService = vi.mocked(promotionsService)
+const mockShippingService = vi.mocked(shippingService)
 
 const USER_ID = 'user-0000-0000-0000-000000000001'
 const CART_ID = 'cart-0000-0000-0000-000000000002'
@@ -279,6 +285,18 @@ beforeEach(() => {
         : null,
     }
   })
+  mockShippingService.buildCheckoutDeliverySelectionDto.mockImplementation((input) => ({
+    supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE'],
+    selectedDeliveryType: input.deliveryType ?? null,
+    recipientName: input.recipientName ?? null,
+    recipientPhone: input.recipientPhone ?? null,
+    recipientCityRef: input.recipientCityRef ?? null,
+    recipientCityName: input.recipientCityName ?? null,
+    recipientWarehouseRef: input.recipientWarehouseRef ?? null,
+    recipientWarehouseName: input.recipientWarehouseName ?? null,
+    isComplete: false,
+  }))
+  mockShippingService.resolveCheckoutDeliverySelection.mockResolvedValue(null)
   mockRepo.submitCheckoutOrder.mockResolvedValue(
     {
       order: mockOrder,
@@ -307,6 +325,7 @@ describe('checkout preview', () => {
     expect(preview.appliedPromotion).toBeNull()
     expect(preview.defaultShippingAddress?.id).toBe(ADDRESS_ID)
     expect(preview.addressOptions).toHaveLength(1)
+    expect(preview.deliverySelection.supportedDeliveryTypes).toEqual(['NOVA_POSHTA_WAREHOUSE'])
     expect(preview.blockingIssues).toEqual([])
     expect(preview.canCheckout).toBe(true)
     expect(preview.items[0].storeId).toBe(STORE_ID)
@@ -384,6 +403,7 @@ describe('checkout submit', () => {
     expect(payload.paymentId).toBe(mockPayment.id)
     expect(payload.cartId).toBe(CART_ID)
     expect(payload.shippingAddressId).toBe(ADDRESS_ID)
+    expect(payload.deliverySelection).toBeNull()
     expect(payload.orderStatus).toBe('confirmed')
     expect(payload.promotion).toBeNull()
     expect(payload.stockUpdates).toEqual([{ variantId: VARIANT_ID, qty: 2 }])
@@ -658,14 +678,14 @@ describe('checkout submit', () => {
     await expect(checkout(mockUser, checkoutInput)).rejects.toThrow(CartOwnershipError)
   })
 
-  it('requires a shipping address at submit time', async () => {
+  it('requires either a shipping address or Nova Poshta delivery selection at submit time', async () => {
     mockRepo.getCartWithItems.mockResolvedValue(
       makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
     )
 
     await expect(
       checkout(mockUser, { cartId: CART_ID, shippingAddressId: null, paymentMethod: 'CASH_ON_DELIVERY' }),
-    ).rejects.toThrow(CheckoutAddressRequiredError)
+    ).rejects.toThrow(InvalidShippingSelectionError)
   })
 
   it('validates shipping address ownership', async () => {
@@ -768,5 +788,54 @@ describe('checkout submit', () => {
     const payload = mockRepo.submitCheckoutOrder.mock.calls[0][0]
     expect(payload.items[0].unitPriceSnapshot.toString()).toBe('29.99')
     expect(result.totalAmount).toBe('29.99')
+  })
+
+  it('passes Nova Poshta shipment selection into checkout submission payload', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockShippingService.buildCheckoutDeliverySelectionDto.mockReturnValueOnce({
+      supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE'],
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+      isComplete: true,
+    })
+    mockShippingService.resolveCheckoutDeliverySelection.mockResolvedValueOnce({
+      provider: 'NOVA_POSHTA',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+    } as never)
+
+    await checkout(mockUser, {
+      cartId: CART_ID,
+      shippingAddressId: null,
+      paymentMethod: 'CASH_ON_DELIVERY',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+    })
+
+    const payload = mockRepo.submitCheckoutOrder.mock.calls[0][0]
+    expect(payload.shippingAddressId).toBeNull()
+    expect(payload.deliverySelection).toMatchObject({
+      provider: 'NOVA_POSHTA',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientCityRef: 'city-ref',
+      recipientWarehouseRef: 'warehouse-ref',
+    })
   })
 })

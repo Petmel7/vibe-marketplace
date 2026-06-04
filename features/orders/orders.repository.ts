@@ -8,6 +8,20 @@ import type { OrderFilterInput } from './orders.dto'
 
 const ORDER_ITEMS_INCLUDE: Prisma.OrderInclude = {
   items: true,
+  shipments: {
+    orderBy: [{ createdAt: 'asc' }],
+    select: {
+      id: true,
+      provider: true,
+      deliveryType: true,
+      status: true,
+      recipientCityRef: true,
+      recipientCityName: true,
+      recipientWarehouseRef: true,
+      recipientWarehouseName: true,
+      trackingNumber: true,
+    },
+  },
   orderPromotion: {
     select: {
       promotionId: true,

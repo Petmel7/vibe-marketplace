@@ -4,6 +4,9 @@ import type {
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
+  ShippingDeliveryType,
+  ShipmentStatus,
+  ShippingProvider,
 } from '@/app/generated/prisma/client'
 
 export type OrderItemDto = {
@@ -35,6 +38,18 @@ export type OrderPromotionSummaryDto = {
   discountAmount: string
 }
 
+export type OrderShipmentSummaryDto = {
+  id: string
+  provider: ShippingProvider
+  deliveryType: ShippingDeliveryType
+  status: ShipmentStatus
+  recipientCityRef: string
+  recipientCityName: string
+  recipientWarehouseRef: string | null
+  recipientWarehouseName: string | null
+  trackingNumber: string | null
+}
+
 export type OrderSummaryDto = {
   id: string
   status: string
@@ -53,6 +68,7 @@ export type OrderDetailDto = {
   note: string | null
   createdAt: Date
   items: OrderItemDto[]
+  shipments: OrderShipmentSummaryDto[]
   promotion: OrderPromotionSummaryDto | null
 } & OrderPaymentSummaryDto
 

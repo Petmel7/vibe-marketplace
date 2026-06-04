@@ -4,6 +4,9 @@ import type {
   PaymentStatus,
   PromotionDiscountType,
   PromotionOwnerType,
+  ShipmentStatus,
+  ShippingDeliveryType,
+  ShippingProvider,
 } from '@/app/generated/prisma/client'
 import { requireBuyer, requireSeller, requireAdmin } from '@/lib/auth/guards'
 import { assertOrderOwner } from '@/lib/auth/orderGuards'
@@ -163,6 +166,30 @@ function toOrderSummaryDto(order: {
   }
 }
 
+function toOrderShipmentSummaryDto(shipment: {
+  id: string
+  provider: ShippingProvider
+  deliveryType: ShippingDeliveryType
+  status: ShipmentStatus
+  recipientCityRef: string
+  recipientCityName: string
+  recipientWarehouseRef: string | null
+  recipientWarehouseName: string | null
+  trackingNumber: string | null
+}) {
+  return {
+    id: shipment.id,
+    provider: shipment.provider,
+    deliveryType: shipment.deliveryType,
+    status: shipment.status,
+    recipientCityRef: shipment.recipientCityRef,
+    recipientCityName: shipment.recipientCityName,
+    recipientWarehouseRef: shipment.recipientWarehouseRef,
+    recipientWarehouseName: shipment.recipientWarehouseName,
+    trackingNumber: shipment.trackingNumber,
+  }
+}
+
 function toOrderDetailDto(order: {
   id: string
   status: string
@@ -170,6 +197,17 @@ function toOrderDetailDto(order: {
   shippingAddressId: string | null
   note: string | null
   createdAt: Date
+  shipments: Array<{
+    id: string
+    provider: ShippingProvider
+    deliveryType: ShippingDeliveryType
+    status: ShipmentStatus
+    recipientCityRef: string
+    recipientCityName: string
+    recipientWarehouseRef: string | null
+    recipientWarehouseName: string | null
+    trackingNumber: string | null
+  }>
   orderPromotion?: {
     promotionId: string
     promotionCode: string
@@ -205,6 +243,7 @@ function toOrderDetailDto(order: {
     note: order.note,
     createdAt: order.createdAt,
     items: order.items.map(toOrderItemDto),
+    shipments: order.shipments.map(toOrderShipmentSummaryDto),
     promotion: toOrderPromotionSummaryDto(order),
     ...toOrderPaymentSummaryDto(order),
   }

@@ -168,6 +168,14 @@ import {
   RefundRequestNotFoundError,
   RefundRequestOwnershipError,
 } from './refund'
+import {
+  InvalidShippingSelectionError,
+  NovaPoshtaCityNotFoundError,
+  NovaPoshtaWarehouseNotFoundError,
+  ShipmentCreationError,
+  ShippingProviderError,
+  StoreShippingSettingsNotConfiguredError,
+} from './shipping'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -230,7 +238,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof PayoutNotFoundError ||
     err instanceof PromotionNotFoundError ||
     err instanceof SellerBalanceNotFoundError ||
-    err instanceof RefundRequestNotFoundError
+    err instanceof RefundRequestNotFoundError ||
+    err instanceof NovaPoshtaCityNotFoundError ||
+    err instanceof NovaPoshtaWarehouseNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -320,7 +330,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidRefundTransitionError ||
     err instanceof RefundAmountExceededError ||
     err instanceof RefundPaymentNotEligibleError ||
-    err instanceof RefundOrderNotEligibleError
+    err instanceof RefundOrderNotEligibleError ||
+    err instanceof InvalidShippingSelectionError ||
+    err instanceof StoreShippingSettingsNotConfiguredError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -336,7 +348,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof LiqPayConfigError ||
     err instanceof EvidenceUploadFailedError ||
     err instanceof DisputeEvidenceUploadError ||
-    err instanceof RefundLedgerReversalError
+    err instanceof RefundLedgerReversalError ||
+    err instanceof ShippingProviderError ||
+    err instanceof ShipmentCreationError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

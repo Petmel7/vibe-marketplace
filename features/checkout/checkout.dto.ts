@@ -6,10 +6,20 @@ import type {
   PaymentNextAction,
 } from '@/features/payments/payment.dto'
 import type { PaymentMethod, PaymentStatus } from '@/app/generated/prisma/client'
+import type {
+  CheckoutDeliverySelectionDto,
+} from '@/features/shipping/shipping.dto'
 
 export type CheckoutInput = {
   cartId: string
   shippingAddressId?: string | null
+  deliveryType?: CheckoutDeliverySelectionDto['selectedDeliveryType']
+  recipientName?: string | null
+  recipientPhone?: string | null
+  recipientCityRef?: string | null
+  recipientCityName?: string | null
+  recipientWarehouseRef?: string | null
+  recipientWarehouseName?: string | null
   expectedSubtotal?: string | null
   expectedTotal?: string | null
   couponCode?: string | null
@@ -19,6 +29,13 @@ export type CheckoutInput = {
 
 export type CheckoutPreviewInput = {
   cartId?: string
+  deliveryType?: CheckoutDeliverySelectionDto['selectedDeliveryType']
+  recipientName?: string | null
+  recipientPhone?: string | null
+  recipientCityRef?: string | null
+  recipientCityName?: string | null
+  recipientWarehouseRef?: string | null
+  recipientWarehouseName?: string | null
 }
 
 export type CheckoutAddressOptionDto = {
@@ -80,6 +97,7 @@ export type CheckoutPreviewResponseDto = {
   appliedPromotion: AppliedPromotionDto | null
   defaultShippingAddress: CheckoutAddressOptionDto | null
   addressOptions: CheckoutAddressOptionDto[]
+  deliverySelection: CheckoutDeliverySelectionDto
   blockingIssues: CheckoutBlockingIssueDto[]
   canCheckout: boolean
 }

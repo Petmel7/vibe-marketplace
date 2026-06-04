@@ -44,12 +44,17 @@ import {
   CheckoutProductUnavailableError,
   CheckoutStockUnavailableError,
 } from '@/lib/errors/checkout'
+import { InvalidShippingSelectionError } from '@/lib/errors/shipping'
 import { emitOrderCreatedEmailEvent } from '@/features/email/events/email.events'
 import {
   emitOrderCreatedNotificationEvent,
   emitSellerNewOrderNotificationEventsForOrder,
 } from '@/features/notifications/events/notification.events'
 import { logError } from '@/utils/logger'
+import {
+  buildCheckoutDeliverySelectionDto,
+  resolveCheckoutDeliverySelection,
+} from '@/features/shipping/shipping.service'
 
 const LOW_STOCK_THRESHOLD = 3
 const SHIPPING_PLACEHOLDER_AMOUNT = new Decimal(0)
@@ -235,7 +240,7 @@ async function resolveCheckoutPricing(input: {
 
 function buildBlockingIssues(
   items: PreparedCheckoutItem[],
-  hasAddresses: boolean,
+  hasShippingCoverage: boolean,
 ): CheckoutBlockingIssueDto[] {
   const issues: CheckoutBlockingIssueDto[] = []
 
@@ -246,10 +251,10 @@ function buildBlockingIssues(
     })
   }
 
-  if (!hasAddresses) {
+  if (!hasShippingCoverage) {
     issues.push({
       code: 'ADDRESS_REQUIRED',
-      message: 'Add a shipping address to continue to checkout',
+      message: 'Add a shipping address or select Nova Poshta delivery to continue to checkout',
     })
   }
 
@@ -354,7 +359,11 @@ export async function getCheckoutPreview(
   const preparedItems = (cart?.items ?? []).map(prepareCheckoutItem)
   const addressOptions = addresses.map(toAddressOptionDto)
   const defaultShippingAddress = addressOptions.find((address) => address.isDefault) ?? addressOptions[0] ?? null
-  const blockingIssues = buildBlockingIssues(preparedItems, addressOptions.length > 0)
+  const deliverySelection = buildCheckoutDeliverySelectionDto(input)
+  const blockingIssues = buildBlockingIssues(
+    preparedItems,
+    addressOptions.length > 0 || deliverySelection.isComplete,
+  )
   const pricing = await resolveCheckoutPricing({
     userId: user.id,
     cartId: cart?.id ?? null,
@@ -378,6 +387,7 @@ export async function getCheckoutPreview(
       : null,
     defaultShippingAddress,
     addressOptions,
+    deliverySelection,
     blockingIssues,
     canCheckout: blockingIssues.length === 0,
   }
@@ -429,13 +439,20 @@ export async function checkout(
     throw new EmptyCartError()
   }
 
-  if (!data.shippingAddressId) {
-    throw new CheckoutAddressRequiredError()
+  const resolvedDeliverySelection = await resolveCheckoutDeliverySelection(data)
+  let address = null
+
+  if (data.shippingAddressId) {
+    address = await findShippingAddress(data.shippingAddressId, user.id)
+    if (!address) {
+      throw new InvalidShippingAddressError()
+    }
   }
 
-  const address = await findShippingAddress(data.shippingAddressId, user.id)
-  if (!address) {
-    throw new InvalidShippingAddressError()
+  if (!address && !resolvedDeliverySelection) {
+    throw new InvalidShippingSelectionError(
+      'Select Nova Poshta delivery or provide a valid shipping address',
+    )
   }
 
   const blockingIssues = buildBlockingIssues(preparedItems, true)
@@ -463,7 +480,8 @@ export async function checkout(
     paymentId,
     userId: user.id,
     cartId: cart.id,
-    shippingAddressId: address.id,
+    shippingAddressId: address?.id ?? null,
+    deliverySelection: resolvedDeliverySelection,
     note: data.note,
     orderStatus,
     subtotalAmount: pricing.subtotal,
