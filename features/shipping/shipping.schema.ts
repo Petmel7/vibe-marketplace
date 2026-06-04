@@ -1,4 +1,5 @@
 import {
+  ShipmentStatus,
   ShippingDeliveryType,
   ShippingProvider,
 } from '@/app/generated/prisma/client'
@@ -101,6 +102,16 @@ export const requiredCheckoutDeliverySelectionSchema = z.object({
   recipientCityName: trimmedRequiredString('recipientCityName', 255),
   recipientWarehouseRef: trimmedRequiredString('recipientWarehouseRef', 120),
   recipientWarehouseName: trimmedRequiredString('recipientWarehouseName', 255),
+})
+
+export const shipmentIdParamsSchema = z.object({
+  id: z.string().uuid('Shipment id is invalid'),
+})
+
+export const sellerShipmentListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.nativeEnum(ShipmentStatus).optional(),
 })
 
 export type NovaPoshtaCitiesQueryInput = z.infer<typeof novaPoshtaCitiesQuerySchema>

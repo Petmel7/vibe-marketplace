@@ -171,9 +171,17 @@ import {
 import {
   InvalidShippingSelectionError,
   NovaPoshtaCityNotFoundError,
+  NovaPoshtaCancelShipmentError,
+  NovaPoshtaCreateShipmentError,
+  NovaPoshtaTrackingError,
   NovaPoshtaWarehouseNotFoundError,
+  ShipmentAlreadyHasTrackingError,
   ShipmentCreationError,
+  ShipmentInvalidStateError,
+  ShipmentNotFoundError,
+  ShipmentOwnershipError,
   ShippingProviderError,
+  StoreShippingSettingsRequiredError,
   StoreShippingSettingsNotConfiguredError,
 } from './shipping'
 import { logError } from '@/utils/logger'
@@ -206,7 +214,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof DisputeOwnershipError ||
     err instanceof PayoutOwnershipError ||
     err instanceof PromotionOwnershipError ||
-    err instanceof RefundRequestOwnershipError
+    err instanceof RefundRequestOwnershipError ||
+    err instanceof ShipmentOwnershipError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -239,6 +248,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof PromotionNotFoundError ||
     err instanceof SellerBalanceNotFoundError ||
     err instanceof RefundRequestNotFoundError ||
+    err instanceof ShipmentNotFoundError ||
     err instanceof NovaPoshtaCityNotFoundError ||
     err instanceof NovaPoshtaWarehouseNotFoundError
   )
@@ -332,7 +342,10 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RefundPaymentNotEligibleError ||
     err instanceof RefundOrderNotEligibleError ||
     err instanceof InvalidShippingSelectionError ||
-    err instanceof StoreShippingSettingsNotConfiguredError
+    err instanceof StoreShippingSettingsNotConfiguredError ||
+    err instanceof ShipmentAlreadyHasTrackingError ||
+    err instanceof ShipmentInvalidStateError ||
+    err instanceof StoreShippingSettingsRequiredError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -350,7 +363,10 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof DisputeEvidenceUploadError ||
     err instanceof RefundLedgerReversalError ||
     err instanceof ShippingProviderError ||
-    err instanceof ShipmentCreationError
+    err instanceof ShipmentCreationError ||
+    err instanceof NovaPoshtaCreateShipmentError ||
+    err instanceof NovaPoshtaTrackingError ||
+    err instanceof NovaPoshtaCancelShipmentError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

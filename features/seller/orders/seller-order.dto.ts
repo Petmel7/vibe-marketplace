@@ -17,6 +17,15 @@ export type SellerOrderItemDto = {
     apartment: string | null
     zipCode: string | null
   } | null
+  shipment: {
+    id: string
+    provider: string
+    deliveryType: string
+    status: string
+    trackingNumber: string | null
+    recipientCityName: string
+    recipientWarehouseName: string | null
+  } | null
 }
 
 export type SellerOrderSummaryDto = {

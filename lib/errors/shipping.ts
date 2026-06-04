@@ -51,3 +51,75 @@ export class ShipmentCreationError extends Error {
     this.name = 'ShipmentCreationError'
   }
 }
+
+export class ShipmentNotFoundError extends Error {
+  code = 'SHIPMENT_NOT_FOUND'
+
+  constructor(message = 'Shipment could not be found') {
+    super(message)
+    this.name = 'ShipmentNotFoundError'
+  }
+}
+
+export class ShipmentOwnershipError extends Error {
+  code = 'SHIPMENT_OWNERSHIP_ERROR'
+
+  constructor(message = 'You do not have access to this shipment') {
+    super(message)
+    this.name = 'ShipmentOwnershipError'
+  }
+}
+
+export class ShipmentAlreadyHasTrackingError extends Error {
+  code = 'SHIPMENT_ALREADY_HAS_TRACKING'
+
+  constructor(message = 'Shipment already has a tracking number') {
+    super(message)
+    this.name = 'ShipmentAlreadyHasTrackingError'
+  }
+}
+
+export class ShipmentInvalidStateError extends Error {
+  code = 'SHIPMENT_INVALID_STATE'
+
+  constructor(message = 'Shipment is not in a valid state for this action') {
+    super(message)
+    this.name = 'ShipmentInvalidStateError'
+  }
+}
+
+export class StoreShippingSettingsRequiredError extends Error {
+  code = 'STORE_SHIPPING_SETTINGS_REQUIRED'
+
+  constructor(message = 'Configured store shipping settings are required for this action') {
+    super(message)
+    this.name = 'StoreShippingSettingsRequiredError'
+  }
+}
+
+export class NovaPoshtaCreateShipmentError extends Error {
+  code = 'NOVA_POSHTA_CREATE_SHIPMENT_ERROR'
+
+  constructor(message = 'Nova Poshta shipment could not be created') {
+    super(message)
+    this.name = 'NovaPoshtaCreateShipmentError'
+  }
+}
+
+export class NovaPoshtaTrackingError extends Error {
+  code = 'NOVA_POSHTA_TRACKING_ERROR'
+
+  constructor(message = 'Nova Poshta tracking data could not be loaded') {
+    super(message)
+    this.name = 'NovaPoshtaTrackingError'
+  }
+}
+
+export class NovaPoshtaCancelShipmentError extends Error {
+  code = 'NOVA_POSHTA_CANCEL_SHIPMENT_ERROR'
+
+  constructor(message = 'Nova Poshta shipment could not be cancelled') {
+    super(message)
+    this.name = 'NovaPoshtaCancelShipmentError'
+  }
+}

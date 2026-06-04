@@ -93,6 +93,7 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     items: [makeOrderItem()],
+    shipments: [],
     payments: [makePayment()],
     orderPromotion: null,
     ...overrides,
@@ -205,6 +206,42 @@ describe('getMyOrderById', () => {
     expect(result.paymentStatus).toBe('PENDING')
     expect(result.paidAt).toBeNull()
     expect(result.promotion).toBeNull()
+    expect(result.shipments).toEqual([])
+  })
+
+  it('exposes buyer-safe shipment snapshot data from order history', async () => {
+    const order = makeOrder({
+      shipments: [
+        {
+          id: 'shipment-1',
+          provider: 'NOVA_POSHTA',
+          deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+          status: 'LABEL_CREATED',
+          recipientCityRef: 'city-ref',
+          recipientCityName: 'Kyiv',
+          recipientWarehouseRef: 'warehouse-ref',
+          recipientWarehouseName: 'Warehouse 1',
+          trackingNumber: '20450000000001',
+        },
+      ],
+    })
+    mockRepo.findOrderById.mockResolvedValue(order as unknown as Awaited<ReturnType<typeof mockRepo.findOrderById>>)
+
+    const result = await getMyOrderById(mockBuyer, ORDER_ID)
+
+    expect(result.shipments).toEqual([
+      {
+        id: 'shipment-1',
+        provider: 'NOVA_POSHTA',
+        deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+        status: 'LABEL_CREATED',
+        recipientCityRef: 'city-ref',
+        recipientCityName: 'Kyiv',
+        recipientWarehouseRef: 'warehouse-ref',
+        recipientWarehouseName: 'Warehouse 1',
+        trackingNumber: '20450000000001',
+      },
+    ])
   })
 
   it('returns marketplace promotion snapshot fields from order history', async () => {

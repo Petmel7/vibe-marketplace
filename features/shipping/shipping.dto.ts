@@ -98,6 +98,88 @@ export type ShipmentSnapshotDto = {
   trackingNumber: string | null
 }
 
+export type NovaPoshtaCreateShipmentInput = {
+  shipmentId: string
+  orderId: string
+  senderName: string
+  senderPhone: string
+  senderCityRef: string
+  senderCityName: string
+  senderWarehouseRef: string
+  senderWarehouseName: string
+  recipientName: string
+  recipientPhone: string
+  recipientCityRef: string
+  recipientCityName: string
+  recipientWarehouseRef: string
+  recipientWarehouseName: string
+  cargoDescription: string
+  seatsAmount: number
+  declaredCost: string
+}
+
+export type NovaPoshtaCreateShipmentDto = {
+  trackingNumber: string
+  providerShipmentId: string | null
+  rawStatus: string | null
+}
+
+export type NovaPoshtaShipmentStatusDto = {
+  trackingNumber: string | null
+  providerShipmentId: string | null
+  rawStatus: string | null
+  internalStatus: ShipmentStatus
+}
+
+export type NovaPoshtaTrackingEventDto = {
+  occurredAt: string | null
+  description: string
+  statusCode: string | null
+}
+
+export type ShipmentListQueryDto = {
+  page: number
+  limit: number
+  status?: ShipmentStatus
+}
+
+export type SellerShipmentItemDto = {
+  orderItemId: string
+  productNameSnapshot: string
+  quantity: number
+  fulfillmentStatus: string
+}
+
+export type SellerShipmentDto = {
+  id: string
+  orderId: string
+  storeId: string
+  storeName: string
+  provider: ShippingProvider
+  deliveryType: ShippingDeliveryType
+  status: ShipmentStatus
+  recipientName: string
+  recipientPhone: string
+  recipientCityRef: string
+  recipientCityName: string
+  recipientWarehouseRef: string | null
+  recipientWarehouseName: string | null
+  trackingNumber: string | null
+  providerShipmentId: string | null
+  estimatedCost: string | null
+  currency: string
+  createdAt: string
+  updatedAt: string
+  items: SellerShipmentItemDto[]
+}
+
+export type SellerShipmentListDto = {
+  items: SellerShipmentDto[]
+  page: number
+  limit: number
+  total: number
+}
+
 export type ShipmentDraftInputItem = {
   id: string
   storeId: string

@@ -36,6 +36,17 @@ async function toSellerOrderItemDto(
       createdAt: Date
       shippingAddressId: string | null
     }
+    shipmentItems?: Array<{
+      shipment: {
+        id: string
+        provider: string
+        deliveryType: string
+        status: string
+        trackingNumber: string | null
+        recipientCityName: string
+        recipientWarehouseName: string | null
+      }
+    }>
   },
 ): Promise<SellerOrderItemDto> {
   let shippingAddress: SellerOrderItemDto['shippingAddress'] = null
@@ -57,6 +68,8 @@ async function toSellerOrderItemDto(
     }
   }
 
+  const shipment = item.shipmentItems?.[0]?.shipment
+
   return {
     id: item.id,
     orderId: item.orderId,
@@ -68,6 +81,17 @@ async function toSellerOrderItemDto(
     orderStatus: item.order.status,
     orderCreatedAt: item.order.createdAt,
     shippingAddress,
+    shipment: shipment
+      ? {
+          id: shipment.id,
+          provider: shipment.provider,
+          deliveryType: shipment.deliveryType,
+          status: shipment.status,
+          trackingNumber: shipment.trackingNumber,
+          recipientCityName: shipment.recipientCityName,
+          recipientWarehouseName: shipment.recipientWarehouseName,
+        }
+      : null,
   }
 }
 

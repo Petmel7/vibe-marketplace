@@ -1,13 +1,21 @@
 import {
+  NovaPoshtaCancelShipmentError,
   NovaPoshtaCityNotFoundError,
+  NovaPoshtaCreateShipmentError,
+  NovaPoshtaTrackingError,
   ShippingProviderError,
 } from '@/lib/errors/shipping'
 import type {
   NovaPoshtaCityDto,
+  NovaPoshtaCreateShipmentDto,
+  NovaPoshtaCreateShipmentInput,
   NovaPoshtaEstimateDto,
   NovaPoshtaEstimateInput,
+  NovaPoshtaShipmentStatusDto,
+  NovaPoshtaTrackingEventDto,
   NovaPoshtaWarehouseDto,
 } from '../shipping.dto'
+import { ShipmentStatus } from '@/app/generated/prisma/client'
 
 type NovaPoshtaConfig = {
   apiKey: string
@@ -33,6 +41,19 @@ type NovaPoshtaWarehouseResponse = {
   Description: string
   CityRef: string
   CityDescription?: string
+}
+
+type NovaPoshtaShipmentCreateResponse = {
+  Ref?: string
+  IntDocNumber?: string
+}
+
+type NovaPoshtaShipmentStatusResponse = {
+  Ref?: string
+  Number?: string
+  Status?: string
+  StatusCode?: string
+  ScheduledDeliveryDate?: string
 }
 
 const DEFAULT_API_URL = 'https://api.novaposhta.ua/v2.0/json/'
@@ -146,6 +167,156 @@ export class NovaPoshtaProvider {
       estimatedCost: null,
       currency: 'UAH',
     }
+  }
+
+  private mapStatusCodeToInternalStatus(rawStatus: string | null, statusCode: string | null) {
+    const normalized = `${statusCode ?? ''} ${rawStatus ?? ''}`.toLowerCase()
+
+    if (
+      statusCode === '1' ||
+      statusCode === '2' ||
+      normalized.includes('створ') ||
+      normalized.includes('наклад')
+    ) {
+      return ShipmentStatus.LABEL_CREATED
+    }
+
+    if (statusCode === '3' || normalized.includes('відправ')) {
+      return ShipmentStatus.SHIPPED
+    }
+
+    if (
+      normalized.includes('в дорозі') ||
+      normalized.includes('переміщ') ||
+      normalized.includes('транзит')
+    ) {
+      return ShipmentStatus.IN_TRANSIT
+    }
+
+    if (normalized.includes('прибул') || normalized.includes('у відділенні')) {
+      return ShipmentStatus.ARRIVED
+    }
+
+    if (
+      normalized.includes('отриман') ||
+      normalized.includes('видан') ||
+      normalized.includes('deliver')
+    ) {
+      return ShipmentStatus.DELIVERED
+    }
+
+    if (normalized.includes('повернен')) {
+      return ShipmentStatus.RETURNED
+    }
+
+    if (normalized.includes('скасован')) {
+      return ShipmentStatus.CANCELLED
+    }
+
+    if (
+      normalized.includes('невдал') ||
+      normalized.includes('відмов') ||
+      normalized.includes('failed')
+    ) {
+      return ShipmentStatus.FAILED
+    }
+
+    return ShipmentStatus.LABEL_CREATED
+  }
+
+  async createShipment(input: NovaPoshtaCreateShipmentInput): Promise<NovaPoshtaCreateShipmentDto> {
+    const cargoDescription = input.cargoDescription.trim() || `Shipment ${input.shipmentId}`
+    const providerResponse = await this.request<NovaPoshtaShipmentCreateResponse>(
+      'InternetDocument',
+      'save',
+      {
+        PayerType: 'Recipient',
+        PaymentMethod: 'Cash',
+        DateTime: new Date().toISOString().slice(0, 10),
+        CargoType: 'Cargo',
+        SeatsAmount: String(Math.max(1, input.seatsAmount)),
+        Description: cargoDescription.slice(0, 90),
+        Cost: input.declaredCost,
+        CitySender: input.senderCityRef,
+        Sender: input.senderCityRef,
+        SenderAddress: input.senderWarehouseRef,
+        ContactSender: input.senderName,
+        SendersPhone: input.senderPhone,
+        CityRecipient: input.recipientCityRef,
+        RecipientAddress: input.recipientWarehouseRef,
+        ContactRecipient: input.recipientName,
+        RecipientsPhone: input.recipientPhone,
+      },
+    ).catch(() => {
+      throw new NovaPoshtaCreateShipmentError()
+    })
+
+    const created = providerResponse[0]
+    const trackingNumber = created?.IntDocNumber?.trim()
+    if (!trackingNumber) {
+      throw new NovaPoshtaCreateShipmentError('Nova Poshta did not return a tracking number')
+    }
+
+    return {
+      trackingNumber,
+      providerShipmentId: created?.Ref?.trim() || null,
+      rawStatus: null,
+    }
+  }
+
+  async getShipmentStatus(input: {
+    trackingNumber: string
+  }): Promise<NovaPoshtaShipmentStatusDto> {
+    const providerResponse = await this.request<NovaPoshtaShipmentStatusResponse>(
+      'TrackingDocument',
+      'getStatusDocuments',
+      {
+        Documents: [{ DocumentNumber: input.trackingNumber.trim() }],
+      },
+    ).catch(() => {
+      throw new NovaPoshtaTrackingError()
+    })
+
+    const shipment = providerResponse[0]
+    if (!shipment) {
+      throw new NovaPoshtaTrackingError('Nova Poshta tracking data was not returned')
+    }
+
+    const rawStatus = shipment.Status?.trim() || null
+    const statusCode = shipment.StatusCode?.trim() || null
+
+    return {
+      trackingNumber: shipment.Number?.trim() || input.trackingNumber.trim(),
+      providerShipmentId: shipment.Ref?.trim() || null,
+      rawStatus,
+      internalStatus: this.mapStatusCodeToInternalStatus(rawStatus, statusCode),
+    }
+  }
+
+  async cancelShipment(input: {
+    trackingNumber: string
+    providerShipmentId?: string | null
+  }): Promise<void> {
+    await this.request('InternetDocument', 'delete', {
+      Ref: input.providerShipmentId?.trim() || undefined,
+      IntDocNumber: input.trackingNumber.trim(),
+    }).catch(() => {
+      throw new NovaPoshtaCancelShipmentError()
+    })
+  }
+
+  async getTrackingEvents(input: { trackingNumber: string }): Promise<NovaPoshtaTrackingEventDto[]> {
+    const status = await this.getShipmentStatus(input)
+
+    return status.rawStatus
+      ? [
+          {
+            occurredAt: null,
+            description: status.rawStatus,
+            statusCode: null,
+          },
+        ]
+      : []
   }
 
   async assertCityHasWarehouses(cityRef: string) {
