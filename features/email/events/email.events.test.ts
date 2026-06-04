@@ -4,9 +4,11 @@ vi.mock('@/features/email/queue/email.queue', () => ({
   enqueueEmailEvent: vi.fn(),
 }))
 vi.mock('@/features/email/email.repository', () => ({
+  findAdminEmailRecipients: vi.fn(),
   findOrderNotificationContext: vi.fn(),
   findPaymentNotificationContext: vi.fn(),
   findProductNotificationContext: vi.fn(),
+  findRefundRequestNotificationContext: vi.fn(),
   findUserNotificationContext: vi.fn(),
 }))
 
@@ -16,6 +18,11 @@ import {
   emitOrderCreatedEmailEvent,
   emitPaymentFailedEmailEvent,
   emitPaymentSucceededEmailEvent,
+  emitRefundApprovedEmailEvent,
+  emitRefundFailedEmailEvent,
+  emitRefundRejectedEmailEvent,
+  emitRefundRequestedEmailEvents,
+  emitRefundSucceededEmailEvents,
   emitSellerNewOrderEmailEvents,
 } from './email.events'
 
@@ -112,6 +119,54 @@ function makePaymentContext(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeRefundRequestContext(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    orderId: '11111111-1111-4111-8111-111111111111',
+    orderItemId: 'item-1',
+    reason: 'ITEM_NOT_AS_DESCRIBED',
+    status: 'REQUESTED',
+    amount: { toString: () => '90.00' },
+    currency: 'UAH',
+    adminNote: 'Safe seller-facing note',
+    requestedById: '22222222-2222-4222-8222-222222222222',
+    requestedBy: {
+      id: '22222222-2222-4222-8222-222222222222',
+      email: 'buyer@example.com',
+      name: 'Olena',
+      profile: {
+        displayName: 'Olena Buyer',
+      },
+    },
+    order: {
+      id: '11111111-1111-4111-8111-111111111111',
+      status: 'paid',
+    },
+    payment: {
+      id: 'payment-1',
+      status: 'SUCCEEDED',
+    },
+    orderItem: {
+      id: 'item-1',
+      productNameSnapshot: 'Blue Hoodie',
+      store: {
+        id: '55555555-5555-4555-8555-555555555555',
+        name: 'North Store',
+        ownerId: '66666666-6666-4666-8666-666666666666',
+        owner: {
+          id: '66666666-6666-4666-8666-666666666666',
+          email: 'seller@example.com',
+          name: 'Seller One',
+          profile: {
+            displayName: 'Seller One',
+          },
+        },
+      },
+    },
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com'
@@ -132,6 +187,14 @@ beforeEach(() => {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   }))
+  mockRepository.findAdminEmailRecipients.mockResolvedValue([
+    {
+      id: 'admin-1',
+      email: 'admin@example.com',
+      name: 'Admin User',
+      profile: { displayName: 'Admin User' },
+    },
+  ] as never)
 })
 
 describe('email lifecycle events', () => {
@@ -227,6 +290,151 @@ describe('email lifecycle events', () => {
           storeName: 'North Store',
           paymentStatus: 'SUCCEEDED',
         }),
+      }),
+    )
+  })
+
+  it('enqueues refund requested emails for buyer, seller, and admin', async () => {
+    mockRepository.findRefundRequestNotificationContext.mockResolvedValue(
+      makeRefundRequestContext() as never,
+    )
+
+    await emitRefundRequestedEmailEvents({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenCalledTimes(3)
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: 'REFUND_REQUESTED',
+        dedupeKey: 'refund-requested:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
+        recipientEmail: 'buyer@example.com',
+        template: 'REFUND_REQUESTED_EMAIL',
+      }),
+    )
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        dedupeKey:
+          'refund-requested:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:seller:55555555-5555-4555-8555-555555555555',
+        recipientEmail: 'seller@example.com',
+      }),
+    )
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        dedupeKey: 'refund-requested:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:admin',
+        recipientEmail: 'admin@example.com',
+      }),
+    )
+  })
+
+  it('enqueues refund approved email for buyer', async () => {
+    mockRepository.findRefundRequestNotificationContext.mockResolvedValue(
+      makeRefundRequestContext({ status: 'APPROVED' }) as never,
+    )
+
+    await emitRefundApprovedEmailEvent({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'REFUND_APPROVED',
+        dedupeKey: 'refund-approved:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
+      }),
+    )
+  })
+
+  it('enqueues refund rejected email with safe admin note for buyer', async () => {
+    mockRepository.findRefundRequestNotificationContext.mockResolvedValue(
+      makeRefundRequestContext({
+        status: 'REJECTED',
+        adminNote: 'Visible rejection reason',
+      }) as never,
+    )
+
+    await emitRefundRejectedEmailEvent({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'REFUND_REJECTED',
+        dedupeKey: 'refund-rejected:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
+        payload: expect.objectContaining({
+          adminNote: 'Visible rejection reason',
+        }),
+      }),
+    )
+  })
+
+  it('enqueues refund succeeded emails for buyer and seller', async () => {
+    mockRepository.findRefundRequestNotificationContext.mockResolvedValue(
+      makeRefundRequestContext({ status: 'SUCCEEDED' }) as never,
+    )
+
+    await emitRefundSucceededEmailEvents({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenCalledTimes(2)
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: 'REFUND_SUCCEEDED',
+        dedupeKey: 'refund-succeeded:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
+      }),
+    )
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        dedupeKey:
+          'refund-succeeded:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:seller:55555555-5555-4555-8555-555555555555',
+      }),
+    )
+  })
+
+  it('enqueues refund failed email for buyer', async () => {
+    mockRepository.findRefundRequestNotificationContext.mockResolvedValue(
+      makeRefundRequestContext({ status: 'FAILED' }) as never,
+    )
+
+    await emitRefundFailedEmailEvent({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'REFUND_FAILED',
+        dedupeKey: 'refund-failed:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
+      }),
+    )
+  })
+
+  it('uses stable refund dedupe keys across repeated lifecycle event calls', async () => {
+    mockRepository.findRefundRequestNotificationContext.mockResolvedValue(
+      makeRefundRequestContext({ status: 'SUCCEEDED' }) as never,
+    )
+
+    await emitRefundSucceededEmailEvents({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+    await emitRefundSucceededEmailEvents({
+      refundRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        dedupeKey: 'refund-succeeded:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
+      }),
+    )
+    expect(mockQueue.enqueueEmailEvent).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        dedupeKey: 'refund-succeeded:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:buyer',
       }),
     )
   })

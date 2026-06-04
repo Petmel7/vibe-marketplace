@@ -10,6 +10,13 @@ import {
   type Prisma,
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import {
+  emitRefundApprovedEmailEvent,
+  emitRefundFailedEmailEvent,
+  emitRefundRejectedEmailEvent,
+  emitRefundRequestedEmailEvents,
+  emitRefundSucceededEmailEvents,
+} from '@/features/email/events/email.events'
 import { createAdminNotification, notifyUser } from '@/features/notifications/notifications.service'
 import { applyRefundOutcome } from '@/features/payments/payment.repository'
 import {
@@ -662,6 +669,10 @@ export async function createRefundRequest(
 
   notifyAdminsAboutRefundRequest(created)
   notifySellerAboutRefundRequested(created)
+  runNonBlocking(
+    'refunds:create:email-events',
+    emitRefundRequestedEmailEvents({ refundRequestId: created.id }),
+  )
 
   return toRefundRequestDetailDto(created, false)
 }
@@ -794,6 +805,27 @@ async function mutateAdminRefundStatus(
 
   notifyBuyerAboutRefundStatus(updated)
   notifySellerAboutRefundSucceeded(updated)
+  if (nextStatus === RefundRequestStatus.APPROVED) {
+    runNonBlocking(
+      'refunds:approved:buyer-email',
+      emitRefundApprovedEmailEvent({ refundRequestId: updated.id }),
+    )
+  } else if (nextStatus === RefundRequestStatus.REJECTED) {
+    runNonBlocking(
+      'refunds:rejected:buyer-email',
+      emitRefundRejectedEmailEvent({ refundRequestId: updated.id }),
+    )
+  } else if (nextStatus === RefundRequestStatus.SUCCEEDED) {
+    runNonBlocking(
+      'refunds:succeeded:email-events',
+      emitRefundSucceededEmailEvents({ refundRequestId: updated.id }),
+    )
+  } else if (nextStatus === RefundRequestStatus.FAILED) {
+    runNonBlocking(
+      'refunds:failed:buyer-email',
+      emitRefundFailedEmailEvent({ refundRequestId: updated.id }),
+    )
+  }
 
   return toAdminRefundRequestDto(updated)
 }

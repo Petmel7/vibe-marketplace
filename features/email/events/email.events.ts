@@ -1,10 +1,12 @@
 import type { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
 import { enqueueEmailEvent } from '../queue/email.queue'
 import {
+  findAdminEmailRecipients,
   findOrderNotificationContext,
   findPaymentNotificationContext,
   findPayoutNotificationContext,
   findProductNotificationContext,
+  findRefundRequestNotificationContext,
   findUserNotificationContext,
 } from '../email.repository'
 import type {
@@ -12,6 +14,11 @@ import type {
   OrderEmailItemPayload,
   PaymentFailedEmailPayload,
   PaymentSucceededEmailPayload,
+  RefundApprovedEmailPayload,
+  RefundFailedEmailPayload,
+  RefundRejectedEmailPayload,
+  RefundRequestedEmailPayload,
+  RefundSucceededEmailPayload,
   SellerNewOrderEmailPayload,
   SellerPayoutPaidEmailPayload,
 } from '../email.dto'
@@ -224,6 +231,67 @@ function buildSellerPayoutPaidPayload(input: {
     payoutStatus: input.payout.status,
     sellerName: input.payout.seller.profile?.displayName ?? input.payout.seller.name ?? null,
     storeName: input.payout.store.name,
+  }
+}
+
+function buildRefundLifecyclePayload(input: {
+  refundRequest: {
+    id: string
+    orderId: string
+    reason: string
+    status: string
+    amount: { toString(): string }
+    currency: string
+    adminNote: string | null
+    requestedBy: {
+      email: string | null
+      name?: string | null
+      profile?: {
+        displayName?: string | null
+      } | null
+    }
+    order: {
+      id: string
+      status: string
+    }
+    payment: {
+      status: PaymentStatus
+    }
+    orderItem: {
+      productNameSnapshot: string
+      store: {
+        id: string
+        name: string
+        ownerId: string
+        owner: {
+          email: string | null
+          name?: string | null
+          profile?: {
+            displayName?: string | null
+          } | null
+        }
+      }
+    } | null
+  }
+  actionUrl: string
+  adminNote: string | null
+}): RefundRequestedEmailPayload {
+  return {
+    actionUrl: input.actionUrl,
+    adminNote: input.adminNote,
+    buyerEmail: input.refundRequest.requestedBy.email ?? '',
+    buyerName: resolveBuyerName({
+      user: input.refundRequest.requestedBy,
+    }),
+    currency: input.refundRequest.currency,
+    orderId: input.refundRequest.order.id,
+    paymentStatus: input.refundRequest.payment.status,
+    productName: input.refundRequest.orderItem?.productNameSnapshot ?? null,
+    reason: input.refundRequest.reason,
+    refundAmount: input.refundRequest.amount.toString(),
+    refundRequestId: input.refundRequest.id,
+    status: input.refundRequest.status,
+    storeName: input.refundRequest.orderItem?.store.name ?? null,
   }
 }
 
@@ -501,5 +569,164 @@ export async function emitProductRejectedEmailEvent(input: {
       storeName: product.store.name,
       reason: input.reason,
     },
+  })
+}
+
+export async function emitRefundRequestedEmailEvents(input: { refundRequestId: string }) {
+  const refundRequest = await findRefundRequestNotificationContext(input.refundRequestId)
+  if (!refundRequest?.requestedBy.email) {
+    return []
+  }
+
+  const buyerPayload = buildRefundLifecyclePayload({
+    refundRequest,
+    actionUrl: buildAppUrl(`/profile/refunds/${refundRequest.id}`),
+    adminNote: null,
+  })
+
+  const results = await Promise.all([
+    enqueueEmailEvent({
+      eventType: 'REFUND_REQUESTED',
+      dedupeKey: `refund-requested:${refundRequest.id}:buyer`,
+      recipientEmail: refundRequest.requestedBy.email,
+      recipientUserId: refundRequest.requestedById,
+      template: 'REFUND_REQUESTED_EMAIL',
+      payload: buyerPayload,
+    }),
+    ...(refundRequest.orderItem?.store.owner.email
+      ? [
+          enqueueEmailEvent({
+            eventType: 'REFUND_REQUESTED',
+            dedupeKey: `refund-requested:${refundRequest.id}:seller:${refundRequest.orderItem.store.id}`,
+            recipientEmail: refundRequest.orderItem.store.owner.email,
+            recipientUserId: refundRequest.orderItem.store.ownerId,
+            template: 'REFUND_REQUESTED_EMAIL',
+            payload: buildRefundLifecyclePayload({
+              refundRequest,
+              actionUrl: buildAppUrl(`/seller/refunds/${refundRequest.id}`),
+              adminNote: null,
+            }),
+          }),
+        ]
+      : []),
+  ])
+
+  const admin = (await findAdminEmailRecipients())[0] ?? null
+  const adminEvents =
+    admin?.email
+      ? [
+          await enqueueEmailEvent({
+            eventType: 'REFUND_REQUESTED',
+            dedupeKey: `refund-requested:${refundRequest.id}:admin`,
+            recipientEmail: admin.email,
+            recipientUserId: admin.id,
+            template: 'REFUND_REQUESTED_EMAIL',
+            payload: buildRefundLifecyclePayload({
+              refundRequest,
+              actionUrl: buildAppUrl(`/admin/refunds/${refundRequest.id}`),
+              adminNote: null,
+            }),
+          }),
+        ]
+      : []
+
+  return [...results, ...adminEvents]
+}
+
+export async function emitRefundApprovedEmailEvent(input: { refundRequestId: string }) {
+  const refundRequest = await findRefundRequestNotificationContext(input.refundRequestId)
+  if (!refundRequest?.requestedBy.email) {
+    return null
+  }
+
+  return enqueueEmailEvent({
+    eventType: 'REFUND_APPROVED',
+    dedupeKey: `refund-approved:${refundRequest.id}:buyer`,
+    recipientEmail: refundRequest.requestedBy.email,
+    recipientUserId: refundRequest.requestedById,
+    template: 'REFUND_APPROVED_EMAIL',
+    payload: buildRefundLifecyclePayload({
+      refundRequest,
+      actionUrl: buildAppUrl(`/profile/refunds/${refundRequest.id}`),
+      adminNote: null,
+    }) satisfies RefundApprovedEmailPayload,
+  })
+}
+
+export async function emitRefundRejectedEmailEvent(input: { refundRequestId: string }) {
+  const refundRequest = await findRefundRequestNotificationContext(input.refundRequestId)
+  if (!refundRequest?.requestedBy.email) {
+    return null
+  }
+
+  return enqueueEmailEvent({
+    eventType: 'REFUND_REJECTED',
+    dedupeKey: `refund-rejected:${refundRequest.id}:buyer`,
+    recipientEmail: refundRequest.requestedBy.email,
+    recipientUserId: refundRequest.requestedById,
+    template: 'REFUND_REJECTED_EMAIL',
+    payload: buildRefundLifecyclePayload({
+      refundRequest,
+      actionUrl: buildAppUrl(`/profile/refunds/${refundRequest.id}`),
+      adminNote: refundRequest.adminNote,
+    }) satisfies RefundRejectedEmailPayload,
+  })
+}
+
+export async function emitRefundSucceededEmailEvents(input: { refundRequestId: string }) {
+  const refundRequest = await findRefundRequestNotificationContext(input.refundRequestId)
+  if (!refundRequest?.requestedBy.email) {
+    return []
+  }
+
+  return Promise.all([
+    enqueueEmailEvent({
+      eventType: 'REFUND_SUCCEEDED',
+      dedupeKey: `refund-succeeded:${refundRequest.id}:buyer`,
+      recipientEmail: refundRequest.requestedBy.email,
+      recipientUserId: refundRequest.requestedById,
+      template: 'REFUND_SUCCEEDED_EMAIL',
+      payload: buildRefundLifecyclePayload({
+        refundRequest,
+        actionUrl: buildAppUrl(`/profile/refunds/${refundRequest.id}`),
+        adminNote: null,
+      }) satisfies RefundSucceededEmailPayload,
+    }),
+    ...(refundRequest.orderItem?.store.owner.email
+      ? [
+          enqueueEmailEvent({
+            eventType: 'REFUND_SUCCEEDED',
+            dedupeKey: `refund-succeeded:${refundRequest.id}:seller:${refundRequest.orderItem.store.id}`,
+            recipientEmail: refundRequest.orderItem.store.owner.email,
+            recipientUserId: refundRequest.orderItem.store.ownerId,
+            template: 'REFUND_SUCCEEDED_EMAIL',
+            payload: buildRefundLifecyclePayload({
+              refundRequest,
+              actionUrl: buildAppUrl(`/seller/refunds/${refundRequest.id}`),
+              adminNote: null,
+            }),
+          }),
+        ]
+      : []),
+  ])
+}
+
+export async function emitRefundFailedEmailEvent(input: { refundRequestId: string }) {
+  const refundRequest = await findRefundRequestNotificationContext(input.refundRequestId)
+  if (!refundRequest?.requestedBy.email) {
+    return null
+  }
+
+  return enqueueEmailEvent({
+    eventType: 'REFUND_FAILED',
+    dedupeKey: `refund-failed:${refundRequest.id}:buyer`,
+    recipientEmail: refundRequest.requestedBy.email,
+    recipientUserId: refundRequest.requestedById,
+    template: 'REFUND_FAILED_EMAIL',
+    payload: buildRefundLifecyclePayload({
+      refundRequest,
+      actionUrl: buildAppUrl(`/profile/refunds/${refundRequest.id}`),
+      adminNote: null,
+    }) satisfies RefundFailedEmailPayload,
   })
 }

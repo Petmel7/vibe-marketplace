@@ -79,6 +79,28 @@ describe('renderEmailTemplate', () => {
     expect(result.html).toContain('LIQPAY')
   })
 
+  it('renders refund rejected content with safe rejection note', async () => {
+    const result = await renderEmailTemplate('REFUND_REJECTED_EMAIL', {
+      actionUrl: 'https://app.example.com/profile/refunds/55555555-5555-4555-8555-555555555555',
+      adminNote: 'Visible rejection reason',
+      buyerEmail: 'buyer@example.com',
+      buyerName: 'Olena Buyer',
+      currency: 'UAH',
+      orderId: '33333333-3333-4333-8333-333333333333',
+      paymentStatus: 'SUCCEEDED',
+      productName: 'Blue Hoodie',
+      reason: 'ITEM_NOT_AS_DESCRIBED',
+      refundAmount: '90.00',
+      refundRequestId: '55555555-5555-4555-8555-555555555555',
+      status: 'REJECTED',
+      storeName: 'North Store',
+    })
+
+    expect(result.subject).toContain('33333333-3333-4333-8333-333333333333')
+    expect(result.html).toContain('Visible rejection reason')
+    expect(result.html).toContain('90.00')
+  })
+
   it('throws EmailTemplateRenderError when payload does not match template schema', async () => {
     await expect(
       renderEmailTemplate('PRODUCT_REJECTED_EMAIL', {

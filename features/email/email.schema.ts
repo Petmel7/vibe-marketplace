@@ -48,6 +48,28 @@ export const paymentFailedEmailPayloadSchema = marketplaceOrderEmailPayloadSchem
   paymentProvider: z.string().trim().min(1),
 })
 
+const refundLifecycleEmailPayloadSchema = z.object({
+  actionUrl: z.string().trim().min(1),
+  adminNote: z.string().trim().min(1).nullable(),
+  buyerEmail: z.email(),
+  buyerName: z.string().trim().min(1).nullable(),
+  currency: z.string().trim().min(1),
+  orderId: z.uuid(),
+  paymentStatus: z.string().trim().min(1).nullable(),
+  productName: z.string().trim().min(1).nullable(),
+  reason: z.string().trim().min(1),
+  refundAmount: z.string().min(1),
+  refundRequestId: z.uuid(),
+  status: z.string().trim().min(1),
+  storeName: z.string().trim().min(1).nullable(),
+})
+
+export const refundRequestedEmailPayloadSchema = refundLifecycleEmailPayloadSchema
+export const refundApprovedEmailPayloadSchema = refundLifecycleEmailPayloadSchema
+export const refundRejectedEmailPayloadSchema = refundLifecycleEmailPayloadSchema
+export const refundSucceededEmailPayloadSchema = refundLifecycleEmailPayloadSchema
+export const refundFailedEmailPayloadSchema = refundLifecycleEmailPayloadSchema
+
 export const sellerNewOrderEmailPayloadSchema = z.object({
   buyerEmail: z.email(),
   buyerName: z.string().trim().min(1).nullable(),
@@ -100,6 +122,11 @@ export const emailTemplatePayloadSchemaMap = {
   PAYMENT_SUCCEEDED_EMAIL: paymentSucceededEmailPayloadSchema,
   PRODUCT_APPROVED_EMAIL: productApprovedEmailPayloadSchema,
   PRODUCT_REJECTED_EMAIL: productRejectedEmailPayloadSchema,
+  REFUND_APPROVED_EMAIL: refundApprovedEmailPayloadSchema,
+  REFUND_FAILED_EMAIL: refundFailedEmailPayloadSchema,
+  REFUND_REJECTED_EMAIL: refundRejectedEmailPayloadSchema,
+  REFUND_REQUESTED_EMAIL: refundRequestedEmailPayloadSchema,
+  REFUND_SUCCEEDED_EMAIL: refundSucceededEmailPayloadSchema,
   SELLER_APPROVED_EMAIL: sellerApprovedEmailPayloadSchema,
   SELLER_NEW_ORDER_EMAIL: sellerNewOrderEmailPayloadSchema,
   SELLER_PAYOUT_PAID_EMAIL: sellerPayoutPaidEmailPayloadSchema,

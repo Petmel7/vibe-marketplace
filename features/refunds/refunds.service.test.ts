@@ -16,6 +16,13 @@ import {
 } from '@/lib/errors/refund'
 
 vi.mock('./refunds.repository')
+vi.mock('@/features/email/events/email.events', () => ({
+  emitRefundApprovedEmailEvent: vi.fn(),
+  emitRefundFailedEmailEvent: vi.fn(),
+  emitRefundRejectedEmailEvent: vi.fn(),
+  emitRefundRequestedEmailEvents: vi.fn(),
+  emitRefundSucceededEmailEvents: vi.fn(),
+}))
 vi.mock('@/features/notifications/notifications.service')
 vi.mock('@/features/payments/payment.repository')
 vi.mock('@/features/payouts/payouts.repository')
@@ -29,6 +36,7 @@ vi.mock('@/lib/auth/guards', () => ({
 vi.mock('@/utils/logger', () => ({ logError: vi.fn() }))
 
 import * as refundRepository from './refunds.repository'
+import * as refundEmailEvents from '@/features/email/events/email.events'
 import * as notificationsService from '@/features/notifications/notifications.service'
 import * as paymentRepository from '@/features/payments/payment.repository'
 import * as payoutRepository from '@/features/payouts/payouts.repository'
@@ -38,9 +46,11 @@ import {
   createRefundRequest,
   getSellerRefundRequestById,
   markAdminRefundRequestSucceeded,
+  rejectAdminRefundRequest,
 } from './refunds.service'
 
 const mockRefundRepository = vi.mocked(refundRepository)
+const mockRefundEmailEvents = vi.mocked(refundEmailEvents)
 const mockNotificationsService = vi.mocked(notificationsService)
 const mockPaymentRepository = vi.mocked(paymentRepository)
 const mockPayoutRepository = vi.mocked(payoutRepository)
@@ -265,6 +275,11 @@ describe('refunds.service', () => {
     vi.clearAllMocks()
     mockNotificationsService.createAdminNotification.mockResolvedValue([] as never)
     mockNotificationsService.notifyUser.mockResolvedValue({} as never)
+    mockRefundEmailEvents.emitRefundApprovedEmailEvent.mockResolvedValue(null)
+    mockRefundEmailEvents.emitRefundFailedEmailEvent.mockResolvedValue(null)
+    mockRefundEmailEvents.emitRefundRejectedEmailEvent.mockResolvedValue(null)
+    mockRefundEmailEvents.emitRefundRequestedEmailEvents.mockResolvedValue([] as never)
+    mockRefundEmailEvents.emitRefundSucceededEmailEvents.mockResolvedValue([] as never)
     mockPaymentRepository.applyRefundOutcome.mockResolvedValue({} as never)
     mockPayoutRepository.findStoreFinanceContextById.mockResolvedValue({
       id: 'store-1',
@@ -338,6 +353,9 @@ describe('refunds.service', () => {
         userId: sellerUser.id,
       }),
     )
+    expect(mockRefundEmailEvents.emitRefundRequestedEmailEvents).toHaveBeenCalledWith({
+      refundRequestId: 'refund-request-1',
+    })
     expect(result.status).toBe(RefundRequestStatus.REQUESTED)
   })
 
@@ -425,6 +443,9 @@ describe('refunds.service', () => {
         status: 'PENDING',
       }),
     )
+    expect(mockRefundEmailEvents.emitRefundApprovedEmailEvent).toHaveBeenCalledWith({
+      refundRequestId: 'refund-request-1',
+    })
     expect(result.status).toBe(RefundRequestStatus.APPROVED)
   })
 
@@ -536,6 +557,9 @@ describe('refunds.service', () => {
     )
     expect(mockPayoutRepository.upsertSellerBalance).toHaveBeenCalled()
     expect(mockRiskService.recordRefundIssuedRiskSignals).toHaveBeenCalled()
+    expect(mockRefundEmailEvents.emitRefundSucceededEmailEvents).toHaveBeenCalledWith({
+      refundRequestId: 'refund-request-1',
+    })
     expect(result.status).toBe(RefundRequestStatus.SUCCEEDED)
   })
 
@@ -585,5 +609,26 @@ describe('refunds.service', () => {
     })
 
     expect(result.id).toBe('refund-request-1')
+  })
+
+  it('does not fail refund transition when refund lifecycle email enqueue fails', async () => {
+    mockRefundRepository.findRefundRequestById.mockResolvedValue(
+      makeRefundRequestRecord({ status: RefundRequestStatus.REQUESTED }) as never,
+    )
+    mockRefundRepository.transitionRefundRequestRecord.mockResolvedValue(
+      makeRefundRequestRecord({
+        status: RefundRequestStatus.REJECTED,
+        adminNote: 'Manual review rejected this request',
+      }) as never,
+    )
+    mockRefundEmailEvents.emitRefundRejectedEmailEvent.mockRejectedValueOnce(
+      new Error('email queue down'),
+    )
+
+    const result = await rejectAdminRefundRequest(adminUser, 'refund-request-1', {
+      adminNote: 'Manual review rejected this request',
+    })
+
+    expect(result.status).toBe(RefundRequestStatus.REJECTED)
   })
 })

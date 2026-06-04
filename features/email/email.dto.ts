@@ -10,6 +10,11 @@ export const EMAIL_EVENT_TYPES = [
   'ORDER_CONFIRMED',
   'PAYMENT_SUCCEEDED',
   'PAYMENT_FAILED',
+  'REFUND_REQUESTED',
+  'REFUND_APPROVED',
+  'REFUND_REJECTED',
+  'REFUND_SUCCEEDED',
+  'REFUND_FAILED',
   'SELLER_NEW_ORDER',
   'SELLER_PAYOUT_PAID',
   'SELLER_APPROVED',
@@ -24,6 +29,11 @@ export const EMAIL_TEMPLATE_KEYS = [
   'ORDER_CONFIRMED_EMAIL',
   'PAYMENT_SUCCEEDED_EMAIL',
   'PAYMENT_FAILED_EMAIL',
+  'REFUND_REQUESTED_EMAIL',
+  'REFUND_APPROVED_EMAIL',
+  'REFUND_REJECTED_EMAIL',
+  'REFUND_SUCCEEDED_EMAIL',
+  'REFUND_FAILED_EMAIL',
   'SELLER_NEW_ORDER_EMAIL',
   'SELLER_PAYOUT_PAID_EMAIL',
   'SELLER_APPROVED_EMAIL',
@@ -103,6 +113,28 @@ export interface SellerPayoutPaidEmailPayload {
   storeName: string
 }
 
+export interface RefundLifecycleEmailPayload {
+  actionUrl: string
+  adminNote: string | null
+  buyerEmail: string
+  buyerName: string | null
+  currency: string
+  orderId: string
+  paymentStatus: string | null
+  productName: string | null
+  reason: string
+  refundAmount: string
+  refundRequestId: string
+  status: string
+  storeName: string | null
+}
+
+export type RefundRequestedEmailPayload = RefundLifecycleEmailPayload
+export type RefundApprovedEmailPayload = RefundLifecycleEmailPayload
+export type RefundRejectedEmailPayload = RefundLifecycleEmailPayload
+export type RefundSucceededEmailPayload = RefundLifecycleEmailPayload
+export type RefundFailedEmailPayload = RefundLifecycleEmailPayload
+
 export interface SellerApprovedEmailPayload {
   businessName: string | null
 }
@@ -130,6 +162,11 @@ export type EmailTemplatePayloadMap = {
   PAYMENT_SUCCEEDED_EMAIL: PaymentSucceededEmailPayload
   PRODUCT_APPROVED_EMAIL: ProductApprovedEmailPayload
   PRODUCT_REJECTED_EMAIL: ProductRejectedEmailPayload
+  REFUND_APPROVED_EMAIL: RefundApprovedEmailPayload
+  REFUND_FAILED_EMAIL: RefundFailedEmailPayload
+  REFUND_REJECTED_EMAIL: RefundRejectedEmailPayload
+  REFUND_REQUESTED_EMAIL: RefundRequestedEmailPayload
+  REFUND_SUCCEEDED_EMAIL: RefundSucceededEmailPayload
   SELLER_APPROVED_EMAIL: SellerApprovedEmailPayload
   SELLER_NEW_ORDER_EMAIL: SellerNewOrderEmailPayload
   SELLER_PAYOUT_PAID_EMAIL: SellerPayoutPaidEmailPayload

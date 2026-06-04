@@ -269,6 +269,28 @@ export async function findUserNotificationContext(userId: string) {
   })
 }
 
+export async function findAdminEmailRecipients() {
+  return prisma.user.findMany({
+    where: {
+      roles: {
+        some: {
+          role: 'ADMIN',
+        },
+      },
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      profile: {
+        select: {
+          displayName: true,
+        },
+      },
+    },
+  })
+}
+
 export async function findOrderNotificationContext(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -381,6 +403,73 @@ export async function findPayoutNotificationContext(payoutId: string) {
           profile: {
             select: {
               displayName: true,
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
+export async function findRefundRequestNotificationContext(refundRequestId: string) {
+  return prisma.refundRequest.findUnique({
+    where: { id: refundRequestId },
+    select: {
+      id: true,
+      orderId: true,
+      orderItemId: true,
+      reason: true,
+      status: true,
+      amount: true,
+      currency: true,
+      adminNote: true,
+      requestedById: true,
+      requestedBy: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          profile: {
+            select: {
+              displayName: true,
+            },
+          },
+        },
+      },
+      order: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      payment: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      orderItem: {
+        select: {
+          id: true,
+          productNameSnapshot: true,
+          storeId: true,
+          store: {
+            select: {
+              id: true,
+              name: true,
+              ownerId: true,
+              owner: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profile: {
+                    select: {
+                      displayName: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },

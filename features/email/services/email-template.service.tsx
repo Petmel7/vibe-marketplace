@@ -13,6 +13,11 @@ import PaymentFailedEmail from '../templates/PaymentFailedEmail'
 import PaymentSucceededEmail from '../templates/PaymentSucceededEmail'
 import ProductApprovedEmail from '../templates/ProductApprovedEmail'
 import ProductRejectedEmail from '../templates/ProductRejectedEmail'
+import RefundApprovedEmail from '../templates/RefundApprovedEmail'
+import RefundFailedEmail from '../templates/RefundFailedEmail'
+import RefundRejectedEmail from '../templates/RefundRejectedEmail'
+import RefundRequestedEmail from '../templates/RefundRequestedEmail'
+import RefundSucceededEmail from '../templates/RefundSucceededEmail'
 import SellerApprovedEmail from '../templates/SellerApprovedEmail'
 import SellerNewOrderEmail from '../templates/SellerNewOrderEmail'
 import SellerPayoutPaidEmail from '../templates/SellerPayoutPaidEmail'
@@ -62,6 +67,26 @@ const templateDefinitions: {
   PAYMENT_FAILED_EMAIL: {
     render: (payload) => <PaymentFailedEmail {...payload} />,
     subject: (payload) => `Payment issue for order ${payload.orderId}`,
+  },
+  REFUND_REQUESTED_EMAIL: {
+    render: (payload) => <RefundRequestedEmail {...payload} />,
+    subject: (payload) => `Refund request created for order ${payload.orderId}`,
+  },
+  REFUND_APPROVED_EMAIL: {
+    render: (payload) => <RefundApprovedEmail {...payload} />,
+    subject: (payload) => `Refund approved for order ${payload.orderId}`,
+  },
+  REFUND_REJECTED_EMAIL: {
+    render: (payload) => <RefundRejectedEmail {...payload} />,
+    subject: (payload) => `Refund request update for order ${payload.orderId}`,
+  },
+  REFUND_SUCCEEDED_EMAIL: {
+    render: (payload) => <RefundSucceededEmail {...payload} />,
+    subject: (payload) => `Refund completed for order ${payload.orderId}`,
+  },
+  REFUND_FAILED_EMAIL: {
+    render: (payload) => <RefundFailedEmail {...payload} />,
+    subject: (payload) => `Refund needs attention for order ${payload.orderId}`,
   },
   SELLER_NEW_ORDER_EMAIL: {
     render: (payload) => <SellerNewOrderEmail {...payload} />,
