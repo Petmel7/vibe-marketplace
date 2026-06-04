@@ -9,50 +9,53 @@ datasource db {
 }
 
 model User {
-  id                   String                @id @db.Uuid
-  email                String                @unique
-  name                 String?
-  avatarUrl            String?               @map("avatar_url")
-  createdAt            DateTime              @default(now()) @map("created_at")
-  updatedAt            DateTime              @map("updated_at")
-  admin                AdminProfile?
-  buyer                BuyerProfile?
-  cart                 Cart?
-  orders               Order[]
-  reviews              Review[]
-  seller               SellerProfile?
-  verifiedSellers      SellerProfile[]       @relation("VerifiedByUser")
-  addresses            ShippingAddress[]
-  stores               Store[]
-  profile              UserProfile?
-  assignedRoles        UserRoleAssignment[]  @relation("AssignedByUser")
-  roles                UserRoleAssignment[]  @relation("UserRoles")
-  viewedProducts       ViewedProduct[]
-  wishlist             Wishlist?
-  badgeRulesUpdated    ProductBadgeRule[]    @relation("ProductBadgeRuleUpdatedBy")
-  emailEvents          EmailEvent[]
-  emailLogs            EmailLog[]
-  notifications        Notification[]
-  moderatedReviews     Review[]              @relation("ReviewModeratedBy")
-  reportedAbuseReports AbuseReport[]         @relation("AbuseReportReporter")
-  assignedAbuseReports AbuseReport[]         @relation("AbuseReportAssignedAdmin")
-  resolvedAbuseReports AbuseReport[]         @relation("AbuseReportResolvedBy")
-  abuseReportActions   AbuseReportAction[]   @relation("AbuseReportActionAdmin")
-  abuseReportEvidence  AbuseReportEvidence[] @relation("AbuseReportEvidenceUploadedBy")
-  openedDisputes       Dispute[]             @relation("DisputeOpenedBy")
-  respondedDisputes    Dispute[]             @relation("DisputeRespondent")
-  resolvedDisputes     Dispute[]             @relation("DisputeResolvedBy")
-  disputeMessages      DisputeMessage[]      @relation("DisputeMessageSender")
-  disputeEvidence      DisputeEvidence[]     @relation("DisputeEvidenceUploadedBy")
-  riskProfile          RiskProfile?          @relation("UserRiskProfile")
-  riskSignals          RiskSignal[]          @relation("UserRiskSignals")
-  platformCommissions  PlatformCommission[]  @relation("PlatformCommissionSeller")
-  sellerLedgerEntries  SellerLedgerEntry[]   @relation("SellerLedgerEntrySeller")
-  sellerBalances       SellerBalance[]       @relation("SellerBalanceSeller")
-  payouts              Payout[]              @relation("PayoutSeller")
-  createdPayouts       Payout[]              @relation("PayoutCreatedBy")
-  createdPromotions    Promotion[]           @relation("PromotionCreatedBy")
-  promotionUsages      PromotionUsage[]
+  id                      String                @id @db.Uuid
+  email                   String                @unique
+  name                    String?
+  avatarUrl               String?               @map("avatar_url")
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @map("updated_at")
+  admin                   AdminProfile?
+  buyer                   BuyerProfile?
+  cart                    Cart?
+  orders                  Order[]
+  reviews                 Review[]
+  seller                  SellerProfile?
+  verifiedSellers         SellerProfile[]       @relation("VerifiedByUser")
+  addresses               ShippingAddress[]
+  stores                  Store[]
+  profile                 UserProfile?
+  assignedRoles           UserRoleAssignment[]  @relation("AssignedByUser")
+  roles                   UserRoleAssignment[]  @relation("UserRoles")
+  viewedProducts          ViewedProduct[]
+  wishlist                Wishlist?
+  badgeRulesUpdated       ProductBadgeRule[]    @relation("ProductBadgeRuleUpdatedBy")
+  emailEvents             EmailEvent[]
+  emailLogs               EmailLog[]
+  notifications           Notification[]
+  moderatedReviews        Review[]              @relation("ReviewModeratedBy")
+  reportedAbuseReports    AbuseReport[]         @relation("AbuseReportReporter")
+  assignedAbuseReports    AbuseReport[]         @relation("AbuseReportAssignedAdmin")
+  resolvedAbuseReports    AbuseReport[]         @relation("AbuseReportResolvedBy")
+  abuseReportActions      AbuseReportAction[]   @relation("AbuseReportActionAdmin")
+  abuseReportEvidence     AbuseReportEvidence[] @relation("AbuseReportEvidenceUploadedBy")
+  openedDisputes          Dispute[]             @relation("DisputeOpenedBy")
+  respondedDisputes       Dispute[]             @relation("DisputeRespondent")
+  resolvedDisputes        Dispute[]             @relation("DisputeResolvedBy")
+  disputeMessages         DisputeMessage[]      @relation("DisputeMessageSender")
+  disputeEvidence         DisputeEvidence[]     @relation("DisputeEvidenceUploadedBy")
+  riskProfile             RiskProfile?          @relation("UserRiskProfile")
+  riskSignals             RiskSignal[]          @relation("UserRiskSignals")
+  platformCommissions     PlatformCommission[]  @relation("PlatformCommissionSeller")
+  sellerLedgerEntries     SellerLedgerEntry[]   @relation("SellerLedgerEntrySeller")
+  sellerBalances          SellerBalance[]       @relation("SellerBalanceSeller")
+  payouts                 Payout[]              @relation("PayoutSeller")
+  createdPayouts          Payout[]              @relation("PayoutCreatedBy")
+  createdPromotions       Promotion[]           @relation("PromotionCreatedBy")
+  promotionUsages         PromotionUsage[]
+  requestedRefundRequests RefundRequest[]       @relation("RefundRequestRequestedBy")
+  resolvedRefundRequests  RefundRequest[]       @relation("RefundRequestResolvedBy")
+  refundActions           RefundAction[]        @relation("RefundActionActor")
 
   @@map("users")
 }
@@ -269,6 +272,7 @@ model Order {
   disputes          Dispute[]
   promotionUsages   PromotionUsage[]
   orderPromotion    OrderPromotion?
+  refundRequests    RefundRequest[]
 
   @@index([userId], map: "orders_userId_idx")
   @@index([status])
@@ -298,6 +302,7 @@ model OrderItem {
   disputes            Dispute[]
   platformCommission  PlatformCommission?
   sellerLedgerEntries SellerLedgerEntry[]
+  refundRequests      RefundRequest[]
 
   @@index([orderId], map: "order_items_orderId_idx")
   @@index([variantId], map: "order_items_variantId_idx")
@@ -325,6 +330,7 @@ model Payment {
   order             Order                 @relation(fields: [orderId], references: [id])
   refunds           Refund[]
   webhookEvents     PaymentWebhookEvent[]
+  refundRequests    RefundRequest[]
 
   @@index([orderId], map: "payments_order_id_idx")
   @@index([status], map: "payments_status_idx")
@@ -368,22 +374,77 @@ model PaymentWebhookEvent {
 }
 
 model Refund {
-  id               String       @id @default(uuid()) @db.Uuid
-  paymentId        String       @map("payment_id") @db.Uuid
-  orderItemId      String?      @map("order_item_id") @db.Uuid
-  providerRefundId String?      @map("provider_refund_id")
-  status           RefundStatus @default(PENDING)
-  amount           Decimal      @db.Decimal(12, 2)
+  id               String         @id @default(uuid()) @db.Uuid
+  refundRequestId  String?        @map("refund_request_id") @db.Uuid
+  paymentId        String         @map("payment_id") @db.Uuid
+  orderItemId      String?        @map("order_item_id") @db.Uuid
+  providerRefundId String?        @map("provider_refund_id")
+  status           RefundStatus   @default(PENDING)
+  amount           Decimal        @db.Decimal(12, 2)
   reason           String?
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
-  orderItem        OrderItem?   @relation(fields: [orderItemId], references: [id])
-  payment          Payment      @relation(fields: [paymentId], references: [id])
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  orderItem        OrderItem?     @relation(fields: [orderItemId], references: [id])
+  payment          Payment        @relation(fields: [paymentId], references: [id])
+  refundRequest    RefundRequest? @relation(fields: [refundRequestId], references: [id])
 
+  @@index([refundRequestId], map: "refunds_refund_request_id_idx")
   @@index([paymentId], map: "refunds_payment_id_idx")
   @@index([status], map: "refunds_status_idx")
   @@index([orderItemId], map: "refunds_order_item_id_idx")
   @@map("refunds")
+}
+
+model RefundRequest {
+  id            String              @id @default(uuid()) @db.Uuid
+  orderId       String              @map("order_id") @db.Uuid
+  orderItemId   String?             @map("order_item_id") @db.Uuid
+  paymentId     String              @map("payment_id") @db.Uuid
+  requestedById String              @map("requested_by_id") @db.Uuid
+  reason        RefundRequestReason
+  status        RefundRequestStatus @default(REQUESTED)
+  amount        Decimal             @db.Decimal(12, 2)
+  currency      String              @db.VarChar(3)
+  description   String?
+  adminNote     String?             @map("admin_note")
+  resolvedById  String?             @map("resolved_by_id") @db.Uuid
+  resolvedAt    DateTime?           @map("resolved_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  actions       RefundAction[]
+  refunds       Refund[]
+  order         Order               @relation(fields: [orderId], references: [id])
+  orderItem     OrderItem?          @relation(fields: [orderItemId], references: [id])
+  payment       Payment             @relation(fields: [paymentId], references: [id])
+  requestedBy   User                @relation("RefundRequestRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy    User?               @relation("RefundRequestResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([orderId], map: "refund_requests_order_id_idx")
+  @@index([orderItemId], map: "refund_requests_order_item_id_idx")
+  @@index([paymentId], map: "refund_requests_payment_id_idx")
+  @@index([requestedById], map: "refund_requests_requested_by_id_idx")
+  @@index([status], map: "refund_requests_status_idx")
+  @@index([reason], map: "refund_requests_reason_idx")
+  @@index([resolvedById], map: "refund_requests_resolved_by_id_idx")
+  @@index([createdAt], map: "refund_requests_created_at_idx")
+  @@map("refund_requests")
+}
+
+model RefundAction {
+  id              String           @id @default(uuid()) @db.Uuid
+  refundRequestId String           @map("refund_request_id") @db.Uuid
+  actorId         String           @map("actor_id") @db.Uuid
+  actionType      RefundActionType @map("action_type")
+  note            String?
+  metadata        Json?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  refundRequest   RefundRequest    @relation(fields: [refundRequestId], references: [id])
+  actor           User             @relation("RefundActionActor", fields: [actorId], references: [id])
+
+  @@index([refundRequestId], map: "refund_actions_refund_request_id_idx")
+  @@index([actorId], map: "refund_actions_actor_id_idx")
+  @@index([createdAt], map: "refund_actions_created_at_idx")
+  @@map("refund_actions")
 }
 
 model PlatformCommission {
@@ -532,12 +593,12 @@ model Promotion {
 }
 
 model PromotionTarget {
-  id         String              @id @default(uuid()) @db.Uuid
-  promotionId String             @map("promotion_id") @db.Uuid
-  targetType PromotionTargetType @map("target_type")
-  targetId   String              @map("target_id") @db.Uuid
-  createdAt  DateTime            @default(now()) @map("created_at")
-  promotion  Promotion           @relation(fields: [promotionId], references: [id])
+  id          String              @id @default(uuid()) @db.Uuid
+  promotionId String              @map("promotion_id") @db.Uuid
+  targetType  PromotionTargetType @map("target_type")
+  targetId    String              @map("target_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+  promotion   Promotion           @relation(fields: [promotionId], references: [id])
 
   @@index([promotionId], map: "promotion_targets_promotion_id_idx")
   @@index([targetType, targetId], map: "promotion_targets_target_type_target_id_idx")
@@ -1177,6 +1238,40 @@ enum RefundStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum RefundRequestReason {
+  ITEM_NOT_RECEIVED
+  ITEM_NOT_AS_DESCRIBED
+  DAMAGED_ITEM
+  WRONG_ITEM
+  PAYMENT_ISSUE
+  BUYER_CHANGED_MIND
+  SELLER_CANCELLED
+  OTHER
+}
+
+enum RefundRequestStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum RefundActionType {
+  CREATED
+  STATUS_CHANGED
+  APPROVED
+  REJECTED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  ADMIN_NOTE
 }
 
 enum AbuseReportTargetType {
