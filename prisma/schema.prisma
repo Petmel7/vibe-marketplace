@@ -338,13 +338,18 @@ model Shipment {
   id                    String                @id @default(uuid()) @db.Uuid
   orderId               String                @map("order_id") @db.Uuid
   storeId               String                @map("store_id") @db.Uuid
+  originalShipmentId    String?               @map("original_shipment_id") @db.Uuid
   provider              ShippingProvider
   deliveryType          ShippingDeliveryType  @map("delivery_type")
   status                ShipmentStatus        @default(PENDING)
+  isReturnShipment      Boolean               @default(false) @map("is_return_shipment")
   recipientName         String                @map("recipient_name")
   recipientPhone        String                @map("recipient_phone")
   recipientCityRef      String                @map("recipient_city_ref")
   recipientCityName     String                @map("recipient_city_name")
+  recipientStreet       String?               @map("recipient_street")
+  recipientBuilding     String?               @map("recipient_building")
+  recipientApartment    String?               @map("recipient_apartment")
   recipientWarehouseRef String?               @map("recipient_warehouse_ref")
   recipientWarehouseName String?              @map("recipient_warehouse_name")
   estimatedCost         Decimal?              @map("estimated_cost") @db.Decimal(10, 2)
@@ -354,13 +359,17 @@ model Shipment {
   createdAt             DateTime              @default(now()) @map("created_at")
   updatedAt             DateTime              @updatedAt @map("updated_at")
   order                 Order                 @relation(fields: [orderId], references: [id])
+  originalShipment      Shipment?             @relation("ShipmentReturns", fields: [originalShipmentId], references: [id])
+  returnShipments       Shipment[]            @relation("ShipmentReturns")
   store                 Store                 @relation(fields: [storeId], references: [id])
   items                 ShipmentItem[]
 
   @@index([orderId], map: "shipments_order_id_idx")
   @@index([storeId], map: "shipments_store_id_idx")
+  @@index([originalShipmentId], map: "shipments_original_shipment_id_idx")
   @@index([status], map: "shipments_status_idx")
   @@index([provider], map: "shipments_provider_idx")
+  @@index([isReturnShipment], map: "shipments_is_return_shipment_idx")
   @@index([trackingNumber], map: "shipments_tracking_number_idx")
   @@map("shipments")
 }
