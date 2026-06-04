@@ -41,17 +41,25 @@ export default function CheckoutClient({
     canSubmit,
     selectedAddressId,
     deliveryMode,
+    selectedDeliveryType,
     recipientName,
     recipientPhone,
     selectedCity,
     selectedWarehouse,
+    recipientStreet,
+    recipientBuilding,
+    recipientApartment,
     selectedPaymentMethod,
     setSelectedAddressId,
     setDeliveryMode,
+    setSelectedDeliveryType,
     setRecipientName,
     setRecipientPhone,
     setSelectedCity,
     setSelectedWarehouse,
+    setRecipientStreet,
+    setRecipientBuilding,
+    setRecipientApartment,
     setSelectedPaymentMethod,
     setCouponCode,
     submitCheckout,
@@ -114,14 +122,23 @@ export default function CheckoutClient({
         <CheckoutDeliverySection
           deliveryMode={deliveryMode}
           onDeliveryModeChange={setDeliveryMode}
+          selectedDeliveryType={selectedDeliveryType}
+          onDeliveryTypeChange={setSelectedDeliveryType}
           recipientName={recipientName}
           recipientPhone={recipientPhone}
           selectedCity={selectedCity}
           selectedWarehouse={selectedWarehouse}
+          recipientStreet={recipientStreet}
+          recipientBuilding={recipientBuilding}
+          recipientApartment={recipientApartment}
           onRecipientNameChange={setRecipientName}
           onRecipientPhoneChange={setRecipientPhone}
           onCityChange={setSelectedCity}
           onWarehouseChange={setSelectedWarehouse}
+          onRecipientStreetChange={setRecipientStreet}
+          onRecipientBuildingChange={setRecipientBuilding}
+          onRecipientApartmentChange={setRecipientApartment}
+          deliverySelection={preview.deliverySelection}
           hasSavedAddresses={preview.addressOptions.length > 0}
         />
         {deliveryMode === 'ADDRESS' ? (

@@ -2,10 +2,12 @@ import ShipmentStatusBadge from '@/components/shipping/ShipmentStatusBadge'
 import TrackingNumberCopyButton from '@/components/shipping/TrackingNumberCopyButton'
 import type { OrderShipment } from '@/types/shipping'
 import {
+  getShipmentDestinationLabel,
   getShipmentStatusDescription,
   getShippingDeliveryTypeLabel,
   getShippingProviderLabel,
 } from '@/types/shipping'
+import { formatPrice } from '@/utils/formatters/price'
 
 export default function OrderShipmentCard({
   shipment,
@@ -36,10 +38,8 @@ export default function OrderShipmentCard({
           <dd className="text-right text-copy-primary">{shipment.recipientCityName}</dd>
         </div>
         <div className="flex items-start justify-between gap-4">
-          <dt>Відділення</dt>
-          <dd className="text-right text-copy-primary">
-            {shipment.recipientWarehouseName ?? 'Уточнюється'}
-          </dd>
+          <dt>{shipment.deliveryType === 'NOVA_POSHTA_COURIER' ? 'Адреса' : 'Відділення'}</dt>
+          <dd className="text-right text-copy-primary">{getShipmentDestinationLabel(shipment)}</dd>
         </div>
         <div className="flex items-start justify-between gap-4">
           <dt>Трек-номер</dt>
@@ -47,6 +47,18 @@ export default function OrderShipmentCard({
             {shipment.trackingNumber ?? 'Продавець готує відправлення'}
           </dd>
         </div>
+        {shipment.estimatedCost ? (
+          <div className="flex items-start justify-between gap-4">
+            <dt>Орієнтовна вартість</dt>
+            <dd className="text-right text-copy-primary">{formatPrice(shipment.estimatedCost)}</dd>
+          </div>
+        ) : null}
+        {shipment.isReturnShipment ? (
+          <div className="flex items-start justify-between gap-4">
+            <dt>Статус маршруту</dt>
+            <dd className="text-right text-copy-primary">Повернення відправнику</dd>
+          </div>
+        ) : null}
       </dl>
 
       {shipment.trackingNumber ? (

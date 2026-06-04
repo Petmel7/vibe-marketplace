@@ -42,8 +42,13 @@ export type CheckoutDeliverySelection = {
   recipientPhone: string | null
   recipientCityRef: string | null
   recipientCityName: string | null
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
+  estimatedCost: string | null
+  currency: 'UAH'
   isComplete: boolean
 }
 
@@ -69,9 +74,16 @@ export type OrderShipment = {
   status: ShipmentStatus
   recipientCityRef: string
   recipientCityName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
+  estimatedCost?: string | null
+  currency?: string | null
   trackingNumber: string | null
+  isReturnShipment: boolean
+  originalShipmentId: string | null
 }
 
 export type SellerShipmentItem = {
@@ -86,13 +98,18 @@ export type SellerShipment = {
   orderId: string
   storeId: string
   storeName: string
+  originalShipmentId: string | null
   provider: ShippingProvider
   deliveryType: ShippingDeliveryType
   status: ShipmentStatus
+  isReturnShipment: boolean
   recipientName: string
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
+  recipientStreet: string | null
+  recipientBuilding: string | null
+  recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
   trackingNumber: string | null
@@ -111,6 +128,34 @@ export type SellerShipmentList = {
   total: number
 }
 
+export type BulkCreateShipmentTtnResult = {
+  shipmentId: string
+  success: boolean
+  trackingNumber: string | null
+  errorMessage: string | null
+}
+
+export type BulkCreateShipmentTtnResponse = {
+  results: BulkCreateShipmentTtnResult[]
+}
+
+export type ShipmentSyncResult = {
+  shipmentId: string
+  previousStatus: ShipmentStatus
+  currentStatus: ShipmentStatus
+  trackingNumber: string | null
+  changed: boolean
+}
+
+export type ShipmentSyncResponse = {
+  results: ShipmentSyncResult[]
+}
+
+export type NovaPoshtaDeliveryEstimate = {
+  estimatedCost: string | null
+  currency: 'UAH'
+}
+
 export function getShippingProviderLabel(provider: ShippingProvider) {
   switch (provider) {
     case 'NOVA_POSHTA':
@@ -125,7 +170,7 @@ export function getShippingDeliveryTypeLabel(deliveryType: ShippingDeliveryType)
     case 'NOVA_POSHTA_WAREHOUSE':
       return 'Нова Пошта: відділення / поштомат'
     case 'NOVA_POSHTA_COURIER':
-      return 'Нова Пошта: курʼєр'
+      return 'Нова Пошта: кур’єр'
   }
 }
 
@@ -167,7 +212,7 @@ export function getShipmentStatusDescription(status: ShipmentStatus) {
     case 'IN_TRANSIT':
       return 'Посилка рухається до міста отримувача'
     case 'ARRIVED':
-      return 'Відправлення прибуло у відділення або поштомат'
+      return 'Відправлення прибуло до точки отримання'
     case 'DELIVERED':
       return 'Відправлення вручено покупцю'
     case 'FAILED':
@@ -179,14 +224,39 @@ export function getShipmentStatusDescription(status: ShipmentStatus) {
   }
 }
 
+export function getShipmentDestinationLabel(
+  shipment: Pick<
+    OrderShipment | SellerShipment,
+    | 'deliveryType'
+    | 'recipientWarehouseName'
+    | 'recipientStreet'
+    | 'recipientBuilding'
+    | 'recipientApartment'
+  >,
+) {
+  if (
+    shipment.deliveryType === 'NOVA_POSHTA_COURIER' &&
+    shipment.recipientStreet &&
+    shipment.recipientBuilding
+  ) {
+    return `${shipment.recipientStreet}, ${shipment.recipientBuilding}${
+      shipment.recipientApartment ? `, кв. ${shipment.recipientApartment}` : ''
+    }`
+  }
+
+  return shipment.recipientWarehouseName ?? 'Уточнюється'
+}
+
 export function canCreateShipmentTtn(
-  shipment: Pick<SellerShipment, 'provider' | 'deliveryType' | 'status' | 'trackingNumber' | 'providerShipmentId'>,
+  shipment: Pick<
+    SellerShipment,
+    'provider' | 'status' | 'trackingNumber' | 'providerShipmentId'
+  >,
   isShippingConfigured: boolean,
 ) {
   return (
     isShippingConfigured &&
     shipment.provider === 'NOVA_POSHTA' &&
-    shipment.deliveryType === 'NOVA_POSHTA_WAREHOUSE' &&
     (shipment.status === 'PENDING' || shipment.status === 'READY_TO_SHIP') &&
     !shipment.trackingNumber &&
     !shipment.providerShipmentId
@@ -212,6 +282,18 @@ export function canCancelShipment(
     (shipment.status === 'PENDING' ||
       shipment.status === 'READY_TO_SHIP' ||
       shipment.status === 'LABEL_CREATED' ||
+      shipment.status === 'FAILED')
+  )
+}
+
+export function canCreateReturnShipment(
+  shipment: Pick<SellerShipment, 'isReturnShipment' | 'originalShipmentId' | 'status'>,
+) {
+  return (
+    !shipment.isReturnShipment &&
+    !shipment.originalShipmentId &&
+    (shipment.status === 'ARRIVED' ||
+      shipment.status === 'DELIVERED' ||
       shipment.status === 'FAILED')
   )
 }

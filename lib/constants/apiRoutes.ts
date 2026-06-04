@@ -10,6 +10,7 @@ export const API_ROUTES = {
   checkoutPromotionApply: '/api/checkout/promotions/apply',
   shippingNovaPoshtaCities: '/api/shipping/nova-poshta/cities',
   shippingNovaPoshtaWarehouses: '/api/shipping/nova-poshta/warehouses',
+  shippingNovaPoshtaEstimate: '/api/shipping/nova-poshta/estimate',
   refunds: '/api/refunds',
   notifications: '/api/notifications',
   notificationsUnreadCount: '/api/notifications/unread-count',
@@ -31,8 +32,10 @@ export const API_ROUTES = {
   adminRiskUsers: '/api/admin/risk/users',
   adminRiskStores: '/api/admin/risk/stores',
   adminRiskRecalculate: '/api/admin/risk/recalculate',
+  adminShipmentsSync: '/api/admin/shipments/sync',
   sellerPromotions: '/api/seller/promotions',
   sellerShipments: '/api/seller/shipments',
+  sellerShipmentsBulkCreateTtn: '/api/seller/shipments/bulk-create-ttn',
   sellerStoreShippingSettings: '/api/seller/store/shipping-settings',
   sellerFinanceSummary: '/api/seller/finance/summary',
   sellerFinanceLedger: '/api/seller/finance/ledger',
@@ -162,6 +165,14 @@ export function getSellerShipmentRefreshStatusRoute(id: string) {
 
 export function getSellerShipmentCancelRoute(id: string) {
   return `${getSellerShipmentRoute(id)}/cancel`
+}
+
+export function getSellerShipmentReturnRoute(id: string) {
+  return `${getSellerShipmentRoute(id)}/return`
+}
+
+export function getAdminShipmentReturnRoute(id: string) {
+  return `/api/admin/shipments/${id}/return`
 }
 
 export function getAdminPayoutStatusRoute(id: string) {

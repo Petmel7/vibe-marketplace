@@ -49,7 +49,10 @@ export default async function SellerShipmentsPage({
             />
           </div>
         ) : (
-          <SellerShipmentTable shipments={data.shipments} />
+          <SellerShipmentTable
+            shipments={data.shipments}
+            isShippingConfigured={Boolean(data.shippingSettings?.isConfigured)}
+          />
         )}
       </SellerTable>
     </SellerSection>

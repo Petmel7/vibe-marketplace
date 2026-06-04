@@ -1,14 +1,17 @@
 import Link from 'next/link'
-import CreateTtnButton from '@/components/shipping/CreateTtnButton'
 import CancelShipmentButton from '@/components/shipping/CancelShipmentButton'
+import CreateTtnButton from '@/components/shipping/CreateTtnButton'
 import RefreshShipmentStatusButton from '@/components/shipping/RefreshShipmentStatusButton'
+import ReturnShipmentButton from '@/components/shipping/ReturnShipmentButton'
 import ShipmentStatusBadge from '@/components/shipping/ShipmentStatusBadge'
 import TrackingNumberCopyButton from '@/components/shipping/TrackingNumberCopyButton'
 import type { SellerShipment, StoreShippingSettings } from '@/types/shipping'
 import {
   canCancelShipment,
+  canCreateReturnShipment,
   canCreateShipmentTtn,
   canRefreshShipmentStatus,
+  getShipmentDestinationLabel,
   getShipmentStatusDescription,
   getShippingDeliveryTypeLabel,
   getShippingProviderLabel,
@@ -51,6 +54,11 @@ export default function SellerShipmentDetail({
               {getShippingProviderLabel(shipment.provider)} · {getShippingDeliveryTypeLabel(shipment.deliveryType)}
             </p>
             <p className="text-sm text-copy-secondary">{getShipmentStatusDescription(shipment.status)}</p>
+            {shipment.isReturnShipment ? (
+              <p className="text-sm text-amber-200">
+                Це зворотне відправлення{shipment.originalShipmentId ? ` для shipment #${shipment.originalShipmentId.slice(0, 8)}` : ''}.
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
             <ShipmentStatusBadge status={shipment.status} />
@@ -73,6 +81,10 @@ export default function SellerShipmentDetail({
           <CancelShipmentButton
             shipmentId={shipment.id}
             disabled={!canCancelShipment(shipment)}
+          />
+          <ReturnShipmentButton
+            shipmentId={shipment.id}
+            disabled={!canCreateReturnShipment(shipment)}
           />
         </div>
       </section>
@@ -100,7 +112,7 @@ export default function SellerShipmentDetail({
 
         <div className="space-y-6">
           <section className="ui-elevated-panel p-5 sm:p-6">
-            <h3 className="text-lg font-semibold text-copy-strong">Снімок доставки</h3>
+            <h3 className="text-lg font-semibold text-copy-strong">Снапшот доставки</h3>
             <dl className="mt-4 space-y-3 text-sm text-copy-secondary">
               <div className="flex items-start justify-between gap-4">
                 <dt>Отримувач</dt>
@@ -115,10 +127,8 @@ export default function SellerShipmentDetail({
                 <dd className="text-right text-copy-primary">{shipment.recipientCityName}</dd>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <dt>Відділення</dt>
-                <dd className="text-right text-copy-primary">
-                  {shipment.recipientWarehouseName ?? 'Уточнюється'}
-                </dd>
+                <dt>{shipment.deliveryType === 'NOVA_POSHTA_COURIER' ? 'Адреса' : 'Відділення'}</dt>
+                <dd className="text-right text-copy-primary">{getShipmentDestinationLabel(shipment)}</dd>
               </div>
               <div className="flex items-start justify-between gap-4">
                 <dt>ТТН</dt>
@@ -142,7 +152,7 @@ export default function SellerShipmentDetail({
               <div>
                 <h3 className="text-lg font-semibold text-copy-strong">Налаштування відправника</h3>
                 <p className="mt-1 text-sm text-copy-muted">
-                  Ці дані продавця використовуються для створення ТТН Nova Poshta.
+                  Ці дані продавця використовуються для створення ТТН Nova Poshta і будуть потрібні для майбутнього return flow.
                 </p>
               </div>
               <span

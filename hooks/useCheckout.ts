@@ -14,19 +14,25 @@ import type {
   CheckoutDeliveryMode,
   NovaPoshtaCity,
   NovaPoshtaWarehouse,
+  ShippingDeliveryType,
 } from '@/types/shipping'
+
+type DeliveryPayload = {
+  deliveryType?: ShippingDeliveryType | null
+  recipientName?: string | null
+  recipientPhone?: string | null
+  recipientCityRef?: string | null
+  recipientCityName?: string | null
+  recipientStreet?: string | null
+  recipientBuilding?: string | null
+  recipientApartment?: string | null
+  recipientWarehouseRef?: string | null
+  recipientWarehouseName?: string | null
+}
 
 function buildCheckoutPreviewUrl(
   cartId?: string,
-  deliveryPayload?: {
-    deliveryType?: 'NOVA_POSHTA_WAREHOUSE' | null
-    recipientName?: string | null
-    recipientPhone?: string | null
-    recipientCityRef?: string | null
-    recipientCityName?: string | null
-    recipientWarehouseRef?: string | null
-    recipientWarehouseName?: string | null
-  },
+  deliveryPayload?: DeliveryPayload,
 ) {
   const params = new URLSearchParams()
 
@@ -43,6 +49,9 @@ function buildCheckoutPreviewUrl(
     ['recipientPhone', deliveryPayload?.recipientPhone],
     ['recipientCityRef', deliveryPayload?.recipientCityRef],
     ['recipientCityName', deliveryPayload?.recipientCityName],
+    ['recipientStreet', deliveryPayload?.recipientStreet],
+    ['recipientBuilding', deliveryPayload?.recipientBuilding],
+    ['recipientApartment', deliveryPayload?.recipientApartment],
     ['recipientWarehouseRef', deliveryPayload?.recipientWarehouseRef],
     ['recipientWarehouseName', deliveryPayload?.recipientWarehouseName],
   ] as const
@@ -123,10 +132,15 @@ export function useCheckout(initialCartId?: string) {
   const [preview, setPreview] = useState<CheckoutPreview | null>(null)
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [deliveryMode, setDeliveryMode] = useState<CheckoutDeliveryMode>('ADDRESS')
+  const [selectedDeliveryType, setSelectedDeliveryType] =
+    useState<ShippingDeliveryType>('NOVA_POSHTA_WAREHOUSE')
   const [recipientName, setRecipientName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
   const [selectedCity, setSelectedCity] = useState<NovaPoshtaCity | null>(null)
   const [selectedWarehouse, setSelectedWarehouse] = useState<NovaPoshtaWarehouse | null>(null)
+  const [recipientStreet, setRecipientStreet] = useState('')
+  const [recipientBuilding, setRecipientBuilding] = useState('')
+  const [recipientApartment, setRecipientApartment] = useState('')
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<CheckoutPaymentMethod>('CASH_ON_DELIVERY')
   const [couponCode, setCouponCode] = useState('')
@@ -149,21 +163,36 @@ export function useCheckout(initialCartId?: string) {
     appliedCouponCodeRef.current = appliedCouponCode
   }, [appliedCouponCode])
 
-  const getDeliveryPayload = useCallback(() => {
+  const getDeliveryPayload = useCallback((): DeliveryPayload | undefined => {
     if (deliveryMode !== 'NOVA_POSHTA') {
       return undefined
     }
 
     return {
-      deliveryType: 'NOVA_POSHTA_WAREHOUSE' as const,
+      deliveryType: selectedDeliveryType,
       recipientName,
       recipientPhone,
       recipientCityRef: selectedCity?.ref ?? null,
       recipientCityName: selectedCity?.name ?? null,
-      recipientWarehouseRef: selectedWarehouse?.ref ?? null,
-      recipientWarehouseName: selectedWarehouse?.name ?? null,
+      recipientStreet: selectedDeliveryType === 'NOVA_POSHTA_COURIER' ? recipientStreet : null,
+      recipientBuilding: selectedDeliveryType === 'NOVA_POSHTA_COURIER' ? recipientBuilding : null,
+      recipientApartment: selectedDeliveryType === 'NOVA_POSHTA_COURIER' ? recipientApartment : null,
+      recipientWarehouseRef:
+        selectedDeliveryType === 'NOVA_POSHTA_WAREHOUSE' ? selectedWarehouse?.ref ?? null : null,
+      recipientWarehouseName:
+        selectedDeliveryType === 'NOVA_POSHTA_WAREHOUSE' ? selectedWarehouse?.name ?? null : null,
     }
-  }, [deliveryMode, recipientName, recipientPhone, selectedCity, selectedWarehouse])
+  }, [
+    deliveryMode,
+    recipientApartment,
+    recipientBuilding,
+    recipientName,
+    recipientPhone,
+    recipientStreet,
+    selectedCity,
+    selectedDeliveryType,
+    selectedWarehouse,
+  ])
 
   const applyCouponToCart = useCallback(
     async (
@@ -209,7 +238,7 @@ export function useCheckout(initialCartId?: string) {
     async (
       nextCartId?: string,
       preserveSelection = true,
-      deliveryPayloadOverride?: ReturnType<typeof getDeliveryPayload>,
+      deliveryPayloadOverride?: DeliveryPayload,
     ) => {
       setIsLoading(true)
       setLoadError(null)
@@ -246,6 +275,41 @@ export function useCheckout(initialCartId?: string) {
           setCouponCode('')
         }
 
+        const nextDeliverySelection = nextPreview.deliverySelection
+        const shouldHydrateDelivery =
+          !preserveSelection || Boolean(nextDeliverySelection.selectedDeliveryType)
+
+        if (shouldHydrateDelivery) {
+          setSelectedDeliveryType(
+            nextDeliverySelection.selectedDeliveryType ?? 'NOVA_POSHTA_WAREHOUSE',
+          )
+          setRecipientName(nextDeliverySelection.recipientName ?? '')
+          setRecipientPhone(nextDeliverySelection.recipientPhone ?? '')
+          setRecipientStreet(nextDeliverySelection.recipientStreet ?? '')
+          setRecipientBuilding(nextDeliverySelection.recipientBuilding ?? '')
+          setRecipientApartment(nextDeliverySelection.recipientApartment ?? '')
+          setSelectedCity(
+            nextDeliverySelection.recipientCityRef && nextDeliverySelection.recipientCityName
+              ? {
+                  ref: nextDeliverySelection.recipientCityRef,
+                  name: nextDeliverySelection.recipientCityName,
+                  area: null,
+                  settlementType: null,
+                }
+              : null,
+          )
+          setSelectedWarehouse(
+            nextDeliverySelection.recipientWarehouseRef && nextDeliverySelection.recipientWarehouseName
+              ? {
+                  ref: nextDeliverySelection.recipientWarehouseRef,
+                  name: nextDeliverySelection.recipientWarehouseName,
+                  cityRef: nextDeliverySelection.recipientCityRef ?? '',
+                  cityName: nextDeliverySelection.recipientCityName,
+                }
+              : null,
+          )
+        }
+
         setSelectedAddressId((current) => {
           if (
             preserveSelection &&
@@ -279,6 +343,74 @@ export function useCheckout(initialCartId?: string) {
     void loadPreview(initialCartId, false)
   }, [initialCartId, loadPreview])
 
+  const previewDeliveryPayload = useMemo(() => getDeliveryPayload(), [getDeliveryPayload])
+
+  const hasCompleteNovaPoshtaSelection = useMemo(() => {
+    if (deliveryMode !== 'NOVA_POSHTA') {
+      return false
+    }
+
+    const hasBaseFields =
+      Boolean(recipientName.trim()) &&
+      Boolean(recipientPhone.trim()) &&
+      Boolean(selectedCity?.ref)
+
+    if (!hasBaseFields) {
+      return false
+    }
+
+    if (selectedDeliveryType === 'NOVA_POSHTA_COURIER') {
+      return Boolean(recipientStreet.trim()) && Boolean(recipientBuilding.trim())
+    }
+
+    return Boolean(selectedWarehouse?.ref)
+  }, [
+    deliveryMode,
+    recipientBuilding,
+    recipientName,
+    recipientPhone,
+    recipientStreet,
+    selectedCity?.ref,
+    selectedDeliveryType,
+    selectedWarehouse?.ref,
+  ])
+
+  const serializedDeliveryPayload = useMemo(
+    () => JSON.stringify(previewDeliveryPayload ?? null),
+    [previewDeliveryPayload],
+  )
+
+  useEffect(() => {
+    if (!preview?.cartId) {
+      return
+    }
+
+    if (deliveryMode === 'ADDRESS') {
+      const timer = window.setTimeout(() => {
+        void loadPreview(preview.cartId ?? undefined, true)
+      }, 250)
+
+      return () => window.clearTimeout(timer)
+    }
+
+    if (!hasCompleteNovaPoshtaSelection || !previewDeliveryPayload) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadPreview(preview.cartId ?? undefined, true, previewDeliveryPayload)
+    }, 350)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    deliveryMode,
+    hasCompleteNovaPoshtaSelection,
+    loadPreview,
+    preview?.cartId,
+    previewDeliveryPayload,
+    serializedDeliveryPayload,
+  ])
+
   const submitCheckout = useCallback(async () => {
     if (!preview?.cartId || isSubmitting) {
       return null
@@ -299,34 +431,36 @@ export function useCheckout(initialCartId?: string) {
     const usingAddress = deliveryMode === 'ADDRESS'
 
     if (usingAddress && !selectedAddressId) {
-      setAddressError('Оберіть збережену адресу доставки або переключіться на Нова Пошта.')
+      setAddressError('Оберіть збережену адресу доставки або переключіться на Нову Пошту.')
       setIsSubmitting(false)
       return null
     }
 
-    if (
-      !usingAddress &&
-      (!recipientName.trim() ||
-        !recipientPhone.trim() ||
-        !selectedCity ||
-        !selectedWarehouse)
-    ) {
-      setDeliveryError('Заповніть дані отримувача, місто та відділення Нова Пошта.')
+    if (!usingAddress && !hasCompleteNovaPoshtaSelection) {
+      setDeliveryError(
+        selectedDeliveryType === 'NOVA_POSHTA_COURIER'
+          ? 'Заповніть дані отримувача, місто та адресу кур’єрської доставки Нова Пошта.'
+          : 'Заповніть дані отримувача, місто та відділення Нова Пошта.',
+      )
       setIsSubmitting(false)
       return null
     }
 
     try {
+      const deliveryPayload = getDeliveryPayload()
       const result = await apiClient.post<CheckoutResponse>(API_ROUTES.checkoutSubmit, {
         cartId: preview.cartId,
         shippingAddressId: usingAddress ? selectedAddressId : null,
-        deliveryType: usingAddress ? null : 'NOVA_POSHTA_WAREHOUSE',
-        recipientName: usingAddress ? null : recipientName.trim(),
-        recipientPhone: usingAddress ? null : recipientPhone.trim(),
-        recipientCityRef: usingAddress ? null : selectedCity?.ref ?? null,
-        recipientCityName: usingAddress ? null : selectedCity?.name ?? null,
-        recipientWarehouseRef: usingAddress ? null : selectedWarehouse?.ref ?? null,
-        recipientWarehouseName: usingAddress ? null : selectedWarehouse?.name ?? null,
+        deliveryType: usingAddress ? null : deliveryPayload?.deliveryType ?? null,
+        recipientName: usingAddress ? null : deliveryPayload?.recipientName?.trim() ?? null,
+        recipientPhone: usingAddress ? null : deliveryPayload?.recipientPhone?.trim() ?? null,
+        recipientCityRef: usingAddress ? null : deliveryPayload?.recipientCityRef ?? null,
+        recipientCityName: usingAddress ? null : deliveryPayload?.recipientCityName ?? null,
+        recipientStreet: usingAddress ? null : deliveryPayload?.recipientStreet ?? null,
+        recipientBuilding: usingAddress ? null : deliveryPayload?.recipientBuilding ?? null,
+        recipientApartment: usingAddress ? null : deliveryPayload?.recipientApartment ?? null,
+        recipientWarehouseRef: usingAddress ? null : deliveryPayload?.recipientWarehouseRef ?? null,
+        recipientWarehouseName: usingAddress ? null : deliveryPayload?.recipientWarehouseName ?? null,
         expectedSubtotal: preview.subtotal,
         expectedTotal: preview.total,
         couponCode: appliedCouponCodeRef.current,
@@ -372,18 +506,16 @@ export function useCheckout(initialCartId?: string) {
       setIsSubmitting(false)
     }
   }, [
-    isSubmitting,
+    deliveryMode,
     getDeliveryPayload,
+    hasCompleteNovaPoshtaSelection,
+    isSubmitting,
     loadPreview,
     preview,
-    deliveryMode,
-    recipientName,
-    recipientPhone,
     router,
-    selectedCity,
     selectedAddressId,
+    selectedDeliveryType,
     selectedPaymentMethod,
-    selectedWarehouse,
     setCartItemCount,
   ])
 
@@ -448,11 +580,6 @@ export function useCheckout(initialCartId?: string) {
 
   const hasBlockingIssues = (preview?.blockingIssues.length ?? 0) > 0
   const isEmpty = (preview?.items.length ?? 0) === 0
-  const hasCompleteNovaPoshtaSelection =
-    Boolean(recipientName.trim()) &&
-    Boolean(recipientPhone.trim()) &&
-    Boolean(selectedCity?.ref) &&
-    Boolean(selectedWarehouse?.ref)
   const canSubmit =
     Boolean(preview?.cartId) &&
     !isEmpty &&
@@ -464,10 +591,14 @@ export function useCheckout(initialCartId?: string) {
     preview,
     selectedAddressId,
     deliveryMode,
+    selectedDeliveryType,
     recipientName,
     recipientPhone,
     selectedCity,
     selectedWarehouse,
+    recipientStreet,
+    recipientBuilding,
+    recipientApartment,
     selectedAddress,
     isLoading,
     isSubmitting,
@@ -487,10 +618,14 @@ export function useCheckout(initialCartId?: string) {
     canSubmit,
     setSelectedAddressId,
     setDeliveryMode,
+    setSelectedDeliveryType,
     setRecipientName,
     setRecipientPhone,
     setSelectedCity,
     setSelectedWarehouse,
+    setRecipientStreet,
+    setRecipientBuilding,
+    setRecipientApartment,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     setCouponCode,

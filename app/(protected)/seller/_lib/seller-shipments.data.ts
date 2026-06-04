@@ -40,20 +40,25 @@ export async function getSellerShipmentsPageData(
     return {
       ...layout,
       shipments: { items: [], page: 1, limit: 20, total: 0 },
+      shippingSettings: null,
       filters: {
         page: 1,
       },
     }
   }
 
-  const shipments = await getMyShipments(user, {
-    page: Number.isFinite(page) && page > 0 ? page : 1,
-    limit: 20,
-  })
+  const [shipments, shippingSettings] = await Promise.all([
+    getMyShipments(user, {
+      page: Number.isFinite(page) && page > 0 ? page : 1,
+      limit: 20,
+    }),
+    getMyStoreShippingSettings(user),
+  ])
 
   return {
     ...layout,
     shipments,
+    shippingSettings: serializeShippingSettings(shippingSettings),
     filters: {
       page: shipments.page,
     },
