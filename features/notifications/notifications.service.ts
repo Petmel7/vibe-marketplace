@@ -9,6 +9,8 @@ import type {
   NotificationListDto,
   NotificationMutationResultDto,
   NotificationQueryDto,
+  NotificationRealtimeChannelDto,
+  NotificationRealtimePayloadDto,
   NotificationUnreadCountDto,
 } from './notifications.dto'
 import {
@@ -51,6 +53,21 @@ function toNotificationDto(
   }
 }
 
+const NOTIFICATION_REALTIME_CHANNEL_PREFIX = 'notifications:user'
+
+export function getNotificationRealtimeChannel(userId: string): NotificationRealtimeChannelDto {
+  return {
+    channel: `${NOTIFICATION_REALTIME_CHANNEL_PREFIX}:${userId}`,
+    filter: `user_id=eq.${userId}`,
+  }
+}
+
+export function toNotificationRealtimePayload(
+  notification: NotificationListRecord | Notification,
+): NotificationRealtimePayloadDto {
+  return toNotificationDto(notification)
+}
+
 function assertNotificationOwnership(
   notification: NotificationOwnershipRecord,
   userId: string,
@@ -66,7 +83,7 @@ function assertNotificationOwnership(
 
 export async function notifyUser(input: CreateNotificationInput): Promise<NotificationDto> {
   const created = await createNotification(input)
-  return toNotificationDto(created)
+  return toNotificationRealtimePayload(created)
 }
 
 export async function notifyMany(inputs: CreateNotificationInput[]): Promise<NotificationDto[]> {

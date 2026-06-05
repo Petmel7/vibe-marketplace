@@ -14,6 +14,13 @@ export interface NotificationDto {
   updatedAt: string
 }
 
+export type NotificationRealtimePayloadDto = NotificationDto
+
+export interface NotificationRealtimeChannelDto {
+  channel: string
+  filter: string
+}
+
 export interface NotificationListDto {
   items: NotificationDto[]
   limit: number

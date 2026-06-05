@@ -20,11 +20,13 @@ import { NotificationNotFoundError, NotificationOwnershipError } from '@/lib/err
 import * as repo from './notifications.repository'
 import {
   createAdminNotification,
+  getNotificationRealtimeChannel,
   getMyNotifications,
   getMyUnreadNotificationCount,
   markMyNotificationRead,
   markMyNotificationsReadAll,
   notifyUser,
+  toNotificationRealtimePayload,
   deleteMyNotification,
 } from './notifications.service'
 
@@ -87,6 +89,36 @@ describe('notifications.service', () => {
     expect(mockRepo.listNotificationsByUserId).toHaveBeenCalledWith(user.id, { page: 1, limit: 20 })
     expect(result.total).toBe(1)
     expect(result.items[0]?.title).toBe('Замовлення створено')
+  })
+
+  it('maps notification payloads safely for client delivery', () => {
+    const result = toNotificationRealtimePayload(
+      makeNotification({
+        metadata: ['unsafe-array'],
+      }) as never,
+    )
+
+    expect(result).toEqual({
+      id: '22222222-2222-4222-8222-222222222222',
+      type: NotificationType.ORDER_CREATED,
+      title: 'Замовлення створено',
+      message: 'Тестове повідомлення',
+      actionUrl: '/profile/orders/order-1',
+      metadata: null,
+      readAt: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+    expect(result).not.toHaveProperty('userId')
+  })
+
+  it('builds a user-scoped realtime channel descriptor', () => {
+    expect(
+      getNotificationRealtimeChannel('11111111-1111-4111-8111-111111111111'),
+    ).toEqual({
+      channel: 'notifications:user:11111111-1111-4111-8111-111111111111',
+      filter: 'user_id=eq.11111111-1111-4111-8111-111111111111',
+    })
   })
 
   it('returns unread notification count', async () => {
