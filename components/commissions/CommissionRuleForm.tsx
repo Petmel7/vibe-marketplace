@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import DashboardCard from '@/components/profile/DashboardCard'
 import CommissionScopeSelector from '@/components/commissions/CommissionScopeSelector'
+import CommissionStoreSelector from '@/components/commissions/CommissionStoreSelector'
 import { useAdminCommissionRules } from '@/hooks/useAdminCommissionRules'
 import type {
   CommissionRuleCategoryOption,
@@ -88,10 +89,6 @@ export default function CommissionRuleForm({
   const [values, setValues] = useState<CommissionRuleFormValues>(() => buildInitialValues(initialRule))
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false)
 
-  const sortedStores = useMemo(
-    () => [...stores].sort((left, right) => left.name.localeCompare(right.name, 'uk-UA')),
-    [stores],
-  )
   const sortedCategories = useMemo(
     () =>
       [...categories].sort((left, right) =>
@@ -165,23 +162,12 @@ export default function CommissionRuleForm({
         </div>
 
         {values.scope === 'STORE' ? (
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Store</span>
-            <select
-              required
-              value={values.storeId}
-              onChange={(event) => setValues((current) => ({ ...current, storeId: event.target.value }))}
-              className="ui-surface-input"
-            >
-              <option value="">Select a store</option>
-              {sortedStores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-copy-muted">Store-specific rules win over category and global rules at the same priority.</p>
-          </label>
+          <CommissionStoreSelector
+            required
+            value={values.storeId}
+            onChange={(storeId) => setValues((current) => ({ ...current, storeId }))}
+            initialOptions={stores}
+          />
         ) : null}
 
         {values.scope === 'CATEGORY' ? (
