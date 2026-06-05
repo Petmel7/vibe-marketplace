@@ -187,6 +187,11 @@ import {
   StoreShippingSettingsRequiredError,
   StoreShippingSettingsNotConfiguredError,
 } from './shipping'
+import {
+  AnalyticsAccessDeniedError,
+  AnalyticsAggregationError,
+  InvalidAnalyticsRangeError,
+} from './analytics'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -218,7 +223,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof PayoutOwnershipError ||
     err instanceof PromotionOwnershipError ||
     err instanceof RefundRequestOwnershipError ||
-    err instanceof ShipmentOwnershipError
+    err instanceof ShipmentOwnershipError ||
+    err instanceof AnalyticsAccessDeniedError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -349,7 +355,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ShipmentAlreadyReturnedError ||
     err instanceof ShipmentAlreadyHasTrackingError ||
     err instanceof ShipmentInvalidStateError ||
-    err instanceof StoreShippingSettingsRequiredError
+    err instanceof StoreShippingSettingsRequiredError ||
+    err instanceof InvalidAnalyticsRangeError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -372,7 +379,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ShipmentSyncError ||
     err instanceof NovaPoshtaCreateShipmentError ||
     err instanceof NovaPoshtaTrackingError ||
-    err instanceof NovaPoshtaCancelShipmentError
+    err instanceof NovaPoshtaCancelShipmentError ||
+    err instanceof AnalyticsAggregationError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

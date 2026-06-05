@@ -1,16 +1,14 @@
-export interface TopSellerDto {
-  sellerId: string
-  storeName: string
-  revenue: string
-  orderCount: number
-}
+import type {
+  AnalyticsRiskSummaryDto,
+  AnalyticsSeriesPointDto,
+  AnalyticsTopCategoryDto,
+  AnalyticsTopProductDto,
+  AnalyticsTopSellerDto,
+} from '@/features/analytics/analytics.dto'
 
-export interface TopProductDto {
-  productId: string
-  name: string
-  totalSold: number
-  revenue: string
-}
+export type TopSellerDto = AnalyticsTopSellerDto
+
+export type TopProductDto = AnalyticsTopProductDto
 
 export interface ModerationStatsDto {
   pendingSellerApprovals: number
@@ -30,4 +28,30 @@ export interface AdminAnalyticsDto {
   sellerGrowthLast30Days: number
   orderGrowthLast30Days: number
   moderationStats: ModerationStatsDto
+  gmvPreviousPeriod: string
+  gmvGrowthPercent: number | null
+  commissionRevenue: string
+  netSellerRevenue: string
+  ordersTotal: number
+  paidOrders: number
+  codOrders: number
+  failedPayments: number
+  refundCount: number
+  refundAmount: string
+  disputeCount: number
+  disputeRate: number
+  sellerGrowth: number | null
+  activeSellerCount: number
+  newSellerCount: number
+  productCount: number
+  publishedProductCount: number
+  moderationQueueCount: number
+  riskSummary: AnalyticsRiskSummaryDto
+  topCategories: AnalyticsTopCategoryDto[]
+  revenueSeries: AnalyticsSeriesPointDto[]
+  orderSeries: AnalyticsSeriesPointDto[]
+  sellerGrowthSeries: AnalyticsSeriesPointDto[]
+  refundSeries: AnalyticsSeriesPointDto[]
+  disputeSeries: AnalyticsSeriesPointDto[]
+  commissionSeries: AnalyticsSeriesPointDto[]
 }
