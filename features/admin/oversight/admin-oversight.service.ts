@@ -5,16 +5,19 @@ import type {
   AdminOrderDto,
   AdminSellerDto,
   AdminProductDto,
+  AdminStoreOptionDto,
   UserOversightFilters,
   OrderOversightFilters,
   SellerOversightFilters,
   ProductOversightFilters,
+  StoreOptionFilters,
 } from './admin-oversight.dto'
 import {
   findAllUsers,
   findAllOrdersOversight,
   findAllSellersOversight,
   findAllProductsOversight,
+  findAdminStoreOptions,
 } from './admin-oversight.repository'
 
 // ---------------------------------------------------------------------------
@@ -117,6 +120,24 @@ function toAdminProductDto(product: {
   }
 }
 
+function toAdminStoreOptionDto(store: {
+  id: string
+  name: string
+  slug: string
+  ownerId: string
+  isActive: boolean
+  owner: { email: string | null }
+}): AdminStoreOptionDto {
+  return {
+    id: store.id,
+    name: store.name,
+    slug: store.slug,
+    ownerId: store.ownerId,
+    ownerEmail: store.owner.email ?? null,
+    isActive: store.isActive,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -171,6 +192,20 @@ export async function getAllProducts(
   const { items, total } = await findAllProductsOversight(filters)
   return {
     items: items.map(toAdminProductDto),
+    total,
+    page: filters.page,
+    limit: filters.limit,
+  }
+}
+
+export async function getAdminStoreOptions(
+  admin: SessionUser,
+  filters: StoreOptionFilters,
+): Promise<{ items: AdminStoreOptionDto[]; total: number; page: number; limit: number }> {
+  assertAdminAccess(admin)
+  const { items, total } = await findAdminStoreOptions(filters)
+  return {
+    items: items.map(toAdminStoreOptionDto),
     total,
     page: filters.page,
     limit: filters.limit,

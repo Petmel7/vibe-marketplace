@@ -48,6 +48,15 @@ export interface AdminProductDto {
   createdAt: Date
 }
 
+export interface AdminStoreOptionDto {
+  id: string
+  name: string
+  slug: string
+  ownerId: string
+  ownerEmail: string | null
+  isActive: boolean
+}
+
 export interface PaginationFilters {
   page: number
   limit: number
@@ -71,4 +80,8 @@ export interface SellerOversightFilters extends PaginationFilters {
 export interface ProductOversightFilters extends PaginationFilters {
   status?: string
   search?: string
+}
+
+export interface StoreOptionFilters extends PaginationFilters {
+  q?: string
 }

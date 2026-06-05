@@ -5,6 +5,7 @@ import type {
   OrderOversightFilters,
   SellerOversightFilters,
   ProductOversightFilters,
+  StoreOptionFilters,
 } from './admin-oversight.dto'
 
 // ---------------------------------------------------------------------------
@@ -143,6 +144,48 @@ export async function findAllProductsOversight(filters: ProductOversightFilters)
       take: limit,
     }),
     prisma.product.count({ where }),
+  ])
+
+  return { items, total }
+}
+
+// ---------------------------------------------------------------------------
+// Store options
+// ---------------------------------------------------------------------------
+
+export async function findAdminStoreOptions(filters: StoreOptionFilters) {
+  const { page, limit, q } = filters
+
+  const where = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' as const } },
+          { slug: { contains: q, mode: 'insensitive' as const } },
+          { owner: { email: { contains: q, mode: 'insensitive' as const } } },
+        ],
+      }
+    : {}
+
+  const [items, total] = await Promise.all([
+    prisma.store.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        ownerId: true,
+        isActive: true,
+        owner: {
+          select: {
+            email: true,
+          },
+        },
+      },
+      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.store.count({ where }),
   ])
 
   return { items, total }
