@@ -1,18 +1,28 @@
 import { redirect } from 'next/navigation'
+import AnalyticsAreaChart from '@/components/analytics/AnalyticsAreaChart'
+import AnalyticsBarChart from '@/components/analytics/AnalyticsBarChart'
+import AnalyticsChartCard from '@/components/analytics/AnalyticsChartCard'
+import AnalyticsDateRangeSelector from '@/components/analytics/AnalyticsDateRangeSelector'
+import AnalyticsKpiCard from '@/components/analytics/AnalyticsKpiCard'
+import TopProductsTable from '@/components/analytics/TopProductsTable'
 import EmptyState from '@/components/profile/EmptyState'
-import SellerMetricCard from '@/components/seller/SellerMetricCard'
 import SellerSection from '@/components/seller/SellerSection'
-import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
+import { getSellerAnalyticsViewData } from '@/app/(protected)/seller/_lib/seller-analytics.data'
+import { getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
-import { getSellerAnalyticsPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
+import { formatAnalyticsNumber } from '@/components/analytics/analytics.utils'
 
-export default async function SellerAnalyticsPage() {
+export default async function SellerAnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const user = await getCurrentUser()
   if (!user) return null
 
-  const data = await getSellerAnalyticsPageData(user)
+  const data = await getSellerAnalyticsViewData(user, await searchParams)
   const onboardingRedirect = getSellerWorkspaceRedirect(data)
 
   if (onboardingRedirect) {
@@ -21,91 +31,169 @@ export default async function SellerAnalyticsPage() {
 
   const sellerProfile = data.sellerProfile!
 
-  const pendingItems = data.orderItems.filter((item) => item.fulfillmentStatus === 'PENDING').length
-  const shippedItems = data.orderItems.filter((item) => item.fulfillmentStatus === 'SHIPPED').length
-
   return (
     <SellerSection
       eyebrow="Analytics"
       title="Seller analytics"
-      description="Track revenue direction, order flow, and top-performing products with a layout ready for future charts."
+      description="Виручка, замовлення, повернення та balance snapshot тепер приходять з backend analytics v2 і готові для щоденного операційного контролю."
     >
-      <SellerVerificationNotice
-        status={sellerProfile.verificationStatus}
-      />
+      <SellerVerificationNotice status={sellerProfile.verificationStatus} />
+      <AnalyticsDateRangeSelector filters={data.filters} />
 
-      {data.analytics ? (
+      {data.status === 'empty' ? (
+        <EmptyState
+          title="Аналітика з’явиться після налаштування storefront"
+          description="Завершіть підключення магазину, і тут з’являться виручка, тренди замовлень та фінансові KPI."
+          actionHref="/seller/store?setup=storefront"
+          actionLabel="Відкрити store settings"
+        />
+      ) : null}
+
+      {data.status === 'error' ? (
+        <EmptyState
+          title="Не вдалося завантажити аналітику"
+          description={data.errorMessage}
+          actionHref="/seller/analytics"
+          actionLabel="Спробувати ще раз"
+        />
+      ) : null}
+
+      {data.status === 'ready' ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <SellerMetricCard label="Revenue" value={formatPrice(data.analytics.totalRevenue)} detail={`Last 30 days: ${formatPrice(data.analytics.revenueLast30Days)}`} />
-            <SellerMetricCard label="Orders" value={data.analytics.totalOrders} detail={`${pendingItems} pending fulfillment items`} />
-            <SellerMetricCard label="Units sold" value={data.analytics.totalProductsSold} detail={`${shippedItems} shipped fulfillment items`} />
-            <SellerMetricCard label="Tracked products" value={data.products.length} detail="Current server-loaded analytics catalog slice" />
+            <AnalyticsKpiCard
+              label="Виручка"
+              value={formatPrice(data.analytics.revenueTotal)}
+              trend={data.analytics.revenueGrowthPercent}
+              detail={`Попередній період: ${formatPrice(data.analytics.revenuePreviousPeriod)}`}
+              tone="success"
+            />
+            <AnalyticsKpiCard
+              label="Замовлення"
+              value={data.analytics.ordersTotal}
+              trend={data.analytics.ordersGrowthPercent}
+              detail={`Попередній період: ${formatAnalyticsNumber(data.analytics.ordersPreviousPeriod)}`}
+            />
+            <AnalyticsKpiCard
+              label="Продано одиниць"
+              value={formatAnalyticsNumber(data.analytics.unitsSold)}
+              detail={`Середній чек: ${formatPrice(data.analytics.averageOrderValue)}`}
+            />
+            <AnalyticsKpiCard
+              label="Доступний баланс"
+              value={formatPrice(data.analytics.availableBalance)}
+              detail={`Pending: ${formatPrice(data.analytics.pendingBalance)} · Paid out: ${formatPrice(data.analytics.paidOutAmount)}`}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <AnalyticsKpiCard
+              label="Pending fulfillment"
+              value={data.analytics.pendingFulfillmentCount}
+              detail="Позиції, які ще очікують на відправлення"
+              tone="warning"
+            />
+            <AnalyticsKpiCard
+              label="Shipped"
+              value={data.analytics.shippedFulfillmentCount}
+              detail="Позиції в дорозі або вже передані перевізнику"
+            />
+            <AnalyticsKpiCard
+              label="Delivered"
+              value={data.analytics.deliveredFulfillmentCount}
+              detail="Позиції, які дійшли до покупців"
+              tone="success"
+            />
+            <AnalyticsKpiCard
+              label="Refund requests"
+              value={data.analytics.refundCount}
+              detail={`Сума успішних повернень: ${formatPrice(data.analytics.refundAmount)}`}
+              tone="danger"
+            />
+            <AnalyticsKpiCard
+              label="Disputes"
+              value={data.analytics.disputeCount}
+              detail="Кількість спорів за вибраний період"
+              tone="danger"
+            />
+            <AnalyticsKpiCard
+              label="Legacy 30d revenue"
+              value={formatPrice(data.analytics.revenueLast30Days)}
+              detail={`All-time revenue snapshot: ${formatPrice(data.analytics.totalRevenue)}`}
+            />
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <AnalyticsChartCard
+              title="Тренд виручки"
+              description="Серверна серія з revenue snapshots по order items."
+              summary="Backend already zero-fills missing buckets, so flat periods are shown explicitly."
+            >
+              <AnalyticsAreaChart
+                series={data.analytics.revenueSeries}
+                valueLabel="Тренд виручки продавця"
+              />
+            </AnalyticsChartCard>
+
+            <AnalyticsChartCard
+              title="Тренд замовлень"
+              description="Кількість замовлень у вибраному інтервалі без клієнтських перерахунків."
+              summary="Значення відображаються як server-aggregated order series."
+            >
+              <AnalyticsBarChart
+                series={data.analytics.orderSeries}
+                valueLabel="Тренд замовлень продавця"
+              />
+            </AnalyticsChartCard>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <section className="ui-elevated-panel p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-copy-strong">Revenue trend</h2>
-              <p className="mt-1 text-sm text-copy-muted">
-                Placeholder block prepared for a future chart library integration.
-              </p>
-              <div className="mt-6 grid h-72 place-items-center rounded-3xl border border-dashed border-panelBorder bg-panel text-sm text-copy-muted">
-                Revenue chart placeholder
-              </div>
-            </section>
+            <AnalyticsChartCard
+              title="Fulfillment cadence"
+              description="Серія по fulfillment activity допомагає бачити хвилі відправлень і delivery throughput."
+              summary="Primary value shows item activity; delivered points are tracked as a secondary metric in the backend series."
+            >
+              <AnalyticsBarChart
+                series={data.analytics.fulfillmentSeries}
+                valueLabel="Активність fulfillment продавця"
+                color="#d97706"
+              />
+            </AnalyticsChartCard>
 
             <section className="ui-elevated-panel p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-copy-strong">Fulfillment summary</h2>
+              <h2 className="text-lg font-semibold text-copy-strong">Payout & balance context</h2>
               <p className="mt-1 text-sm text-copy-muted">
-                Operational pacing across the seller-owned order item queue.
+                Pending funds утримуються до availability window, а payout-и обробляються вручну маркетплейсом.
               </p>
+
               <div className="mt-5 space-y-3 text-sm text-copy-secondary">
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
+                  <span>Available</span>
+                  <span className="font-semibold text-copy-strong">{formatPrice(data.analytics.availableBalance)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
                   <span>Pending</span>
-                  <span className="font-semibold text-copy-strong">{pendingItems}</span>
+                  <span className="font-semibold text-copy-strong">{formatPrice(data.analytics.pendingBalance)}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                  <span>Shipped</span>
-                  <span className="font-semibold text-copy-strong">{shippedItems}</span>
+                  <span>Paid out</span>
+                  <span className="font-semibold text-copy-strong">{formatPrice(data.analytics.paidOutAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                  <span>Top products</span>
-                  <span className="font-semibold text-copy-strong">{data.analytics.topProducts.length}</span>
+                  <span>Average order value</span>
+                  <span className="font-semibold text-copy-strong">{formatPrice(data.analytics.averageOrderValue)}</span>
                 </div>
               </div>
             </section>
           </div>
 
-          <SellerTable
-            title="Top products"
-            description="Revenue leaders surfaced from the seller analytics backend."
-          >
-            <table className="min-w-full text-sm">
-              <thead className="bg-panel/60 text-left text-copy-muted">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Product</th>
-                  <th className="px-5 py-3 font-medium">Units sold</th>
-                  <th className="px-5 py-3 font-medium">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.analytics.topProducts.map((product) => (
-                  <tr key={product.productId} className="border-t border-panelBorder">
-                    <td className="px-5 py-4 font-semibold text-copy-strong">{product.name}</td>
-                    <td className="px-5 py-4 text-copy-secondary">{product.totalSold}</td>
-                    <td className="px-5 py-4 text-copy-secondary">{formatPrice(product.revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </SellerTable>
+          <TopProductsTable
+            items={data.analytics.topProducts}
+            title="Топ товари"
+            description="Лідери продажів і виручки у вибраному періоді."
+          />
         </>
-      ) : (
-        <EmptyState
-          title="Analytics will appear after store setup"
-          description="Once the storefront is connected and orders start flowing through seller operations, revenue and trend metrics will appear here."
-        />
-      )}
+      ) : null}
     </SellerSection>
   )
 }
