@@ -27,6 +27,8 @@ export const API_ROUTES = {
   adminBadgeRules: '/api/admin/badge-rules',
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
   adminPromotions: '/api/admin/promotions',
+  adminCommissionRules: '/api/admin/commission-rules',
+  adminCommissionRulesPreview: '/api/admin/commission-rules/preview',
   adminCategories: '/api/admin/categories',
   adminCategoryReorder: '/api/admin/categories/reorder',
   adminEmails: '/api/admin/emails',
@@ -143,6 +145,14 @@ export function getAdminPromotionDetailRoute(id: string) {
 
 export function getAdminPromotionStatusRoute(id: string) {
   return `${getAdminPromotionDetailRoute(id)}/status`
+}
+
+export function getAdminCommissionRuleDetailRoute(id: string) {
+  return `${API_ROUTES.adminCommissionRules}/${id}`
+}
+
+export function getAdminCommissionRuleStatusRoute(id: string) {
+  return `${getAdminCommissionRuleDetailRoute(id)}/status`
 }
 
 export function getSellerPromotionDetailRoute(id: string) {

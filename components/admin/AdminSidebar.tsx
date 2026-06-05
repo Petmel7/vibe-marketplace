@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/shipments', label: 'Shipments' },
   { href: '/admin/promotions', label: 'Promotions' },
+  { href: '/admin/commission-rules', label: 'Commission rules' },
   { href: '/admin/payouts', label: 'Payouts' },
   { href: '/admin/refunds', label: 'Refunds' },
   { href: '/admin/seller-balances', label: 'Seller balances' },
