@@ -51,6 +51,7 @@ model User {
   sellerBalances          SellerBalance[]       @relation("SellerBalanceSeller")
   payouts                 Payout[]              @relation("PayoutSeller")
   createdPayouts          Payout[]              @relation("PayoutCreatedBy")
+  createdCommissionRules  CommissionRule[]      @relation("CommissionRuleCreatedBy")
   createdPromotions       Promotion[]           @relation("PromotionCreatedBy")
   promotionUsages         PromotionUsage[]
   requestedRefundRequests RefundRequest[]       @relation("RefundRequestRequestedBy")
@@ -82,10 +83,11 @@ model Store {
   platformCommissions PlatformCommission[]
   sellerLedgerEntries SellerLedgerEntry[]
   sellerBalance       SellerBalance?
-  payouts             Payout[]
-  promotions          Promotion[]
-  shippingSettings    StoreShippingSettings?
-  shipments           Shipment[]
+    payouts             Payout[]
+    commissionRules     CommissionRule[]
+    promotions          Promotion[]
+    shippingSettings    StoreShippingSettings?
+    shipments           Shipment[]
 
   @@index([ownerId], map: "stores_ownerId_idx")
   @@index([isActive], map: "stores_isActive_idx")
@@ -106,9 +108,10 @@ model Category {
   level      Int        @default(1)
   isActive   Boolean    @default(true) @map("is_active")
   isVisible  Boolean    @default(true) @map("is_visible")
-  parent     Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children   Category[] @relation("CategoryHierarchy")
-  products   Product[]
+    parent     Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+    children   Category[] @relation("CategoryHierarchy")
+    commissionRules CommissionRule[]
+    products   Product[]
 
   @@index([parentId], map: "categories_parentId_idx")
   @@index([isActive], map: "categories_isActive_idx")
@@ -543,6 +546,35 @@ model PlatformCommission {
   @@index([sellerId], map: "platform_commissions_seller_id_idx")
   @@index([createdAt], map: "platform_commissions_created_at_idx")
   @@map("platform_commissions")
+}
+
+model CommissionRule {
+  id         String              @id @default(uuid()) @db.Uuid
+  name       String
+  scope      CommissionRuleScope
+  storeId    String?             @map("store_id") @db.Uuid
+  categoryId String?             @map("category_id")
+  rate       Decimal             @db.Decimal(5, 4)
+  startsAt   DateTime            @map("starts_at")
+  endsAt     DateTime?           @map("ends_at")
+  priority   Int                 @default(0)
+  isActive   Boolean             @default(true) @map("is_active")
+  createdById String             @map("created_by_id") @db.Uuid
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+  store      Store?              @relation(fields: [storeId], references: [id])
+  category   Category?           @relation(fields: [categoryId], references: [id])
+  createdBy  User                @relation("CommissionRuleCreatedBy", fields: [createdById], references: [id])
+
+  @@index([scope], map: "commission_rules_scope_idx")
+  @@index([storeId], map: "commission_rules_store_id_idx")
+  @@index([categoryId], map: "commission_rules_category_id_idx")
+  @@index([isActive], map: "commission_rules_is_active_idx")
+  @@index([startsAt], map: "commission_rules_starts_at_idx")
+  @@index([endsAt], map: "commission_rules_ends_at_idx")
+  @@index([priority], map: "commission_rules_priority_idx")
+  @@index([createdById], map: "commission_rules_created_by_id_idx")
+  @@map("commission_rules")
 }
 
 model SellerLedgerEntry {
@@ -1489,6 +1521,12 @@ enum PayoutStatus {
 enum PayoutMethod {
   MANUAL
   BANK_TRANSFER
+}
+
+enum CommissionRuleScope {
+  GLOBAL
+  STORE
+  CATEGORY
 }
 
 enum PromotionType {

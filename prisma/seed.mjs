@@ -334,6 +334,77 @@ async function seedProductBadgeRules() {
   `
 }
 
+async function seedCommissionRules() {
+  const existingRule = await sql`
+    SELECT id
+    FROM commission_rules
+    LIMIT 1
+  `
+
+  if (existingRule.length > 0) {
+    return
+  }
+
+  const creator =
+    (
+      await sql`
+        SELECT u.id
+        FROM users u
+        INNER JOIN admin_profiles ap ON ap.user_id = u.id
+        ORDER BY ap.created_at ASC
+        LIMIT 1
+      `
+    )[0] ??
+    (
+      await sql`
+        SELECT id
+        FROM users
+        ORDER BY created_at ASC
+        LIMIT 1
+      `
+    )[0]
+
+  if (!creator?.id) {
+    console.warn('[seed] Skipping default commission rule seeding because no users exist yet')
+    return
+  }
+
+  const defaultCommissionRate = process.env.MARKETPLACE_COMMISSION_RATE ?? '0.10'
+
+  await sql`
+    INSERT INTO commission_rules (
+      id,
+      name,
+      scope,
+      store_id,
+      category_id,
+      rate,
+      starts_at,
+      ends_at,
+      priority,
+      is_active,
+      created_by_id,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      gen_random_uuid(),
+      'Default marketplace commission',
+      'GLOBAL',
+      NULL,
+      NULL,
+      ${defaultCommissionRate},
+      NOW(),
+      NULL,
+      0,
+      true,
+      ${creator.id},
+      NOW(),
+      NOW()
+    )
+  `
+}
+
 async function main() {
   try {
     console.log('[seed] Seeding hierarchical categories...')
@@ -342,6 +413,9 @@ async function main() {
     console.log('[seed] Seeding product badge rules...')
     await seedProductBadgeRules()
     console.log('[seed] Upserted HIT product badge rule')
+    console.log('[seed] Seeding default commission rule...')
+    await seedCommissionRules()
+    console.log('[seed] Ensured default GLOBAL commission rule')
   } catch (error) {
     console.error('[seed] Failed to seed database data:', error)
     process.exitCode = 1
