@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ApiError, UnauthorizedError } from '@/shared/api/api.errors'
 import { notificationsApi } from '@/components/notifications/api/notifications.api'
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications'
 import type { Notification } from '@/types/notifications'
 
 type UseNotificationsOptions = {
   autoLoadCount?: boolean
   autoLoadList?: boolean
   limit?: number
+  liveListEnabled?: boolean
   unread?: boolean
 }
 
@@ -58,12 +60,16 @@ export function useNotifications({
   autoLoadCount = true,
   autoLoadList = false,
   limit = 20,
+  liveListEnabled = autoLoadList,
   unread,
 }: UseNotificationsOptions = {}) {
   const router = useRouter()
   const instanceIdRef = useRef(`notifications-${Math.random().toString(36).slice(2)}`)
   const didAutoLoadCountRef = useRef(false)
   const didAutoLoadListRef = useRef(false)
+  const itemsRef = useRef<Notification[]>([])
+  const liveListEnabledRef = useRef(liveListEnabled)
+  const seenRealtimeIdsRef = useRef(new Set<string>())
   const [items, setItems] = useState<Notification[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -74,6 +80,21 @@ export function useNotifications({
   const [listError, setListError] = useState<string | null>(null)
   const [countError, setCountError] = useState<string | null>(null)
   const [isUnauthorized, setIsUnauthorized] = useState(false)
+
+  useEffect(() => {
+    itemsRef.current = items
+    const seenIds = seenRealtimeIdsRef.current
+    for (const item of items) {
+      seenIds.add(item.id)
+    }
+    if (seenIds.size > 500) {
+      seenRealtimeIdsRef.current = new Set(items.map((item) => item.id))
+    }
+  }, [items])
+
+  useEffect(() => {
+    liveListEnabledRef.current = liveListEnabled
+  }, [liveListEnabled])
 
   const hasItems = items.length > 0
   const hasMore = items.length < total
@@ -107,6 +128,10 @@ export function useNotifications({
           unread,
         })
 
+        seenRealtimeIdsRef.current = new Set([
+          ...Array.from(seenRealtimeIdsRef.current),
+          ...data.items.map((item) => item.id),
+        ])
         setItems((current) => (append ? [...current, ...data.items] : data.items))
         setPage(data.page)
         setTotal(data.total)
@@ -212,6 +237,48 @@ export function useNotifications({
     await loadNotifications({ nextPage: page + 1, append: true })
   }, [hasMore, isLoadingList, loadNotifications, page])
 
+  const handleRealtimeNotification = useCallback((notification: Notification) => {
+    const alreadyKnown =
+      seenRealtimeIdsRef.current.has(notification.id) ||
+      itemsRef.current.some((item) => item.id === notification.id)
+
+    seenRealtimeIdsRef.current.add(notification.id)
+
+    if (!alreadyKnown) {
+      if (!notification.readAt) {
+        setUnreadCount((existing) => existing + 1)
+      }
+
+      setTotal((existing) => existing + 1)
+    }
+
+    if (!liveListEnabledRef.current) {
+      return
+    }
+
+    setItems((existing) => {
+      const existingIndex = existing.findIndex((item) => item.id === notification.id)
+      if (existingIndex >= 0) {
+        const next = existing.slice()
+        next[existingIndex] = notification
+        return next
+      }
+
+      if (unread && notification.readAt) {
+        return existing
+      }
+
+      return [notification, ...existing]
+    })
+  }, [unread])
+
+  const refetchFromServer = useCallback(async () => {
+    await Promise.allSettled([
+      loadUnreadCount(),
+      liveListEnabledRef.current ? loadNotifications({ nextPage: 1, append: false }) : Promise.resolve(),
+    ])
+  }, [loadNotifications, loadUnreadCount])
+
   useEffect(() => {
     if (!autoLoadCount || didAutoLoadCountRef.current) return
     didAutoLoadCountRef.current = true
@@ -247,6 +314,12 @@ export function useNotifications({
     return () => window.removeEventListener(NOTIFICATION_SYNC_EVENT, handleSync as EventListener)
   }, [])
 
+  const { hasRecentRealtimeActivity, isRealtimeConnected } = useRealtimeNotifications({
+    enabled: !isUnauthorized,
+    onNotification: handleRealtimeNotification,
+    onResync: refetchFromServer,
+  })
+
   const summary = useMemo(
     () => ({
       hasItems,
@@ -264,8 +337,10 @@ export function useNotifications({
     isLoadingList,
     isMarkingAllRead,
     isUnauthorized,
+    isRealtimeConnected,
     listError,
     countError,
+    hasRecentRealtimeActivity,
     hasItems: summary.hasItems,
     hasMore: summary.hasMore,
     loadMore,
@@ -276,4 +351,3 @@ export function useNotifications({
     openNotification,
   }
 }
-

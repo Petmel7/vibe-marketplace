@@ -6,8 +6,10 @@ import { useNotifications } from '@/hooks/useNotifications'
 export default function NotificationsPageClient() {
   const {
     hasMore,
+    hasRecentRealtimeActivity,
     isLoadingList,
     isMarkingAllRead,
+    isRealtimeConnected,
     items,
     listError,
     loadMore,
@@ -20,6 +22,7 @@ export default function NotificationsPageClient() {
     autoLoadCount: true,
     autoLoadList: true,
     limit: 20,
+    liveListEnabled: true,
   })
 
   return (
@@ -30,9 +33,7 @@ export default function NotificationsPageClient() {
             Notification Center
           </span>
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold text-copy-strong sm:text-4xl">
-              Ваші сповіщення
-            </h1>
+            <h1 className="text-3xl font-semibold text-copy-strong sm:text-4xl">Ваші сповіщення</h1>
             <p className="max-w-2xl text-sm leading-6 text-copy-secondary sm:text-base">
               Слідкуйте за статусами замовлень, оплат, модерації та важливими подіями маркетплейсу в одному місці.
             </p>
@@ -43,6 +44,19 @@ export default function NotificationsPageClient() {
           <span className="inline-flex rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-sm font-medium text-brand">
             Непрочитаних: {unreadCount}
           </span>
+          {hasRecentRealtimeActivity ? (
+            <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-300">
+              Оновлено щойно
+            </span>
+          ) : null}
+          {!isRealtimeConnected ? (
+            <span
+              className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-200"
+              aria-live="polite"
+            >
+              Відновлюємо підключення до realtime
+            </span>
+          ) : null}
           <button
             type="button"
             className="ui-secondary-button"
@@ -78,4 +92,3 @@ export default function NotificationsPageClient() {
     </section>
   )
 }
-

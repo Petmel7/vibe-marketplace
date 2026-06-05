@@ -9,6 +9,8 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const {
+    hasRecentRealtimeActivity,
+    isRealtimeConnected,
     items,
     unreadCount,
     isLoadingList,
@@ -23,6 +25,7 @@ export default function NotificationBell() {
     autoLoadCount: true,
     autoLoadList: false,
     limit: 8,
+    liveListEnabled: isOpen,
   })
 
   useEffect(() => {
@@ -71,11 +74,24 @@ export default function NotificationBell() {
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={24} color="#E8E9EA" aria-hidden="true" />
+        {hasRecentRealtimeActivity ? (
+          <span
+            className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-panel bg-emerald-400"
+            aria-hidden="true"
+          />
+        ) : null}
         {unreadCount > 0 ? (
           <span className="ui-badge-counter" aria-hidden="true">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         ) : null}
+        <span className="sr-only" aria-live="polite">
+          {hasRecentRealtimeActivity
+            ? 'Нове сповіщення отримано.'
+            : !isRealtimeConnected
+              ? 'Підключення до сповіщень відновлюється.'
+              : ''}
+        </span>
       </button>
 
       {isOpen ? (
