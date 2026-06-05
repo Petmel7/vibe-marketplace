@@ -83,6 +83,15 @@ export async function findOrderById(orderId: string) {
           quantity: true,
           storeId: true,
           unitPriceSnapshot: true,
+          variant: {
+            select: {
+              product: {
+                select: {
+                  categoryId: true,
+                },
+              },
+            },
+          },
           store: {
             select: {
               id: true,

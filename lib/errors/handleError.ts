@@ -137,7 +137,6 @@ import {
   RiskValidationError,
 } from './risk'
 import {
-  CommissionCalculationError,
   DuplicateLedgerEntryError,
   InsufficientAvailableBalanceError,
   InvalidPayoutTransitionError,
@@ -145,6 +144,12 @@ import {
   PayoutOwnershipError,
   SellerBalanceNotFoundError,
 } from './payout'
+import {
+  CommissionCalculationError,
+  CommissionRuleConflictError,
+  CommissionRuleNotFoundError,
+  InvalidCommissionRuleError,
+} from './commission'
 import {
   InvalidPromotionCodeError,
   InvalidPromotionTargetError,
@@ -254,6 +259,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RiskProfileNotFoundError ||
     err instanceof RiskSubjectNotFoundError ||
     err instanceof PayoutNotFoundError ||
+    err instanceof CommissionRuleNotFoundError ||
     err instanceof PromotionNotFoundError ||
     err instanceof SellerBalanceNotFoundError ||
     err instanceof RefundRequestNotFoundError ||
@@ -285,6 +291,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof DuplicateAbuseReportError ||
     err instanceof DuplicateDisputeError ||
     err instanceof DuplicateLedgerEntryError ||
+    err instanceof CommissionRuleConflictError ||
     err instanceof PromotionDuplicateCodeError ||
     err instanceof PromotionDeleteConflictError ||
     err instanceof DuplicateRefundRequestError
@@ -339,6 +346,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InsufficientAvailableBalanceError ||
     err instanceof InvalidPayoutTransitionError ||
     err instanceof CommissionCalculationError ||
+    err instanceof InvalidCommissionRuleError ||
     err instanceof InvalidPromotionCodeError ||
     err instanceof InvalidPromotionTargetError ||
     err instanceof PromotionInactiveError ||

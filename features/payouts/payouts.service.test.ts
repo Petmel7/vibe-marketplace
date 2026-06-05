@@ -26,6 +26,9 @@ vi.mock('@/features/payouts/payouts.repository', () => ({
   updatePayoutStatus: vi.fn(),
   upsertSellerBalance: vi.fn(),
 }))
+vi.mock('@/features/commissions/commissions.service', () => ({
+  calculateCommissionForAmount: vi.fn(),
+}))
 vi.mock('@/lib/auth/guards', () => ({
   requireAdmin: vi.fn(),
   requireSeller: vi.fn(),
@@ -35,6 +38,7 @@ vi.mock('@/features/email/events/email.events', () => ({
 }))
 
 import * as repo from '@/features/payouts/payouts.repository'
+import * as commissionService from '@/features/commissions/commissions.service'
 import * as guards from '@/lib/auth/guards'
 import * as emailEvents from '@/features/email/events/email.events'
 import {
@@ -51,6 +55,7 @@ import {
 import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRepo = vi.mocked(repo)
+const mockCommissionService = vi.mocked(commissionService)
 const mockGuards = vi.mocked(guards)
 const mockEmailEvents = vi.mocked(emailEvents)
 
@@ -76,6 +81,11 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
         quantity: 2,
         storeId: 'store-1',
         unitPriceSnapshot: { toString: () => '50.00' },
+        variant: {
+          product: {
+            categoryId: 'category-1',
+          },
+        },
         store: { id: 'store-1', ownerId: sellerUser.id, name: 'Store 1' },
         platformCommission: null,
       },
@@ -154,6 +164,13 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.requireAdmin.mockReturnValue(undefined)
   mockGuards.requireSeller.mockReturnValue(undefined)
+  mockCommissionService.calculateCommissionForAmount.mockResolvedValue({
+    ruleId: 'rule-1',
+    ruleScope: 'GLOBAL',
+    rate: '0.1000',
+    commissionAmount: '10.00',
+    sellerNetAmount: '90.00',
+  })
   mockRepo.findStoreFinanceContextById.mockResolvedValue({
     id: 'store-1',
     name: 'Store 1',
@@ -181,6 +198,16 @@ describe('materializeSellerFinanceForOrderAction', () => {
     const result = await materializeSellerFinanceForOrderAction('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
 
     expect(mockRepo.createSellerFinanceEntriesForOrderItems).toHaveBeenCalledTimes(1)
+    expect(mockRepo.createSellerFinanceEntriesForOrderItems).toHaveBeenCalledWith({
+      items: [
+        expect.objectContaining({
+          orderItemId: 'item-1',
+          commissionRate: expect.objectContaining({ toString: expect.any(Function) }),
+          commissionAmount: expect.objectContaining({ toString: expect.any(Function) }),
+          sellerNetAmount: expect.objectContaining({ toString: expect.any(Function) }),
+        }),
+      ],
+    })
     expect(result.createdCommissionCount).toBe(1)
     expect(result.createdLedgerEntryCount).toBe(1)
   })
@@ -219,6 +246,52 @@ describe('materializeSellerFinanceForOrderAction', () => {
 
     expect(mockRepo.createSellerFinanceEntriesForOrderItems).not.toHaveBeenCalled()
     expect(result.createdLedgerEntryCount).toBe(0)
+    expect(result.skippedOrderItemCount).toBe(1)
+  })
+
+  it('keeps historical commissions unchanged after rule updates once snapshot exists', async () => {
+    mockCommissionService.calculateCommissionForAmount.mockResolvedValueOnce({
+      ruleId: 'rule-1',
+      ruleScope: 'GLOBAL',
+      rate: '0.1000',
+      commissionAmount: '10.00',
+      sellerNetAmount: '90.00',
+    })
+    mockRepo.findOrderById.mockResolvedValueOnce(makeOrder() as never)
+
+    await materializeSellerFinanceForOrderAction('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+
+    mockCommissionService.calculateCommissionForAmount.mockResolvedValueOnce({
+      ruleId: 'rule-2',
+      ruleScope: 'STORE',
+      rate: '0.2000',
+      commissionAmount: '20.00',
+      sellerNetAmount: '80.00',
+    })
+    mockRepo.findOrderById.mockResolvedValueOnce(
+      makeOrder({
+        items: [
+          {
+            id: 'item-1',
+            quantity: 2,
+            storeId: 'store-1',
+            unitPriceSnapshot: { toString: () => '50.00' },
+            variant: {
+              product: {
+                categoryId: 'category-1',
+              },
+            },
+            store: { id: 'store-1', ownerId: sellerUser.id, name: 'Store 1' },
+            platformCommission: { id: 'commission-1' },
+          },
+        ],
+      }) as never,
+    )
+
+    const result = await materializeSellerFinanceForOrderAction('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+
+    expect(mockRepo.createSellerFinanceEntriesForOrderItems).toHaveBeenCalledTimes(1)
+    expect(result.createdCommissionCount).toBe(0)
     expect(result.skippedOrderItemCount).toBe(1)
   })
 })

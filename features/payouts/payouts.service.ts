@@ -4,17 +4,18 @@ import {
   PaymentStatus,
   PayoutStatus,
 } from '@/app/generated/prisma/client'
+import { calculateCommissionForAmount } from '@/features/commissions/commissions.service'
 import { emitSellerPayoutPaidEmailEvent } from '@/features/email/events/email.events'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import {
-  CommissionCalculationError,
   InsufficientAvailableBalanceError,
   InvalidPayoutTransitionError,
   PayoutNotFoundError,
   PayoutOwnershipError,
   SellerBalanceNotFoundError,
 } from '@/lib/errors/payout'
+import { CommissionCalculationError } from '@/lib/errors/commission'
 import { StoreNotFoundError } from '@/lib/errors/seller'
 import { logError } from '@/utils/logger'
 import type {
@@ -64,7 +65,6 @@ import {
   upsertSellerBalance,
 } from './payouts.repository'
 
-const DEFAULT_COMMISSION_RATE = new Decimal(process.env.MARKETPLACE_COMMISSION_RATE ?? '0.10')
 const DEFAULT_HOLD_DAYS = Number.parseInt(process.env.SELLER_PAYOUT_HOLD_DAYS ?? '7', 10)
 const DEFAULT_CURRENCY = 'UAH'
 
@@ -117,12 +117,6 @@ function resolveAvailableAt(now = new Date()) {
   const availableAt = new Date(now)
   availableAt.setDate(availableAt.getDate() + DEFAULT_HOLD_DAYS)
   return availableAt
-}
-
-function assertCommissionRate() {
-  if (DEFAULT_COMMISSION_RATE.isNegative() || DEFAULT_COMMISSION_RATE.greaterThan(1)) {
-    throw new CommissionCalculationError('Commission rate must be between 0 and 1')
-  }
 }
 
 function toSellerBalanceDto(
@@ -223,7 +217,6 @@ async function refreshSingleSellerBalance(storeId: string): Promise<SellerBalanc
 export async function materializeSellerFinanceForOrderAction(
   orderId: string,
 ): Promise<MaterializeSellerFinanceResultDto> {
-  assertCommissionRate()
   const order = await findOrderById(orderId)
   if (!order) {
     throw new StoreNotFoundError('Order not found for seller finance materialization')
@@ -240,28 +233,27 @@ export async function materializeSellerFinanceForOrderAction(
 
   const availableAt = resolveAvailableAt()
   const pendingItems = order.items.filter((item) => !item.platformCommission)
-  const financeItems = pendingItems.map((item) => {
+  const financeItems = await Promise.all(pendingItems.map(async (item) => {
     const grossAmount = new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)
-    const commissionAmount = grossAmount.mul(DEFAULT_COMMISSION_RATE).toDecimalPlaces(2)
-    const sellerNetAmount = grossAmount.minus(commissionAmount).toDecimalPlaces(2)
-
-    if (sellerNetAmount.isNegative()) {
-      throw new CommissionCalculationError('Seller net amount cannot be negative')
-    }
+    const commission = await calculateCommissionForAmount({
+      storeId: item.storeId,
+      categoryId: item.variant.product.categoryId,
+      grossAmount,
+    })
 
     return {
       orderItemId: item.id,
       storeId: item.storeId,
       sellerId: item.store.ownerId,
       grossAmount,
-      commissionRate: DEFAULT_COMMISSION_RATE,
-      commissionAmount,
-      sellerNetAmount,
+      commissionRate: new Decimal(commission.rate),
+      commissionAmount: new Decimal(commission.commissionAmount),
+      sellerNetAmount: new Decimal(commission.sellerNetAmount),
       currency: DEFAULT_CURRENCY,
       description: `Earnings for order ${order.id.slice(0, 8)} item ${item.id.slice(0, 8)}`,
       availableAt,
     }
-  })
+  }))
 
   if (financeItems.length === 0) {
     return {
