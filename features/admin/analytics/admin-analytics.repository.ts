@@ -1,6 +1,85 @@
 import Decimal from 'decimal.js'
-import { OrderStatus, PaymentMethod, PaymentStatus, RefundRequestStatus, RiskLevel } from '@/app/generated/prisma/client'
+import {
+  Prisma,
+  OrderStatus,
+  RefundRequestStatus,
+  RiskLevel,
+} from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import type { AnalyticsInterval } from '@/features/analytics/analytics.helpers'
+import type {
+  AnalyticsTopCategoryDto,
+  AnalyticsTopProductDto,
+  AnalyticsTopSellerDto,
+} from '@/features/analytics/analytics.dto'
+
+export type AnalyticsBucketValueRow = {
+  bucket: Date
+  value: Decimal
+  secondaryValue?: Decimal
+}
+
+export type AdminOrderMetrics = {
+  gmv: Decimal
+  ordersTotal: number
+  paidOrders: number
+  codOrders: number
+  failedPayments: number
+}
+
+export type AdminCommissionMetrics = {
+  commissionRevenue: Decimal
+  netSellerRevenue: Decimal
+}
+
+export type AdminRefundMetrics = {
+  refundCount: number
+  refundAmount: Decimal
+}
+
+type DecimalLike = Prisma.Decimal | Decimal | string | number | bigint | null | undefined
+type NumberLike = string | number | bigint | null | undefined
+
+type SeriesRow = {
+  bucket: Date
+  value: DecimalLike
+  secondaryValue?: DecimalLike
+}
+
+type AdminOrderMetricsRow = {
+  gmv: DecimalLike
+  ordersTotal: NumberLike
+  paidOrders: NumberLike
+  codOrders: NumberLike
+  failedPayments: NumberLike
+}
+
+type AdminCommissionMetricsRow = {
+  commissionRevenue: DecimalLike
+  netSellerRevenue: DecimalLike
+}
+
+type TopSellerRow = {
+  sellerId: string
+  storeId: string
+  storeName: string
+  revenue: DecimalLike
+  orderCount: NumberLike
+}
+
+type TopProductRow = {
+  productId: string
+  name: string
+  totalSold: NumberLike
+  revenue: DecimalLike
+}
+
+type TopCategoryRow = {
+  categoryId: string | null
+  name: string
+  totalSold: NumberLike
+  revenue: DecimalLike
+}
 
 const GMV_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.paid,
@@ -10,48 +89,43 @@ const GMV_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.delivered,
 ]
 
-export type AdminAnalyticsOrderRow = {
-  id: string
-  createdAt: Date
-  totalAmount: Decimal
-  status: string
-  payments: { method: PaymentMethod; status: PaymentStatus }[]
-}
-
-export type AdminAnalyticsOrderItemRow = {
-  orderId: string
-  createdAt: Date
-  quantity: number
-  unitPriceSnapshot: Decimal
-  productNameSnapshot: string
-  variantId: string
-  storeId: string
-  store: { name: string; ownerId: string }
-  variant: {
-    product: {
-      category: { id: string; name: string } | null
-    }
+function toDecimal(value: DecimalLike): Decimal {
+  if (value == null) {
+    return new Decimal(0)
   }
+
+  if (value instanceof Decimal) {
+    return value
+  }
+
+  return new Decimal(value.toString())
 }
 
-export type AdminAnalyticsCommissionRow = {
-  createdAt: Date
-  commissionAmount: Decimal
-  sellerNetAmount: Decimal
+function toInteger(value: NumberLike): number {
+  if (value == null) {
+    return 0
+  }
+
+  return Number(value)
 }
 
-export type AdminAnalyticsRefundRow = {
-  createdAt: Date
-  amount: Decimal
-  status: RefundRequestStatus
+function getBucketExpression(interval: AnalyticsInterval, columnName: string) {
+  const trunc =
+    interval === 'day' ? 'day' : interval === 'week' ? 'week' : 'month'
+
+  return Prisma.raw(`date_trunc('${trunc}', ${columnName} AT TIME ZONE 'UTC')`)
 }
 
-export type AdminAnalyticsDisputeRow = {
-  createdAt: Date
+function gmvStatusFilterSql() {
+  return Prisma.sql`IN (${Prisma.join(GMV_ORDER_STATUSES)})`
 }
 
-export type AdminAnalyticsSellerGrowthRow = {
-  createdAt: Date
+function mapSeriesRows(rows: SeriesRow[]): AnalyticsBucketValueRow[] {
+  return rows.map((row) => ({
+    bucket: row.bucket,
+    value: toDecimal(row.value),
+    secondaryValue: row.secondaryValue != null ? toDecimal(row.secondaryValue) : undefined,
+  }))
 }
 
 export async function getGMV(): Promise<Decimal> {
@@ -78,101 +152,6 @@ export async function getTotalBuyerCount(): Promise<number> {
 
 export async function getTotalProductCount(): Promise<number> {
   return prisma.product.count()
-}
-
-export async function getTopSellers(
-  limit: number,
-): Promise<
-  { sellerId: string; storeId: string; storeName: string; revenue: Decimal; orderCount: number }[]
-> {
-  const items = await prisma.orderItem.findMany({
-    select: {
-      storeId: true,
-      unitPriceSnapshot: true,
-      quantity: true,
-      orderId: true,
-      store: { select: { id: true, name: true, ownerId: true } },
-    },
-  })
-
-  const grouped = new Map<
-    string,
-    { storeName: string; ownerId: string; revenue: Decimal; orderIds: Set<string> }
-  >()
-
-  for (const item of items) {
-    const existing = grouped.get(item.storeId)
-    const itemRevenue = new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)
-
-    if (existing) {
-      existing.revenue = existing.revenue.plus(itemRevenue)
-      existing.orderIds.add(item.orderId)
-      continue
-    }
-
-    grouped.set(item.storeId, {
-      storeName: item.store.name,
-      ownerId: item.store.ownerId,
-      revenue: itemRevenue,
-      orderIds: new Set([item.orderId]),
-    })
-  }
-
-  return Array.from(grouped.entries())
-    .sort((left, right) => right[1].revenue.comparedTo(left[1].revenue))
-    .slice(0, limit)
-    .map(([storeId, stats]) => ({
-      sellerId: stats.ownerId,
-      storeId,
-      storeName: stats.storeName,
-      revenue: stats.revenue,
-      orderCount: stats.orderIds.size,
-    }))
-}
-
-export async function getTopProducts(
-  limit: number,
-): Promise<{ productId: string; name: string; totalSold: number; revenue: Decimal }[]> {
-  const items = await prisma.orderItem.findMany({
-    select: {
-      productNameSnapshot: true,
-      unitPriceSnapshot: true,
-      quantity: true,
-      variantId: true,
-    },
-  })
-
-  const grouped = new Map<
-    string,
-    { totalSold: number; revenue: Decimal; variantId: string }
-  >()
-
-  for (const item of items) {
-    const existing = grouped.get(item.productNameSnapshot)
-    const itemRevenue = new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)
-
-    if (existing) {
-      existing.totalSold += item.quantity
-      existing.revenue = existing.revenue.plus(itemRevenue)
-      continue
-    }
-
-    grouped.set(item.productNameSnapshot, {
-      totalSold: item.quantity,
-      revenue: itemRevenue,
-      variantId: item.variantId,
-    })
-  }
-
-  return Array.from(grouped.entries())
-    .sort((left, right) => right[1].totalSold - left[1].totalSold)
-    .slice(0, limit)
-    .map(([name, stats]) => ({
-      productId: stats.variantId,
-      name,
-      totalSold: stats.totalSold,
-      revenue: stats.revenue,
-    }))
 }
 
 export async function getSellerGrowthLast30Days(): Promise<number> {
@@ -215,160 +194,324 @@ export async function getModerationStats(): Promise<{
   }
 }
 
-export async function getOrdersForRange(from: Date, to: Date): Promise<AdminAnalyticsOrderRow[]> {
-  return prisma.order.findMany({
+export async function getAdminOrderMetricsForRange(
+  from: Date,
+  to: Date,
+): Promise<AdminOrderMetrics> {
+  const [row] = await prisma.$queryRaw<AdminOrderMetricsRow[]>(Prisma.sql`
+    SELECT
+      COALESCE(SUM(CASE WHEN o.status ${gmvStatusFilterSql()} THEN o.total_amount ELSE 0 END), 0) AS gmv,
+      COUNT(*)::int AS "ordersTotal",
+      COUNT(*) FILTER (WHERE o.status ${gmvStatusFilterSql()})::int AS "paidOrders",
+      COUNT(DISTINCT CASE WHEN p.method = ${'CASH_ON_DELIVERY'} THEN o.id END)::int AS "codOrders",
+      COUNT(p.id) FILTER (WHERE p.status = ${'FAILED'})::int AS "failedPayments"
+    FROM orders o
+    LEFT JOIN payments p ON p.order_id = o.id
+    WHERE o.created_at >= ${from}
+      AND o.created_at <= ${to}
+  `)
+
+  return {
+    gmv: toDecimal(row?.gmv),
+    ordersTotal: toInteger(row?.ordersTotal),
+    paidOrders: toInteger(row?.paidOrders),
+    codOrders: toInteger(row?.codOrders),
+    failedPayments: toInteger(row?.failedPayments),
+  }
+}
+
+export async function getAdminRevenueSeriesForRange(
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'oi.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${gmvStatusFilterSql()}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getAdminOrderSeriesForRange(
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'o.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COUNT(*)::int AS value
+    FROM orders o
+    WHERE o.created_at >= ${from}
+      AND o.created_at <= ${to}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getAdminSellerGrowthSeriesForRange(
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'sp.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COUNT(*)::int AS value
+    FROM seller_profiles sp
+    WHERE sp.created_at >= ${from}
+      AND sp.created_at <= ${to}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getSellerGrowthCountForRange(
+  from: Date,
+  to: Date,
+): Promise<number> {
+  return prisma.sellerProfile.count({
     where: {
       createdAt: { gte: from, lte: to },
-    },
-    select: {
-      id: true,
-      createdAt: true,
-      totalAmount: true,
-      status: true,
-      payments: {
-        select: {
-          method: true,
-          status: true,
-        },
-      },
     },
   })
 }
 
-export async function getOrderItemsForRange(
+export async function getAdminRefundMetricsForRange(
   from: Date,
   to: Date,
-): Promise<AdminAnalyticsOrderItemRow[]> {
-  const items = await prisma.orderItem.findMany({
+): Promise<AdminRefundMetrics> {
+  const [count, sum] = await Promise.all([
+    prisma.refundRequest.count({
+      where: {
+        createdAt: { gte: from, lte: to },
+      },
+    }),
+    prisma.refundRequest.aggregate({
+      where: {
+        createdAt: { gte: from, lte: to },
+        status: RefundRequestStatus.SUCCEEDED,
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+  ])
+
+  return {
+    refundCount: count,
+    refundAmount: toDecimal(sum._sum.amount),
+  }
+}
+
+export async function getAdminRefundSeriesForRange(
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'rr.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COUNT(*)::int AS value,
+      COALESCE(SUM(CASE WHEN rr.status = ${RefundRequestStatus.SUCCEEDED} THEN rr.amount ELSE 0 END), 0) AS "secondaryValue"
+    FROM refund_requests rr
+    WHERE rr.created_at >= ${from}
+      AND rr.created_at <= ${to}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getAdminDisputeCountForRange(
+  from: Date,
+  to: Date,
+): Promise<number> {
+  return prisma.dispute.count({
     where: {
       createdAt: { gte: from, lte: to },
-      order: {
-        status: { in: GMV_ORDER_STATUSES },
-      },
-    },
-    select: {
-      orderId: true,
-      createdAt: true,
-      quantity: true,
-      unitPriceSnapshot: true,
-      productNameSnapshot: true,
-      variantId: true,
-      storeId: true,
-      store: {
-        select: {
-          name: true,
-          ownerId: true,
-        },
-      },
-      variant: {
-        select: {
-          product: {
-            select: {
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-      },
     },
   })
+}
 
-  return items.map((item) => ({
-    orderId: item.orderId,
-    createdAt: item.createdAt,
-    quantity: item.quantity,
-    unitPriceSnapshot: item.unitPriceSnapshot,
-    productNameSnapshot: item.productNameSnapshot,
-    variantId: item.variantId,
-    storeId: item.storeId,
-    store: {
-      name: item.store.name,
-      ownerId: item.store.ownerId,
-    },
-    variant: {
-      product: {
-        category: item.variant.product.category
-          ? {
-              id: item.variant.product.category.id,
-              name: item.variant.product.category.name,
-            }
-          : null,
-      },
-    },
+export async function getAdminDisputeSeriesForRange(
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'd.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COUNT(*)::int AS value
+    FROM disputes d
+    WHERE d.created_at >= ${from}
+      AND d.created_at <= ${to}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getAdminCommissionMetricsForRange(
+  from: Date,
+  to: Date,
+): Promise<AdminCommissionMetrics> {
+  const [row] = await prisma.$queryRaw<AdminCommissionMetricsRow[]>(Prisma.sql`
+    SELECT
+      COALESCE(SUM(pc.commission_amount), 0) AS "commissionRevenue",
+      COALESCE(SUM(pc.seller_net_amount), 0) AS "netSellerRevenue"
+    FROM platform_commissions pc
+    WHERE pc.created_at >= ${from}
+      AND pc.created_at <= ${to}
+  `)
+
+  return {
+    commissionRevenue: toDecimal(row?.commissionRevenue),
+    netSellerRevenue: toDecimal(row?.netSellerRevenue),
+  }
+}
+
+export async function getAdminCommissionSeriesForRange(
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'pc.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COALESCE(SUM(pc.commission_amount), 0) AS value
+    FROM platform_commissions pc
+    WHERE pc.created_at >= ${from}
+      AND pc.created_at <= ${to}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getAdminTopSellersForRange(
+  from: Date,
+  to: Date,
+  limit: number,
+): Promise<AnalyticsTopSellerDto[]> {
+  const rows = await prisma.$queryRaw<TopSellerRow[]>(Prisma.sql`
+    SELECT
+      s.owner_id::text AS "sellerId",
+      oi.store_id::text AS "storeId",
+      MIN(s.name)::text AS "storeName",
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue,
+      COUNT(DISTINCT oi.order_id)::int AS "orderCount"
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN stores s ON s.id = oi.store_id
+    WHERE oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${gmvStatusFilterSql()}
+    GROUP BY oi.store_id, s.owner_id
+    ORDER BY revenue DESC, "orderCount" DESC, "storeName" ASC
+    LIMIT ${limit}
+  `)
+
+  return rows.map((row) => ({
+    sellerId: row.sellerId,
+    storeId: row.storeId,
+    storeName: row.storeName,
+    revenue: toDecimal(row.revenue).toFixed(2),
+    orderCount: toInteger(row.orderCount),
   }))
 }
 
-export async function getCommissionRowsForRange(
+export async function getAdminTopProductsForRange(
   from: Date,
   to: Date,
-): Promise<AdminAnalyticsCommissionRow[]> {
-  return prisma.platformCommission.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-    },
-    select: {
-      createdAt: true,
-      commissionAmount: true,
-      sellerNetAmount: true,
-    },
-  })
+  limit: number,
+): Promise<AnalyticsTopProductDto[]> {
+  const rows = await prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
+    SELECT
+      MIN(oi.variant_id)::text AS "productId",
+      oi.product_name_snapshot AS name,
+      COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${gmvStatusFilterSql()}
+    GROUP BY oi.product_name_snapshot
+    ORDER BY "totalSold" DESC, revenue DESC, name ASC
+    LIMIT ${limit}
+  `)
+
+  return rows.map((row) => ({
+    productId: row.productId,
+    name: row.name,
+    totalSold: toInteger(row.totalSold),
+    revenue: toDecimal(row.revenue).toFixed(2),
+  }))
 }
 
-export async function getRefundRowsForRange(
+export async function getAdminTopCategoriesForRange(
   from: Date,
   to: Date,
-): Promise<AdminAnalyticsRefundRow[]> {
-  return prisma.refundRequest.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-    },
-    select: {
-      createdAt: true,
-      amount: true,
-      status: true,
-    },
-  })
-}
+  limit: number,
+): Promise<AnalyticsTopCategoryDto[]> {
+  const rows = await prisma.$queryRaw<TopCategoryRow[]>(Prisma.sql`
+    SELECT
+      c.id::text AS "categoryId",
+      COALESCE(c.name, 'Uncategorized')::text AS name,
+      COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    LEFT JOIN product_variants pv ON pv.id = oi.variant_id
+    LEFT JOIN products p ON p.id = pv.product_id
+    LEFT JOIN categories c ON c.id = p.category_id
+    WHERE oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${gmvStatusFilterSql()}
+    GROUP BY c.id, COALESCE(c.name, 'Uncategorized')
+    ORDER BY revenue DESC, "totalSold" DESC, name ASC
+    LIMIT ${limit}
+  `)
 
-export async function getDisputeRowsForRange(
-  from: Date,
-  to: Date,
-): Promise<AdminAnalyticsDisputeRow[]> {
-  return prisma.dispute.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-    },
-    select: {
-      createdAt: true,
-    },
-  })
-}
-
-export async function getSellerGrowthRowsForRange(
-  from: Date,
-  to: Date,
-): Promise<AdminAnalyticsSellerGrowthRow[]> {
-  return prisma.sellerProfile.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-    },
-    select: {
-      createdAt: true,
-    },
-  })
+  return rows.map((row) => ({
+    categoryId: row.categoryId,
+    name: row.name,
+    totalSold: toInteger(row.totalSold),
+    revenue: toDecimal(row.revenue).toFixed(2),
+  }))
 }
 
 export async function getActiveSellerCount(): Promise<number> {
-  const stores = await prisma.store.findMany({
-    where: { isActive: true },
-    select: { ownerId: true },
-  })
+  const [row] = await prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
+    SELECT COUNT(DISTINCT s.owner_id)::int AS value
+    FROM stores s
+    WHERE s.is_active = true
+  `)
 
-  return new Set(stores.map((store) => store.ownerId)).size
+  return toInteger(row?.value)
 }
 
 export async function getPublishedProductCount(): Promise<number> {

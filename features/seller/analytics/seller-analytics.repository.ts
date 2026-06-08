@@ -1,17 +1,51 @@
 import Decimal from 'decimal.js'
-import { ItemFulfillmentStatus, OrderStatus, RefundRequestStatus } from '@/app/generated/prisma/client'
+import {
+  Prisma,
+  OrderStatus,
+  RefundRequestStatus,
+} from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import type { AnalyticsInterval } from '@/features/analytics/analytics.helpers'
 import type { TopProductEntry } from './seller-analytics.dto'
 
-export type SellerAnalyticsOrderItemRow = {
-  id: string
-  orderId: string
-  quantity: number
-  createdAt: Date
-  fulfillmentStatus: ItemFulfillmentStatus
-  productNameSnapshot: string
-  variantId: string
-  unitPriceSnapshot: Decimal
+export type AnalyticsBucketValueRow = {
+  bucket: Date
+  value: Decimal
+  secondaryValue?: Decimal
+}
+
+export type SellerRangeMetrics = {
+  revenueTotal: Decimal
+  ordersTotal: number
+  unitsSold: number
+  pendingFulfillmentCount: number
+  shippedFulfillmentCount: number
+  deliveredFulfillmentCount: number
+}
+
+type DecimalLike = Prisma.Decimal | Decimal | string | number | bigint | null | undefined
+type NumberLike = string | number | bigint | null | undefined
+
+type SellerRangeMetricsRow = {
+  revenueTotal: DecimalLike
+  ordersTotal: NumberLike
+  unitsSold: NumberLike
+  pendingFulfillmentCount: NumberLike
+  shippedFulfillmentCount: NumberLike
+  deliveredFulfillmentCount: NumberLike
+}
+
+type SeriesRow = {
+  bucket: Date
+  value: DecimalLike
+  secondaryValue?: DecimalLike
+}
+
+type TopProductRow = {
+  productId: string
+  name: string
+  totalSold: NumberLike
+  revenue: DecimalLike
 }
 
 const SELLER_REVENUE_ORDER_STATUSES: OrderStatus[] = [
@@ -22,23 +56,63 @@ const SELLER_REVENUE_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.delivered,
 ]
 
+function toDecimal(value: DecimalLike): Decimal {
+  if (value == null) {
+    return new Decimal(0)
+  }
+
+  if (value instanceof Decimal) {
+    return value
+  }
+
+  return new Decimal(value.toString())
+}
+
+function toInteger(value: NumberLike): number {
+  if (value == null) {
+    return 0
+  }
+
+  return Number(value)
+}
+
+function mapSeriesRows(rows: SeriesRow[]): AnalyticsBucketValueRow[] {
+  return rows.map((row) => ({
+    bucket: row.bucket,
+    value: toDecimal(row.value),
+    secondaryValue: row.secondaryValue != null ? toDecimal(row.secondaryValue) : undefined,
+  }))
+}
+
+function getBucketExpression(interval: AnalyticsInterval, columnName: string) {
+  const trunc =
+    interval === 'day' ? 'day' : interval === 'week' ? 'week' : 'month'
+
+  return Prisma.raw(`date_trunc('${trunc}', ${columnName} AT TIME ZONE 'UTC')`)
+}
+
+function revenueStatusFilterSql() {
+  return Prisma.sql`IN (${Prisma.join(SELLER_REVENUE_ORDER_STATUSES)})`
+}
+
 export async function getTotalRevenue(storeId: string): Promise<Decimal> {
-  const items = await prisma.orderItem.findMany({
-    where: { storeId },
-    select: { unitPriceSnapshot: true, quantity: true },
-  })
-  return items.reduce(
-    (sum, i) => sum.plus(new Decimal(i.unitPriceSnapshot.toString()).mul(i.quantity)),
-    new Decimal(0),
-  )
+  const [row] = await prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
+    SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
+    FROM order_items oi
+    WHERE oi.store_id = ${storeId}::uuid
+  `)
+
+  return toDecimal(row?.value)
 }
 
 export async function getOrderCount(storeId: string): Promise<number> {
-  const items = await prisma.orderItem.findMany({
-    where: { storeId },
-    select: { orderId: true },
-  })
-  return new Set(items.map((i) => i.orderId)).size
+  const [row] = await prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
+    SELECT COUNT(DISTINCT oi.order_id)::int AS value
+    FROM order_items oi
+    WHERE oi.store_id = ${storeId}::uuid
+  `)
+
+  return toInteger(row?.value)
 }
 
 export async function getTotalProductsSold(storeId: string): Promise<number> {
@@ -49,88 +123,154 @@ export async function getTotalProductsSold(storeId: string): Promise<number> {
   return result._sum.quantity ?? 0
 }
 
-export async function getTopProducts(storeId: string, limit: number): Promise<TopProductEntry[]> {
-  const items = await prisma.orderItem.findMany({
-    where: { storeId },
-    select: {
-      productNameSnapshot: true,
-      unitPriceSnapshot: true,
-      quantity: true,
-      variantId: true,
-    },
-  })
-
-  const grouped = new Map<
-    string,
-    { totalSold: number; revenue: Decimal; variantId: string }
-  >()
-
-  for (const item of items) {
-    const key = item.productNameSnapshot
-    const existing = grouped.get(key)
-    const itemRevenue = new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)
-    if (existing) {
-      existing.totalSold += item.quantity
-      existing.revenue = existing.revenue.plus(itemRevenue)
-    } else {
-      grouped.set(key, {
-        totalSold: item.quantity,
-        revenue: itemRevenue,
-        variantId: item.variantId,
-      })
-    }
-  }
-
-  return Array.from(grouped.entries())
-    .sort((a, b) => b[1].totalSold - a[1].totalSold)
-    .slice(0, limit)
-    .map(([name, stats]) => ({
-      productId: stats.variantId,
-      name,
-      totalSold: stats.totalSold,
-      revenue: stats.revenue.toFixed(2),
-    }))
-}
-
 export async function getRevenueLast30Days(storeId: string): Promise<Decimal> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const items = await prisma.orderItem.findMany({
-    where: {
-      storeId,
-      createdAt: { gte: since },
-    },
-    select: { unitPriceSnapshot: true, quantity: true },
-  })
-  return items.reduce(
-    (sum, i) => sum.plus(new Decimal(i.unitPriceSnapshot.toString()).mul(i.quantity)),
-    new Decimal(0),
-  )
+
+  const [row] = await prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
+    SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.store_id = ${storeId}::uuid
+      AND oi.created_at >= ${since}
+      AND o.status ${revenueStatusFilterSql()}
+  `)
+
+  return toDecimal(row?.value)
 }
 
-export async function getSellerOrderItemsForRange(
+export async function getSellerRangeMetrics(
   storeId: string,
   from: Date,
   to: Date,
-): Promise<SellerAnalyticsOrderItemRow[]> {
-  return prisma.orderItem.findMany({
-    where: {
-      storeId,
-      createdAt: { gte: from, lte: to },
-      order: {
-        status: { in: SELLER_REVENUE_ORDER_STATUSES },
-      },
-    },
-    select: {
-      id: true,
-      orderId: true,
-      quantity: true,
-      createdAt: true,
-      fulfillmentStatus: true,
-      productNameSnapshot: true,
-      variantId: true,
-      unitPriceSnapshot: true,
-    },
-  })
+): Promise<SellerRangeMetrics> {
+  const [row] = await prisma.$queryRaw<SellerRangeMetricsRow[]>(Prisma.sql`
+    SELECT
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS "revenueTotal",
+      COUNT(DISTINCT oi.order_id)::int AS "ordersTotal",
+      COALESCE(SUM(oi.quantity), 0)::int AS "unitsSold",
+      COUNT(*) FILTER (WHERE oi.fulfillment_status = ${'PENDING'})::int AS "pendingFulfillmentCount",
+      COUNT(*) FILTER (WHERE oi.fulfillment_status = ${'SHIPPED'})::int AS "shippedFulfillmentCount",
+      COUNT(*) FILTER (WHERE oi.fulfillment_status = ${'DELIVERED'})::int AS "deliveredFulfillmentCount"
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.store_id = ${storeId}::uuid
+      AND oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${revenueStatusFilterSql()}
+  `)
+
+  return {
+    revenueTotal: toDecimal(row?.revenueTotal),
+    ordersTotal: toInteger(row?.ordersTotal),
+    unitsSold: toInteger(row?.unitsSold),
+    pendingFulfillmentCount: toInteger(row?.pendingFulfillmentCount),
+    shippedFulfillmentCount: toInteger(row?.shippedFulfillmentCount),
+    deliveredFulfillmentCount: toInteger(row?.deliveredFulfillmentCount),
+  }
+}
+
+export async function getSellerRevenueSeriesForRange(
+  storeId: string,
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'oi.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.store_id = ${storeId}::uuid
+      AND oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${revenueStatusFilterSql()}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getSellerOrderSeriesForRange(
+  storeId: string,
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'oi.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COUNT(DISTINCT oi.order_id)::int AS value
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.store_id = ${storeId}::uuid
+      AND oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${revenueStatusFilterSql()}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getSellerFulfillmentSeriesForRange(
+  storeId: string,
+  from: Date,
+  to: Date,
+  interval: AnalyticsInterval,
+): Promise<AnalyticsBucketValueRow[]> {
+  const bucket = getBucketExpression(interval, 'oi.created_at')
+  const rows = await prisma.$queryRaw<SeriesRow[]>(Prisma.sql`
+    SELECT
+      ${bucket} AS bucket,
+      COUNT(*)::int AS value,
+      COUNT(*) FILTER (WHERE oi.fulfillment_status = ${'DELIVERED'})::int AS "secondaryValue"
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.store_id = ${storeId}::uuid
+      AND oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${revenueStatusFilterSql()}
+    GROUP BY 1
+    ORDER BY 1
+  `)
+
+  return mapSeriesRows(rows)
+}
+
+export async function getSellerTopProductsForRange(
+  storeId: string,
+  from: Date,
+  to: Date,
+  limit: number,
+): Promise<TopProductEntry[]> {
+  const rows = await prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
+    SELECT
+      MIN(oi.variant_id)::text AS "productId",
+      oi.product_name_snapshot AS name,
+      COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
+      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.store_id = ${storeId}::uuid
+      AND oi.created_at >= ${from}
+      AND oi.created_at <= ${to}
+      AND o.status ${revenueStatusFilterSql()}
+    GROUP BY oi.product_name_snapshot
+    ORDER BY "totalSold" DESC, revenue DESC, name ASC
+    LIMIT ${limit}
+  `)
+
+  return rows.map((row) => ({
+    productId: row.productId,
+    name: row.name,
+    totalSold: toInteger(row.totalSold),
+    revenue: toDecimal(row.revenue).toFixed(2),
+  }))
 }
 
 export async function getSellerRefundMetricsForRange(
@@ -138,26 +278,28 @@ export async function getSellerRefundMetricsForRange(
   from: Date,
   to: Date,
 ): Promise<{ refundCount: number; refundAmount: Decimal }> {
-  const requests = await prisma.refundRequest.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-      orderItem: { storeId },
-    },
-    select: {
-      amount: true,
-      status: true,
-    },
-  })
+  const [count, sum] = await Promise.all([
+    prisma.refundRequest.count({
+      where: {
+        createdAt: { gte: from, lte: to },
+        orderItem: { storeId },
+      },
+    }),
+    prisma.refundRequest.aggregate({
+      where: {
+        createdAt: { gte: from, lte: to },
+        status: RefundRequestStatus.SUCCEEDED,
+        orderItem: { storeId },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+  ])
 
   return {
-    refundCount: requests.length,
-    refundAmount: requests.reduce((sum, request) => {
-      if (request.status !== RefundRequestStatus.SUCCEEDED) {
-        return sum
-      }
-
-      return sum.plus(request.amount.toString())
-    }, new Decimal(0)),
+    refundCount: count,
+    refundAmount: toDecimal(sum._sum.amount),
   }
 }
 

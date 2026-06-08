@@ -10,7 +10,6 @@ import * as adminGuards from '@/lib/auth/adminGuards'
 import { getMarketplaceAnalytics } from '@/features/admin/analytics/admin-analytics.service'
 import { AdminAccessError } from '@/lib/errors/admin'
 import type { SessionUser } from '@/features/auth/auth.dto'
-import { PaymentMethod, PaymentStatus, RefundRequestStatus } from '@/app/generated/prisma/client'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
@@ -24,23 +23,6 @@ function setupRepoMocks() {
   mockRepo.getTotalSellerCount.mockResolvedValue(80)
   mockRepo.getTotalBuyerCount.mockResolvedValue(1200)
   mockRepo.getTotalProductCount.mockResolvedValue(3400)
-  mockRepo.getTopSellers.mockResolvedValue([
-    {
-      sellerId: 'seller-001',
-      storeId: 'store-001',
-      storeName: 'Fashion Store',
-      revenue: new Decimal('25000.00'),
-      orderCount: 100,
-    },
-  ])
-  mockRepo.getTopProducts.mockResolvedValue([
-    {
-      productId: 'variant-001',
-      name: 'Blue Jeans',
-      totalSold: 50,
-      revenue: new Decimal('2500.00'),
-    },
-  ])
   mockRepo.getSellerGrowthLast30Days.mockResolvedValue(12)
   mockRepo.getOrderGrowthLast30Days.mockResolvedValue(75)
   mockRepo.getModerationStats.mockResolvedValue({
@@ -49,91 +31,33 @@ function setupRepoMocks() {
     suspendedSellers: 2,
     rejectedProducts: 8,
   })
-  mockRepo.getOrdersForRange
-    .mockResolvedValueOnce([
-      {
-        id: 'order-1',
-        createdAt: new Date('2026-06-01T12:00:00.000Z'),
-        totalAmount: new Decimal('300.00'),
-        status: 'paid',
-        payments: [{ method: PaymentMethod.CARD, status: PaymentStatus.SUCCEEDED }],
-      },
-      {
-        id: 'order-2',
-        createdAt: new Date('2026-06-02T12:00:00.000Z'),
-        totalAmount: new Decimal('120.00'),
-        status: 'confirmed',
-        payments: [{ method: PaymentMethod.CASH_ON_DELIVERY, status: PaymentStatus.PENDING }],
-      },
-    ])
-    .mockResolvedValueOnce([
-      {
-        id: 'order-previous',
-        createdAt: new Date('2026-05-30T12:00:00.000Z'),
-        totalAmount: new Decimal('100.00'),
-        status: 'paid',
-        payments: [{ method: PaymentMethod.CARD, status: PaymentStatus.SUCCEEDED }],
-      },
-    ])
-  mockRepo.getOrderItemsForRange
-    .mockResolvedValueOnce([
-      {
-        orderId: 'order-1',
-        createdAt: new Date('2026-06-01T12:00:00.000Z'),
-        quantity: 2,
-        unitPriceSnapshot: new Decimal('100.00'),
-        productNameSnapshot: 'Blue Jeans',
-        variantId: 'variant-001',
-        storeId: 'store-001',
-        store: { name: 'Fashion Store', ownerId: 'seller-001' },
-        variant: { product: { category: { id: 'cat-1', name: 'Denim' } } },
-      },
-      {
-        orderId: 'order-2',
-        createdAt: new Date('2026-06-02T12:00:00.000Z'),
-        quantity: 1,
-        unitPriceSnapshot: new Decimal('120.00'),
-        productNameSnapshot: 'White Shirt',
-        variantId: 'variant-002',
-        storeId: 'store-002',
-        store: { name: 'Urban Store', ownerId: 'seller-002' },
-        variant: { product: { category: { id: 'cat-2', name: 'Shirts' } } },
-      },
-    ])
-    .mockResolvedValueOnce([
-      {
-        orderId: 'order-previous',
-        createdAt: new Date('2026-05-30T12:00:00.000Z'),
-        quantity: 1,
-        unitPriceSnapshot: new Decimal('100.00'),
-        productNameSnapshot: 'Previous Product',
-        variantId: 'variant-003',
-        storeId: 'store-001',
-        store: { name: 'Fashion Store', ownerId: 'seller-001' },
-        variant: { product: { category: { id: 'cat-1', name: 'Denim' } } },
-      },
-    ])
-  mockRepo.getCommissionRowsForRange.mockResolvedValue([
-    {
-      createdAt: new Date('2026-06-01T12:00:00.000Z'),
-      commissionAmount: new Decimal('42.00'),
-      sellerNetAmount: new Decimal('378.00'),
-    },
-  ])
-  mockRepo.getRefundRowsForRange.mockResolvedValue([
-    {
-      createdAt: new Date('2026-06-02T12:00:00.000Z'),
-      amount: new Decimal('30.00'),
-      status: RefundRequestStatus.SUCCEEDED,
-    },
-  ])
-  mockRepo.getDisputeRowsForRange.mockResolvedValue([{ createdAt: new Date('2026-06-03T12:00:00.000Z') }])
-  mockRepo.getSellerGrowthRowsForRange
-    .mockResolvedValueOnce([
-      { createdAt: new Date('2026-06-01T12:00:00.000Z') },
-      { createdAt: new Date('2026-06-02T12:00:00.000Z') },
-    ])
-    .mockResolvedValueOnce([{ createdAt: new Date('2026-05-30T12:00:00.000Z') }])
+  mockRepo.getAdminOrderMetricsForRange
+    .mockResolvedValueOnce({
+      gmv: new Decimal('420.00'),
+      ordersTotal: 2,
+      paidOrders: 2,
+      codOrders: 1,
+      failedPayments: 0,
+    })
+    .mockResolvedValueOnce({
+      gmv: new Decimal('100.00'),
+      ordersTotal: 1,
+      paidOrders: 1,
+      codOrders: 0,
+      failedPayments: 0,
+    })
+  mockRepo.getAdminCommissionMetricsForRange.mockResolvedValue({
+    commissionRevenue: new Decimal('42.00'),
+    netSellerRevenue: new Decimal('378.00'),
+  })
+  mockRepo.getAdminRefundMetricsForRange.mockResolvedValue({
+    refundCount: 1,
+    refundAmount: new Decimal('30.00'),
+  })
+  mockRepo.getAdminDisputeCountForRange.mockResolvedValue(1)
+  mockRepo.getSellerGrowthCountForRange
+    .mockResolvedValueOnce(2)
+    .mockResolvedValueOnce(1)
   mockRepo.getActiveSellerCount.mockResolvedValue(54)
   mockRepo.getPublishedProductCount.mockResolvedValue(2500)
   mockRepo.getRiskSummary.mockResolvedValue({
@@ -142,6 +66,75 @@ function setupRepoMocks() {
     high: 2,
     critical: 1,
   })
+  mockRepo.getAdminTopSellersForRange.mockResolvedValue([
+    {
+      sellerId: 'seller-001',
+      storeId: 'store-001',
+      storeName: 'Fashion Store',
+      revenue: '200.00',
+      orderCount: 1,
+    },
+    {
+      sellerId: 'seller-002',
+      storeId: 'store-002',
+      storeName: 'Urban Store',
+      revenue: '120.00',
+      orderCount: 1,
+    },
+  ])
+  mockRepo.getAdminTopProductsForRange.mockResolvedValue([
+    {
+      productId: 'variant-001',
+      name: 'Blue Jeans',
+      totalSold: 2,
+      revenue: '200.00',
+    },
+    {
+      productId: 'variant-002',
+      name: 'White Shirt',
+      totalSold: 1,
+      revenue: '120.00',
+    },
+  ])
+  mockRepo.getAdminTopCategoriesForRange.mockResolvedValue([
+    {
+      categoryId: 'cat-1',
+      name: 'Denim',
+      totalSold: 2,
+      revenue: '200.00',
+    },
+    {
+      categoryId: 'cat-2',
+      name: 'Shirts',
+      totalSold: 1,
+      revenue: '120.00',
+    },
+  ])
+  mockRepo.getAdminRevenueSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-01T00:00:00.000Z'), value: new Decimal('200.00') },
+    { bucket: new Date('2026-06-02T00:00:00.000Z'), value: new Decimal('120.00') },
+  ])
+  mockRepo.getAdminOrderSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-01T00:00:00.000Z'), value: new Decimal(1) },
+    { bucket: new Date('2026-06-02T00:00:00.000Z'), value: new Decimal(1) },
+  ])
+  mockRepo.getAdminSellerGrowthSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-01T00:00:00.000Z'), value: new Decimal(1) },
+    { bucket: new Date('2026-06-02T00:00:00.000Z'), value: new Decimal(1) },
+  ])
+  mockRepo.getAdminRefundSeriesForRange.mockResolvedValue([
+    {
+      bucket: new Date('2026-06-02T00:00:00.000Z'),
+      value: new Decimal(1),
+      secondaryValue: new Decimal('30.00'),
+    },
+  ])
+  mockRepo.getAdminDisputeSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-03T00:00:00.000Z'), value: new Decimal(1) },
+  ])
+  mockRepo.getAdminCommissionSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-01T00:00:00.000Z'), value: new Decimal('42.00') },
+  ])
 }
 
 beforeEach(() => {
@@ -194,15 +187,34 @@ describe('getMarketplaceAnalytics', () => {
 
   it('returns valid zero analytics for an empty dataset', async () => {
     setupRepoMocks()
-    mockRepo.getOrdersForRange.mockReset()
-    mockRepo.getOrdersForRange.mockResolvedValue([])
-    mockRepo.getOrderItemsForRange.mockReset()
-    mockRepo.getOrderItemsForRange.mockResolvedValue([])
-    mockRepo.getCommissionRowsForRange.mockResolvedValue([])
-    mockRepo.getRefundRowsForRange.mockResolvedValue([])
-    mockRepo.getDisputeRowsForRange.mockResolvedValue([])
-    mockRepo.getSellerGrowthRowsForRange.mockReset()
-    mockRepo.getSellerGrowthRowsForRange.mockResolvedValue([])
+    mockRepo.getAdminOrderMetricsForRange.mockReset()
+    mockRepo.getAdminOrderMetricsForRange.mockResolvedValue({
+      gmv: new Decimal(0),
+      ordersTotal: 0,
+      paidOrders: 0,
+      codOrders: 0,
+      failedPayments: 0,
+    })
+    mockRepo.getAdminCommissionMetricsForRange.mockResolvedValue({
+      commissionRevenue: new Decimal(0),
+      netSellerRevenue: new Decimal(0),
+    })
+    mockRepo.getAdminRefundMetricsForRange.mockResolvedValue({
+      refundCount: 0,
+      refundAmount: new Decimal(0),
+    })
+    mockRepo.getAdminDisputeCountForRange.mockResolvedValue(0)
+    mockRepo.getSellerGrowthCountForRange.mockReset()
+    mockRepo.getSellerGrowthCountForRange.mockResolvedValue(0)
+    mockRepo.getAdminTopSellersForRange.mockResolvedValue([])
+    mockRepo.getAdminTopProductsForRange.mockResolvedValue([])
+    mockRepo.getAdminTopCategoriesForRange.mockResolvedValue([])
+    mockRepo.getAdminRevenueSeriesForRange.mockResolvedValue([])
+    mockRepo.getAdminOrderSeriesForRange.mockResolvedValue([])
+    mockRepo.getAdminSellerGrowthSeriesForRange.mockResolvedValue([])
+    mockRepo.getAdminRefundSeriesForRange.mockResolvedValue([])
+    mockRepo.getAdminDisputeSeriesForRange.mockResolvedValue([])
+    mockRepo.getAdminCommissionSeriesForRange.mockResolvedValue([])
 
     const result = await getMarketplaceAnalytics(mockAdmin, {
       range: 'custom',

@@ -7,7 +7,8 @@ import {
   buildDateBuckets,
   calculateGrowthPercent,
   fillMissingBucketsWithZero,
-  groupByInterval,
+  formatBucketDate,
+  getBucketStart,
   resolveAnalyticsDateRange,
 } from '@/features/analytics/analytics.helpers'
 import type { SellerAnalyticsQuery } from '@/features/analytics/analytics.schema'
@@ -17,57 +18,32 @@ import {
   getRevenueLast30Days,
   getSellerBalanceSnapshot,
   getSellerDisputeCountForRange,
-  getSellerOrderItemsForRange,
+  getSellerFulfillmentSeriesForRange,
+  getSellerOrderSeriesForRange,
+  getSellerRangeMetrics,
   getSellerRefundMetricsForRange,
+  getSellerRevenueSeriesForRange,
+  getSellerTopProductsForRange,
   getTotalProductsSold,
   getTotalRevenue,
+  type AnalyticsBucketValueRow,
 } from './seller-analytics.repository'
-import { ItemFulfillmentStatus } from '@/app/generated/prisma/client'
 
 const TOP_PRODUCTS_LIMIT = 10
 
-function sumItemRevenue(items: { unitPriceSnapshot: Decimal; quantity: number }[]): Decimal {
-  return items.reduce(
-    (sum, item) => sum.plus(new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)),
-    new Decimal(0),
+function toGroupedMap(
+  rows: AnalyticsBucketValueRow[],
+  interval: SellerAnalyticsQuery['interval'],
+) {
+  return new Map(
+    rows.map((row) => [
+      formatBucketDate(getBucketStart(row.bucket, interval ?? 'day'), interval ?? 'day'),
+      {
+        value: row.value,
+        secondaryValue: row.secondaryValue,
+      },
+    ]),
   )
-}
-
-function buildTopProductsFromItems(
-  items: Awaited<ReturnType<typeof getSellerOrderItemsForRange>>,
-): SellerAnalyticsDto['topProducts'] {
-  const grouped = new Map<
-    string,
-    { productId: string; name: string; totalSold: number; revenue: Decimal }
-  >()
-
-  for (const item of items) {
-    const existing = grouped.get(item.productNameSnapshot)
-    const revenue = new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity)
-
-    if (existing) {
-      existing.totalSold += item.quantity
-      existing.revenue = existing.revenue.plus(revenue)
-      continue
-    }
-
-    grouped.set(item.productNameSnapshot, {
-      productId: item.variantId,
-      name: item.productNameSnapshot,
-      totalSold: item.quantity,
-      revenue,
-    })
-  }
-
-  return Array.from(grouped.values())
-    .sort((left, right) => right.totalSold - left.totalSold)
-    .slice(0, TOP_PRODUCTS_LIMIT)
-    .map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      totalSold: item.totalSold,
-      revenue: item.revenue.toFixed(2),
-    }))
 }
 
 export async function getMyAnalytics(
@@ -92,82 +68,72 @@ export async function getMyAnalytics(
       totalOrders,
       totalProductsSold,
       revenueLast30Days,
-      currentItems,
-      previousItems,
+      currentMetrics,
+      previousMetrics,
       refundMetrics,
       disputeCount,
       balance,
+      revenueSeriesRows,
+      orderSeriesRows,
+      fulfillmentSeriesRows,
+      topProducts,
     ] = await Promise.all([
       getTotalRevenue(store.id),
       getOrderCount(store.id),
       getTotalProductsSold(store.id),
       getRevenueLast30Days(store.id),
-      getSellerOrderItemsForRange(store.id, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerOrderItemsForRange(store.id, resolvedRange.previous.from, resolvedRange.previous.to),
+      getSellerRangeMetrics(store.id, resolvedRange.current.from, resolvedRange.current.to),
+      getSellerRangeMetrics(store.id, resolvedRange.previous.from, resolvedRange.previous.to),
       getSellerRefundMetricsForRange(store.id, resolvedRange.current.from, resolvedRange.current.to),
       getSellerDisputeCountForRange(store.id, resolvedRange.current.from, resolvedRange.current.to),
       getSellerBalanceSnapshot(store.id),
+      getSellerRevenueSeriesForRange(
+        store.id,
+        resolvedRange.current.from,
+        resolvedRange.current.to,
+        resolvedRange.interval,
+      ),
+      getSellerOrderSeriesForRange(
+        store.id,
+        resolvedRange.current.from,
+        resolvedRange.current.to,
+        resolvedRange.interval,
+      ),
+      getSellerFulfillmentSeriesForRange(
+        store.id,
+        resolvedRange.current.from,
+        resolvedRange.current.to,
+        resolvedRange.interval,
+      ),
+      getSellerTopProductsForRange(
+        store.id,
+        resolvedRange.current.from,
+        resolvedRange.current.to,
+        TOP_PRODUCTS_LIMIT,
+      ),
     ])
-
-    const revenueTotal = sumItemRevenue(currentItems)
-    const revenuePreviousPeriod = sumItemRevenue(previousItems)
-    const currentOrderIds = new Set(currentItems.map((item) => item.orderId))
-    const previousOrderIds = new Set(previousItems.map((item) => item.orderId))
-    const unitsSold = currentItems.reduce((sum, item) => sum + item.quantity, 0)
-    const pendingFulfillmentCount = currentItems.filter(
-      (item) => item.fulfillmentStatus === ItemFulfillmentStatus.PENDING,
-    ).length
-    const shippedFulfillmentCount = currentItems.filter(
-      (item) => item.fulfillmentStatus === ItemFulfillmentStatus.SHIPPED,
-    ).length
-    const deliveredFulfillmentCount = currentItems.filter(
-      (item) => item.fulfillmentStatus === ItemFulfillmentStatus.DELIVERED,
-    ).length
 
     const buckets = buildDateBuckets(
       resolvedRange.current.from,
       resolvedRange.current.to,
       resolvedRange.interval,
     )
+
     const revenueSeries = fillMissingBucketsWithZero(
       buckets,
-      groupByInterval(currentItems, {
-        interval: resolvedRange.interval,
-        getDate: (item) => item.createdAt,
-        getValue: (item) => new Decimal(item.unitPriceSnapshot.toString()).mul(item.quantity),
-      }),
+      toGroupedMap(revenueSeriesRows, resolvedRange.interval),
       (value) => value.toFixed(2),
     )
 
-    const uniqueOrders = Array.from(
-      currentItems.reduce((map, item) => {
-        if (!map.has(item.orderId)) {
-          map.set(item.orderId, { orderId: item.orderId, createdAt: item.createdAt })
-        }
-
-        return map
-      }, new Map<string, { orderId: string; createdAt: Date }>()),
-    ).map(([, value]) => value)
-
     const orderSeries = fillMissingBucketsWithZero(
       buckets,
-      groupByInterval(uniqueOrders, {
-        interval: resolvedRange.interval,
-        getDate: (item) => item.createdAt,
-        getValue: () => 1,
-      }),
+      toGroupedMap(orderSeriesRows, resolvedRange.interval),
       (value) => value.toNumber(),
     )
 
     const fulfillmentSeries = fillMissingBucketsWithZero(
       buckets,
-      groupByInterval(currentItems, {
-        interval: resolvedRange.interval,
-        getDate: (item) => item.createdAt,
-        getValue: () => 1,
-        getSecondaryValue: (item) =>
-          item.fulfillmentStatus === ItemFulfillmentStatus.DELIVERED ? 1 : undefined,
-      }),
+      toGroupedMap(fulfillmentSeriesRows, resolvedRange.interval),
       (value) => value.toNumber(),
     )
 
@@ -175,20 +141,28 @@ export async function getMyAnalytics(
       totalRevenue: totalRevenue.toFixed(2),
       totalOrders,
       totalProductsSold,
-      topProducts: buildTopProductsFromItems(currentItems),
+      topProducts,
       revenueLast30Days: revenueLast30Days.toFixed(2),
-      revenueTotal: revenueTotal.toFixed(2),
-      revenuePreviousPeriod: revenuePreviousPeriod.toFixed(2),
-      revenueGrowthPercent: calculateGrowthPercent(revenueTotal, revenuePreviousPeriod),
-      ordersTotal: currentOrderIds.size,
-      ordersPreviousPeriod: previousOrderIds.size,
-      ordersGrowthPercent: calculateGrowthPercent(currentOrderIds.size, previousOrderIds.size),
-      unitsSold,
+      revenueTotal: currentMetrics.revenueTotal.toFixed(2),
+      revenuePreviousPeriod: previousMetrics.revenueTotal.toFixed(2),
+      revenueGrowthPercent: calculateGrowthPercent(
+        currentMetrics.revenueTotal,
+        previousMetrics.revenueTotal,
+      ),
+      ordersTotal: currentMetrics.ordersTotal,
+      ordersPreviousPeriod: previousMetrics.ordersTotal,
+      ordersGrowthPercent: calculateGrowthPercent(
+        currentMetrics.ordersTotal,
+        previousMetrics.ordersTotal,
+      ),
+      unitsSold: currentMetrics.unitsSold,
       averageOrderValue:
-        currentOrderIds.size > 0 ? revenueTotal.div(currentOrderIds.size).toFixed(2) : '0.00',
-      pendingFulfillmentCount,
-      shippedFulfillmentCount,
-      deliveredFulfillmentCount,
+        currentMetrics.ordersTotal > 0
+          ? currentMetrics.revenueTotal.div(currentMetrics.ordersTotal).toFixed(2)
+          : new Decimal(0).toFixed(2),
+      pendingFulfillmentCount: currentMetrics.pendingFulfillmentCount,
+      shippedFulfillmentCount: currentMetrics.shippedFulfillmentCount,
+      deliveredFulfillmentCount: currentMetrics.deliveredFulfillmentCount,
       refundCount: refundMetrics.refundCount,
       refundAmount: refundMetrics.refundAmount.toFixed(2),
       disputeCount,

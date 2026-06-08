@@ -12,7 +12,6 @@ import * as guards from '@/lib/auth/guards'
 import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { AnalyticsAccessDeniedError } from '@/lib/errors/analytics'
-import { ItemFulfillmentStatus } from '@/app/generated/prisma/client'
 
 const mockAnalyticsRepo = vi.mocked(analyticsRepo)
 const mockStoreRepo = vi.mocked(storeRepo)
@@ -45,45 +44,24 @@ beforeEach(() => {
   mockAnalyticsRepo.getTotalRevenue.mockResolvedValue(new Decimal('1500.00'))
   mockAnalyticsRepo.getOrderCount.mockResolvedValue(42)
   mockAnalyticsRepo.getTotalProductsSold.mockResolvedValue(150)
-  mockAnalyticsRepo.getTopProducts.mockResolvedValue([
-    { productId: 'p1', name: 'Best Seller', totalSold: 50, revenue: '750.00' },
-  ])
   mockAnalyticsRepo.getRevenueLast30Days.mockResolvedValue(new Decimal('500.00'))
-  mockAnalyticsRepo.getSellerOrderItemsForRange
-    .mockResolvedValueOnce([
-      {
-        id: 'item-1',
-        orderId: 'order-1',
-        quantity: 2,
-        createdAt: new Date('2026-06-01T09:00:00.000Z'),
-        fulfillmentStatus: ItemFulfillmentStatus.PENDING,
-        productNameSnapshot: 'Best Seller',
-        variantId: 'variant-1',
-        unitPriceSnapshot: new Decimal('100.00'),
-      },
-      {
-        id: 'item-2',
-        orderId: 'order-2',
-        quantity: 1,
-        createdAt: new Date('2026-06-02T09:00:00.000Z'),
-        fulfillmentStatus: ItemFulfillmentStatus.DELIVERED,
-        productNameSnapshot: 'Second Seller',
-        variantId: 'variant-2',
-        unitPriceSnapshot: new Decimal('200.00'),
-      },
-    ])
-    .mockResolvedValueOnce([
-      {
-        id: 'item-3',
-        orderId: 'order-3',
-        quantity: 1,
-        createdAt: new Date('2026-05-30T09:00:00.000Z'),
-        fulfillmentStatus: ItemFulfillmentStatus.SHIPPED,
-        productNameSnapshot: 'Previous Product',
-        variantId: 'variant-3',
-        unitPriceSnapshot: new Decimal('100.00'),
-      },
-    ])
+  mockAnalyticsRepo.getSellerRangeMetrics
+    .mockResolvedValueOnce({
+      revenueTotal: new Decimal('400.00'),
+      ordersTotal: 2,
+      unitsSold: 3,
+      pendingFulfillmentCount: 1,
+      shippedFulfillmentCount: 0,
+      deliveredFulfillmentCount: 1,
+    })
+    .mockResolvedValueOnce({
+      revenueTotal: new Decimal('100.00'),
+      ordersTotal: 1,
+      unitsSold: 1,
+      pendingFulfillmentCount: 0,
+      shippedFulfillmentCount: 1,
+      deliveredFulfillmentCount: 0,
+    })
   mockAnalyticsRepo.getSellerRefundMetricsForRange.mockResolvedValue({
     refundCount: 2,
     refundAmount: new Decimal('50.00'),
@@ -94,6 +72,30 @@ beforeEach(() => {
     pendingAmount: new Decimal('80.00'),
     paidOutAmount: new Decimal('900.00'),
   })
+  mockAnalyticsRepo.getSellerRevenueSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-01T00:00:00.000Z'), value: new Decimal('200.00') },
+    { bucket: new Date('2026-06-02T00:00:00.000Z'), value: new Decimal('200.00') },
+  ])
+  mockAnalyticsRepo.getSellerOrderSeriesForRange.mockResolvedValue([
+    { bucket: new Date('2026-06-01T00:00:00.000Z'), value: new Decimal(1) },
+    { bucket: new Date('2026-06-02T00:00:00.000Z'), value: new Decimal(1) },
+  ])
+  mockAnalyticsRepo.getSellerFulfillmentSeriesForRange.mockResolvedValue([
+    {
+      bucket: new Date('2026-06-01T00:00:00.000Z'),
+      value: new Decimal(1),
+      secondaryValue: new Decimal(0),
+    },
+    {
+      bucket: new Date('2026-06-02T00:00:00.000Z'),
+      value: new Decimal(1),
+      secondaryValue: new Decimal(1),
+    },
+  ])
+  mockAnalyticsRepo.getSellerTopProductsForRange.mockResolvedValue([
+    { productId: 'variant-1', name: 'Best Seller', totalSold: 2, revenue: '200.00' },
+    { productId: 'variant-2', name: 'Second Seller', totalSold: 1, revenue: '200.00' },
+  ])
 })
 
 describe('getMyAnalytics', () => {
@@ -163,14 +165,25 @@ describe('getMyAnalytics', () => {
   })
 
   it('returns valid zero analytics for an empty dataset', async () => {
-    mockAnalyticsRepo.getSellerOrderItemsForRange.mockReset()
-    mockAnalyticsRepo.getSellerOrderItemsForRange.mockResolvedValue([])
+    mockAnalyticsRepo.getSellerRangeMetrics.mockReset()
+    mockAnalyticsRepo.getSellerRangeMetrics.mockResolvedValue({
+      revenueTotal: new Decimal(0),
+      ordersTotal: 0,
+      unitsSold: 0,
+      pendingFulfillmentCount: 0,
+      shippedFulfillmentCount: 0,
+      deliveredFulfillmentCount: 0,
+    })
     mockAnalyticsRepo.getSellerRefundMetricsForRange.mockResolvedValue({
       refundCount: 0,
       refundAmount: new Decimal(0),
     })
     mockAnalyticsRepo.getSellerDisputeCountForRange.mockResolvedValue(0)
     mockAnalyticsRepo.getSellerBalanceSnapshot.mockResolvedValue(null)
+    mockAnalyticsRepo.getSellerRevenueSeriesForRange.mockResolvedValue([])
+    mockAnalyticsRepo.getSellerOrderSeriesForRange.mockResolvedValue([])
+    mockAnalyticsRepo.getSellerFulfillmentSeriesForRange.mockResolvedValue([])
+    mockAnalyticsRepo.getSellerTopProductsForRange.mockResolvedValue([])
 
     const result = await getMyAnalytics(mockUser, {
       range: 'custom',
