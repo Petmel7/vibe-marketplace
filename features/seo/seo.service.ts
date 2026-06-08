@@ -2,6 +2,7 @@ import { SeoEntityType } from '@/app/generated/prisma/enums'
 import { requireAdmin } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { InvalidSeoMetadataError, SeoEntityNotFoundError, SeoMetadataNotFoundError } from '@/lib/errors/seo'
+import { revalidateSeoForMetadataEntity } from './seo.cache'
 import {
   buildBreadcrumbJsonLd,
   buildCanonicalUrl,
@@ -366,6 +367,7 @@ export async function createAdminSeoMetadata(user: SessionUser, input: CreateSeo
   requireAdmin(user)
   validateEntityInput(input)
   const item = await createSeoMetadata(input)
+  revalidateSeoForMetadataEntity(item.entityType)
   return toSeoMetadataDto(item)
 }
 
@@ -385,6 +387,7 @@ export async function updateAdminSeoMetadata(
   validateEntityInput({ entityType: nextEntityType, entityId: nextEntityId })
 
   const item = await updateSeoMetadata(id, input)
+  revalidateSeoForMetadataEntity(item.entityType)
   return toSeoMetadataDto(item)
 }
 
@@ -396,4 +399,5 @@ export async function deleteAdminSeoMetadata(user: SessionUser, id: string): Pro
   }
 
   await deleteSeoMetadata(id)
+  revalidateSeoForMetadataEntity(existing.entityType)
 }

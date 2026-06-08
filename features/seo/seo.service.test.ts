@@ -25,6 +25,10 @@ vi.mock('@/config/env', () => ({
   })),
 }))
 
+vi.mock('./seo.cache', () => ({
+  revalidateSeoForMetadataEntity: vi.fn(),
+}))
+
 import { SeoEntityType } from '@/app/generated/prisma/enums'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import * as repo from './seo.repository'
@@ -38,9 +42,11 @@ import {
 } from './seo.service'
 import { buildCanonicalUrl } from './seo.helpers'
 import { InvalidSeoMetadataError, SeoEntityNotFoundError } from '@/lib/errors/seo'
+import { revalidateSeoForMetadataEntity } from './seo.cache'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(guards)
+const mockRevalidateSeoForMetadataEntity = vi.mocked(revalidateSeoForMetadataEntity)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -196,5 +202,22 @@ describe('admin SEO metadata', () => {
         title: 'Marketplace',
       }),
     ).rejects.toBeInstanceOf(InvalidSeoMetadataError)
+  })
+
+  it('revalidates sitemap-related SEO cache after admin metadata create', async () => {
+    mockRepo.createSeoMetadata.mockResolvedValue(
+      makeSeoOverride({
+        entityType: SeoEntityType.PRODUCT,
+      }) as never,
+    )
+
+    const result = await createAdminSeoMetadata(adminUser, {
+      entityType: SeoEntityType.PRODUCT,
+      entityId: 'product-1',
+      title: 'Override title',
+    })
+
+    expect(result.entityType).toBe(SeoEntityType.PRODUCT)
+    expect(mockRevalidateSeoForMetadataEntity).toHaveBeenCalledWith(SeoEntityType.PRODUCT)
   })
 })

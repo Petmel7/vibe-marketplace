@@ -4,10 +4,9 @@ import {
   getGlobalSeo,
   getPageSeo,
   getProductSeo,
-  getRobotsConfig,
-  getSitemapEntries,
   getWebsiteSearchActionJsonLd,
 } from '@/features/seo/seo.service'
+export { getCachedRobotsConfig, getCachedSitemapEntries } from '@/features/seo/seo.cache'
 
 export const getCachedGlobalSeo = cache(async () => getGlobalSeo())
 
@@ -16,9 +15,5 @@ export const getCachedPageSeo = cache(async (pageKey: string) => getPageSeo(page
 export const getCachedProductSeo = cache(async (id: string) => getProductSeo({ id }))
 
 export const getCachedCategorySeo = cache(async (slug: string) => getCategorySeo({ slug }))
-
-export const getCachedSitemapEntries = cache(async () => getSitemapEntries())
-
-export const getCachedRobotsConfig = cache(async () => getRobotsConfig())
 
 export const getCachedWebsiteJsonLd = cache(async () => getWebsiteSearchActionJsonLd())
