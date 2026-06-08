@@ -39,14 +39,9 @@ type ProductRatingSummaryPreview = Pick<
   | 'updatedAt'
 >
 type ProductListStorePreview = Pick<Store, 'id' | 'name' | 'slug'>
+type ProductListVariantPreview = Pick<ProductVariant, 'id' | 'sku' | 'price' | 'stock'>
 
 export type ProductWithVariants = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
-export type ProductListProduct = Product & {
-  variants: ProductVariant[]
-  images: ProductImagePreview[]
-  store: ProductListStorePreview
-  ratingSummary: ProductRatingSummaryPreview | null
-}
 export type CategoryNode = Pick<Category, 'id' | 'parentId'>
 export type ProductDetailProduct = Product & {
   variants: ProductVariant[]
@@ -55,6 +50,67 @@ export type ProductDetailProduct = Product & {
   store: Pick<Prisma.StoreGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'>
   category: Pick<Prisma.CategoryGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'> | null
 }
+
+const PRODUCT_LIST_SELECT = {
+  id: true,
+  storeId: true,
+  categoryId: true,
+  name: true,
+  description: true,
+  price: true,
+  imageUrl: true,
+  isActive: true,
+  sku: true,
+  isHit: true,
+  isNew: true,
+  status: true,
+  publishedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  variants: {
+    select: {
+      id: true,
+      sku: true,
+      price: true,
+      stock: true,
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  },
+  images: {
+    select: {
+      id: true,
+      url: true,
+      isPrimary: true,
+      position: true,
+      createdAt: true,
+    },
+    orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+  },
+  store: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  },
+  ratingSummary: {
+    select: {
+      productId: true,
+      ratingAvg: true,
+      ratingCount: true,
+      rating1Count: true,
+      rating2Count: true,
+      rating3Count: true,
+      rating4Count: true,
+      rating5Count: true,
+      updatedAt: true,
+    },
+  },
+} satisfies Prisma.ProductSelect
+
+export type ProductListProduct = Prisma.ProductGetPayload<{
+  select: typeof PRODUCT_LIST_SELECT
+}>
 
 interface FindProductsParams {
   where: Prisma.ProductWhereInput
@@ -132,42 +188,6 @@ export interface ProductSearchRepositoryResult {
   facets: ProductSearchFacetsRecord
 }
 
-const PRODUCT_LIST_INCLUDE = {
-  variants: {
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  },
-  images: {
-    select: {
-      id: true,
-      url: true,
-      isPrimary: true,
-      position: true,
-      createdAt: true,
-    },
-    orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
-  },
-  store: {
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-    },
-  },
-  ratingSummary: {
-    select: {
-      productId: true,
-      ratingAvg: true,
-      ratingCount: true,
-      rating1Count: true,
-      rating2Count: true,
-      rating3Count: true,
-      rating4Count: true,
-      rating5Count: true,
-      updatedAt: true,
-    },
-  },
-} satisfies Prisma.ProductInclude
-
 /**
  * Return a paginated list of active products using service-composed filters.
  *
@@ -187,7 +207,7 @@ export async function findProducts(
       skip,
       take: limit,
       orderBy,
-      include: PRODUCT_LIST_INCLUDE,
+      select: PRODUCT_LIST_SELECT,
     }),
     prisma.product.count({ where }),
   ])
@@ -352,7 +372,7 @@ async function findProductsByIdsInOrder(ids: string[]): Promise<ProductListProdu
         in: ids,
       },
     },
-    include: PRODUCT_LIST_INCLUDE,
+    select: PRODUCT_LIST_SELECT,
   })
 
   const itemsById = new Map(items.map((item) => [item.id, item]))

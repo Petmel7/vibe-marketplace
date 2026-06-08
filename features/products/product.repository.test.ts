@@ -91,8 +91,29 @@ describe('findProducts', () => {
       skip: 12,
       take: 12,
       orderBy,
-      include: {
+      select: {
+        id: true,
+        storeId: true,
+        categoryId: true,
+        name: true,
+        description: true,
+        price: true,
+        imageUrl: true,
+        isActive: true,
+        sku: true,
+        isHit: true,
+        isNew: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
         variants: {
+          select: {
+            id: true,
+            sku: true,
+            price: true,
+            stock: true,
+          },
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         },
         images: {
@@ -204,7 +225,16 @@ describe('searchProducts', () => {
           in: ['prod-1'],
         },
       },
-      include: expect.objectContaining({
+      select: expect.objectContaining({
+        variants: {
+          select: {
+            id: true,
+            sku: true,
+            price: true,
+            stock: true,
+          },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
         store: {
           select: {
             id: true,

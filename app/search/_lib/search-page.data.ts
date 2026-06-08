@@ -1,9 +1,9 @@
-import { headers } from 'next/headers'
 import type {
   ProductSearchDto,
   ProductSearchSort,
 } from '@/features/products/product.dto'
-import { API_ROUTES } from '@/lib/constants/apiRoutes'
+import { productSearchQuerySchema } from '@/features/products/product.schema'
+import { searchProducts } from '@/features/products/product.service'
 import {
   fetchCategories,
   fetchCategoryTree,
@@ -115,46 +115,24 @@ export function buildSearchParamsFromState(state: SearchPageUrlState) {
   return params
 }
 
-async function getRequestOrigin() {
-  const headerStore = await headers()
-  const host =
-    headerStore.get('x-forwarded-host') ?? headerStore.get('host')
-
-  if (!host) {
-    return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  }
-
-  const protocol =
-    headerStore.get('x-forwarded-proto') ??
-    (host.includes('localhost') ? 'http' : 'https')
-
-  return `${protocol}://${host}`
-}
-
 async function fetchSearchResults(
   state: SearchPageUrlState,
 ): Promise<ProductSearchDto> {
-  const origin = await getRequestOrigin()
-  const params = buildSearchParamsFromState(state)
-  const requestUrl = `${origin}${API_ROUTES.productSearch}${
-    params.size > 0 ? `?${params.toString()}` : ''
-  }`
-  const response = await fetch(requestUrl, {
-    cache: 'no-store',
+  const query = productSearchQuerySchema.parse({
+    q: state.q || undefined,
+    category: state.category ?? undefined,
+    minPrice: state.minPrice || undefined,
+    maxPrice: state.maxPrice || undefined,
+    inStock: state.inStock ? 'true' : undefined,
+    rating: state.rating ?? undefined,
+    badge: state.badge ?? undefined,
+    store: state.store ?? undefined,
+    sort: state.sort,
+    page: state.page,
+    limit: state.limit,
   })
-  const payload = (await response.json()) as
-    | { success: true; data: ProductSearchDto }
-    | { success: false; error?: { message?: string } }
 
-  if (!response.ok || !payload.success) {
-    throw new Error(
-      payload.success === false
-        ? payload.error?.message ?? 'Не вдалося завантажити результати пошуку.'
-        : 'Не вдалося завантажити результати пошуку.',
-    )
-  }
-
-  return payload.data
+  return searchProducts(query)
 }
 
 export async function getSearchPageData(

@@ -49,6 +49,7 @@ export interface ProductImageDto {
 export interface ProductSummaryDto {
   id: string
   storeId: string
+  href: string
   name: string
   description: string | null
   /** Base product price, serialized as string. */

@@ -262,6 +262,7 @@ describe('listProducts', () => {
         {
           id: 'prod-1',
           storeId: 'store-1',
+          href: '/products/prod-1',
           name: 'Test Product',
           description: 'A test product',
           price: '99.99',
@@ -304,6 +305,7 @@ describe('listProducts', () => {
         {
           id: 'prod-1',
           storeId: 'store-1',
+          href: '/products/prod-1',
           name: 'Test Product',
           description: 'A test product',
           price: '99.99',

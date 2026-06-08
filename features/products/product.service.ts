@@ -43,7 +43,7 @@ import type { ProductBadgeDto } from './product-badge.dto'
 
 const LOW_STOCK_THRESHOLD = 3
 
-function deriveInventoryState(variants: ProductVariant[]): {
+function deriveInventoryState(variants: Array<Pick<ProductVariant, 'stock'>>): {
   inStock: boolean
   totalStock: number
   stockStatus: ProductStockStatus
@@ -74,6 +74,11 @@ function deriveInventoryState(variants: ProductVariant[]): {
   }
 }
 
+type ProductSummaryVariantLike = Pick<ProductVariant, 'id' | 'sku' | 'price' | 'stock'> & {
+  size?: string | null
+  color?: string | null
+}
+
 // ---------------------------------------------------------------------------
 // Typed application errors
 // ---------------------------------------------------------------------------
@@ -97,7 +102,7 @@ export class ProductNotFoundError extends Error {
  */
 function toProductSummaryDto(
   product: Product | ProductListProduct,
-  variants: ProductVariant[] = [],
+  variants: ProductSummaryVariantLike[] = [],
   marketplaceBadges: ProductBadgeDto[] = [],
   badgeContext: ProductBadgeContext = 'DEFAULT',
 ): ProductSummaryDto {
@@ -119,6 +124,7 @@ function toProductSummaryDto(
     sku: product.sku ?? null,
     isHit: allBadgeTypes.has('HIT') || product.isHit,
     isNew: allBadgeTypes.has('NEW') || product.isNew,
+    href: `/products/${product.id}`,
     badgeContext,
     badges: contextualBadges.map(toProductMarketplaceBadgeDto),
     createdAt: product.createdAt.toISOString(),
@@ -238,7 +244,7 @@ function selectContextualBadges(
  * Map a Prisma ProductVariant row to ProductVariantDto.
  * Nullable Decimal price is serialized to string or null.
  */
-function toProductVariantDto(variant: ProductVariant): ProductVariantDto {
+function toProductVariantDto(variant: ProductSummaryVariantLike): ProductVariantDto {
   return {
     id: variant.id,
     sku: variant.sku,
