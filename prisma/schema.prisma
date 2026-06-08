@@ -67,6 +67,8 @@ model Store {
   name                String
   slug                String               @unique
   description         String?
+  seoTitle            String?              @map("seo_title")
+  seoDescription      String?              @map("seo_description")
   logoUrl             String?              @map("logo_url")
   isActive            Boolean              @default(true) @map("is_active")
   createdAt           DateTime             @default(now()) @map("created_at")
@@ -98,6 +100,9 @@ model Category {
   id         String     @id @default(cuid())
   name       String
   slug       String     @unique
+  seoTitle   String?    @map("seo_title")
+  seoDescription String? @map("seo_description")
+  seoText    String?    @map("seo_text")
   image      String?    @map("image_url")
   createdAt  DateTime   @default(now()) @map("created_at")
   updatedAt  DateTime   @updatedAt @map("updated_at")
@@ -164,6 +169,29 @@ model Product {
   @@index([storeId, status], map: "products_storeId_status_idx")
   @@index([searchVector], map: "products_searchVector_idx", type: Gin)
   @@map("products")
+}
+
+model SeoMetadata {
+  id            String        @id @default(uuid()) @db.Uuid
+  entityType    SeoEntityType @map("entity_type")
+  entityId      String?       @map("entity_id")
+  title         String
+  description   String?
+  keywords      String?
+  canonicalUrl  String?       @map("canonical_url")
+  ogTitle       String?       @map("og_title")
+  ogDescription String?       @map("og_description")
+  ogImageUrl    String?       @map("og_image_url")
+  noIndex       Boolean       @default(false) @map("no_index")
+  noFollow      Boolean       @default(false) @map("no_follow")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@unique([entityType, entityId], map: "seo_metadata_entity_type_entity_id_key")
+  @@index([entityType], map: "seo_metadata_entity_type_idx")
+  @@index([entityId], map: "seo_metadata_entity_id_idx")
+  @@index([noIndex], map: "seo_metadata_no_index_idx")
+  @@map("seo_metadata")
 }
 
 model ProductBadge {
@@ -1406,6 +1434,14 @@ enum ShipmentStatus {
   FAILED
   CANCELLED
   RETURNED
+}
+
+enum SeoEntityType {
+  GLOBAL
+  PRODUCT
+  CATEGORY
+  STORE
+  PAGE
 }
 
 enum RefundStatus {
