@@ -99,4 +99,18 @@ describe('config/env', () => {
       )
     }
   })
+
+  it('parses optional Nova Poshta directory cache settings safely', async () => {
+    const { parseServerEnv } = await loadEnvModule()
+    const env = parseServerEnv({
+      NODE_ENV: 'development',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
+      NOVA_POSHTA_CACHE_ENABLED: 'false',
+      NOVA_POSHTA_CACHE_TTL_SECONDS: '3600',
+    })
+
+    expect(env.NOVA_POSHTA_CACHE_ENABLED).toBe(false)
+    expect(env.NOVA_POSHTA_CACHE_TTL_SECONDS).toBe(3600)
+  })
 })

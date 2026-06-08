@@ -6,6 +6,7 @@ import {
   ShippingProviderError,
 } from '@/lib/errors/shipping'
 import { getServerEnv } from '@/config/env'
+import { logInfo, logWarn } from '@/utils/logger'
 import type {
   NovaPoshtaCityDto,
   NovaPoshtaCreateShipmentDto,
@@ -17,10 +18,18 @@ import type {
   NovaPoshtaWarehouseDto,
 } from '../shipping.dto'
 import { ShipmentStatus, ShippingDeliveryType } from '@/app/generated/prisma/client'
+import {
+  InMemoryNovaPoshtaDirectoryCache,
+  type NovaPoshtaDirectoryCache,
+} from './nova-poshta-directory-cache'
 
 type NovaPoshtaConfig = {
   apiKey: string
   apiUrl: string
+  directoryCacheEnabled: boolean
+  citySearchCacheTtlMs: number
+  warehouseLookupCacheTtlMs: number
+  logDiagnostics: boolean
 }
 
 type NovaPoshtaEnvelope<T> = {
@@ -65,6 +74,28 @@ type NovaPoshtaEstimateResponse = {
 const DEFAULT_API_URL = 'https://api.novaposhta.ua/v2.0/json/'
 const FALLBACK_WAREHOUSE_ESTIMATE = '80.00'
 const FALLBACK_COURIER_ESTIMATE = '120.00'
+const DEFAULT_CITY_SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const DEFAULT_WAREHOUSE_LOOKUP_CACHE_TTL_MS = 12 * 60 * 60 * 1000
+
+function normalizeCacheTtlMs(ttlSeconds: number | undefined, fallbackMs: number) {
+  if (ttlSeconds == null) {
+    return fallbackMs
+  }
+
+  return Math.max(1, ttlSeconds) * 1000
+}
+
+export function normalizeNovaPoshtaCityQuery(query: string) {
+  return query.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function buildCitySearchCacheKey(query: string) {
+  return `nova-poshta:cities:${normalizeNovaPoshtaCityQuery(query)}`
+}
+
+function buildWarehouseLookupCacheKey(cityRef: string) {
+  return `nova-poshta:warehouses:${cityRef.trim()}`
+}
 
 function getConfigFromEnv(): NovaPoshtaConfig {
   const env = getServerEnv()
@@ -81,11 +112,60 @@ function getConfigFromEnv(): NovaPoshtaConfig {
     throw new ShippingProviderError('NOVA_POSHTA_API_URL must be a valid absolute URL')
   }
 
-  return { apiKey, apiUrl }
+  return {
+    apiKey,
+    apiUrl,
+    directoryCacheEnabled: env.NOVA_POSHTA_CACHE_ENABLED ?? true,
+    citySearchCacheTtlMs: normalizeCacheTtlMs(
+      env.NOVA_POSHTA_CACHE_TTL_SECONDS,
+      DEFAULT_CITY_SEARCH_CACHE_TTL_MS,
+    ),
+    warehouseLookupCacheTtlMs: normalizeCacheTtlMs(
+      env.NOVA_POSHTA_CACHE_TTL_SECONDS,
+      DEFAULT_WAREHOUSE_LOOKUP_CACHE_TTL_MS,
+    ),
+    logDiagnostics: env.NODE_ENV !== 'production',
+  }
 }
 
+const defaultDirectoryCache = new InMemoryNovaPoshtaDirectoryCache()
+
 export class NovaPoshtaProvider {
-  constructor(private readonly config: NovaPoshtaConfig = getConfigFromEnv()) {}
+  constructor(
+    private readonly config: NovaPoshtaConfig = getConfigFromEnv(),
+    private readonly directoryCache: NovaPoshtaDirectoryCache = defaultDirectoryCache,
+  ) {}
+
+  private logDirectoryCacheHit(key: string) {
+    if (!this.config.logDiagnostics) return
+
+    logInfo('shipping:nova-poshta-directory-cache-hit', {
+      domain: 'shipping',
+      cacheKey: key,
+    })
+  }
+
+  private logDirectoryCacheMiss(key: string) {
+    if (!this.config.logDiagnostics) return
+
+    logInfo('shipping:nova-poshta-directory-cache-miss', {
+      domain: 'shipping',
+      cacheKey: key,
+    })
+  }
+
+  private logDirectoryProviderFailure(key: string, error: unknown) {
+    if (!this.config.logDiagnostics) return
+
+    logWarn(
+      'shipping:nova-poshta-directory-provider-failure',
+      {
+        domain: 'shipping',
+        cacheKey: key,
+      },
+      error,
+    )
+  }
 
   private async request<T>(modelName: string, calledMethod: string, methodProperties: object) {
     let response: Response
@@ -127,47 +207,77 @@ export class NovaPoshtaProvider {
   }
 
   async searchCities(query: string): Promise<NovaPoshtaCityDto[]> {
-    if (!query.trim()) {
+    const normalizedQuery = normalizeNovaPoshtaCityQuery(query)
+    if (!normalizedQuery) {
       return []
     }
 
-    const cities = await this.request<NovaPoshtaCityResponse>('Address', 'searchSettlements', {
-      CityName: query.trim(),
-      Limit: 20,
-    })
+    const cacheKey = buildCitySearchCacheKey(normalizedQuery)
 
-    return cities.flatMap((entry) => {
-      const addresses = Array.isArray(entry.Addresses) ? entry.Addresses : [entry]
+    return this.directoryCache.getOrLoad({
+      key: cacheKey,
+      ttlMs: this.config.citySearchCacheTtlMs,
+      enabled: this.config.directoryCacheEnabled,
+      onHit: (key) => this.logDirectoryCacheHit(key),
+      onMiss: (key) => this.logDirectoryCacheMiss(key),
+      onLoadError: (key, error) => this.logDirectoryProviderFailure(key, error),
+      loader: async () => {
+        const cities = await this.request<NovaPoshtaCityResponse>('Address', 'searchSettlements', {
+          CityName: query.trim(),
+          Limit: 20,
+        })
 
-      return addresses
-        .filter((city) => city.Ref && city.Description)
-        .map((city) => ({
-          ref: city.Ref,
-          name: city.Description,
-          area: city.AreaDescription ?? null,
-          settlementType: city.SettlementTypeDescription ?? null,
-        }))
+        return cities.flatMap((entry) => {
+          const addresses = Array.isArray(entry.Addresses) ? entry.Addresses : [entry]
+
+          return addresses
+            .filter((city) => city.Ref && city.Description)
+            .map((city) => ({
+              ref: city.Ref,
+              name: city.Description,
+              area: city.AreaDescription ?? null,
+              settlementType: city.SettlementTypeDescription ?? null,
+            }))
+        })
+      },
     })
   }
 
   async getWarehouses(cityRef: string): Promise<NovaPoshtaWarehouseDto[]> {
-    if (!cityRef.trim()) {
+    const normalizedCityRef = cityRef.trim()
+    if (!normalizedCityRef) {
       return []
     }
 
-    const warehouses = await this.request<NovaPoshtaWarehouseResponse>('Address', 'getWarehouses', {
-      CityRef: cityRef.trim(),
-      Limit: 200,
-    })
+    const cacheKey = buildWarehouseLookupCacheKey(normalizedCityRef)
 
-    return warehouses
-      .filter((warehouse) => warehouse.Ref && warehouse.Description)
-      .map((warehouse) => ({
-        ref: warehouse.Ref,
-        name: warehouse.Description,
-        cityRef: warehouse.CityRef,
-        cityName: warehouse.CityDescription ?? null,
-      }))
+    return this.directoryCache.getOrLoad({
+      key: cacheKey,
+      ttlMs: this.config.warehouseLookupCacheTtlMs,
+      enabled: this.config.directoryCacheEnabled,
+      onHit: (key) => this.logDirectoryCacheHit(key),
+      onMiss: (key) => this.logDirectoryCacheMiss(key),
+      onLoadError: (key, error) => this.logDirectoryProviderFailure(key, error),
+      loader: async () => {
+        const warehouses = await this.request<NovaPoshtaWarehouseResponse>(
+          'Address',
+          'getWarehouses',
+          {
+            CityRef: normalizedCityRef,
+            Limit: 200,
+          },
+        )
+
+        return warehouses
+          .filter((warehouse) => warehouse.Ref && warehouse.Description)
+          .map((warehouse) => ({
+            ref: warehouse.Ref,
+            name: warehouse.Description,
+            cityRef: warehouse.CityRef,
+            cityName: warehouse.CityDescription ?? null,
+          }))
+      },
+    })
   }
 
   async estimateDelivery(input: NovaPoshtaEstimateInput): Promise<NovaPoshtaEstimateDto> {

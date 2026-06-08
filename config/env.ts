@@ -12,6 +12,18 @@ const booleanFlagSchema = z
     return ['1', 'true', 'yes', 'on'].includes(normalized)
   })
 
+const optionalBooleanSettingSchema = z
+  .union([z.boolean(), z.string(), z.number()])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) return undefined
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'number') return value !== 0
+
+    const normalized = value.trim().toLowerCase()
+    return ['1', 'true', 'yes', 'on'].includes(normalized)
+  })
+
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
@@ -28,6 +40,8 @@ const serverEnvSchema = publicEnvSchema
     LIQPAY_PRIVATE_KEY: z.string().min(1).optional(),
     NOVA_POSHTA_API_KEY: z.string().min(1).optional(),
     NOVA_POSHTA_API_URL: z.url().optional(),
+    NOVA_POSHTA_CACHE_ENABLED: optionalBooleanSettingSchema,
+    NOVA_POSHTA_CACHE_TTL_SECONDS: z.coerce.number().int().positive().optional(),
     APP_URL: z.url().optional(),
     JOB_RUNNER_SECRET: z.string().min(1).optional(),
     EMAIL_ENABLED: booleanFlagSchema,
