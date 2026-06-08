@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/session/getSession'
 import { checkoutPreviewSchema, checkoutSchema } from '@/features/checkout/checkout.schema'
 import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { assertRateLimit, rateLimitProfiles } from '@/lib/security/rate-limit'
+import { validationErrorResponse } from '@/lib/http/validation'
 
 /**
  * POST /api/checkout
@@ -18,6 +20,7 @@ import { toErrorResponse } from '@/lib/errors/handleError'
 export async function GET(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
+    assertRateLimit(request, rateLimitProfiles.checkout, { userId: user.id })
     const parsed = checkoutPreviewSchema.safeParse({
       cartId: request.nextUrl.searchParams.get('cartId') ?? undefined,
       deliveryType: request.nextUrl.searchParams.get('deliveryType') ?? undefined,
@@ -34,16 +37,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     })
 
     if (!parsed.success) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: 'Validation error',
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(parsed.error)
     }
 
     const data = await getCheckoutPreview(user, parsed.data)
@@ -56,19 +50,11 @@ export async function GET(request: NextRequest): Promise<Response> {
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth()
+    assertRateLimit(request, rateLimitProfiles.checkout, { userId: user.id })
     const body = await request.json()
     const parsed = checkoutSchema.safeParse(body)
     if (!parsed.success) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: 'Validation error',
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(parsed.error)
     }
     const data = await checkout(user, parsed.data)
     return Response.json({ success: true, data }, { status: 201 })

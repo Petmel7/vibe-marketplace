@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import { supabaseBrowser } from '@/lib/supabase-browser'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import type { Notification } from '@/types/notifications'
 import { isNotificationType } from '@/types/notifications'
 
@@ -50,7 +50,7 @@ async function safelyRemoveChannel(channel: RealtimeChannel | null) {
   if (!channel) return
 
   try {
-    await supabaseBrowser.removeChannel(channel)
+    await getSupabaseBrowser().removeChannel(channel)
   } catch {
     // Realtime cleanup failures should never break the UI lifecycle.
   }
@@ -101,6 +101,7 @@ export function useRealtimeNotifications({
     let pollingInterval: ReturnType<typeof setInterval> | null = null
     let recentActivityTimeout: ReturnType<typeof setTimeout> | null = null
     let setupRunId = 0
+    let supabase: ReturnType<typeof getSupabaseBrowser>
 
     const stopPolling = () => {
       if (!pollingInterval) return
@@ -138,6 +139,17 @@ export function useRealtimeNotifications({
       setIsRealtimeConnected(false)
     }
 
+    try {
+      supabase = getSupabaseBrowser()
+    } catch {
+      startPolling()
+      resetRealtimeState()
+      return () => {
+        isDisposed = true
+        stopPolling()
+      }
+    }
+
     const refreshFromServer = async () => {
       try {
         await Promise.resolve(onResyncRef.current())
@@ -167,7 +179,7 @@ export function useRealtimeNotifications({
         }
 
         const channelName = `notifications:user:${userId}:${++channelSequenceRef.current}`
-        const nextChannel = supabaseBrowser.channel(channelName)
+        const nextChannel = supabase.channel(channelName)
 
         nextChannel.on(
           'postgres_changes',
@@ -232,7 +244,7 @@ export function useRealtimeNotifications({
       try {
         const {
           data: { session },
-        } = await supabaseBrowser.auth.getSession()
+        } = await supabase.auth.getSession()
 
         if (isDisposed) return
 
@@ -262,7 +274,7 @@ export function useRealtimeNotifications({
 
     const {
       data: { subscription },
-    } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextUserId = session?.user?.id ?? null
 
       if (!nextUserId) {

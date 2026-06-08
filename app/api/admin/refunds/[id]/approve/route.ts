@@ -1,7 +1,10 @@
 import { ZodError } from 'zod'
 import { adminRefundMutationNoteSchema } from '@/features/refunds/refunds.schema'
 import { approveAdminRefundRequest } from '@/features/refunds/refunds.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { validationErrorResponse } from '@/lib/http/validation'
+import { getRequestId } from '@/lib/security/request'
 import { requireAuth } from '@/lib/session/getSession'
 
 interface Props {
@@ -15,20 +18,20 @@ export async function POST(request: Request, { params }: Props): Promise<Respons
     const input = adminRefundMutationNoteSchema.parse(body)
     const { id } = await params
     const data = await approveAdminRefundRequest(user, id, input)
+    await recordAdminAudit({
+      actorId: user.id,
+      action: 'approve',
+      domain: 'refunds',
+      targetId: id,
+      targetType: 'refund-request',
+      metadata: input,
+      requestId: getRequestId(request),
+    })
 
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((issue) => issue.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(error)
     }
 
     return toErrorResponse('POST /api/admin/refunds/[id]/approve', error)

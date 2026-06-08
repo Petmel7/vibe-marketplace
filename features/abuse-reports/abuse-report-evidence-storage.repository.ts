@@ -1,11 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getServerEnv } from '@/config/env'
 import {
   EvidenceUploadFailedError,
 } from '@/lib/errors/abuse-report'
 import { ABUSE_REPORT_EVIDENCE_BUCKET } from './abuse-report-evidence.dto'
 
 function buildStoredObjectUrl(storagePath: string): string {
-  const baseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, '') ?? ''
+  const baseUrl = getServerEnv().SUPABASE_URL?.replace(/\/+$/, '') ?? ''
   return `${baseUrl}/storage/v1/object/authenticated/${ABUSE_REPORT_EVIDENCE_BUCKET}/${storagePath}`
 }
 

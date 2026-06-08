@@ -2,10 +2,13 @@ import { type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { syncUser } from '@/features/auth/auth.service'
 import { UnauthorizedError, ForbiddenError } from '@/lib/errors/auth'
+import { assertRateLimit, rateLimitProfiles } from '@/lib/security/rate-limit'
 import { logError } from '@/utils/logger'
 
 export async function POST(request: NextRequest) {
   try {
+    assertRateLimit(request, rateLimitProfiles.auth)
+
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return Response.json(

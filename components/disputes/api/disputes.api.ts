@@ -1,7 +1,7 @@
 'use client'
 
 import { apiClient } from '@/shared/api/api.client'
-import { supabaseBrowser } from '@/lib/supabase-browser'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { ApiError, UnauthorizedError } from '@/shared/api/api.errors'
 import {
   API_ROUTES,
@@ -22,7 +22,7 @@ import type {
 async function getAccessToken() {
   const {
     data: { session },
-  } = await supabaseBrowser.auth.getSession()
+  } = await getSupabaseBrowser().auth.getSession()
 
   return session?.access_token ?? null
 }

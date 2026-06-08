@@ -8,7 +8,10 @@ import {
   createAdminPromotion,
   getAdminPromotions,
 } from '@/features/promotions/promotions.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { validationErrorResponse } from '@/lib/http/validation'
+import { getRequestId } from '@/lib/security/request'
 
 export async function GET(request: Request): Promise<Response> {
   try {
@@ -21,16 +24,7 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((issue) => issue.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(error)
     }
 
     return toErrorResponse('GET /api/admin/promotions', error)
@@ -42,20 +36,25 @@ export async function POST(request: Request): Promise<Response> {
     const user = await requireAuth()
     const body = createPromotionSchema.parse(await request.json())
     const data = await createAdminPromotion(user, body)
+    await recordAdminAudit({
+      actorId: user.id,
+      action: 'create',
+      domain: 'promotions',
+      targetId: data.id,
+      targetType: 'promotion',
+      metadata: {
+        ownerType: data.ownerType,
+        type: data.type,
+        code: data.code,
+        isActive: data.isActive,
+      },
+      requestId: getRequestId(request),
+    })
 
     return Response.json({ success: true, data }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((issue) => issue.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(error)
     }
 
     return toErrorResponse('POST /api/admin/promotions', error)

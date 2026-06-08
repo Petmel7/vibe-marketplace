@@ -1,5 +1,5 @@
 
-import { supabaseBrowser }
+import { getSupabaseBrowser }
     from '@/lib/supabase-browser'
 
 import {
@@ -22,7 +22,7 @@ type RequestOptions = Omit<
 async function getAccessToken() {
     const {
         data: { session },
-    } = await supabaseBrowser.auth.getSession()
+    } = await getSupabaseBrowser().auth.getSession()
 
     return session?.access_token ?? null
 }

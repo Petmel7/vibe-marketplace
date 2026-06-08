@@ -197,6 +197,7 @@ import {
   AnalyticsAggregationError,
   InvalidAnalyticsRangeError,
 } from './analytics'
+import { RateLimitExceededError } from './security'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -204,6 +205,18 @@ export function toErrorResponse(label: string, err: unknown): Response {
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 401 },
+    )
+  if (
+    err instanceof RateLimitExceededError
+  )
+    return Response.json(
+      { success: false, error: { message: err.message, code: err.code } },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(err.retryAfterSeconds),
+        },
+      },
     )
   if (
     err instanceof ForbiddenError ||

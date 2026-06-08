@@ -5,6 +5,7 @@ import {
   NovaPoshtaTrackingError,
   ShippingProviderError,
 } from '@/lib/errors/shipping'
+import { getServerEnv } from '@/config/env'
 import type {
   NovaPoshtaCityDto,
   NovaPoshtaCreateShipmentDto,
@@ -66,8 +67,9 @@ const FALLBACK_WAREHOUSE_ESTIMATE = '80.00'
 const FALLBACK_COURIER_ESTIMATE = '120.00'
 
 function getConfigFromEnv(): NovaPoshtaConfig {
-  const apiKey = process.env.NOVA_POSHTA_API_KEY?.trim()
-  const apiUrl = process.env.NOVA_POSHTA_API_URL?.trim() || DEFAULT_API_URL
+  const env = getServerEnv()
+  const apiKey = env.NOVA_POSHTA_API_KEY?.trim()
+  const apiUrl = env.NOVA_POSHTA_API_URL?.trim() || DEFAULT_API_URL
 
   if (!apiKey) {
     throw new ShippingProviderError('NOVA_POSHTA_API_KEY is not configured')

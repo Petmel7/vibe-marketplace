@@ -2,7 +2,9 @@ import { type NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/session/getSession'
 import { suspendSellerSchema } from '@/features/moderation/seller/seller-moderation.schema'
 import { suspendSeller } from '@/features/moderation/seller/seller-moderation.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { getRequestId } from '@/lib/security/request'
 
 /**
  * POST /api/admin/moderation/sellers/[id]/suspend
@@ -38,6 +40,17 @@ export async function POST(
       )
     }
     const data = await suspendSeller(user, id, parsed.data.reason)
+    await recordAdminAudit({
+      actorId: user.id,
+      action: 'suspend-seller',
+      domain: 'moderation',
+      targetId: id,
+      targetType: 'seller',
+      metadata: {
+        reason: parsed.data.reason,
+      },
+      requestId: getRequestId(request),
+    })
     return Response.json({ success: true, data })
   } catch (err) {
     return toErrorResponse('POST /api/admin/moderation/sellers/[id]/suspend', err)

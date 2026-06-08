@@ -2,7 +2,9 @@ import { type NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/session/getSession'
 import { rejectProductSchema } from '@/features/moderation/product/product-moderation.schema'
 import { rejectProduct } from '@/features/moderation/product/product-moderation.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { getRequestId } from '@/lib/security/request'
 
 /**
  * POST /api/admin/moderation/products/[id]/reject
@@ -37,6 +39,17 @@ export async function POST(
       )
     }
     const data = await rejectProduct(user, id, parsed.data.reason)
+    await recordAdminAudit({
+      actorId: user.id,
+      action: 'reject-product',
+      domain: 'moderation',
+      targetId: id,
+      targetType: 'product',
+      metadata: {
+        reason: parsed.data.reason,
+      },
+      requestId: getRequestId(request),
+    })
     return Response.json({ success: true, data })
   } catch (err) {
     return toErrorResponse('POST /api/admin/moderation/products/[id]/reject', err)

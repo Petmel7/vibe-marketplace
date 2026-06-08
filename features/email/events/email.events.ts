@@ -1,5 +1,6 @@
 import type { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
 import { enqueueEmailEvent } from '../queue/email.queue'
+import { getServerEnv } from '@/config/env'
 import {
   findAdminEmailRecipients,
   findOrderNotificationContext,
@@ -24,7 +25,7 @@ import type {
 } from '../email.dto'
 
 function buildAppUrl(path: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  const appUrl = getServerEnv().APP_URL?.trim()
   if (!appUrl) {
     return path
   }

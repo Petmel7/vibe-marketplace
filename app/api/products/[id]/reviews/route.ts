@@ -4,6 +4,8 @@ import { productIdParamSchema } from '@/features/products/product.schema'
 import { createReview, listReviews } from '@/features/review/review.service'
 import { reviewCreateSchema, reviewListQuerySchema } from '@/features/review/review.schema'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { validationErrorResponse } from '@/lib/http/validation'
+import { assertRateLimit, rateLimitProfiles } from '@/lib/security/rate-limit'
 import { requireAuth } from '@/lib/session/getSession'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -23,16 +25,7 @@ export async function GET(
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((issue) => issue.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(error)
     }
 
     return toErrorResponse('GET /api/products/[id]/reviews', error)
@@ -45,6 +38,7 @@ export async function POST(
 ): Promise<Response> {
   try {
     const user = await requireAuth()
+    assertRateLimit(request, rateLimitProfiles.reviews, { userId: user.id })
     const { id } = productIdParamSchema.parse(await params)
     const body = await request.json()
     const input = reviewCreateSchema.parse(body)
@@ -53,16 +47,7 @@ export async function POST(
     return Response.json({ success: true, data }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((issue) => issue.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
+      return validationErrorResponse(error)
     }
 
     return toErrorResponse('POST /api/products/[id]/reviews', error)

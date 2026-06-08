@@ -1,6 +1,7 @@
 import { PrismaClient } from '@/app/generated/prisma/client'
 import postgres from 'postgres'
 import type { SqlDriverAdapterFactory } from '@prisma/client/runtime/client'
+import { getServerEnv } from '@/config/env'
 
 // ---------------------------------------------------------------------------
 // Postgres.js → Prisma v7 driver adapter
@@ -192,7 +193,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL
+  const { DATABASE_URL: connectionString } = getServerEnv()
   if (!connectionString) {
     throw new Error('DATABASE_URL environment variable is not set')
   }

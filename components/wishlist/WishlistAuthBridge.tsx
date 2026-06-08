@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { supabaseBrowser } from '@/lib/supabase-browser'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { API_ROUTES, isAuthPagePath } from '@/lib/constants/apiRoutes'
 import { useWishlistStore } from '@/store/wishlistStore'
 import type { WishlistDto } from '@/features/wishlist/wishlist.dto'
@@ -28,6 +28,19 @@ export default function WishlistAuthBridge() {
 
   useEffect(() => {
     let cancelled = false
+    let subscription: { unsubscribe: () => void } | null = null
+    let supabase: ReturnType<typeof getSupabaseBrowser>
+
+    try {
+      supabase = getSupabaseBrowser()
+    } catch {
+      setLoading(false)
+      clear()
+
+      return () => {
+        cancelled = true
+      }
+    }
 
     async function loadWishlist(token: string, allowRetry = true) {
       setLoading(true)
@@ -118,7 +131,7 @@ export default function WishlistAuthBridge() {
 
       const {
         data: { session },
-      } = await supabaseBrowser.auth.getSession()
+      } = await supabase.auth.getSession()
 
       if (cancelled) return
 
@@ -138,9 +151,7 @@ export default function WishlistAuthBridge() {
 
     void hydrate()
 
-    const {
-      data: { subscription },
-    } = supabaseBrowser.auth.onAuthStateChange((event, session) => {
+    subscription = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         clear()
         return
@@ -153,11 +164,11 @@ export default function WishlistAuthBridge() {
           })
         }
       }
-    })
+    }).data.subscription
 
     return () => {
       cancelled = true
-      subscription.unsubscribe()
+      subscription?.unsubscribe()
     }
   }, [clear, pathname, setLoading, setProductIds])
 

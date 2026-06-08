@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { EmailDeliveryStatus, EmailProvider as EmailProviderName } from '@/app/generated/prisma/client'
+import { getServerEnv } from '@/config/env'
 import { EmailProviderError } from '@/lib/errors/email'
 import type { SendEmailNowInput } from '../email.dto'
 import type { EmailProvider } from './email-provider'
@@ -12,7 +13,8 @@ export class ResendEmailProvider implements EmailProvider {
   private readonly replyTo: string | null
 
   constructor(config?: { apiKey?: string; from?: string; replyTo?: string | null }) {
-    const apiKey = config?.apiKey ?? process.env.RESEND_API_KEY
+    const env = getServerEnv()
+    const apiKey = config?.apiKey ?? env.RESEND_API_KEY
     const from = config?.from ?? process.env.EMAIL_FROM
 
     if (!apiKey) {

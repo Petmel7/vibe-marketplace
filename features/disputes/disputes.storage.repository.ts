@@ -1,9 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getServerEnv } from '@/config/env'
 import { DisputeEvidenceUploadError } from '@/lib/errors/dispute'
 import { DISPUTE_EVIDENCE_BUCKET } from './disputes.dto'
 
 function buildStoredObjectUrl(storagePath: string): string {
-  const baseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, '') ?? ''
+  const baseUrl = getServerEnv().SUPABASE_URL?.replace(/\/+$/, '') ?? ''
   return `${baseUrl}/storage/v1/object/authenticated/${DISPUTE_EVIDENCE_BUCKET}/${storagePath}`
 }
 

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getServerEnv } from '@/config/env'
 
 /**
  * Creates a Supabase admin client using the service role key.
@@ -6,9 +7,14 @@ import { createClient } from '@supabase/supabase-js'
  * Creates a fresh instance — do not cache across requests.
  */
 export function createAdminClient() {
+  const env = getServerEnv()
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase admin environment variables are not configured')
+  }
+
   return createClient(
-    process.env.SUPABASE_URL ?? '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+    env.SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { persistSession: false } }
   )
 }

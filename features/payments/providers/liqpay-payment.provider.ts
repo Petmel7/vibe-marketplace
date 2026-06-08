@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
+import { getServerEnv } from '@/config/env'
 import type {
   ParsedPaymentWebhookEvent,
   PaymentPreparationInput,
@@ -53,10 +54,11 @@ function normalizeAppUrl(appUrl: string) {
 }
 
 function getLiqPayConfigFromEnv(): LiqPayConfig {
-  const publicKey = process.env.LIQPAY_PUBLIC_KEY?.trim()
-  const privateKey = process.env.LIQPAY_PRIVATE_KEY?.trim()
+  const env = getServerEnv()
+  const publicKey = env.LIQPAY_PUBLIC_KEY?.trim()
+  const privateKey = env.LIQPAY_PRIVATE_KEY?.trim()
   const sandbox = (process.env.LIQPAY_SANDBOX ?? 'false').trim().toLowerCase()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  const appUrl = env.APP_URL?.trim()
 
   if (!publicKey) {
     throw new LiqPayConfigError('LIQPAY_PUBLIC_KEY is not configured')
@@ -67,7 +69,7 @@ function getLiqPayConfigFromEnv(): LiqPayConfig {
   }
 
   if (!appUrl) {
-    throw new LiqPayConfigError('NEXT_PUBLIC_APP_URL is not configured')
+    throw new LiqPayConfigError('APP_URL is not configured')
   }
 
   try {
@@ -81,7 +83,7 @@ function getLiqPayConfigFromEnv(): LiqPayConfig {
       appUrl: normalizedUrl,
     }
   } catch {
-    throw new LiqPayConfigError('NEXT_PUBLIC_APP_URL must be a valid absolute URL')
+    throw new LiqPayConfigError('APP_URL must be a valid absolute URL')
   }
 }
 

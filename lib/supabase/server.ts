@@ -1,7 +1,7 @@
 import { createServerClient as createSSRServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { NextRequest, NextResponse } from 'next/server'
-import { env } from '@/config/env'
+import { getPublicEnv } from '@/config/env'
 
 /**
  * Server-side Supabase client for Server Components and Route Handlers.
@@ -10,10 +10,11 @@ import { env } from '@/config/env'
  */
 export async function createServerClient() {
   const cookieStore = await cookies()
+  const publicEnv = getPublicEnv()
 
   return createSSRServerClient(
-    env.supabaseUrl,
-    env.supabaseAnonKey,
+    publicEnv.supabaseUrl,
+    publicEnv.supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -43,9 +44,11 @@ export function createMiddlewareClient(
   request: NextRequest,
   response: NextResponse
 ) {
+  const publicEnv = getPublicEnv()
+
   return createSSRServerClient(
-    env.supabaseUrl,
-    env.supabaseAnonKey,
+    publicEnv.supabaseUrl,
+    publicEnv.supabaseAnonKey,
     {
       cookies: {
         getAll() {

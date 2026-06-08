@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { type NextRequest } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
  * Supabase admin client — uses the service role key which must never be
@@ -8,12 +8,6 @@ import { type NextRequest } from 'next/server'
  *   SUPABASE_URL              — your project URL, e.g. https://<ref>.supabase.co
  *   SUPABASE_SERVICE_ROLE_KEY — service role secret (Settings → API)
  */
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL ?? '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
-  { auth: { persistSession: false } },
-)
-
 export type AuthResult =
   | { ok: true; userId: string }
   | { ok: false; response: Response }
@@ -42,7 +36,8 @@ export async function verifyBearerToken(request: NextRequest): Promise<AuthResul
 
   const token = authHeader.slice(7)
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token)
+  const adminClient = createAdminClient()
+  const { data, error } = await adminClient.auth.getUser(token)
   if (error || !data.user) {
     return { ok: false, response: unauthorizedResponse() }
   }
