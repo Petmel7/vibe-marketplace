@@ -4,6 +4,7 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
 import * as repo from '@/features/viewed/viewed.repository'
 import * as productExistsLib from '@/lib/db/productExists'
+import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   getRecentlyViewed,
   recordView,
@@ -17,9 +18,13 @@ import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
 
 vi.mock('@/features/viewed/viewed.repository')
 vi.mock('@/lib/db/productExists')
+vi.mock('@/features/products/product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
+}))
 
 const mockRepo = vi.mocked(repo)
 const mockProductExists = vi.mocked(productExistsLib.productExists)
+const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -104,6 +109,10 @@ describe('recordView', () => {
     const result = await recordView(authIdentifier, { productId: PRODUCT_ID })
 
     expect(mockRepo.upsertViewedProduct).toHaveBeenCalledWith(authIdentifier, PRODUCT_ID)
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'product-viewed',
+      dedupeKey: 'product-metrics:viewed:cccccccc-0000-0000-0000-000000000003:2025-06-01T12:00:00.000Z',
+    })
     expect(result.items).toHaveLength(1)
     expect(result.items[0].productId).toBe(PRODUCT_ID)
   })

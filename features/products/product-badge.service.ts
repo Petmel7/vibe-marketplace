@@ -300,10 +300,6 @@ export async function recalculateProductMetricsAndBadges(): Promise<void> {
 }
 
 export async function getProductBadges(query: ProductBadgesQuery): Promise<ProductBadgeListDto> {
-  if (!query.productId && query.type === ProductBadgeType.HIT) {
-    await recalculateProductMetricsAndBadges()
-  }
-
   const products = await findBadgeSubjectProducts({
     productIds: query.productId ? [query.productId] : undefined,
     page: query.productId ? undefined : query.page,
@@ -380,8 +376,6 @@ export async function getProductBadges(query: ProductBadgesQuery): Promise<Produ
 }
 
 export async function getProductMetrics(query: ProductMetricsQuery): Promise<ProductMetricsListDto> {
-  await recalculateProductMetricsAndBadges()
-
   const { items, total } = await findProductMetrics({
     productId: query.productId,
     page: query.page,

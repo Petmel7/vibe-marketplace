@@ -8,12 +8,16 @@ vi.mock('@/features/store/store.repository')
 vi.mock('@/features/media/media.service')
 vi.mock('@/lib/auth/guards')
 vi.mock('@/lib/auth/sellerGuards')
+vi.mock('@/features/products/product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
+}))
 
 import * as productRepo from '@/features/seller/products/seller-product.repository'
 import * as storeRepo from '@/features/store/store.repository'
 import * as mediaService from '@/features/media/media.service'
 import * as guards from '@/lib/auth/guards'
 import * as sellerGuards from '@/lib/auth/sellerGuards'
+import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   archiveProduct,
   createProduct,
@@ -39,6 +43,7 @@ const mockStoreRepo = vi.mocked(storeRepo)
 const mockMediaService = vi.mocked(mediaService)
 const mockGuards = vi.mocked(guards)
 const mockSellerGuards = vi.mocked(sellerGuards)
+const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 const mockUser: SessionUser = {
   id: 'user-uuid-001',
@@ -233,6 +238,10 @@ describe('archiveProduct', () => {
     const result = await archiveProduct(mockUser, 'product-uuid-001')
 
     expect(mockProductRepo.archiveProduct).toHaveBeenCalledWith('product-uuid-001')
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'seller-product-archived',
+      dedupeKey: `product-metrics:seller-product-archived:${archivedProduct.id}:${archivedProduct.updatedAt.toISOString()}`,
+    })
     expect(result.status).toBe(ProductStatus.ARCHIVED)
   })
 })

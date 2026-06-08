@@ -37,6 +37,9 @@ vi.mock('@/features/risk/risk.service', () => ({
 vi.mock('@/features/payouts/payouts.service', () => ({
   materializeSellerFinanceForOrderAction: vi.fn(),
 }))
+vi.mock('@/features/products/product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
+}))
 
 import * as repo from '@/features/payments/payment.repository'
 import * as authGuards from '@/lib/auth/guards'
@@ -44,6 +47,7 @@ import * as emailEvents from '@/features/email/events/email.events'
 import * as notificationEvents from '@/features/notifications/events/notification.events'
 import * as riskService from '@/features/risk/risk.service'
 import * as payoutService from '@/features/payouts/payouts.service'
+import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   getAdminPayments,
   markManualPaymentPaid,
@@ -65,6 +69,7 @@ const mockEmailEvents = vi.mocked(emailEvents)
 const mockNotificationEvents = vi.mocked(notificationEvents)
 const mockRiskService = vi.mocked(riskService)
 const mockPayoutService = vi.mocked(payoutService)
+const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -146,9 +151,12 @@ beforeEach(() => {
     createdLedgerEntryCount: 1,
     skippedOrderItemCount: 0,
   } as never)
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
   process.env.LIQPAY_PUBLIC_KEY = 'test-public-key'
   process.env.LIQPAY_PRIVATE_KEY = LIQPAY_PRIVATE_KEY
   process.env.LIQPAY_SANDBOX = 'false'
+  process.env.APP_URL = 'https://app.example.com'
   process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com'
 })
 
@@ -247,6 +255,10 @@ describe('processPaymentWebhook', () => {
     expect(mockPayoutService.materializeSellerFinanceForOrderAction).toHaveBeenCalledWith(
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     )
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'order-paid-webhook',
+      dedupeKey: 'product-metrics:order-paid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
     expect(mockRepo.markWebhookProcessed).toHaveBeenCalledWith('webhook-1', expect.any(Date))
     expect(result.status).toBe('SUCCEEDED')
     expect(result.duplicate).toBe(false)
@@ -438,6 +450,10 @@ describe('admin payment mutations', () => {
 
     expect(result.status).toBe('SUCCEEDED')
     expect(mockRepo.markManualPaymentSucceeded).toHaveBeenCalled()
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'order-paid-manual',
+      dedupeKey: 'product-metrics:order-paid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
   })
 
   it('prevents non-admin users from mutating payments', async () => {

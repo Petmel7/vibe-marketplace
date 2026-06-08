@@ -8,6 +8,7 @@ import {
   ReviewSelfReviewForbiddenError,
 } from '@/lib/errors/review'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import * as reviewRepository from './review.repository'
 import * as riskService from '@/features/risk/risk.service'
 import {
@@ -25,6 +26,9 @@ import {
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('./review.repository')
 vi.mock('@/features/risk/risk.service')
+vi.mock('@/features/products/product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
+}))
 vi.mock('@/lib/auth/guards', () => ({
   requireBuyer: vi.fn(),
   requireSeller: vi.fn(),
@@ -33,6 +37,7 @@ vi.mock('@/lib/auth/guards', () => ({
 
 const mockRepository = vi.mocked(reviewRepository)
 const mockRiskService = vi.mocked(riskService)
+const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 const buyerUser: SessionUser = {
   id: 'buyer-1',
@@ -326,6 +331,10 @@ describe('review.service', () => {
       },
     })
     expect(mockRepository.recalculateProductRatingSummary).toHaveBeenCalledWith('product-1')
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'review-created',
+      dedupeKey: 'product-metrics:review-created:review-1',
+    })
     expect(result.status).toBe('PENDING')
     expect(result.isVerifiedPurchase).toBe(true)
   })
@@ -364,6 +373,10 @@ describe('review.service', () => {
         sellerRepliedAt: null,
       }),
     )
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'review-updated',
+      dedupeKey: 'product-metrics:review-updated:review-1:2026-06-01T12:00:00.000Z',
+    })
     expect(result.status).toBe('PENDING')
   })
 

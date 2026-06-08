@@ -401,6 +401,28 @@ describe('recalculateProductMetricsAndBadges', () => {
 
     expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([])
   })
+
+  it('remains idempotent when the same recalculation runs twice', async () => {
+    mockedRepository.findBadgeSubjectProducts.mockResolvedValue([
+      makeBadgeProduct({ id: 'product-repeat-hit' }),
+    ])
+    mockedRepository.aggregateViewCounts.mockResolvedValue(new Map([['product-repeat-hit', 30]]))
+    mockedRepository.aggregateWishlistCounts.mockResolvedValue(new Map([['product-repeat-hit', 10]]))
+    mockedRepository.aggregateReviewStats.mockResolvedValue(new Map())
+    mockedRepository.aggregateSalesStats.mockResolvedValue(
+      new Map([['product-repeat-hit', { soldCount: 5, revenueAmount: new Decimal('500.00') }]]),
+    )
+
+    await recalculateProductMetricsAndBadges()
+    await recalculateProductMetricsAndBadges()
+
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenNthCalledWith(1, [
+      expect.objectContaining({ productId: 'product-repeat-hit' }),
+    ])
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenNthCalledWith(2, [
+      expect.objectContaining({ productId: 'product-repeat-hit' }),
+    ])
+  })
 })
 
 describe('createAdminBadgeOverride', () => {

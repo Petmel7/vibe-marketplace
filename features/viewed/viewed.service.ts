@@ -7,6 +7,7 @@ import type { ViewedProductWithProduct } from '@/features/viewed/viewed.reposito
 import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
 import type { ViewedProductDto, ViewedListDto } from '@/features/viewed/viewed.dto'
 import type { ViewedRecordInput } from '@/features/viewed/viewed.schema'
+import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 
 // ---------------------------------------------------------------------------
 // Re-exports
@@ -52,7 +53,6 @@ function toDto(row: ViewedProductWithProduct): ViewedProductDto {
  */
 export async function getRecentlyViewed(identifier: ViewedIdentifier): Promise<ViewedListDto> {
   const rows = await findRecentlyViewed(identifier)
-  console.log("ROWS:", rows)
   return { items: rows.map(toDto) }
 }
 
@@ -81,5 +81,13 @@ export async function recordView(
   await upsertViewedProduct(identifier, productId)
 
   const rows = await findRecentlyViewed(identifier)
+  const viewedRow = rows.find((row) => row.productId === productId)
+  if (viewedRow) {
+    scheduleProductMetricsRecalculation({
+      reason: 'product-viewed',
+      dedupeKey: `product-metrics:viewed:${viewedRow.id}:${viewedRow.viewedAt.toISOString()}`,
+    })
+  }
+
   return { items: rows.map(toDto) }
 }

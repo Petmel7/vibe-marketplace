@@ -4,6 +4,7 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
 import * as repo from '@/features/wishlist/wishlist.repository'
 import * as productExistsLib from '@/lib/db/productExists'
+import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   getWishlist,
   addToWishlist,
@@ -19,9 +20,13 @@ import {
 
 vi.mock('@/features/wishlist/wishlist.repository')
 vi.mock('@/lib/db/productExists')
+vi.mock('@/features/products/product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
+}))
 
 const mockRepo = vi.mocked(repo)
 const mockProductExists = vi.mocked(productExistsLib.productExists)
+const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -113,6 +118,10 @@ describe('addToWishlist', () => {
     const result = await addToWishlist(USER_ID, PRODUCT_ID)
 
     expect(mockRepo.addWishlistItem).toHaveBeenCalledWith(WISHLIST_ID, PRODUCT_ID)
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'wishlist-added',
+      dedupeKey: `product-metrics:wishlist-added:${ITEM_ID}`,
+    })
     expect(result.items).toHaveLength(1)
   })
 
@@ -157,6 +166,10 @@ describe('removeFromWishlist', () => {
     const result = await removeFromWishlist(USER_ID, PRODUCT_ID)
 
     expect(mockRepo.removeWishlistItem).toHaveBeenCalledWith(WISHLIST_ID, PRODUCT_ID)
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'wishlist-removed',
+      dedupeKey: `product-metrics:wishlist-removed:${ITEM_ID}`,
+    })
     expect(result.items).toHaveLength(0)
   })
 

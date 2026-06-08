@@ -20,7 +20,6 @@ vi.mock('./product.repository', () => ({
   searchProducts: vi.fn(),
 }))
 vi.mock('./product-badge.service', () => ({
-  recalculateProductMetricsAndBadges: vi.fn(),
   resolveMarketplaceBadgesForProducts: vi.fn(),
 }))
 
@@ -535,7 +534,6 @@ describe('filtered product listings', () => {
 
     await listHitProducts({ page: 2, limit: 6 })
 
-    expect(mockedBadgeService.recalculateProductMetricsAndBadges).toHaveBeenCalledTimes(1)
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
       where: {
         isActive: true,
@@ -560,6 +558,7 @@ describe('filtered product listings', () => {
       page: 2,
       limit: 6,
     })
+    expect(mockedBadgeService.resolveMarketplaceBadgesForProducts).toHaveBeenCalledWith([])
   })
 
   it('returns only the HIT badge in the Hit Products context even when NEW also exists internally', async () => {

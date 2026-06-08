@@ -6,6 +6,9 @@ vi.mock('@/lib/auth/adminGuards')
 vi.mock('@/features/products/product-badge.service', () => ({
   syncSystemNewBadgeForProduct: vi.fn(),
 }))
+vi.mock('@/features/products/product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
+}))
 vi.mock('@/features/email/events/email.events', () => ({
   emitProductApprovedEmailEvent: vi.fn(),
   emitProductRejectedEmailEvent: vi.fn(),
@@ -21,6 +24,7 @@ vi.mock('@/features/risk/risk.service', () => ({
 import * as repo from '@/features/moderation/product/product-moderation.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
 import * as productBadgeService from '@/features/products/product-badge.service'
+import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   emitProductApprovedEmailEvent,
   emitProductRejectedEmailEvent,
@@ -45,6 +49,7 @@ import type { Product, ProductStatus, Store } from '@/app/generated/prisma/clien
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
 const mockBadgeService = vi.mocked(productBadgeService)
+const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 const mockEmitProductApprovedEmailEvent = vi.mocked(emitProductApprovedEmailEvent)
 const mockEmitProductRejectedEmailEvent = vi.mocked(emitProductRejectedEmailEvent)
 const mockEmitProductApprovedNotificationEvent = vi.mocked(emitProductApprovedNotificationEvent)
@@ -170,6 +175,10 @@ describe('approveProduct', () => {
     expect(result.storeName).toBe('Test Store')
     expect(result.moderatedBy).toBe(ADMIN_ID)
     expect(mockBadgeService.syncSystemNewBadgeForProduct).toHaveBeenCalledWith(updated)
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'product-approved',
+      dedupeKey: `product-metrics:product-approved:${PRODUCT_ID}:${updated.updatedAt.toISOString()}`,
+    })
     expect(mockEmitProductApprovedNotificationEvent).toHaveBeenCalledWith({ productId: PRODUCT_ID })
   })
 

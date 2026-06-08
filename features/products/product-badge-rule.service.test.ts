@@ -7,7 +7,7 @@ import {
   updateHitBadgeRule,
 } from './product-badge-rule.service'
 import * as repository from './product-badge-rule.repository'
-import * as jobsQueue from '@/features/jobs/jobs.queue'
+import * as productMetricsJobs from './product-metrics.jobs'
 import {
   BadgeRuleNotFoundError,
   InvalidBadgeRuleError,
@@ -20,12 +20,12 @@ vi.mock('./product-badge-rule.repository', () => ({
   updateBadgeRuleByType: vi.fn(),
 }))
 
-vi.mock('@/features/jobs/jobs.queue', () => ({
-  enqueueProductMetricsJob: vi.fn(),
+vi.mock('./product-metrics.jobs', () => ({
+  scheduleProductMetricsRecalculation: vi.fn(),
 }))
 
 const mockedRepository = vi.mocked(repository)
-const mockedJobsQueue = vi.mocked(jobsQueue)
+const mockedProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 const adminUser: SessionUser = {
   id: 'admin-1',
@@ -57,7 +57,6 @@ function makeHitRule(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockedJobsQueue.enqueueProductMetricsJob.mockResolvedValue(null)
 })
 
 describe('getAdminBadgeRules', () => {
@@ -106,7 +105,10 @@ describe('updateHitBadgeRule', () => {
         updatedBy: adminUser.id,
       }),
     )
-    expect(mockedJobsQueue.enqueueProductMetricsJob).toHaveBeenCalledTimes(1)
+    expect(mockedProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'badge-rule-hit',
+      dedupeKey: 'product-metrics:badge-rule:HIT:2026-05-23T10:00:00.000Z',
+    })
     expect(result.minViews).toBe(5)
   })
 
@@ -159,6 +161,6 @@ describe('updateHitBadgeRule', () => {
     })
 
     expect(result.enabled).toBe(false)
-    expect(mockedJobsQueue.enqueueProductMetricsJob).toHaveBeenCalledTimes(1)
+    expect(mockedProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledTimes(1)
   })
 })

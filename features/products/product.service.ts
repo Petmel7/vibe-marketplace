@@ -37,7 +37,6 @@ import type {
 } from '@/features/products/product.schema'
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
 import {
-  recalculateProductMetricsAndBadges,
   resolveMarketplaceBadgesForProducts,
 } from './product-badge.service'
 import type { ProductBadgeDto } from './product-badge.dto'
@@ -537,7 +536,6 @@ export async function listHitProducts(
   query: ProductPaginationQuery,
 ): Promise<ProductListDto> {
   const { page, limit } = query
-  await recalculateProductMetricsAndBadges()
   const where = buildCatalogWhereInput({ isHit: true })
   const orderBy = mapSortToOrderBy('newest')
   const { items, total } = await findProducts({ where, orderBy, page, limit })

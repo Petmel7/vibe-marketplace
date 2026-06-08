@@ -15,6 +15,7 @@ import {
 } from './product-moderation.repository'
 import type { Product, Store } from '@/app/generated/prisma/client'
 import { syncSystemNewBadgeForProduct } from '@/features/products/product-badge.service'
+import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 import {
   emitProductApprovedEmailEvent,
   emitProductRejectedEmailEvent,
@@ -94,6 +95,10 @@ export async function approveProduct(
   // Pass publishedAt via the extra data handled in repository
   const updated = await updateProductModerationStatus(productId, 'PUBLISHED', admin.id)
   await syncSystemNewBadgeForProduct(updated)
+  scheduleProductMetricsRecalculation({
+    reason: 'product-approved',
+    dedupeKey: `product-metrics:product-approved:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   void emitProductApprovedEmailEvent({ productId: updated.id }).catch((error) => {
     logError('product-moderation:approve-email', error)
   })
@@ -119,6 +124,10 @@ export async function rejectProduct(
 
   const updated = await updateProductModerationStatus(productId, 'REJECTED', admin.id, reason)
   await syncSystemNewBadgeForProduct(updated)
+  scheduleProductMetricsRecalculation({
+    reason: 'product-rejected',
+    dedupeKey: `product-metrics:product-rejected:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   void emitProductRejectedEmailEvent({ productId: updated.id, reason }).catch((error) => {
     logError('product-moderation:reject-email', error)
   })
@@ -152,6 +161,10 @@ export async function archiveProduct(
 
   const updated = await updateProductModerationStatus(productId, 'ARCHIVED', admin.id, reason)
   await syncSystemNewBadgeForProduct(updated)
+  scheduleProductMetricsRecalculation({
+    reason: 'product-archived',
+    dedupeKey: `product-metrics:product-archived:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   return toProductModerationDto(updated)
 }
 
@@ -170,5 +183,9 @@ export async function restoreProduct(
 
   const updated = await updateProductModerationStatus(productId, 'DRAFT', admin.id)
   await syncSystemNewBadgeForProduct(updated)
+  scheduleProductMetricsRecalculation({
+    reason: 'product-restored',
+    dedupeKey: `product-metrics:product-restored:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   return toProductModerationDto(updated)
 }

@@ -7,6 +7,7 @@ import {
 } from '@/features/wishlist/wishlist.repository'
 import type { WishlistDto, WishlistItemDto } from '@/features/wishlist/wishlist.dto'
 import type { WishlistWithItems, WishlistItemWithProduct } from '@/features/wishlist/wishlist.repository'
+import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -98,6 +99,14 @@ export async function addToWishlist(
   }
 
   const updated = await addWishlistItem(wishlist.id, productId)
+  const addedItem = updated.items.find((item) => item.productId === productId)
+  if (addedItem) {
+    scheduleProductMetricsRecalculation({
+      reason: 'wishlist-added',
+      dedupeKey: `product-metrics:wishlist-added:${addedItem.id}`,
+    })
+  }
+
   return toWishlistDto(updated)
 }
 
@@ -119,5 +128,10 @@ export async function removeFromWishlist(
   }
 
   const updated = await removeWishlistItem(wishlist.id, productId)
+  scheduleProductMetricsRecalculation({
+    reason: 'wishlist-removed',
+    dedupeKey: `product-metrics:wishlist-removed:${existing.id}`,
+  })
+
   return toWishlistDto(updated)
 }

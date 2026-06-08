@@ -1,6 +1,7 @@
 import { ReviewStatus, UserRole } from '@/app/generated/prisma/client'
 import { requireAdmin, requireBuyer, requireSeller } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 import { recordReviewHiddenRiskSignal } from '@/features/risk/risk.service'
 import {
   ReviewAlreadyExistsError,
@@ -312,6 +313,10 @@ export async function createReview(
   })
 
   await recalculateProductRatingSummary(productId)
+  scheduleProductMetricsRecalculation({
+    reason: 'review-created',
+    dedupeKey: `product-metrics:review-created:${review.id}`,
+  })
   return toReviewDto(review)
 }
 
@@ -340,6 +345,10 @@ export async function updateMyReview(
   })
 
   await recalculateProductRatingSummary(updated.productId)
+  scheduleProductMetricsRecalculation({
+    reason: 'review-updated',
+    dedupeKey: `product-metrics:review-updated:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   return toReviewDto(updated)
 }
 
@@ -354,6 +363,10 @@ export async function deleteMyReview(
 
   await deleteReviewRecord(reviewId)
   await recalculateProductRatingSummary(review.productId)
+  scheduleProductMetricsRecalculation({
+    reason: 'review-deleted',
+    dedupeKey: `product-metrics:review-deleted:${review.id}`,
+  })
 
   return { id: reviewId }
 }
@@ -415,6 +428,10 @@ export async function moderateReview(
   })
 
   await recalculateProductRatingSummary(updated.productId)
+  scheduleProductMetricsRecalculation({
+    reason: 'review-moderated',
+    dedupeKey: `product-metrics:review-moderated:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   if (updated.status === ReviewStatus.HIDDEN) {
     void recordReviewHiddenRiskSignal({
       reviewId: updated.id,

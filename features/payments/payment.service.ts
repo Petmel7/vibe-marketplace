@@ -13,6 +13,7 @@ import {
   emitPaymentSucceededNotificationEvent,
   emitSellerNewOrderNotificationEvents,
 } from '@/features/notifications/events/notification.events'
+import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 import {
   recordPaymentFailedRiskSignal,
   recordRefundIssuedRiskSignals,
@@ -340,6 +341,10 @@ export async function markManualPaymentPaid(user: SessionUser, id: string): Prom
   }
 
   const updated = await markManualPaymentSucceeded(id)
+  scheduleProductMetricsRecalculation({
+    reason: 'order-paid-manual',
+    dedupeKey: `product-metrics:order-paid:${payment.orderId}`,
+  })
   const refreshed = await findPaymentById(updated.payment.id)
   if (!refreshed) {
     throw new PaymentNotFoundError()
@@ -491,6 +496,10 @@ export async function processPaymentWebhook(
       })
       void materializeSellerFinanceForOrderAction(payment.orderId).catch((error) => {
         logError('payments:webhook:seller-finance-materialization', error)
+      })
+      scheduleProductMetricsRecalculation({
+        reason: 'order-paid-webhook',
+        dedupeKey: `product-metrics:order-paid:${payment.orderId}`,
       })
     }
   } else if (parsedEvent.status === PaymentStatus.REFUNDED) {

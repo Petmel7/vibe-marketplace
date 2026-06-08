@@ -13,6 +13,7 @@ import {
 import { findStoreByUserId } from '@/features/store/store.repository'
 import { uploadProductImageBinary, deleteProductImageBinary } from '@/features/media/media.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 import type {
   SellerProductDto,
   SellerProductSummaryDto,
@@ -433,6 +434,10 @@ export async function archiveProduct(
   }
 
   const updated = await repoArchiveProduct(productId)
+  scheduleProductMetricsRecalculation({
+    reason: 'seller-product-archived',
+    dedupeKey: `product-metrics:seller-product-archived:${updated.id}:${updated.updatedAt.toISOString()}`,
+  })
   return toSellerProductDto(updated)
 }
 
