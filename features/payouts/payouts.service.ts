@@ -6,6 +6,7 @@ import {
 } from '@/app/generated/prisma/client'
 import { calculateCommissionForAmount } from '@/features/commissions/commissions.service'
 import { emitSellerPayoutPaidEmailEvent } from '@/features/email/events/email.events'
+import { enqueueSellerFundsReleaseJob } from '@/features/jobs/jobs.queue'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import {
@@ -15,7 +16,6 @@ import {
   PayoutOwnershipError,
   SellerBalanceNotFoundError,
 } from '@/lib/errors/payout'
-import { CommissionCalculationError } from '@/lib/errors/commission'
 import { StoreNotFoundError } from '@/lib/errors/seller'
 import { logError } from '@/utils/logger'
 import type {
@@ -265,7 +265,24 @@ export async function materializeSellerFinanceForOrderAction(
   }
 
   await createSellerFinanceEntriesForOrderItems({ items: financeItems })
-  await Promise.all([...new Set(financeItems.map((item) => item.storeId))].map(refreshSingleSellerBalance))
+  const affectedStoreIds = [...new Set(financeItems.map((item) => item.storeId))]
+  await Promise.all(affectedStoreIds.map(refreshSingleSellerBalance))
+
+  for (const storeId of affectedStoreIds) {
+    void enqueueSellerFundsReleaseJob(
+      { storeId },
+      {
+        runAt: availableAt,
+        dedupeKey: `seller-funds-release:${order.id}:${storeId}`,
+      },
+    ).catch((error) => {
+      logError('payouts:enqueue-seller-funds-release-job', error, {
+        domain: 'payouts',
+        orderId: order.id,
+        storeId,
+      })
+    })
+  }
 
   return {
     orderId,

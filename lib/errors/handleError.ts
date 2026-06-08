@@ -200,6 +200,7 @@ import {
 import { RateLimitExceededError } from './security'
 import {
   JobDefinitionNotFoundError,
+  JobInvalidStateError,
   JobNotFoundError,
   JobRetryLimitExceededError,
   JobRunnerAuthError,
@@ -392,7 +393,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ShipmentInvalidStateError ||
     err instanceof StoreShippingSettingsRequiredError ||
     err instanceof InvalidAnalyticsRangeError ||
-    err instanceof JobRetryLimitExceededError
+    err instanceof JobRetryLimitExceededError ||
+    err instanceof JobInvalidStateError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

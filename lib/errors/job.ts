@@ -33,3 +33,12 @@ export class JobRunnerAuthError extends Error {
     this.name = 'JobRunnerAuthError'
   }
 }
+
+export class JobInvalidStateError extends Error {
+  readonly code = 'JOB_INVALID_STATE'
+
+  constructor(message = 'Job is not in a valid state for this operation') {
+    super(message)
+    this.name = 'JobInvalidStateError'
+  }
+}

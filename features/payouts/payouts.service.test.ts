@@ -36,11 +36,15 @@ vi.mock('@/lib/auth/guards', () => ({
 vi.mock('@/features/email/events/email.events', () => ({
   emitSellerPayoutPaidEmailEvent: vi.fn(),
 }))
+vi.mock('@/features/jobs/jobs.queue', () => ({
+  enqueueSellerFundsReleaseJob: vi.fn(),
+}))
 
 import * as repo from '@/features/payouts/payouts.repository'
 import * as commissionService from '@/features/commissions/commissions.service'
 import * as guards from '@/lib/auth/guards'
 import * as emailEvents from '@/features/email/events/email.events'
+import * as jobsQueue from '@/features/jobs/jobs.queue'
 import {
   createAdminManualPayout,
   getSellerFinanceSummary,
@@ -58,6 +62,7 @@ const mockRepo = vi.mocked(repo)
 const mockCommissionService = vi.mocked(commissionService)
 const mockGuards = vi.mocked(guards)
 const mockEmailEvents = vi.mocked(emailEvents)
+const mockJobsQueue = vi.mocked(jobsQueue)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -189,6 +194,7 @@ beforeEach(() => {
   })
   mockRepo.upsertSellerBalance.mockResolvedValue(makeBalance() as never)
   mockEmailEvents.emitSellerPayoutPaidEmailEvent.mockResolvedValue(null)
+  mockJobsQueue.enqueueSellerFundsReleaseJob.mockResolvedValue(null)
 })
 
 describe('materializeSellerFinanceForOrderAction', () => {
@@ -208,6 +214,12 @@ describe('materializeSellerFinanceForOrderAction', () => {
         }),
       ],
     })
+    expect(mockJobsQueue.enqueueSellerFundsReleaseJob).toHaveBeenCalledWith(
+      { storeId: 'store-1' },
+      expect.objectContaining({
+        dedupeKey: 'seller-funds-release:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:store-1',
+      }),
+    )
     expect(result.createdCommissionCount).toBe(1)
     expect(result.createdLedgerEntryCount).toBe(1)
   })

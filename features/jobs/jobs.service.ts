@@ -1,9 +1,18 @@
 import { Prisma, type Job } from '@/app/generated/prisma/client'
-import { JobDefinitionNotFoundError, JobNotFoundError, JobRetryLimitExceededError } from '@/lib/errors/job'
+import type { SessionUser } from '@/features/auth/auth.dto'
+import { requireAdmin } from '@/lib/auth/guards'
+import {
+  JobDefinitionNotFoundError,
+  JobInvalidStateError,
+  JobNotFoundError,
+  JobRetryLimitExceededError,
+} from '@/lib/errors/job'
 import { logError } from '@/utils/logger'
 import type {
   EnqueueJobInputDto,
   JobDto,
+  JobListDto,
+  JobListQueryDto,
   JobPayload,
   JobProcessResultDto,
   JobRunnerRequestDto,
@@ -14,9 +23,12 @@ import type {
 import { jobsRegistry } from './jobs.registry'
 import {
   claimJobForProcessing,
+  countJobs,
   createJobRecord,
+  cancelJobRecord,
   findJobByDedupeKey,
   findJobById,
+  listJobs,
   listRunnableJobs,
   markJobFailed,
   markJobSucceeded,
@@ -90,6 +102,10 @@ function getJobDefinition(
 function parseJobPayload(type: KnownJobType, payload: unknown) {
   const schema = jobPayloadSchemaByType[type]
   return schema.parse(payload)
+}
+
+function assertAdmin(user: SessionUser) {
+  requireAdmin(user)
 }
 
 export async function enqueueJob<TType extends KnownJobType>(
@@ -257,4 +273,70 @@ export async function runDueJobs(
     failed: items.filter((item) => item.job.status === 'FAILED').length,
     items,
   }
+}
+
+export async function getAdminJobs(
+  user: SessionUser,
+  query: JobListQueryDto,
+): Promise<JobListDto> {
+  assertAdmin(user)
+
+  const [items, total] = await Promise.all([
+    listJobs(query),
+    countJobs(query),
+  ])
+
+  return {
+    items: items.map(toJobDto),
+    page: query.page,
+    limit: query.limit,
+    total,
+  }
+}
+
+export async function retryAdminJob(
+  user: SessionUser,
+  jobId: string,
+  registry: JobsRegistry = jobsRegistry,
+): Promise<JobProcessResultDto> {
+  assertAdmin(user)
+
+  const job = await findJobById(jobId)
+  if (!job) {
+    throw new JobNotFoundError()
+  }
+
+  if (job.status !== 'FAILED') {
+    throw new JobInvalidStateError('Only failed jobs can be retried')
+  }
+
+  return retryJob(jobId, registry)
+}
+
+export async function cancelAdminJob(
+  user: SessionUser,
+  jobId: string,
+): Promise<JobDto> {
+  assertAdmin(user)
+
+  const job = await findJobById(jobId)
+  if (!job) {
+    throw new JobNotFoundError()
+  }
+
+  if (job.status !== 'PENDING') {
+    throw new JobInvalidStateError('Only pending jobs can be cancelled')
+  }
+
+  const cancelled = await cancelJobRecord(jobId, new Date())
+  if (!cancelled) {
+    throw new JobInvalidStateError('Only pending jobs can be cancelled')
+  }
+
+  const updated = await findJobById(jobId)
+  if (!updated) {
+    throw new JobNotFoundError()
+  }
+
+  return toJobDto(updated)
 }

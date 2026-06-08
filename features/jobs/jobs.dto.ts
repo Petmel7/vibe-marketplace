@@ -108,6 +108,20 @@ export type JobRunnerResponseDto = {
   items: JobProcessResultDto[]
 }
 
+export type JobListQueryDto = {
+  page: number
+  limit: number
+  status?: KnownJobStatus
+  type?: KnownJobType
+}
+
+export type JobListDto = {
+  items: JobDto[]
+  page: number
+  limit: number
+  total: number
+}
+
 export type JobDefinition<TType extends KnownJobType = KnownJobType> = {
   type: TType
   maxAttempts?: number

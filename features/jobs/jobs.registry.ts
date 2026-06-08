@@ -1,4 +1,6 @@
-import { processQueuedEmailEvent } from '@/features/email/queue/email.queue'
+import { processEmailEvent } from '@/features/email/email.service'
+import { recalculateProductMetricsAndBadges } from '@/features/products/product-badge.service'
+import { releaseSellerFundsForJob } from '@/features/payouts/payouts.jobs'
 import { recalculateRiskProfile } from '@/features/risk/risk.service'
 import { syncPendingShipments, syncShipmentStatus } from '@/features/shipping/shipping.service'
 import type {
@@ -25,7 +27,7 @@ export const jobsRegistry = {
     type: 'SEND_EMAIL',
     maxAttempts: 5,
     async run(payload: SendEmailJobPayload) {
-      const event = await processQueuedEmailEvent(payload.emailEventId)
+      const event = await processEmailEvent(payload.emailEventId)
       return {
         emailEventId: event.id,
         status: event.status,
@@ -37,9 +39,11 @@ export const jobsRegistry = {
     type: 'RECALCULATE_PRODUCT_METRICS',
     maxAttempts: 3,
     async run(payload: RecalculateProductMetricsJobPayload) {
-      return runPlaceholderJob('Product metrics background recalculation is not wired yet', {
+      await recalculateProductMetricsAndBadges()
+      return {
+        recalculated: true,
         productId: payload.productId ?? null,
-      })
+      }
     },
   } satisfies JobDefinition<'RECALCULATE_PRODUCT_METRICS'>,
 
@@ -87,10 +91,7 @@ export const jobsRegistry = {
     type: 'RELEASE_SELLER_FUNDS',
     maxAttempts: 3,
     async run(payload: ReleaseSellerFundsJobPayload) {
-      return runPlaceholderJob('Seller funds release job is not wired yet', {
-        storeId: payload.storeId ?? null,
-        sellerId: payload.sellerId ?? null,
-      })
+      return releaseSellerFundsForJob(payload)
     },
   } satisfies JobDefinition<'RELEASE_SELLER_FUNDS'>,
 

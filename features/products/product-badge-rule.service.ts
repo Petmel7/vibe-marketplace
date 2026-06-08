@@ -1,6 +1,8 @@
 import Decimal from 'decimal.js'
 import { ProductBadgeType, UserRole, type ProductBadgeRule } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { enqueueProductMetricsJob } from '@/features/jobs/jobs.queue'
+import { logError } from '@/utils/logger'
 import type {
   ProductBadgeRuleDto,
   ProductBadgeRuleListDto,
@@ -11,7 +13,6 @@ import {
   findBadgeRuleByType,
   updateBadgeRuleByType,
 } from './product-badge-rule.repository'
-import { recalculateProductMetricsAndBadges } from './product-badge.service'
 import {
   BadgeRuleNotFoundError,
   InvalidBadgeRuleError,
@@ -105,7 +106,14 @@ export async function updateHitBadgeRule(
     updatedBy: user.id,
   })
 
-  await recalculateProductMetricsAndBadges()
+  void enqueueProductMetricsJob({}, {
+    dedupeKey: `product-metrics:badge-rule:${ProductBadgeType.HIT}`,
+  }).catch((error) => {
+    logError('product-badge-rule:enqueue-product-metrics-job', error, {
+      domain: 'products',
+      badgeType: ProductBadgeType.HIT,
+    })
+  })
 
   return toProductBadgeRuleDto(updatedRule)
 }

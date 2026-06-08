@@ -1,5 +1,6 @@
-import { Prisma, type Job } from '@/app/generated/prisma/client'
+import { Prisma, type Job, type JobStatus, type JobType } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import type { JobListQueryDto } from './jobs.dto'
 
 function isPrismaUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
@@ -146,4 +147,47 @@ export async function listRunnableJobs(input: {
     ],
     take: input.limit,
   })
+}
+
+export async function listJobs(query: JobListQueryDto) {
+  return prisma.job.findMany({
+    where: {
+      ...(query.status ? { status: query.status as JobStatus } : {}),
+      ...(query.type ? { type: query.type as JobType } : {}),
+    },
+    orderBy: [
+      { createdAt: 'desc' },
+      { runAt: 'desc' },
+    ],
+    skip: (query.page - 1) * query.limit,
+    take: query.limit,
+  })
+}
+
+export async function countJobs(query: Pick<JobListQueryDto, 'status' | 'type'>) {
+  return prisma.job.count({
+    where: {
+      ...(query.status ? { status: query.status as JobStatus } : {}),
+      ...(query.type ? { type: query.type as JobType } : {}),
+    },
+  })
+}
+
+export async function cancelJobRecord(id: string, cancelledAt: Date) {
+  const result = await prisma.job.updateMany({
+    where: {
+      id,
+      status: 'PENDING',
+    },
+    data: {
+      status: 'CANCELLED',
+      lockedAt: null,
+      processedAt: null,
+      failedAt: null,
+      errorMessage: null,
+      updatedAt: cancelledAt,
+    },
+  })
+
+  return result.count > 0
 }
