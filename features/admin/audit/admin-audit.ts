@@ -8,6 +8,7 @@ export type AdminAuditDomain =
   | 'refunds'
   | 'commission-rules'
   | 'promotions'
+  | 'seo'
   | 'risk'
 
 export type AdminAuditEntry = {

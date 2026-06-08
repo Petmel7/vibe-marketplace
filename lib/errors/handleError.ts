@@ -210,6 +210,11 @@ import {
   InvalidJobTransitionError,
   OperationsAccessDeniedError,
 } from './operations'
+import {
+  InvalidSeoMetadataError,
+  SeoEntityNotFoundError,
+  SeoMetadataNotFoundError,
+} from './seo'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -300,7 +305,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof NovaPoshtaCityNotFoundError ||
     err instanceof NovaPoshtaWarehouseNotFoundError ||
     err instanceof JobNotFoundError ||
-    err instanceof AuditLogNotFoundError
+    err instanceof AuditLogNotFoundError ||
+    err instanceof SeoMetadataNotFoundError ||
+    err instanceof SeoEntityNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -402,7 +409,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidAnalyticsRangeError ||
     err instanceof JobRetryLimitExceededError ||
     err instanceof JobInvalidStateError ||
-    err instanceof InvalidJobTransitionError
+    err instanceof InvalidJobTransitionError ||
+    err instanceof InvalidSeoMetadataError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

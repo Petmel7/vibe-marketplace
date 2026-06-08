@@ -67,6 +67,8 @@ const mockStore: Store = {
   name: 'Test Store',
   slug: 'test-store',
   description: null,
+  seoTitle: null,
+  seoDescription: null,
   logoUrl: null,
   bannerUrl: null,
   isActive: true,
