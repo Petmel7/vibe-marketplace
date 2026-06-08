@@ -1,5 +1,18 @@
+import type { Metadata } from 'next'
 import CategoryCards from '@/components/category/CategoryCards'
 import { fetchCategories } from '@/components/category/category.server'
+import { getCachedPageSeo } from '@/app/_lib/seo.data'
+import { buildStaticPageMetadata } from '@/lib/seo/metadata'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getCachedPageSeo('categories')
+
+  return buildStaticPageMetadata(seo, {
+    fallbackPath: '/categories',
+    fallbackTitle: 'Категорії товарів | Marketplace',
+    fallbackDescription: 'Оберіть категорію одягу, взуття та аксесуарів для зручного перегляду товарів на Marketplace.',
+  })
+}
 
 export default async function CategoriesPage() {
   const categories = await fetchCategories()

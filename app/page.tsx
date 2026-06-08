@@ -1,6 +1,9 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import HomeProductSection from '@/components/product/HomeProductSection'
 import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
+import { getCachedGlobalSeo } from '@/app/_lib/seo.data'
+import { buildHomeMetadata } from '@/lib/seo/metadata'
 
 function HomeSectionSkeleton({ title }: { title: string }) {
   return (
@@ -9,6 +12,11 @@ function HomeSectionSkeleton({ title }: { title: string }) {
       <ProductCardSkeleton count={4} />
     </section>
   )
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getCachedGlobalSeo()
+  return buildHomeMetadata(seo)
 }
 
 export default async function Home() {

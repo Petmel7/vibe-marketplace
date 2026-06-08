@@ -1,5 +1,18 @@
+import type { Metadata } from 'next'
 import InfiniteProductList from '@/components/product/InfiniteProductList'
 import { listNewProducts } from '@/features/products/product.service'
+import { getCachedPageSeo } from '@/app/_lib/seo.data'
+import { buildStaticPageMetadata } from '@/lib/seo/metadata'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getCachedPageSeo('products-new')
+
+  return buildStaticPageMetadata(seo, {
+    fallbackPath: '/products/new',
+    fallbackTitle: 'Новинки | Marketplace',
+    fallbackDescription: 'Свіжі новинки Marketplace: актуальний одяг, взуття та аксесуари з доставкою по Україні.',
+  })
+}
 
 export default async function NewProductsPage() {
   const result = await listNewProducts({ page: 1, limit: 12 })
