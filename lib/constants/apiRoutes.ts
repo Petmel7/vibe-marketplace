@@ -1,4 +1,6 @@
 export const API_ROUTES = {
+  health: '/api/health',
+  healthDeep: '/api/health/deep',
   productSearch: '/api/products/search',
   authMe: '/api/auth/me',
   visitorInit: '/api/visitor/init',
@@ -36,6 +38,9 @@ export const API_ROUTES = {
   adminRiskStores: '/api/admin/risk/stores',
   adminRiskRecalculate: '/api/admin/risk/recalculate',
   adminAnalytics: '/api/admin/analytics',
+  adminOperationsJobs: '/api/admin/operations/jobs',
+  adminOperationsJobsRunDue: '/api/admin/operations/jobs/run-due',
+  adminOperationsAuditLogs: '/api/admin/operations/audit-logs',
   adminShipmentsSync: '/api/admin/shipments/sync',
   sellerPromotions: '/api/seller/promotions',
   sellerShipments: '/api/seller/shipments',
@@ -137,6 +142,22 @@ export function getAdminRiskStoreRoute(id: string) {
 
 export function getAdminPayoutDetailRoute(id: string) {
   return `${API_ROUTES.adminPayouts}/${id}`
+}
+
+export function getAdminOperationsJobRoute(id: string) {
+  return `${API_ROUTES.adminOperationsJobs}/${id}`
+}
+
+export function getAdminOperationsJobRetryRoute(id: string) {
+  return `${getAdminOperationsJobRoute(id)}/retry`
+}
+
+export function getAdminOperationsJobCancelRoute(id: string) {
+  return `${getAdminOperationsJobRoute(id)}/cancel`
+}
+
+export function getAdminOperationsAuditLogRoute(id: string) {
+  return `${API_ROUTES.adminOperationsAuditLogs}/${id}`
 }
 
 export function getAdminPromotionDetailRoute(id: string) {

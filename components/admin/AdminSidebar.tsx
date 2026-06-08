@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/admin/reports', label: 'Reports' },
   { href: '/admin/risk', label: 'Risk' },
   { href: '/admin/analytics', label: 'Analytics' },
+  { href: '/admin/operations', label: 'Operations' },
   { href: '/admin/emails', label: 'Emails' },
   { href: '/admin/settings/badges', label: 'Badge rules' },
 ] as const
