@@ -125,4 +125,6 @@ export const jobListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   status: jobStatusFilterSchema.optional(),
   type: jobTypeFilterSchema.optional(),
+  dateFrom: z.string().date().optional(),
+  dateTo: z.string().date().optional(),
 })

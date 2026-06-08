@@ -205,6 +205,11 @@ import {
   JobRetryLimitExceededError,
   JobRunnerAuthError,
 } from './job'
+import {
+  AuditLogNotFoundError,
+  InvalidJobTransitionError,
+  OperationsAccessDeniedError,
+} from './operations'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
@@ -256,7 +261,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof PromotionOwnershipError ||
     err instanceof RefundRequestOwnershipError ||
     err instanceof ShipmentOwnershipError ||
-    err instanceof AnalyticsAccessDeniedError
+    err instanceof AnalyticsAccessDeniedError ||
+    err instanceof OperationsAccessDeniedError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -293,7 +299,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ShipmentNotFoundError ||
     err instanceof NovaPoshtaCityNotFoundError ||
     err instanceof NovaPoshtaWarehouseNotFoundError ||
-    err instanceof JobNotFoundError
+    err instanceof JobNotFoundError ||
+    err instanceof AuditLogNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -394,7 +401,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof StoreShippingSettingsRequiredError ||
     err instanceof InvalidAnalyticsRangeError ||
     err instanceof JobRetryLimitExceededError ||
-    err instanceof JobInvalidStateError
+    err instanceof JobInvalidStateError ||
+    err instanceof InvalidJobTransitionError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

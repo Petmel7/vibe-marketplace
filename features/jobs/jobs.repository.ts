@@ -2,6 +2,17 @@ import { Prisma, type Job, type JobStatus, type JobType } from '@/app/generated/
 import { prisma } from '@/lib/prisma'
 import type { JobListQueryDto } from './jobs.dto'
 
+function buildDateRangeFilter(dateFrom?: string, dateTo?: string): Prisma.DateTimeFilter | undefined {
+  if (!dateFrom && !dateTo) {
+    return undefined
+  }
+
+  return {
+    ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+    ...(dateTo ? { lte: new Date(dateTo) } : {}),
+  }
+}
+
 function isPrismaUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 }
@@ -150,10 +161,13 @@ export async function listRunnableJobs(input: {
 }
 
 export async function listJobs(query: JobListQueryDto) {
+  const createdAt = buildDateRangeFilter(query.dateFrom, query.dateTo)
+
   return prisma.job.findMany({
     where: {
       ...(query.status ? { status: query.status as JobStatus } : {}),
       ...(query.type ? { type: query.type as JobType } : {}),
+      ...(createdAt ? { createdAt } : {}),
     },
     orderBy: [
       { createdAt: 'desc' },
@@ -164,11 +178,14 @@ export async function listJobs(query: JobListQueryDto) {
   })
 }
 
-export async function countJobs(query: Pick<JobListQueryDto, 'status' | 'type'>) {
+export async function countJobs(query: Pick<JobListQueryDto, 'status' | 'type' | 'dateFrom' | 'dateTo'>) {
+  const createdAt = buildDateRangeFilter(query.dateFrom, query.dateTo)
+
   return prisma.job.count({
     where: {
       ...(query.status ? { status: query.status as JobStatus } : {}),
       ...(query.type ? { type: query.type as JobType } : {}),
+      ...(createdAt ? { createdAt } : {}),
     },
   })
 }

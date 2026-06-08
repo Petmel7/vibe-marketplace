@@ -48,7 +48,7 @@ function toJobDto(job: Job): JobDto {
     lockedAt: job.lockedAt?.toISOString() ?? null,
     processedAt: job.processedAt?.toISOString() ?? null,
     failedAt: job.failedAt?.toISOString() ?? null,
-    errorMessage: job.errorMessage ?? null,
+    errorMessage: job.errorMessage ? job.errorMessage.slice(0, 500) : null,
     dedupeKey: job.dedupeKey ?? null,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
@@ -294,6 +294,20 @@ export async function getAdminJobs(
   }
 }
 
+export async function getAdminJobById(
+  user: SessionUser,
+  jobId: string,
+): Promise<JobDto> {
+  assertAdmin(user)
+
+  const job = await findJobById(jobId)
+  if (!job) {
+    throw new JobNotFoundError()
+  }
+
+  return toJobDto(job)
+}
+
 export async function retryAdminJob(
   user: SessionUser,
   jobId: string,
@@ -339,4 +353,18 @@ export async function cancelAdminJob(
   }
 
   return toJobDto(updated)
+}
+
+export async function runDueAdminJobs(
+  user: SessionUser,
+  input: JobRunnerRequestDto,
+  registry: JobsRegistry = jobsRegistry,
+): Promise<JobRunnerResponseDto> {
+  assertAdmin(user)
+
+  const boundedInput = {
+    limit: Math.min(input.limit, 25),
+  }
+
+  return runDueJobs(boundedInput, registry)
 }

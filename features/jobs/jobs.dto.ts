@@ -113,6 +113,8 @@ export type JobListQueryDto = {
   limit: number
   status?: KnownJobStatus
   type?: KnownJobType
+  dateFrom?: string
+  dateTo?: string
 }
 
 export type JobListDto = {
