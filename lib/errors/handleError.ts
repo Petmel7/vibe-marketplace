@@ -198,10 +198,23 @@ import {
   InvalidAnalyticsRangeError,
 } from './analytics'
 import { RateLimitExceededError } from './security'
+import {
+  JobDefinitionNotFoundError,
+  JobNotFoundError,
+  JobRetryLimitExceededError,
+  JobRunnerAuthError,
+} from './job'
 import { logError } from '@/utils/logger'
 
 export function toErrorResponse(label: string, err: unknown): Response {
   if (err instanceof UnauthorizedError)
+    return Response.json(
+      { success: false, error: { message: err.message, code: err.code } },
+      { status: 401 },
+    )
+  if (
+    err instanceof JobRunnerAuthError
+  )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 401 },
@@ -278,7 +291,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof RefundRequestNotFoundError ||
     err instanceof ShipmentNotFoundError ||
     err instanceof NovaPoshtaCityNotFoundError ||
-    err instanceof NovaPoshtaWarehouseNotFoundError
+    err instanceof NovaPoshtaWarehouseNotFoundError ||
+    err instanceof JobNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -377,7 +391,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ShipmentAlreadyHasTrackingError ||
     err instanceof ShipmentInvalidStateError ||
     err instanceof StoreShippingSettingsRequiredError ||
-    err instanceof InvalidAnalyticsRangeError
+    err instanceof InvalidAnalyticsRangeError ||
+    err instanceof JobRetryLimitExceededError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -401,7 +416,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof NovaPoshtaCreateShipmentError ||
     err instanceof NovaPoshtaTrackingError ||
     err instanceof NovaPoshtaCancelShipmentError ||
-    err instanceof AnalyticsAggregationError
+    err instanceof AnalyticsAggregationError ||
+    err instanceof JobDefinitionNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },

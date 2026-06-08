@@ -901,6 +901,32 @@ model EmailEvent {
   @@map("email_events")
 }
 
+model Job {
+  id           String    @id @default(uuid()) @db.Uuid
+  type         JobType
+  payload      Json
+  status       JobStatus @default(PENDING)
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(5) @map("max_attempts")
+  runAt        DateTime  @default(now()) @map("run_at")
+  lockedAt     DateTime? @map("locked_at")
+  processedAt  DateTime? @map("processed_at")
+  failedAt     DateTime? @map("failed_at")
+  errorMessage String?   @map("error_message")
+  dedupeKey    String?   @unique(map: "jobs_dedupe_key_key") @map("dedupe_key")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([type], map: "jobs_type_idx")
+  @@index([status], map: "jobs_status_idx")
+  @@index([runAt], map: "jobs_run_at_idx")
+  @@index([lockedAt], map: "jobs_locked_at_idx")
+  @@index([processedAt], map: "jobs_processed_at_idx")
+  @@index([failedAt], map: "jobs_failed_at_idx")
+  @@index([status, runAt], map: "jobs_status_run_at_idx")
+  @@map("jobs")
+}
+
 model EmailLog {
   id                String              @id @default(uuid()) @db.Uuid
   emailEventId      String?             @map("email_event_id") @db.Uuid
@@ -1280,6 +1306,24 @@ enum EmailEventStatus {
   SENT
   FAILED
   CANCELLED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum JobType {
+  SEND_EMAIL
+  RECALCULATE_PRODUCT_METRICS
+  RECALCULATE_RISK_PROFILE
+  SYNC_SHIPMENT_STATUS
+  RELEASE_SELLER_FUNDS
+  REFRESH_ANALYTICS
+  PROCESS_NOTIFICATION_DIGEST
 }
 
 enum EmailDeliveryStatus {

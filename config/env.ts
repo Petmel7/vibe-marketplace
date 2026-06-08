@@ -29,6 +29,7 @@ const serverEnvSchema = publicEnvSchema
     NOVA_POSHTA_API_KEY: z.string().min(1).optional(),
     NOVA_POSHTA_API_URL: z.url().optional(),
     APP_URL: z.url().optional(),
+    JOB_RUNNER_SECRET: z.string().min(1).optional(),
     EMAIL_ENABLED: booleanFlagSchema,
     PAYMENTS_ENABLED: booleanFlagSchema,
     SHIPPING_ENABLED: booleanFlagSchema,
@@ -84,6 +85,14 @@ const serverEnvSchema = publicEnvSchema
         code: z.ZodIssueCode.custom,
         path: ['NOVA_POSHTA_API_KEY'],
         message: 'NOVA_POSHTA_API_KEY is required when SHIPPING_ENABLED is true',
+      })
+    }
+
+    if (value.JOBS_ENABLED && !value.JOB_RUNNER_SECRET) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['JOB_RUNNER_SECRET'],
+        message: 'JOB_RUNNER_SECRET is required when JOBS_ENABLED is true',
       })
     }
   })
@@ -181,6 +190,7 @@ export function getServerEnvDiagnostics(source: EnvSource = process.env) {
       resend: Boolean(env.RESEND_API_KEY),
       liqpay: Boolean(env.LIQPAY_PUBLIC_KEY && env.LIQPAY_PRIVATE_KEY),
       novaPoshta: Boolean(env.NOVA_POSHTA_API_KEY),
+      jobRunnerSecret: Boolean(env.JOB_RUNNER_SECRET),
     },
     featureFlags: {
       emailEnabled: env.EMAIL_ENABLED,

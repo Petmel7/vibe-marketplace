@@ -83,6 +83,7 @@ describe('config/env', () => {
       EMAIL_ENABLED: 'true',
       PAYMENTS_ENABLED: 'true',
       SHIPPING_ENABLED: 'true',
+      JOBS_ENABLED: 'true',
     })
 
     expect(diagnostics.valid).toBe(false)
@@ -93,6 +94,7 @@ describe('config/env', () => {
           expect.objectContaining({ path: 'LIQPAY_PUBLIC_KEY' }),
           expect.objectContaining({ path: 'LIQPAY_PRIVATE_KEY' }),
           expect.objectContaining({ path: 'NOVA_POSHTA_API_KEY' }),
+          expect.objectContaining({ path: 'JOB_RUNNER_SECRET' }),
         ]),
       )
     }
