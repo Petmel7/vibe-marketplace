@@ -1,4 +1,5 @@
 import { Prisma, type Job } from '@/app/generated/prisma/client'
+import { getServerEnv } from '@/config/env'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { requireAdmin } from '@/lib/auth/guards'
 import {
@@ -7,7 +8,7 @@ import {
   JobNotFoundError,
   JobRetryLimitExceededError,
 } from '@/lib/errors/job'
-import { logError } from '@/utils/logger'
+import { logError, logInfo, logWarn } from '@/utils/logger'
 import type {
   EnqueueJobInputDto,
   JobDto,
@@ -15,6 +16,7 @@ import type {
   JobListQueryDto,
   JobPayload,
   JobProcessResultDto,
+  RecoverStaleJobsResultDto,
   JobRunnerRequestDto,
   JobRunnerResponseDto,
   JobsRegistry,
@@ -26,17 +28,22 @@ import {
   countJobs,
   createJobRecord,
   cancelJobRecord,
+  extendJobLockRecord,
   findJobByDedupeKey,
   findJobById,
   listJobs,
   listRunnableJobs,
+  listStaleProcessingJobs,
   markJobFailed,
   markJobSucceeded,
+  recoverStaleJobsByIds,
   requeueJob,
 } from './jobs.repository'
 import { enqueueJobSchema, jobPayloadSchemaByType } from './jobs.schema'
 
 function toJobDto(job: Job): JobDto {
+  const lockExpiresAt = getJobLockExpiresAt(job.lockedAt)
+
   return {
     id: job.id,
     type: job.type,
@@ -46,6 +53,8 @@ function toJobDto(job: Job): JobDto {
     maxAttempts: job.maxAttempts,
     runAt: job.runAt.toISOString(),
     lockedAt: job.lockedAt?.toISOString() ?? null,
+    lockExpiresAt: lockExpiresAt?.toISOString() ?? null,
+    stale: isJobLockStale(job),
     processedAt: job.processedAt?.toISOString() ?? null,
     failedAt: job.failedAt?.toISOString() ?? null,
     errorMessage: job.errorMessage ? job.errorMessage.slice(0, 500) : null,
@@ -61,6 +70,27 @@ function resolveRunAt(input: string | Date | null | undefined): Date {
   }
 
   return input instanceof Date ? input : new Date(input)
+}
+
+function getJobLockTimeoutSeconds() {
+  return getServerEnv().JOB_LOCK_TIMEOUT_SECONDS ?? 300
+}
+
+function getJobLockExpiresAt(lockedAt: Date | null | undefined) {
+  if (!lockedAt) {
+    return null
+  }
+
+  return new Date(lockedAt.getTime() + getJobLockTimeoutSeconds() * 1000)
+}
+
+function isJobLockStale(job: Pick<Job, 'status' | 'lockedAt'>, now = new Date()) {
+  if (job.status !== 'PROCESSING' || !job.lockedAt) {
+    return false
+  }
+
+  const lockExpiresAt = getJobLockExpiresAt(job.lockedAt)
+  return lockExpiresAt != null && lockExpiresAt.getTime() <= now.getTime()
 }
 
 function calculateNextRunAt(attempts: number, now = new Date()) {
@@ -106,6 +136,12 @@ function parseJobPayload(type: KnownJobType, payload: unknown) {
 
 function assertAdmin(user: SessionUser) {
   requireAdmin(user)
+}
+
+function assertCanTransitionJob(job: Job, allowedStatuses: Array<Job['status']>, message: string) {
+  if (!allowedStatuses.includes(job.status)) {
+    throw new JobInvalidStateError(message)
+  }
 }
 
 export async function enqueueJob<TType extends KnownJobType>(
@@ -185,6 +221,12 @@ export async function processJob(
   }
 
   const attempts = job.attempts + 1
+  logInfo('jobs:claimed', {
+    domain: 'jobs',
+    jobId: job.id,
+    jobType: job.type,
+    attempts,
+  })
 
   try {
     const definition = getJobDefinition(job.type as KnownJobType, registry)
@@ -194,6 +236,13 @@ export async function processJob(
       id: job.id,
       attempts,
       processedAt: new Date(),
+    })
+
+    logInfo('jobs:completed', {
+      domain: 'jobs',
+      jobId: job.id,
+      jobType: job.type,
+      attempts,
     })
 
     return {
@@ -239,6 +288,8 @@ export async function retryJob(
     throw new JobNotFoundError()
   }
 
+  assertCanTransitionJob(job, ['FAILED'], 'Only failed jobs can be retried')
+
   if (job.attempts >= job.maxAttempts) {
     throw new JobRetryLimitExceededError()
   }
@@ -251,11 +302,65 @@ export async function retryJob(
   return processJob(job.id, { force: true, registry })
 }
 
+export async function extendJobLock(jobId: string): Promise<JobDto | null> {
+  const now = new Date()
+  const extended = await extendJobLockRecord({
+    id: jobId,
+    lockedAt: now,
+  })
+
+  if (!extended) {
+    return null
+  }
+
+  const updated = await findJobById(jobId)
+  return updated ? toJobDto(updated) : null
+}
+
+export async function recoverStaleJobs(
+  input?: { limit?: number; now?: Date },
+): Promise<RecoverStaleJobsResultDto> {
+  const now = input?.now ?? new Date()
+  const staleBefore = new Date(now.getTime() - getJobLockTimeoutSeconds() * 1000)
+  const staleJobs = await listStaleProcessingJobs({
+    staleBefore,
+    limit: input?.limit ?? 25,
+  })
+
+  if (staleJobs.length === 0) {
+    return {
+      recoveredCount: 0,
+      recoveredJobIds: [],
+    }
+  }
+
+  const recoveredCount = await recoverStaleJobsByIds({
+    ids: staleJobs.map((job) => job.id),
+    staleBefore,
+    recoveredAt: now,
+  })
+  const recoveredJobIds = staleJobs.slice(0, recoveredCount).map((job) => job.id)
+
+  if (recoveredCount > 0) {
+    logWarn('jobs:stale-recovered', {
+      domain: 'jobs',
+      recoveredCount,
+      recoveredJobIds,
+    })
+  }
+
+  return {
+    recoveredCount,
+    recoveredJobIds,
+  }
+}
+
 export async function runDueJobs(
   input: JobRunnerRequestDto,
   registry: JobsRegistry = jobsRegistry,
 ): Promise<JobRunnerResponseDto> {
   const now = new Date()
+  const recovery = await recoverStaleJobs({ limit: input.limit, now })
   const dueJobs = (await listRunnableJobs({
     now,
     limit: input.limit,
@@ -271,6 +376,7 @@ export async function runDueJobs(
     processed: items.length,
     succeeded: items.filter((item) => item.job.status === 'SUCCEEDED').length,
     failed: items.filter((item) => item.job.status === 'FAILED').length,
+    recovered: recovery.recoveredCount,
     items,
   }
 }
@@ -320,9 +426,7 @@ export async function retryAdminJob(
     throw new JobNotFoundError()
   }
 
-  if (job.status !== 'FAILED') {
-    throw new JobInvalidStateError('Only failed jobs can be retried')
-  }
+  assertCanTransitionJob(job, ['FAILED'], 'Only failed jobs can be retried')
 
   return retryJob(jobId, registry)
 }
@@ -338,9 +442,7 @@ export async function cancelAdminJob(
     throw new JobNotFoundError()
   }
 
-  if (job.status !== 'PENDING') {
-    throw new JobInvalidStateError('Only pending jobs can be cancelled')
-  }
+  assertCanTransitionJob(job, ['PENDING'], 'Only pending jobs can be cancelled')
 
   const cancelled = await cancelJobRecord(jobId, new Date())
   if (!cancelled) {
@@ -353,6 +455,59 @@ export async function cancelAdminJob(
   }
 
   return toJobDto(updated)
+}
+
+export async function requeueStaleAdminJob(
+  user: SessionUser,
+  jobId: string,
+): Promise<JobDto> {
+  assertAdmin(user)
+
+  const job = await findJobById(jobId)
+  if (!job) {
+    throw new JobNotFoundError()
+  }
+
+  if (!isJobLockStale(job)) {
+    throw new JobInvalidStateError('Only stale processing jobs can be requeued')
+  }
+
+  const recovered = await recoverStaleJobs({ limit: 25 })
+  if (!recovered.recoveredJobIds.includes(jobId)) {
+    throw new JobInvalidStateError('Only stale processing jobs can be requeued')
+  }
+
+  const updated = await findJobById(jobId)
+  if (!updated) {
+    throw new JobNotFoundError()
+  }
+
+  logWarn('jobs:manual-requeue', {
+    domain: 'jobs',
+    actorId: user.id,
+    jobId,
+  })
+
+  return toJobDto(updated)
+}
+
+export async function recoverStaleAdminJobs(
+  user: SessionUser,
+  input?: { limit?: number },
+): Promise<RecoverStaleJobsResultDto> {
+  assertAdmin(user)
+  const result = await recoverStaleJobs({ limit: input?.limit })
+
+  if (result.recoveredCount > 0) {
+    logWarn('jobs:manual-recover-stale', {
+      domain: 'jobs',
+      actorId: user.id,
+      recoveredCount: result.recoveredCount,
+      recoveredJobIds: result.recoveredJobIds,
+    })
+  }
+
+  return result
 }
 
 export async function runDueAdminJobs(

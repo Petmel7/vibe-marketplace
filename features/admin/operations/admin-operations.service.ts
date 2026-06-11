@@ -8,7 +8,9 @@ import {
 import {
   getAdminJobById,
   getAdminJobs,
+  recoverStaleAdminJobs,
   retryAdminJob,
+  requeueStaleAdminJob,
   cancelAdminJob,
   runDueAdminJobs,
 } from '@/features/jobs/jobs.service'
@@ -19,6 +21,8 @@ import type {
   AdminOperationsJobDto,
   AdminOperationsJobListDto,
   AdminOperationsJobQueryDto,
+  AdminOperationsRecoverStaleRequestDto,
+  AdminOperationsRecoverStaleResponseDto,
   AdminOperationsRunDueRequestDto,
   AdminOperationsRunDueResponseDto,
 } from './admin-operations.dto'
@@ -42,6 +46,8 @@ function toOperationsJobDto(job: Awaited<ReturnType<typeof getAdminJobById>>): A
     maxAttempts: job.maxAttempts,
     runAt: job.runAt,
     lockedAt: job.lockedAt,
+    lockExpiresAt: job.lockExpiresAt,
+    stale: job.stale,
     processedAt: job.processedAt,
     failedAt: job.failedAt,
     errorMessage: job.errorMessage,
@@ -120,12 +126,36 @@ export async function cancelAdminOperationsJob(
   }
 }
 
+export async function requeueStaleAdminOperationsJob(
+  user: SessionUser,
+  jobId: string,
+): Promise<AdminOperationsJobDto> {
+  assertOperationsAdmin(user)
+
+  try {
+    return toOperationsJobDto(await requeueStaleAdminJob(user, jobId))
+  } catch (error) {
+    if (error instanceof JobInvalidStateError) {
+      throw new InvalidJobTransitionError(error.message)
+    }
+    throw error
+  }
+}
+
 export async function runDueAdminOperationsJobs(
   user: SessionUser,
   input: AdminOperationsRunDueRequestDto,
 ): Promise<AdminOperationsRunDueResponseDto> {
   assertOperationsAdmin(user)
   return runDueAdminJobs(user, input)
+}
+
+export async function recoverStaleAdminOperationsJobs(
+  user: SessionUser,
+  input: AdminOperationsRecoverStaleRequestDto,
+): Promise<AdminOperationsRecoverStaleResponseDto> {
+  assertOperationsAdmin(user)
+  return recoverStaleAdminJobs(user, input)
 }
 
 export async function getAdminOperationsAuditLogs(

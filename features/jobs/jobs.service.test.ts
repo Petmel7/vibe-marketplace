@@ -5,13 +5,22 @@ vi.mock('@/features/jobs/jobs.repository', () => ({
   claimJobForProcessing: vi.fn(),
   countJobs: vi.fn(),
   createJobRecord: vi.fn(),
+  extendJobLockRecord: vi.fn(),
   findJobByDedupeKey: vi.fn(),
   findJobById: vi.fn(),
   listJobs: vi.fn(),
   listRunnableJobs: vi.fn(),
+  listStaleProcessingJobs: vi.fn(),
   markJobFailed: vi.fn(),
   markJobSucceeded: vi.fn(),
+  recoverStaleJobsByIds: vi.fn(),
   requeueJob: vi.fn(),
+}))
+
+vi.mock('@/config/env', () => ({
+  getServerEnv: vi.fn(() => ({
+    JOB_LOCK_TIMEOUT_SECONDS: 300,
+  })),
 }))
 
 vi.mock('@/lib/auth/guards', () => ({
@@ -59,12 +68,15 @@ import {
   claimJobForProcessing,
   countJobs,
   createJobRecord,
+  extendJobLockRecord,
   findJobByDedupeKey,
   findJobById,
   listJobs,
   listRunnableJobs,
+  listStaleProcessingJobs,
   markJobFailed,
   markJobSucceeded,
+  recoverStaleJobsByIds,
   requeueJob,
 } from '@/features/jobs/jobs.repository'
 import { requireAdmin } from '@/lib/auth/guards'
@@ -73,8 +85,12 @@ import { JobInvalidStateError, JobRetryLimitExceededError } from '@/lib/errors/j
 import {
   cancelAdminJob,
   enqueueJob,
+  extendJobLock,
   getAdminJobs,
   processJob,
+  recoverStaleAdminJobs,
+  recoverStaleJobs,
+  requeueStaleAdminJob,
   retryAdminJob,
   retryJob,
   runDueJobs,
@@ -86,12 +102,15 @@ const mockRepo = {
   claimJobForProcessing: vi.mocked(claimJobForProcessing),
   countJobs: vi.mocked(countJobs),
   createJobRecord: vi.mocked(createJobRecord),
+  extendJobLockRecord: vi.mocked(extendJobLockRecord),
   findJobByDedupeKey: vi.mocked(findJobByDedupeKey),
   findJobById: vi.mocked(findJobById),
   listJobs: vi.mocked(listJobs),
   listRunnableJobs: vi.mocked(listRunnableJobs),
+  listStaleProcessingJobs: vi.mocked(listStaleProcessingJobs),
   markJobFailed: vi.mocked(markJobFailed),
   markJobSucceeded: vi.mocked(markJobSucceeded),
+  recoverStaleJobsByIds: vi.mocked(recoverStaleJobsByIds),
   requeueJob: vi.mocked(requeueJob),
 }
 
@@ -258,6 +277,7 @@ describe('jobs.service', () => {
     })
 
     mockRepo.findJobById.mockResolvedValue(makeJob() as never)
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([] as never)
     mockRepo.claimJobForProcessing.mockResolvedValue(true)
     mockRepo.markJobSucceeded.mockResolvedValue(
       makeJob({
@@ -283,6 +303,7 @@ describe('jobs.service', () => {
     })
 
     mockRepo.findJobById.mockResolvedValue(makeJob() as never)
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([] as never)
     mockRepo.claimJobForProcessing.mockResolvedValue(true)
     mockRepo.markJobFailed.mockImplementation(async (input) =>
       makeJob({
@@ -384,6 +405,7 @@ describe('jobs.service', () => {
     mockRepo.findJobById
       .mockResolvedValueOnce(makeJob({ status: 'FAILED', attempts: 1 }) as never)
       .mockResolvedValueOnce(makeJob({ status: 'FAILED', attempts: 1 }) as never)
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([] as never)
     mockRepo.requeueJob.mockResolvedValue(makeJob({ status: 'PENDING', attempts: 1 }) as never)
     mockRepo.claimJobForProcessing.mockResolvedValue(true)
     mockRepo.markJobSucceeded.mockResolvedValue(
@@ -418,6 +440,7 @@ describe('jobs.service', () => {
     const dueFailed = makeJob({ id: 'job-2', status: 'FAILED', attempts: 1, maxAttempts: 3 })
     const exhausted = makeJob({ id: 'job-3', status: 'FAILED', attempts: 3, maxAttempts: 3 })
 
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([] as never)
     mockRepo.listRunnableJobs.mockResolvedValue([duePending, dueFailed, exhausted] as never)
     mockRepo.findJobById
       .mockResolvedValueOnce(duePending as never)
@@ -432,6 +455,78 @@ describe('jobs.service', () => {
     expect(result.processed).toBe(2)
     expect(result.succeeded).toBe(2)
     expect(result.failed).toBe(0)
+    expect(result.recovered).toBe(0)
+  })
+
+  it('detects and recovers stale processing jobs', async () => {
+    const staleJob = makeJob({
+      id: 'job-stale',
+      status: 'PROCESSING',
+      lockedAt: new Date('2026-06-08T11:50:00.000Z'),
+    })
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([staleJob] as never)
+    mockRepo.recoverStaleJobsByIds.mockResolvedValue(1)
+
+    const result = await recoverStaleJobs({
+      now: new Date('2026-06-08T12:00:00.000Z'),
+      limit: 10,
+    })
+
+    expect(result).toEqual({
+      recoveredCount: 1,
+      recoveredJobIds: ['job-stale'],
+    })
+  })
+
+  it('does not recover fresh processing jobs', async () => {
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([] as never)
+
+    const result = await recoverStaleJobs({
+      now: new Date('2026-06-08T12:00:00.000Z'),
+      limit: 10,
+    })
+
+    expect(result.recoveredCount).toBe(0)
+    expect(mockRepo.recoverStaleJobsByIds).not.toHaveBeenCalled()
+  })
+
+  it('runner recovers stale jobs before executing due jobs', async () => {
+    const staleJob = makeJob({
+      id: 'job-stale',
+      status: 'PROCESSING',
+      lockedAt: new Date('2026-06-08T11:50:00.000Z'),
+    })
+    const duePending = makeJob({ id: 'job-1', status: 'PENDING', attempts: 0, maxAttempts: 3 })
+
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([staleJob] as never)
+    mockRepo.recoverStaleJobsByIds.mockResolvedValue(1)
+    mockRepo.listRunnableJobs.mockResolvedValue([duePending] as never)
+    mockRepo.findJobById.mockResolvedValue(duePending as never)
+    mockRepo.claimJobForProcessing.mockResolvedValue(true)
+    mockRepo.markJobSucceeded.mockResolvedValue(
+      makeJob({ id: 'job-1', status: 'SUCCEEDED', attempts: 1 }) as never,
+    )
+
+    const result = await runDueJobs({ limit: 10 }, buildRegistry())
+
+    expect(result.recovered).toBe(1)
+    expect(mockRepo.listStaleProcessingJobs).toHaveBeenCalledOnce()
+    expect(mockRepo.listRunnableJobs).toHaveBeenCalledOnce()
+  })
+
+  it('can extend a processing job lock safely', async () => {
+    mockRepo.extendJobLockRecord.mockResolvedValue(true)
+    mockRepo.findJobById.mockResolvedValue(
+      makeJob({
+        status: 'PROCESSING',
+        lockedAt: new Date('2026-06-08T12:00:00.000Z'),
+      }) as never,
+    )
+
+    const result = await extendJobLock('job-1')
+
+    expect(result?.lockedAt).not.toBeNull()
+    expect(result?.lockExpiresAt).not.toBeNull()
   })
 
   it('lists recent jobs for admins only', async () => {
@@ -471,6 +566,7 @@ describe('jobs.service', () => {
       .mockResolvedValueOnce(makeJob({ status: 'FAILED', attempts: 1 }) as never)
       .mockResolvedValueOnce(makeJob({ status: 'FAILED', attempts: 1 }) as never)
       .mockResolvedValueOnce(makeJob({ status: 'FAILED', attempts: 1 }) as never)
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([] as never)
     mockRepo.requeueJob.mockResolvedValue(makeJob({ status: 'PENDING', attempts: 1 }) as never)
     mockRepo.claimJobForProcessing.mockResolvedValue(true)
     mockRepo.markJobSucceeded.mockResolvedValue(
@@ -508,5 +604,59 @@ describe('jobs.service', () => {
     mockRepo.findJobById.mockResolvedValue(makeJob({ status: 'FAILED' }) as never)
 
     await expect(cancelAdminJob(adminUser as never, 'job-1')).rejects.toThrow(JobInvalidStateError)
+  })
+
+  it('admin can manually requeue a stale processing job', async () => {
+    mockRepo.findJobById
+      .mockResolvedValueOnce(
+        makeJob({
+          id: 'job-stale',
+          status: 'PROCESSING',
+          lockedAt: new Date('2026-06-08T11:50:00.000Z'),
+        }) as never,
+      )
+      .mockResolvedValueOnce(makeJob({ id: 'job-stale', status: 'PENDING' }) as never)
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([
+      makeJob({
+        id: 'job-stale',
+        status: 'PROCESSING',
+        lockedAt: new Date('2026-06-08T11:50:00.000Z'),
+      }),
+    ] as never)
+    mockRepo.recoverStaleJobsByIds.mockResolvedValue(1)
+
+    const result = await requeueStaleAdminJob(adminUser as never, 'job-stale')
+
+    expect(result.status).toBe('PENDING')
+  })
+
+  it('blocks invalid manual requeue for non-stale jobs', async () => {
+    mockRepo.findJobById.mockResolvedValue(
+      makeJob({
+        id: 'job-fresh',
+        status: 'PROCESSING',
+        lockedAt: new Date(),
+      }) as never,
+    )
+
+    await expect(requeueStaleAdminJob(adminUser as never, 'job-fresh')).rejects.toThrow(
+      JobInvalidStateError,
+    )
+  })
+
+  it('admin can recover stale jobs in bulk', async () => {
+    mockRepo.listStaleProcessingJobs.mockResolvedValue([
+      makeJob({
+        id: 'job-stale',
+        status: 'PROCESSING',
+        lockedAt: new Date('2026-06-08T11:50:00.000Z'),
+      }),
+    ] as never)
+    mockRepo.recoverStaleJobsByIds.mockResolvedValue(1)
+
+    const result = await recoverStaleAdminJobs(adminUser as never, { limit: 5 })
+
+    expect(result.recoveredCount).toBe(1)
+    expect(result.recoveredJobIds).toEqual(['job-stale'])
   })
 })

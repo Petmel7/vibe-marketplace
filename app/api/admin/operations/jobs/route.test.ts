@@ -6,6 +6,7 @@ vi.mock('@/lib/session/getSession', () => ({
 
 vi.mock('@/features/admin/operations/admin-operations.service', () => ({
   getAdminOperationsJobs: vi.fn(),
+  recoverStaleAdminOperationsJobs: vi.fn(),
   runDueAdminOperationsJobs: vi.fn(),
 }))
 
@@ -13,13 +14,16 @@ import { ForbiddenError } from '@/lib/errors/auth'
 import { requireAuth } from '@/lib/session/getSession'
 import {
   getAdminOperationsJobs,
+  recoverStaleAdminOperationsJobs,
   runDueAdminOperationsJobs,
 } from '@/features/admin/operations/admin-operations.service'
 import { GET } from '@/app/api/admin/operations/jobs/route'
+import { POST as recoverStalePOST } from '@/app/api/admin/operations/jobs/recover-stale/route'
 import { POST } from '@/app/api/admin/operations/jobs/run-due/route'
 
 const mockRequireAuth = vi.mocked(requireAuth)
 const mockGetAdminOperationsJobs = vi.mocked(getAdminOperationsJobs)
+const mockRecoverStaleAdminOperationsJobs = vi.mocked(recoverStaleAdminOperationsJobs)
 const mockRunDueAdminOperationsJobs = vi.mocked(runDueAdminOperationsJobs)
 
 describe('admin operations jobs routes', () => {
@@ -69,6 +73,7 @@ describe('admin operations jobs routes', () => {
       processed: 2,
       succeeded: 2,
       failed: 0,
+      recovered: 0,
       items: [],
     })
 
@@ -82,6 +87,29 @@ describe('admin operations jobs routes', () => {
 
     expect(response.status).toBe(200)
     expect(mockRunDueAdminOperationsJobs).toHaveBeenCalledWith(
+      { id: 'admin-1', email: 'admin@example.com', roles: ['ADMIN'] },
+      { limit: 10 },
+    )
+    expect(json.success).toBe(true)
+  })
+
+  it('admin can recover stale jobs manually', async () => {
+    mockRequireAuth.mockResolvedValue({ id: 'admin-1', email: 'admin@example.com', roles: ['ADMIN'] })
+    mockRecoverStaleAdminOperationsJobs.mockResolvedValue({
+      recoveredCount: 2,
+      recoveredJobIds: ['job-1', 'job-2'],
+    })
+
+    const response = await recoverStalePOST(
+      new Request('http://localhost/api/admin/operations/jobs/recover-stale', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 10 }),
+      }),
+    )
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockRecoverStaleAdminOperationsJobs).toHaveBeenCalledWith(
       { id: 'admin-1', email: 'admin@example.com', roles: ['ADMIN'] },
       { limit: 10 },
     )

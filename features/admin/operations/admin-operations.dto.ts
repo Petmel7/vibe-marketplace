@@ -17,6 +17,8 @@ export type AdminOperationsJobDto = {
   maxAttempts: number
   runAt: string
   lockedAt: string | null
+  lockExpiresAt: string | null
+  stale: boolean
   processedAt: string | null
   failedAt: string | null
   errorMessage: string | null
@@ -37,6 +39,15 @@ export type AdminOperationsRunDueRequestDto = {
 }
 
 export type AdminOperationsRunDueResponseDto = JobRunnerResponseDto
+
+export type AdminOperationsRecoverStaleRequestDto = {
+  limit: number
+}
+
+export type AdminOperationsRecoverStaleResponseDto = {
+  recoveredCount: number
+  recoveredJobIds: string[]
+}
 
 export type AdminAuditLogQueryDto = {
   page: number

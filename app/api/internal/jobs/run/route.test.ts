@@ -42,6 +42,7 @@ describe('POST /api/internal/jobs/run', () => {
       processed: 1,
       succeeded: 1,
       failed: 0,
+      recovered: 0,
       items: [],
     })
 
@@ -63,6 +64,7 @@ describe('POST /api/internal/jobs/run', () => {
         processed: 1,
         succeeded: 1,
         failed: 0,
+        recovered: 0,
         items: [],
       },
     })

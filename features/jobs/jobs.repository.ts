@@ -160,6 +160,67 @@ export async function listRunnableJobs(input: {
   })
 }
 
+export async function listStaleProcessingJobs(input: {
+  staleBefore: Date
+  limit: number
+}) {
+  return prisma.job.findMany({
+    where: {
+      status: 'PROCESSING',
+      lockedAt: { lte: input.staleBefore },
+    },
+    orderBy: [
+      { lockedAt: 'asc' },
+      { createdAt: 'asc' },
+    ],
+    take: input.limit,
+  })
+}
+
+export async function recoverStaleJobsByIds(input: {
+  ids: string[]
+  staleBefore: Date
+  recoveredAt: Date
+}) {
+  if (input.ids.length === 0) {
+    return 0
+  }
+
+  const result = await prisma.job.updateMany({
+    where: {
+      id: { in: input.ids },
+      status: 'PROCESSING',
+      lockedAt: { lte: input.staleBefore },
+    },
+    data: {
+      status: 'PENDING',
+      lockedAt: null,
+      processedAt: null,
+      updatedAt: input.recoveredAt,
+    },
+  })
+
+  return result.count
+}
+
+export async function extendJobLockRecord(input: {
+  id: string
+  lockedAt: Date
+}) {
+  const result = await prisma.job.updateMany({
+    where: {
+      id: input.id,
+      status: 'PROCESSING',
+    },
+    data: {
+      lockedAt: input.lockedAt,
+      updatedAt: input.lockedAt,
+    },
+  })
+
+  return result.count > 0
+}
+
 export async function listJobs(query: JobListQueryDto) {
   const createdAt = buildDateRangeFilter(query.dateFrom, query.dateTo)
 

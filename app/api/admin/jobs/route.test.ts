@@ -38,6 +38,8 @@ describe('GET /api/admin/jobs', () => {
           maxAttempts: 5,
           runAt: '2026-06-08T12:00:00.000Z',
           lockedAt: null,
+          lockExpiresAt: null,
+          stale: false,
           processedAt: null,
           failedAt: null,
           errorMessage: null,

@@ -111,6 +111,10 @@ export const jobRunnerRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).default(10),
 })
 
+export const recoverStaleJobsRequestSchema = z.object({
+  limit: z.number().int().min(1).max(100).default(25),
+})
+
 export const jobRunnerHeaderSchema = z.object({
   authorization: z.string().optional(),
   'x-job-runner-secret': z.string().optional(),

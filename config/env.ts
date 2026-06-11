@@ -44,6 +44,7 @@ const serverEnvSchema = publicEnvSchema
     NOVA_POSHTA_CACHE_TTL_SECONDS: z.coerce.number().int().positive().optional(),
     APP_URL: z.url().optional(),
     JOB_RUNNER_SECRET: z.string().min(1).optional(),
+    JOB_LOCK_TIMEOUT_SECONDS: z.coerce.number().int().positive().optional(),
     EMAIL_ENABLED: booleanFlagSchema,
     PAYMENTS_ENABLED: booleanFlagSchema,
     SHIPPING_ENABLED: booleanFlagSchema,

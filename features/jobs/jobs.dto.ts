@@ -82,6 +82,8 @@ export type JobDto = {
   maxAttempts: number
   runAt: string
   lockedAt: string | null
+  lockExpiresAt: string | null
+  stale: boolean
   processedAt: string | null
   failedAt: string | null
   errorMessage: string | null
@@ -105,7 +107,13 @@ export type JobRunnerResponseDto = {
   processed: number
   succeeded: number
   failed: number
+  recovered: number
   items: JobProcessResultDto[]
+}
+
+export type RecoverStaleJobsResultDto = {
+  recoveredCount: number
+  recoveredJobIds: string[]
 }
 
 export type JobListQueryDto = {

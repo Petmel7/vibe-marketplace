@@ -7,6 +7,8 @@ vi.mock('@/lib/auth/guards', () => ({
 vi.mock('@/features/jobs/jobs.service', () => ({
   getAdminJobById: vi.fn(),
   getAdminJobs: vi.fn(),
+  recoverStaleAdminJobs: vi.fn(),
+  requeueStaleAdminJob: vi.fn(),
   retryAdminJob: vi.fn(),
   cancelAdminJob: vi.fn(),
   runDueAdminJobs: vi.fn(),
@@ -16,6 +18,7 @@ import { requireAdmin } from '@/lib/auth/guards'
 import * as jobsService from '@/features/jobs/jobs.service'
 import {
   getAdminOperationsJobById,
+  requeueStaleAdminOperationsJob,
   retryAdminOperationsJob,
 } from './admin-operations.service'
 import { InvalidJobTransitionError, OperationsAccessDeniedError } from '@/lib/errors/operations'
@@ -46,6 +49,8 @@ describe('admin operations service', () => {
       maxAttempts: 5,
       runAt: '2026-06-08T12:00:00.000Z',
       lockedAt: null,
+      lockExpiresAt: null,
+      stale: false,
       processedAt: null,
       failedAt: '2026-06-08T12:05:00.000Z',
       errorMessage: 'boom',
@@ -65,6 +70,16 @@ describe('admin operations service', () => {
 
     await expect(
       retryAdminOperationsJob(adminUser as never, 'job-1'),
+    ).rejects.toThrow(InvalidJobTransitionError)
+  })
+
+  it('maps invalid stale requeue state to InvalidJobTransitionError', async () => {
+    mockJobsService.requeueStaleAdminJob.mockRejectedValue(
+      new JobInvalidStateError('Only stale processing jobs can be requeued'),
+    )
+
+    await expect(
+      requeueStaleAdminOperationsJob(adminUser as never, 'job-1'),
     ).rejects.toThrow(InvalidJobTransitionError)
   })
 

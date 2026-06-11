@@ -1,10 +1,18 @@
 import { z } from 'zod'
-import { jobListQuerySchema, jobRunnerRequestSchema } from '@/features/jobs/jobs.schema'
+import {
+  jobListQuerySchema,
+  jobRunnerRequestSchema,
+  recoverStaleJobsRequestSchema,
+} from '@/features/jobs/jobs.schema'
 
 export const adminOperationsJobsQuerySchema = jobListQuerySchema
 
 export const adminOperationsRunDueSchema = jobRunnerRequestSchema.extend({
   limit: z.number().int().min(1).max(25).default(10),
+})
+
+export const adminOperationsRecoverStaleSchema = recoverStaleJobsRequestSchema.extend({
+  limit: z.number().int().min(1).max(100).default(25),
 })
 
 export const adminAuditLogQuerySchema = z.object({
