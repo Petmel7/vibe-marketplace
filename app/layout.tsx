@@ -1,27 +1,16 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
-import AuthSessionProvider from "@/components/auth/AuthSessionProvider";
-import WishlistAuthBridge from "@/components/wishlist/WishlistAuthBridge";
-import { getCurrentUser } from "@/lib/session/getSession";
-import { VisitorProvider } from "@/components/providers/VisitorProvider";
-import WebSiteJsonLd from "@/components/seo/WebSiteJsonLd";
-import { getCachedGlobalSeo, getCachedWebsiteJsonLd } from "@/app/_lib/seo.data";
-import { buildHomeMetadata, getSeoBaseUrl } from "@/lib/seo/metadata";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import type { Metadata } from 'next'
+import { Toaster } from 'sonner'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
+import BottomNav from '@/components/layout/BottomNav'
+import AuthSessionProvider from '@/components/auth/AuthSessionProvider'
+import WishlistAuthBridge from '@/components/wishlist/WishlistAuthBridge'
+import { getCurrentUser } from '@/lib/session/getSession'
+import { VisitorProvider } from '@/components/providers/VisitorProvider'
+import WebSiteJsonLd from '@/components/seo/WebSiteJsonLd'
+import { getCachedGlobalSeo, getCachedWebsiteJsonLd } from '@/app/_lib/seo.data'
+import { buildHomeMetadata, getSeoBaseUrl } from '@/lib/seo/metadata'
+import './globals.css'
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getCachedGlobalSeo()
@@ -49,7 +38,7 @@ export default async function RootLayout({
   return (
     <html
       lang="uk"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body
         suppressHydrationWarning

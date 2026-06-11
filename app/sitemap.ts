@@ -1,9 +1,9 @@
 import type { MetadataRoute } from 'next'
 import { getCachedSitemapEntries } from '@/app/_lib/seo.data'
-import { SEO_SITEMAP_REVALIDATE_SECONDS } from '@/features/seo/seo.cache'
 import type { SitemapEntryDto } from '@/features/seo/seo.dto'
 
-export const revalidate = SEO_SITEMAP_REVALIDATE_SECONDS
+export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 const DISALLOWED_SITEMAP_PATHS = new Set([
   '/search',

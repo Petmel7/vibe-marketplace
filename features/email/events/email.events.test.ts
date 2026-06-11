@@ -169,6 +169,7 @@ function makeRefundRequestContext(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  process.env.APP_URL = 'https://app.example.com'
   process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com'
   mockQueue.enqueueEmailEvent.mockImplementation(async (input) => ({
     id: 'event-1',

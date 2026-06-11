@@ -138,6 +138,10 @@ function getPublicEnvSource(): EnvSource {
   }
 }
 
+function normalizeBaseUrl(url: string) {
+  return url.replace(/\/+$/, '')
+}
+
 function formatPublicEnvErrorMessage(issues: Array<{ path: string; message: string }>) {
   const missingKeys = issues.map((issue) => issue.path).filter(Boolean)
   const keysText =
@@ -160,6 +164,18 @@ export function parsePublicEnv(source: EnvSource): PublicEnv {
 
 export function parseServerEnv(source: EnvSource): ServerEnv {
   return serverEnvSchema.parse(source)
+}
+
+export function getAppBaseUrl() {
+  const explicitBaseUrl =
+    process.env.APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim()
+
+  if (!explicitBaseUrl) {
+    return null
+  }
+
+  return normalizeBaseUrl(explicitBaseUrl)
 }
 
 export function getPublicEnvDiagnostics(source: EnvSource = getPublicEnvSource()): PublicEnvDiagnostics {

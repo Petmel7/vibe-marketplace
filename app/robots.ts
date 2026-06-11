@@ -1,8 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { getCachedRobotsConfig } from '@/app/_lib/seo.data'
-import { SEO_ROBOTS_REVALIDATE_SECONDS } from '@/features/seo/seo.cache'
 
-export const revalidate = SEO_ROBOTS_REVALIDATE_SECONDS
+export const revalidate = 86400
+export const dynamic = 'force-dynamic'
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const config = await getCachedRobotsConfig()

@@ -7,6 +7,12 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/storefront/storefront.repository')
 vi.mock('@/features/seller/seller.repository')
 vi.mock('@/features/media/media.service')
+vi.mock('@/features/store/store.repository', () => ({
+  listStoresByOwnerId: vi.fn(),
+}))
+vi.mock('@/features/store/store.service', () => ({
+  resolveSellerStoreContext: vi.fn(),
+}))
 
 // Mock the requireSeller guard
 vi.mock('@/lib/auth/guards', () => ({
@@ -30,6 +36,8 @@ vi.mock('@/lib/utils/slugify', () => ({
 import * as storefrontRepo from '@/features/storefront/storefront.repository'
 import * as sellerRepo from '@/features/seller/seller.repository'
 import * as mediaService from '@/features/media/media.service'
+import * as storeRepo from '@/features/store/store.repository'
+import * as storeService from '@/features/store/store.service'
 import * as guards from '@/lib/auth/guards'
 import {
   getOnboardingStatus,
@@ -39,7 +47,6 @@ import {
   uploadStorefrontAsset,
 } from '@/features/storefront/storefront.service'
 import {
-  StoreAlreadyExistsError,
   SellerNotVerifiedError,
   StoreProvisioningRequiredError,
   SlugAlreadyTakenError,
@@ -51,6 +58,8 @@ import type { StorefrontDto } from '@/features/storefront/storefront.dto'
 const mockStorefrontRepo = vi.mocked(storefrontRepo)
 const mockSellerRepo = vi.mocked(sellerRepo)
 const mockMediaService = vi.mocked(mediaService)
+const mockStoreRepo = vi.mocked(storeRepo)
+const mockStoreService = vi.mocked(storeService)
 const mockGuards = vi.mocked(guards)
 
 const mockUser: SessionUser = {
@@ -122,7 +131,7 @@ describe('provisionStorefront', () => {
   it('creates a store for a verified seller', async () => {
     const storeRow = makeStoreRow()
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
     mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(true)
     mockStorefrontRepo.createStore.mockResolvedValue(storeRow)
 
@@ -150,21 +159,34 @@ describe('provisionStorefront', () => {
     expect(mockStorefrontRepo.createStore).not.toHaveBeenCalled()
   })
 
-  it('throws StoreAlreadyExistsError when a store already exists', async () => {
+  it('allows a verified seller to provision an additional store', async () => {
+    const existingStore = makeStoreRow()
+    const secondStore = makeStoreRow({
+      id: 'store-uuid-002',
+      slug: 'test-shop-2',
+      isPrimary: false,
+    })
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(makeStoreRow())
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([existingStore])
+    mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(true)
+    mockStorefrontRepo.createStore.mockResolvedValue(secondStore)
 
-    await expect(
-      provisionStorefront(mockUser, { name: 'Test Shop', slug: 'test-shop' }),
-    ).rejects.toThrow(StoreAlreadyExistsError)
+    const result = await provisionStorefront(mockUser, { name: 'Test Shop 2', slug: 'test-shop-2' })
 
-    expect(mockStorefrontRepo.createStore).not.toHaveBeenCalled()
+    expect(mockStorefrontRepo.createStore).toHaveBeenCalledWith(
+      mockUser.id,
+      expect.objectContaining({
+        slug: 'test-shop-2',
+        isPrimary: false,
+      }),
+    )
+    expect(result.isPrimary).toBe(false)
   })
 
   it('auto-generates slug from name when no slug is provided', async () => {
     const storeRow = makeStoreRow({ slug: 'my-cool-store' })
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
     mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(true)
     mockStorefrontRepo.createStore.mockResolvedValue(storeRow)
 
@@ -178,7 +200,7 @@ describe('provisionStorefront', () => {
 
   it('throws InvalidStoreSlugError when a provided slug is already taken', async () => {
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
     mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(false)
 
     await expect(
@@ -191,7 +213,7 @@ describe('provisionStorefront', () => {
   it('sets isPrimary true on the first store', async () => {
     const storeRow = makeStoreRow({ isPrimary: true })
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
     mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(true)
     mockStorefrontRepo.createStore.mockResolvedValue(storeRow)
 
@@ -203,7 +225,7 @@ describe('provisionStorefront', () => {
   it('normalizes provided slug candidates before persisting', async () => {
     const storeRow = makeStoreRow({ slug: 'test-shop' })
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
     mockStorefrontRepo.checkSlugAvailable.mockResolvedValue(true)
     mockStorefrontRepo.createStore.mockResolvedValue(storeRow)
 
@@ -222,7 +244,7 @@ describe('provisionStorefront', () => {
 describe('getOnboardingStatus', () => {
   it('isFullyProvisioned is false when no store exists', async () => {
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
 
     const result = await getOnboardingStatus(mockUser)
 
@@ -233,7 +255,7 @@ describe('getOnboardingStatus', () => {
 
   it('isFullyProvisioned is true when seller is verified and has a store', async () => {
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'VERIFIED' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(makeStoreRow())
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([makeStoreRow()])
 
     const result = await getOnboardingStatus(mockUser)
 
@@ -245,7 +267,7 @@ describe('getOnboardingStatus', () => {
 
   it('isVerified is false when verificationStatus is PENDING', async () => {
     mockSellerRepo.findSellerByUserId.mockResolvedValue(makeSellerProfile({ verificationStatus: 'PENDING' }))
-    mockStorefrontRepo.findStoreByUserId.mockResolvedValue(null)
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([])
 
     const result = await getOnboardingStatus(mockUser)
 
@@ -290,7 +312,7 @@ describe('checkSlugAvailability', () => {
 // ---------------------------------------------------------------------------
 describe('updateStoreSettings', () => {
   it('throws StoreProvisioningRequiredError when no primary store exists', async () => {
-    mockStorefrontRepo.findPrimaryStoreByUserId.mockResolvedValue(null)
+    mockStoreService.resolveSellerStoreContext.mockRejectedValue(new StoreProvisioningRequiredError())
 
     await expect(
       updateStoreSettings(mockUser, { name: 'New Name' }),
@@ -302,7 +324,7 @@ describe('updateStoreSettings', () => {
   it('updates and returns the store when it exists', async () => {
     const original = makeStoreRow()
     const updated = makeStoreRow({ name: 'New Name' })
-    mockStorefrontRepo.findPrimaryStoreByUserId.mockResolvedValue(original)
+    mockStoreService.resolveSellerStoreContext.mockResolvedValue(original as never)
     mockStorefrontRepo.updateStoreSettings.mockResolvedValue(updated)
 
     const result = await updateStoreSettings(mockUser, { name: 'New Name' })
@@ -318,7 +340,7 @@ describe('uploadStorefrontAsset', () => {
     const updated = makeStoreRow({ logoUrl: 'https://cdn.example.com/logo.png' })
     const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'logo.png', { type: 'image/png' })
 
-    mockStorefrontRepo.findPrimaryStoreByUserId.mockResolvedValue(original)
+    mockStoreService.resolveSellerStoreContext.mockResolvedValue(original as never)
     mockMediaService.uploadStoreAssetBinary.mockResolvedValue({
       bucket: 'store-assets',
       url: 'https://cdn.example.com/logo.png',
