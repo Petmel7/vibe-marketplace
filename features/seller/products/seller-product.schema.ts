@@ -15,6 +15,13 @@ export const sellerProductImageSchema = z.object({
   isPrimary: z.boolean().optional(),
 })
 
+export const sellerProductListQuerySchema = z.object({
+  storeId: z.string().uuid().optional(),
+  status: z.string().trim().min(1).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
 export const createVariantSchema = z.object({
   sku: skuString.optional(),
   size: z.string().max(50).nullable().optional(),
@@ -24,6 +31,7 @@ export const createVariantSchema = z.object({
 })
 
 export const createSellerProductSchema = z.object({
+  storeId: z.string().uuid().optional(),
   name: z.string().min(1).max(200),
   description: z.string().max(2000).nullable().optional(),
   price: priceString,
@@ -35,7 +43,7 @@ export const createSellerProductSchema = z.object({
 }).strict()
 
 export const updateSellerProductSchema = createSellerProductSchema
-  .omit({ variants: true })
+  .omit({ variants: true, storeId: true })
   .partial()
   .strict()
 
@@ -50,3 +58,4 @@ export type UpdateSellerProductInput = z.infer<typeof updateSellerProductSchema>
 export type CreateVariantInput = z.infer<typeof createVariantSchema>
 export type UpdateVariantInput = z.infer<typeof updateVariantSchema>
 export type UpdateInventoryInput = z.infer<typeof updateInventorySchema>
+export type SellerProductListQueryInput = z.infer<typeof sellerProductListQuerySchema>

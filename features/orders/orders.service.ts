@@ -12,6 +12,7 @@ import { requireBuyer, requireSeller, requireAdmin } from '@/lib/auth/guards'
 import { assertOrderOwner } from '@/lib/auth/orderGuards'
 import { OrderNotFoundError, InvalidStatusTransitionError } from '@/lib/errors/orders'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { resolveSellerStoreContext } from '@/features/store/store.service'
 import type {
   OrderSummaryDto,
   OrderDetailDto,
@@ -22,7 +23,6 @@ import type {
 import {
   findOrdersByUserId,
   findOrderById,
-  findStoreByOwnerId,
   findOrdersByStoreId,
   findAllOrders,
   updateOrderStatus,
@@ -293,8 +293,7 @@ export async function getSellerOrderItems(
   filters: OrderFilterInput,
 ): Promise<SellerOrderItemDto[]> {
   requireSeller(user)
-  const store = await findStoreByOwnerId(user.id)
-  if (!store) return []
+  const store = await resolveSellerStoreContext(user, filters.storeId)
 
   const items = await findOrdersByStoreId(store.id, filters)
   return items.map((item) => ({

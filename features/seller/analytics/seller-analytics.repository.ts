@@ -95,42 +95,46 @@ function revenueStatusFilterSql() {
   return Prisma.sql`IN (${Prisma.join(SELLER_REVENUE_ORDER_STATUSES)})`
 }
 
-export async function getTotalRevenue(storeId: string): Promise<Decimal> {
+function storeIdsFilterSql(storeIds: string[]) {
+  return Prisma.sql`IN (${Prisma.join(storeIds.map((storeId) => Prisma.sql`${storeId}::uuid`))})`
+}
+
+export async function getTotalRevenue(storeIds: string[]): Promise<Decimal> {
   const [row] = await prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
     SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
     FROM order_items oi
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
   `)
 
   return toDecimal(row?.value)
 }
 
-export async function getOrderCount(storeId: string): Promise<number> {
+export async function getOrderCount(storeIds: string[]): Promise<number> {
   const [row] = await prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
     SELECT COUNT(DISTINCT oi.order_id)::int AS value
     FROM order_items oi
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
   `)
 
   return toInteger(row?.value)
 }
 
-export async function getTotalProductsSold(storeId: string): Promise<number> {
+export async function getTotalProductsSold(storeIds: string[]): Promise<number> {
   const result = await prisma.orderItem.aggregate({
-    where: { storeId },
+    where: { storeId: { in: storeIds } },
     _sum: { quantity: true },
   })
   return result._sum.quantity ?? 0
 }
 
-export async function getRevenueLast30Days(storeId: string): Promise<Decimal> {
+export async function getRevenueLast30Days(storeIds: string[]): Promise<Decimal> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   const [row] = await prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
     SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
       AND oi.created_at >= ${since}
       AND o.status ${revenueStatusFilterSql()}
   `)
@@ -139,7 +143,7 @@ export async function getRevenueLast30Days(storeId: string): Promise<Decimal> {
 }
 
 export async function getSellerRangeMetrics(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
 ): Promise<SellerRangeMetrics> {
@@ -153,7 +157,7 @@ export async function getSellerRangeMetrics(
       COUNT(*) FILTER (WHERE oi.fulfillment_status = ${'DELIVERED'})::int AS "deliveredFulfillmentCount"
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
       AND oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${revenueStatusFilterSql()}
@@ -170,7 +174,7 @@ export async function getSellerRangeMetrics(
 }
 
 export async function getSellerRevenueSeriesForRange(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
   interval: AnalyticsInterval,
@@ -182,7 +186,7 @@ export async function getSellerRevenueSeriesForRange(
       COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
       AND oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${revenueStatusFilterSql()}
@@ -194,7 +198,7 @@ export async function getSellerRevenueSeriesForRange(
 }
 
 export async function getSellerOrderSeriesForRange(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
   interval: AnalyticsInterval,
@@ -206,7 +210,7 @@ export async function getSellerOrderSeriesForRange(
       COUNT(DISTINCT oi.order_id)::int AS value
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
       AND oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${revenueStatusFilterSql()}
@@ -218,7 +222,7 @@ export async function getSellerOrderSeriesForRange(
 }
 
 export async function getSellerFulfillmentSeriesForRange(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
   interval: AnalyticsInterval,
@@ -231,7 +235,7 @@ export async function getSellerFulfillmentSeriesForRange(
       COUNT(*) FILTER (WHERE oi.fulfillment_status = ${'DELIVERED'})::int AS "secondaryValue"
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
       AND oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${revenueStatusFilterSql()}
@@ -243,7 +247,7 @@ export async function getSellerFulfillmentSeriesForRange(
 }
 
 export async function getSellerTopProductsForRange(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
   limit: number,
@@ -256,7 +260,7 @@ export async function getSellerTopProductsForRange(
       COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id = ${storeId}::uuid
+    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
       AND oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${revenueStatusFilterSql()}
@@ -274,7 +278,7 @@ export async function getSellerTopProductsForRange(
 }
 
 export async function getSellerRefundMetricsForRange(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
 ): Promise<{ refundCount: number; refundAmount: Decimal }> {
@@ -282,14 +286,14 @@ export async function getSellerRefundMetricsForRange(
     prisma.refundRequest.count({
       where: {
         createdAt: { gte: from, lte: to },
-        orderItem: { storeId },
+        orderItem: { storeId: { in: storeIds } },
       },
     }),
     prisma.refundRequest.aggregate({
       where: {
         createdAt: { gte: from, lte: to },
         status: RefundRequestStatus.SUCCEEDED,
-        orderItem: { storeId },
+        orderItem: { storeId: { in: storeIds } },
       },
       _sum: {
         amount: true,
@@ -304,29 +308,43 @@ export async function getSellerRefundMetricsForRange(
 }
 
 export async function getSellerDisputeCountForRange(
-  storeId: string,
+  storeIds: string[],
   from: Date,
   to: Date,
 ): Promise<number> {
   return prisma.dispute.count({
     where: {
-      storeId,
+      storeId: { in: storeIds },
       createdAt: { gte: from, lte: to },
     },
   })
 }
 
-export async function getSellerBalanceSnapshot(storeId: string): Promise<{
+export async function getSellerBalanceSnapshot(storeIds: string[]): Promise<{
   availableAmount: Decimal
   pendingAmount: Decimal
   paidOutAmount: Decimal
 } | null> {
-  return prisma.sellerBalance.findUnique({
-    where: { storeId },
-    select: {
+  const aggregate = await prisma.sellerBalance.aggregate({
+    where: { storeId: { in: storeIds } },
+    _sum: {
       availableAmount: true,
       pendingAmount: true,
       paidOutAmount: true,
     },
   })
+
+  if (
+    aggregate._sum.availableAmount == null &&
+    aggregate._sum.pendingAmount == null &&
+    aggregate._sum.paidOutAmount == null
+  ) {
+    return null
+  }
+
+  return {
+    availableAmount: toDecimal(aggregate._sum.availableAmount),
+    pendingAmount: toDecimal(aggregate._sum.pendingAmount),
+    paidOutAmount: toDecimal(aggregate._sum.paidOutAmount),
+  }
 }

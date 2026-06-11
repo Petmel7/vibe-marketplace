@@ -71,7 +71,7 @@ export default function CategoryFormDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/70 px-4 py-8 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-[2rem] border border-panelBorder bg-surface p-6 shadow-soft">
+      <div className="w-full max-w-2xl rounded-4xl border border-panelBorder bg-surface p-6 shadow-soft">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-copy-strong">{title}</h2>

@@ -6,8 +6,10 @@ import {
 } from '@/app/generated/prisma/client'
 import Decimal from 'decimal.js'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
-import { findStoreByUserId } from '@/features/store/store.repository'
-import { StoreNotFoundError, StoreOwnershipError } from '@/lib/errors/seller'
+import {
+  assertStoreOwnership,
+  resolveSellerStoreContext,
+} from '@/features/store/store.service'
 import {
   InvalidShippingSelectionError,
   NovaPoshtaCreateShipmentError,
@@ -16,7 +18,6 @@ import {
   ShipmentAlreadyHasTrackingError,
   ShipmentInvalidStateError,
   ShipmentNotFoundError,
-  ShipmentOwnershipError,
   ShipmentReturnCreationError,
   ShipmentSyncError,
   StoreShippingSettingsRequiredError,
@@ -325,23 +326,12 @@ async function getOwnedSellerShipment(
   shipmentId: string,
 ) {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) {
-    throw new StoreNotFoundError()
-  }
-
-  if (store.ownerId !== user.id) {
-    throw new StoreOwnershipError()
-  }
-
   const shipment = await findShipmentById(shipmentId)
   if (!shipment) {
     throw new ShipmentNotFoundError()
   }
 
-  if (shipment.storeId !== store.id) {
-    throw new ShipmentOwnershipError()
-  }
+  const store = await assertStoreOwnership(user.id, shipment.storeId)
 
   return { store, shipment }
 }
@@ -558,12 +548,11 @@ export async function estimateNovaPoshtaDelivery(
   return getNovaPoshtaProvider().estimateDelivery(input)
 }
 
-export async function getMyStoreShippingSettings(user: SessionUser): Promise<StoreShippingSettingsDto> {
-  requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) {
-    throw new StoreNotFoundError()
-  }
+export async function getMyStoreShippingSettings(
+  user: SessionUser,
+  storeId?: string,
+): Promise<StoreShippingSettingsDto> {
+  const store = await resolveSellerStoreContext(user, storeId)
 
   const settings = await findStoreShippingSettingsByStoreId(store.id)
   return toStoreShippingSettingsDto({
@@ -585,16 +574,9 @@ export async function getMyStoreShippingSettings(user: SessionUser): Promise<Sto
 export async function updateMyStoreShippingSettings(
   user: SessionUser,
   data: UpdateStoreShippingSettingsInput,
+  storeId?: string,
 ): Promise<StoreShippingSettingsDto> {
-  requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) {
-    throw new StoreNotFoundError()
-  }
-
-  if (store.ownerId !== user.id) {
-    throw new StoreOwnershipError()
-  }
+  const store = await resolveSellerStoreContext(user, storeId)
 
   const settings = await upsertStoreShippingSettings({
     storeId: store.id,
@@ -788,15 +770,7 @@ export async function getMyShipments(
   user: SessionUser,
   query: ShipmentListQueryDto,
 ): Promise<SellerShipmentListDto> {
-  requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) {
-    throw new StoreNotFoundError()
-  }
-
-  if (store.ownerId !== user.id) {
-    throw new StoreOwnershipError()
-  }
+  const store = await resolveSellerStoreContext(user, query.storeId)
 
   const [shipments, total] = await Promise.all([
     listShipmentsByStoreId({

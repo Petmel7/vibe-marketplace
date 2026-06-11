@@ -3,11 +3,13 @@ import Decimal from 'decimal.js'
 
 vi.mock('@/features/seller/analytics/seller-analytics.repository')
 vi.mock('@/features/store/store.repository')
+vi.mock('@/features/store/store.service')
 vi.mock('@/lib/auth/guards')
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
 import * as analyticsRepo from '@/features/seller/analytics/seller-analytics.repository'
 import * as storeRepo from '@/features/store/store.repository'
+import * as storeService from '@/features/store/store.service'
 import * as guards from '@/lib/auth/guards'
 import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
@@ -15,6 +17,7 @@ import { AnalyticsAccessDeniedError } from '@/lib/errors/analytics'
 
 const mockAnalyticsRepo = vi.mocked(analyticsRepo)
 const mockStoreRepo = vi.mocked(storeRepo)
+const mockStoreService = vi.mocked(storeService)
 const mockGuards = vi.mocked(guards)
 
 const mockUser: SessionUser = {
@@ -39,8 +42,8 @@ const mockStore = {
 beforeEach(() => {
   vi.clearAllMocks()
   mockGuards.requireSeller.mockReturnValue(undefined)
-  mockStoreRepo.findStoreByUserId.mockResolvedValue(mockStore)
-  mockStoreRepo.findStoreById.mockResolvedValue(mockStore)
+  mockStoreRepo.listStoresByOwnerId.mockResolvedValue([mockStore] as never)
+  mockStoreService.assertStoreOwnership.mockResolvedValue(mockStore as never)
   mockAnalyticsRepo.getTotalRevenue.mockResolvedValue(new Decimal('1500.00'))
   mockAnalyticsRepo.getOrderCount.mockResolvedValue(42)
   mockAnalyticsRepo.getTotalProductsSold.mockResolvedValue(150)
@@ -151,10 +154,9 @@ describe('getMyAnalytics', () => {
   })
 
   it('lets a seller access only own store analytics', async () => {
-    mockStoreRepo.findStoreById.mockResolvedValue({
-      ...mockStore,
-      ownerId: 'another-user',
-    })
+    mockStoreService.assertStoreOwnership.mockRejectedValue(
+      new AnalyticsAccessDeniedError('You do not have access to this store analytics'),
+    )
 
     await expect(
       getMyAnalytics(mockUser, {
@@ -162,6 +164,27 @@ describe('getMyAnalytics', () => {
         storeId: 'c46a7467-f07e-4052-869c-42079a8e9dc0',
       }),
     ).rejects.toThrow(AnalyticsAccessDeniedError)
+  })
+
+  it('aggregates analytics across all owned stores when storeId is omitted', async () => {
+    mockStoreRepo.listStoresByOwnerId.mockResolvedValue([
+      mockStore,
+      { ...mockStore, id: 'store-uuid-002', slug: 'second-store' },
+    ] as never)
+
+    await getMyAnalytics(mockUser, {
+      range: '7d',
+      interval: 'day',
+    })
+
+    expect(mockAnalyticsRepo.getTotalRevenue).toHaveBeenCalledWith([
+      'store-uuid-001',
+      'store-uuid-002',
+    ])
+    expect(mockAnalyticsRepo.getSellerBalanceSnapshot).toHaveBeenCalledWith([
+      'store-uuid-001',
+      'store-uuid-002',
+    ])
   })
 
   it('returns valid zero analytics for an empty dataset', async () => {

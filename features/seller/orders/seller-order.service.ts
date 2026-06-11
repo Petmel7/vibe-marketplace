@@ -2,12 +2,13 @@ import { ItemFulfillmentStatus } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireSeller } from '@/lib/auth/guards'
 import {
-  StoreNotFoundError,
   OrderItemNotFoundError,
-  StoreOwnershipError,
   InvalidFulfillmentTransitionError,
 } from '@/lib/errors/seller'
-import { findStoreByUserId } from '@/features/store/store.repository'
+import {
+  assertStoreOwnership,
+  resolveSellerStoreContext,
+} from '@/features/store/store.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type { SellerOrderItemDto } from './seller-order.dto'
 import type { OrderItemFilters } from './seller-order.repository'
@@ -102,10 +103,10 @@ async function toSellerOrderItemDto(
 export async function getMyOrderItems(
   user: SessionUser,
   filters: OrderItemFilters,
+  storeId?: string,
 ): Promise<SellerOrderItemDto[]> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
+  const store = await resolveSellerStoreContext(user, storeId)
 
   const items = await findOrderItemsByStoreId(store.id, filters)
   return Promise.all(items.map((item) => toSellerOrderItemDto(item)))
@@ -116,12 +117,9 @@ export async function getMyOrderItemById(
   itemId: string,
 ): Promise<SellerOrderItemDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
   const item = await findOrderItemById(itemId)
   if (!item) throw new OrderItemNotFoundError()
-  if (item.storeId !== store.id) throw new StoreOwnershipError()
+  await assertStoreOwnership(user.id, item.storeId)
 
   return toSellerOrderItemDto(item)
 }
@@ -131,12 +129,9 @@ export async function markAsProcessing(
   itemId: string,
 ): Promise<SellerOrderItemDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
   const item = await findOrderItemById(itemId)
   if (!item) throw new OrderItemNotFoundError()
-  if (item.storeId !== store.id) throw new StoreOwnershipError()
+  await assertStoreOwnership(user.id, item.storeId)
 
   if (item.order.status !== 'confirmed') {
     throw new InvalidFulfillmentTransitionError(item.order.status, 'PROCESSING')
@@ -154,12 +149,9 @@ export async function markAsShipped(
   itemId: string,
 ): Promise<SellerOrderItemDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
   const item = await findOrderItemById(itemId)
   if (!item) throw new OrderItemNotFoundError()
-  if (item.storeId !== store.id) throw new StoreOwnershipError()
+  await assertStoreOwnership(user.id, item.storeId)
 
   if (item.fulfillmentStatus !== ItemFulfillmentStatus.PROCESSING) {
     throw new InvalidFulfillmentTransitionError(item.fulfillmentStatus, 'SHIPPED')
@@ -174,12 +166,9 @@ export async function markAsDelivered(
   itemId: string,
 ): Promise<SellerOrderItemDto> {
   requireSeller(user)
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
-
   const item = await findOrderItemById(itemId)
   if (!item) throw new OrderItemNotFoundError()
-  if (item.storeId !== store.id) throw new StoreOwnershipError()
+  await assertStoreOwnership(user.id, item.storeId)
 
   if (item.fulfillmentStatus !== ItemFulfillmentStatus.SHIPPED) {
     throw new InvalidFulfillmentTransitionError(item.fulfillmentStatus, 'DELIVERED')

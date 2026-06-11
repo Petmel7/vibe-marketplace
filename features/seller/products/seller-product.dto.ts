@@ -54,6 +54,7 @@ export type SellerProductSummaryDto = {
 }
 
 export type CreateSellerProductDto = {
+  storeId?: string
   name: string
   description?: string | null
   price: string

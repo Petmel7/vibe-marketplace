@@ -28,7 +28,10 @@ export async function findStoreBySlug(slug: string): Promise<StoreRow | null> {
   return prisma.store.findUnique({ where: { slug } })
 }
 
-export async function createStore(userId: string, data: CreateStoreInput & { slug: string }): Promise<StoreRow> {
+export async function createStore(
+  userId: string,
+  data: CreateStoreInput & { slug: string; isPrimary?: boolean },
+): Promise<StoreRow> {
   return prisma.store.create({
     data: {
       ownerId: userId,
@@ -37,7 +40,7 @@ export async function createStore(userId: string, data: CreateStoreInput & { slu
       description: data.description ?? null,
       logoUrl: data.logoUrl ?? null,
       bannerUrl: data.bannerUrl ?? null,
-      isPrimary: true,
+      isPrimary: data.isPrimary ?? true,
       updatedAt: new Date(),
     },
   })

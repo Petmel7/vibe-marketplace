@@ -167,6 +167,7 @@ export type NovaPoshtaTrackingEventDto = {
 }
 
 export type ShipmentListQueryDto = {
+  storeId?: string
   page: number
   limit: number
   status?: ShipmentStatus

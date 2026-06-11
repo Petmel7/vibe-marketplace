@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/orders/orders.repository')
+vi.mock('@/features/store/store.service')
 vi.mock('@/lib/auth/guards')
 vi.mock('@/features/email/events/email.events', () => ({
   emitOrderConfirmedEmailEvent: vi.fn(),
 }))
 
 import * as repo from '@/features/orders/orders.repository'
+import * as storeService from '@/features/store/store.service'
 import * as guards from '@/lib/auth/guards'
 import { emitOrderConfirmedEmailEvent } from '@/features/email/events/email.events'
 import {
@@ -21,6 +23,7 @@ import { OrderNotFoundError, OrderAccessError, InvalidStatusTransitionError } fr
 import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRepo = vi.mocked(repo)
+const mockStoreService = vi.mocked(storeService)
 const mockGuards = vi.mocked(guards)
 const mockEmitOrderConfirmedEmailEvent = vi.mocked(emitOrderConfirmedEmailEvent)
 
@@ -152,6 +155,7 @@ beforeEach(() => {
   mockGuards.requireBuyer.mockReturnValue(undefined)
   mockGuards.requireSeller.mockReturnValue(undefined)
   mockGuards.requireAdmin.mockReturnValue(undefined)
+  mockStoreService.resolveSellerStoreContext.mockResolvedValue(makeStore() as never)
   mockEmitOrderConfirmedEmailEvent.mockResolvedValue(null)
 })
 
@@ -419,12 +423,12 @@ describe('getSellerOrderItems', () => {
   it('returns only items from the sellers store', async () => {
     const store = makeStore()
     const items = [makeSellerItem()]
-    mockRepo.findStoreByOwnerId.mockResolvedValue(store as unknown as Awaited<ReturnType<typeof mockRepo.findStoreByOwnerId>>)
+    mockStoreService.resolveSellerStoreContext.mockResolvedValueOnce(store as never)
     mockRepo.findOrdersByStoreId.mockResolvedValue(items as unknown as Awaited<ReturnType<typeof mockRepo.findOrdersByStoreId>>)
 
     const result = await getSellerOrderItems(mockSeller, {})
 
-    expect(mockRepo.findStoreByOwnerId).toHaveBeenCalledWith(USER_ID)
+    expect(mockStoreService.resolveSellerStoreContext).toHaveBeenCalledWith(mockSeller, undefined)
     expect(mockRepo.findOrdersByStoreId).toHaveBeenCalledWith(STORE_ID, {})
     expect(result).toHaveLength(1)
     expect(result[0].orderId).toBe(ORDER_ID)
@@ -432,13 +436,20 @@ describe('getSellerOrderItems', () => {
     expect(result[0].orderStatus).toBe('pending')
   })
 
-  it('returns empty array when seller has no store', async () => {
-    mockRepo.findStoreByOwnerId.mockResolvedValue(null)
+  it('can scope seller order items to a specific owned store', async () => {
+    const store = makeStore({ id: 'store-0002' })
+    mockStoreService.resolveSellerStoreContext.mockResolvedValueOnce(store as never)
+    mockRepo.findOrdersByStoreId.mockResolvedValue([makeSellerItem({ storeId: 'store-0002' })] as never)
 
-    const result = await getSellerOrderItems(mockSeller, {})
+    await getSellerOrderItems(mockSeller, { storeId: 'store-0002' })
 
-    expect(result).toHaveLength(0)
-    expect(mockRepo.findOrdersByStoreId).not.toHaveBeenCalled()
+    expect(mockStoreService.resolveSellerStoreContext).toHaveBeenCalledWith(
+      mockSeller,
+      'store-0002',
+    )
+    expect(mockRepo.findOrdersByStoreId).toHaveBeenCalledWith('store-0002', {
+      storeId: 'store-0002',
+    })
   })
 })
 

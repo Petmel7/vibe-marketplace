@@ -89,6 +89,7 @@ export type SellerOrderItemDto = {
 }
 
 export type OrderFilterInput = {
+  storeId?: string
   status?: string
   page?: number
   limit?: number

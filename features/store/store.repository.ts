@@ -5,8 +5,27 @@ export async function findStoreByUserId(userId: string): Promise<StoreDto | null
   return prisma.store.findFirst({ where: { ownerId: userId } })
 }
 
+export async function listStoresByOwnerId(ownerId: string): Promise<StoreDto[]> {
+  return prisma.store.findMany({
+    where: { ownerId },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  })
+}
+
 export async function findStoreById(id: string): Promise<StoreDto | null> {
   return prisma.store.findUnique({ where: { id } })
+}
+
+export async function findOwnedStoreById(
+  ownerId: string,
+  storeId: string,
+): Promise<StoreDto | null> {
+  return prisma.store.findFirst({
+    where: {
+      id: storeId,
+      ownerId,
+    },
+  })
 }
 
 export async function findStoreBySlug(slug: string): Promise<StoreDto | null> {

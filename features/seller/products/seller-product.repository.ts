@@ -40,6 +40,16 @@ export async function findProductByIdAndStoreId(id: string, storeId: string) {
   })
 }
 
+export async function findProductById(id: string) {
+  return prisma.product.findUnique({
+    where: { id },
+    include: {
+      images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
+      variants: true,
+    },
+  })
+}
+
 export async function createProduct(storeId: string, data: CreateSellerProductDto) {
   return prisma.product.create({
     data: {

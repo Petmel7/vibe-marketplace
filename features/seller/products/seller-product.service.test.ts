@@ -4,7 +4,7 @@ import { ProductStatus } from '@/app/generated/prisma/client'
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/features/seller/products/seller-product.repository')
-vi.mock('@/features/store/store.repository')
+vi.mock('@/features/store/store.service')
 vi.mock('@/features/media/media.service')
 vi.mock('@/lib/auth/guards')
 vi.mock('@/lib/auth/sellerGuards')
@@ -13,7 +13,7 @@ vi.mock('@/features/products/product-metrics.jobs', () => ({
 }))
 
 import * as productRepo from '@/features/seller/products/seller-product.repository'
-import * as storeRepo from '@/features/store/store.repository'
+import * as storeService from '@/features/store/store.service'
 import * as mediaService from '@/features/media/media.service'
 import * as guards from '@/lib/auth/guards'
 import * as sellerGuards from '@/lib/auth/sellerGuards'
@@ -39,7 +39,7 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 import { createSellerProductSchema, updateSellerProductSchema } from './seller-product.schema'
 
 const mockProductRepo = vi.mocked(productRepo)
-const mockStoreRepo = vi.mocked(storeRepo)
+const mockStoreService = vi.mocked(storeService)
 const mockMediaService = vi.mocked(mediaService)
 const mockGuards = vi.mocked(guards)
 const mockSellerGuards = vi.mocked(sellerGuards)
@@ -122,10 +122,12 @@ beforeEach(() => {
   mockGuards.requireSeller.mockReturnValue(undefined)
   mockSellerGuards.assertSellerOwnsStore.mockReturnValue(undefined)
   mockSellerGuards.assertSellerOwnsProduct.mockReturnValue(undefined)
-  mockStoreRepo.findStoreByUserId.mockResolvedValue(mockStore)
+  mockStoreService.resolveSellerStoreContext.mockResolvedValue(mockStore as never)
+  mockStoreService.assertStoreOwnership.mockResolvedValue(mockStore as never)
   mockProductRepo.findProductBySkuInStore.mockResolvedValue(null)
   mockProductRepo.findVariantBySku.mockResolvedValue(null)
   mockProductRepo.listProductImages.mockResolvedValue([])
+  mockProductRepo.findProductById.mockResolvedValue(makeProduct() as never)
 })
 
 describe('createProduct', () => {
@@ -200,13 +202,39 @@ describe('createProduct', () => {
 
     expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
   })
+
+  it('uses explicit store context when creating a product for one of multiple owned stores', async () => {
+    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW, storeId: 'store-uuid-002' })
+    mockStoreService.resolveSellerStoreContext.mockResolvedValueOnce({
+      ...mockStore,
+      id: 'store-uuid-002',
+      slug: 'second-store',
+    } as never)
+    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+
+    await createProduct(mockUser, {
+      storeId: 'store-uuid-002',
+      name: 'Second Store Product',
+      price: '29.99',
+    })
+
+    expect(mockStoreService.resolveSellerStoreContext).toHaveBeenCalledWith(
+      mockUser,
+      'store-uuid-002',
+    )
+    expect(mockProductRepo.createProduct).toHaveBeenCalledWith(
+      'store-uuid-002',
+      expect.objectContaining({ name: 'Second Store Product' }),
+    )
+  })
 })
 
 describe('submitForReview', () => {
   it('transitions DRAFT product to PENDING_REVIEW', async () => {
     const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
     const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(draftProduct)
+    mockProductRepo.findProductById.mockResolvedValue(draftProduct)
     mockProductRepo.updateProductStatus.mockResolvedValue(pendingProduct)
 
     const result = await submitForReview(mockUser, 'product-uuid-001')
@@ -220,7 +248,7 @@ describe('submitForReview', () => {
 
   it('throws InvalidModerationTransitionError for PUBLISHED product', async () => {
     const publishedProduct = makeProduct({ status: ProductStatus.PUBLISHED })
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(publishedProduct)
+    mockProductRepo.findProductById.mockResolvedValue(publishedProduct)
 
     await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
       InvalidModerationTransitionError,
@@ -232,7 +260,7 @@ describe('archiveProduct', () => {
   it('archives a PUBLISHED product', async () => {
     const publishedProduct = makeProduct({ status: ProductStatus.PUBLISHED })
     const archivedProduct = makeProduct({ status: ProductStatus.ARCHIVED })
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(publishedProduct)
+    mockProductRepo.findProductById.mockResolvedValue(publishedProduct)
     mockProductRepo.archiveProduct.mockResolvedValue(archivedProduct)
 
     const result = await archiveProduct(mockUser, 'product-uuid-001')
@@ -256,7 +284,7 @@ describe('updateInventory', () => {
 
 describe('getMyProductById', () => {
   it('throws ProductNotFoundError when product does not belong to seller store', async () => {
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(null)
+    mockProductRepo.findProductById.mockResolvedValue(null)
 
     await expect(getMyProductById(mockUser, 'non-existent-product')).rejects.toThrow(
       ProductNotFoundError,

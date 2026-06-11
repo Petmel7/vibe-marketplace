@@ -1,7 +1,6 @@
 import { requireSeller } from '@/lib/auth/guards'
 import { SellerProfileNotFoundError } from '@/lib/errors/profile'
 import {
-  StoreAlreadyExistsError,
   SellerNotVerifiedError,
   StoreProvisioningRequiredError,
   InvalidStoreSlugError,
@@ -12,8 +11,6 @@ import { uploadStoreAssetBinary } from '@/features/media/media.service'
 import type { StoreAssetKind } from '@/features/media/media.dto'
 import { findSellerByUserId } from '@/features/seller/seller.repository'
 import {
-  findStoreByUserId,
-  findPrimaryStoreByUserId,
   createStore,
   updateStoreSettings as repoUpdateStoreSettings,
   checkSlugAvailable,
@@ -27,6 +24,8 @@ import type {
 } from './storefront.dto'
 import type { CreateStoreInput, UpdateStoreSettingsInput } from './storefront.schema'
 import { SellerVerificationStatus } from '@/app/generated/prisma/client'
+import { listStoresByOwnerId } from '@/features/store/store.repository'
+import { resolveSellerStoreContext } from '@/features/store/store.service'
 
 // Maps a raw store row (ownerId) to the public DTO shape (userId)
 function toStorefrontDto(store: {
@@ -97,10 +96,11 @@ export async function getOnboardingStatus(user: SessionUser): Promise<Onboarding
   const sellerProfile = await findSellerByUserId(user.id)
   if (!sellerProfile) throw new SellerProfileNotFoundError()
 
-  const store = await findStoreByUserId(user.id)
+  const stores = await listStoresByOwnerId(user.id)
+  const store = stores.find((entry) => entry.isPrimary) ?? stores[0] ?? null
 
   const isVerified = sellerProfile.verificationStatus === SellerVerificationStatus.VERIFIED
-  const hasStore = store !== null
+  const hasStore = stores.length > 0
 
   return {
     isVerified,
@@ -123,25 +123,29 @@ export async function provisionStorefront(
     throw new SellerNotVerifiedError()
   }
 
-  const existingStore = await findStoreByUserId(user.id)
-  if (existingStore) throw new StoreAlreadyExistsError()
+  const existingStores = await listStoresByOwnerId(user.id)
 
   const resolvedSlug = await resolveUniqueStoreSlug({
     name: data.name,
     requestedSlug: data.slug,
   })
 
-  const store = await createStore(user.id, { ...data, slug: resolvedSlug })
+  const store = await createStore(user.id, {
+    ...data,
+    slug: resolvedSlug,
+    isPrimary: existingStores.length === 0,
+  })
   return toStorefrontDto(store)
 }
 
 export async function updateStoreSettings(
   user: SessionUser,
   data: UpdateStoreSettingsInput,
+  storeId?: string,
 ): Promise<StorefrontDto> {
   requireSeller(user)
 
-  const store = await findPrimaryStoreByUserId(user.id)
+  const store = await resolveSellerStoreContext(user, storeId)
   if (!store) throw new StoreProvisioningRequiredError()
 
   const updated = await repoUpdateStoreSettings(store.id, data)
@@ -174,10 +178,11 @@ export async function uploadStorefrontAsset(
   user: SessionUser,
   kind: StoreAssetKind,
   file: File,
+  storeId?: string,
 ): Promise<StorefrontAssetUploadDto> {
   requireSeller(user)
 
-  const store = await findPrimaryStoreByUserId(user.id)
+  const store = await resolveSellerStoreContext(user, storeId)
   if (!store) throw new StoreProvisioningRequiredError()
 
   const asset = await uploadStoreAssetBinary({

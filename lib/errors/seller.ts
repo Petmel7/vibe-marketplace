@@ -16,6 +16,17 @@ export class StoreOwnershipError extends Error {
   }
 }
 
+export class InvalidStoreContextError extends Error {
+  readonly code = 'INVALID_STORE_CONTEXT'
+  readonly statusCode = 400
+  constructor(
+    msg = 'Store context is required because your seller account has access to multiple stores',
+  ) {
+    super(msg)
+    this.name = 'InvalidStoreContextError'
+  }
+}
+
 export class ProductOwnershipError extends Error {
   readonly code = 'FORBIDDEN'
   readonly statusCode = 403

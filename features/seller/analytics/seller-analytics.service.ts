@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { requireSeller } from '@/lib/auth/guards'
-import { findStoreById, findStoreByUserId } from '@/features/store/store.repository'
+import { listStoresByOwnerId } from '@/features/store/store.repository'
+import { assertStoreOwnership } from '@/features/store/store.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type { SellerAnalyticsDto } from './seller-analytics.dto'
 import {
@@ -46,21 +47,59 @@ function toGroupedMap(
   )
 }
 
+function buildEmptySellerAnalytics(
+  resolvedRange: ReturnType<typeof resolveAnalyticsDateRange>,
+): SellerAnalyticsDto {
+  const buckets = buildDateBuckets(
+    resolvedRange.current.from,
+    resolvedRange.current.to,
+    resolvedRange.interval,
+  )
+  const zeroMap = new Map<string, { value: Decimal; secondaryValue?: Decimal }>()
+
+  return {
+    totalRevenue: '0.00',
+    totalOrders: 0,
+    totalProductsSold: 0,
+    topProducts: [],
+    revenueLast30Days: '0.00',
+    revenueTotal: '0.00',
+    revenuePreviousPeriod: '0.00',
+    revenueGrowthPercent: 0,
+    ordersTotal: 0,
+    ordersPreviousPeriod: 0,
+    ordersGrowthPercent: 0,
+    unitsSold: 0,
+    averageOrderValue: '0.00',
+    pendingFulfillmentCount: 0,
+    shippedFulfillmentCount: 0,
+    deliveredFulfillmentCount: 0,
+    refundCount: 0,
+    refundAmount: '0.00',
+    disputeCount: 0,
+    availableBalance: '0.00',
+    pendingBalance: '0.00',
+    paidOutAmount: '0.00',
+    revenueSeries: fillMissingBucketsWithZero(buckets, zeroMap, (value) => value.toFixed(2)),
+    orderSeries: fillMissingBucketsWithZero(buckets, zeroMap, (value) => value.toNumber()),
+    fulfillmentSeries: fillMissingBucketsWithZero(buckets, zeroMap, (value) => value.toNumber()),
+  }
+}
+
 export async function getMyAnalytics(
   user: SessionUser,
   query: SellerAnalyticsQuery = { range: '30d' },
 ): Promise<SellerAnalyticsDto> {
   requireSeller(user)
 
-  const store = query.storeId
-    ? await findStoreById(query.storeId)
-    : await findStoreByUserId(user.id)
-
-  if (!store || store.ownerId !== user.id) {
-    throw new AnalyticsAccessDeniedError('You do not have access to this store analytics')
-  }
-
   const resolvedRange = resolveAnalyticsDateRange(query)
+  const storeIds = query.storeId
+    ? [(await assertStoreOwnership(user.id, query.storeId)).id]
+    : (await listStoresByOwnerId(user.id)).map((store) => store.id)
+
+  if (storeIds.length === 0) {
+    return buildEmptySellerAnalytics(resolvedRange)
+  }
 
   try {
     const [
@@ -78,35 +117,35 @@ export async function getMyAnalytics(
       fulfillmentSeriesRows,
       topProducts,
     ] = await Promise.all([
-      getTotalRevenue(store.id),
-      getOrderCount(store.id),
-      getTotalProductsSold(store.id),
-      getRevenueLast30Days(store.id),
-      getSellerRangeMetrics(store.id, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerRangeMetrics(store.id, resolvedRange.previous.from, resolvedRange.previous.to),
-      getSellerRefundMetricsForRange(store.id, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerDisputeCountForRange(store.id, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerBalanceSnapshot(store.id),
+      getTotalRevenue(storeIds),
+      getOrderCount(storeIds),
+      getTotalProductsSold(storeIds),
+      getRevenueLast30Days(storeIds),
+      getSellerRangeMetrics(storeIds, resolvedRange.current.from, resolvedRange.current.to),
+      getSellerRangeMetrics(storeIds, resolvedRange.previous.from, resolvedRange.previous.to),
+      getSellerRefundMetricsForRange(storeIds, resolvedRange.current.from, resolvedRange.current.to),
+      getSellerDisputeCountForRange(storeIds, resolvedRange.current.from, resolvedRange.current.to),
+      getSellerBalanceSnapshot(storeIds),
       getSellerRevenueSeriesForRange(
-        store.id,
+        storeIds,
         resolvedRange.current.from,
         resolvedRange.current.to,
         resolvedRange.interval,
       ),
       getSellerOrderSeriesForRange(
-        store.id,
+        storeIds,
         resolvedRange.current.from,
         resolvedRange.current.to,
         resolvedRange.interval,
       ),
       getSellerFulfillmentSeriesForRange(
-        store.id,
+        storeIds,
         resolvedRange.current.from,
         resolvedRange.current.to,
         resolvedRange.interval,
       ),
       getSellerTopProductsForRange(
-        store.id,
+        storeIds,
         resolvedRange.current.from,
         resolvedRange.current.to,
         TOP_PRODUCTS_LIMIT,

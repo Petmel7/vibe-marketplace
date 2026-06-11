@@ -59,7 +59,7 @@ describe('seller analytics repository', () => {
     ])
 
     const result = await getSellerRangeMetrics(
-      'store-1',
+      ['store-1'],
       new Date('2026-06-01T00:00:00.000Z'),
       new Date('2026-06-03T23:59:59.999Z'),
     )
@@ -83,7 +83,7 @@ describe('seller analytics repository', () => {
     ])
 
     const result = await getSellerRevenueSeriesForRange(
-      'store-1',
+      ['store-1'],
       new Date('2026-06-01T00:00:00.000Z'),
       new Date('2026-06-03T23:59:59.999Z'),
       'day',
@@ -108,7 +108,7 @@ describe('seller analytics repository', () => {
     ])
 
     const result = await getSellerTopProductsForRange(
-      'store-1',
+      ['store-1'],
       new Date('2026-06-01T00:00:00.000Z'),
       new Date('2026-06-03T23:59:59.999Z'),
       10,

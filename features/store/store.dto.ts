@@ -7,8 +7,11 @@ export type StoreDto = {
   logoUrl: string | null
   bannerUrl: string | null
   isActive: boolean
+  isPrimary: boolean
   createdAt: Date
   updatedAt: Date
 }
 
-export type StoreUpdateDto = Partial<Omit<StoreDto, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'>>
+export type StoreUpdateDto = Partial<
+  Omit<StoreDto, 'id' | 'ownerId' | 'isPrimary' | 'createdAt' | 'updatedAt'>
+>

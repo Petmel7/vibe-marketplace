@@ -2,7 +2,6 @@ import { ProductStatus } from '@/app/generated/prisma/client'
 import { requireSeller } from '@/lib/auth/guards'
 import { assertSellerOwnsStore, assertSellerOwnsProduct } from '@/lib/auth/sellerGuards'
 import {
-  StoreNotFoundError,
   ProductNotFoundError,
   InvalidModerationTransitionError,
   InvalidInventoryError,
@@ -10,7 +9,10 @@ import {
   CategoryNotFoundError,
   ProductImageLimitExceededError,
 } from '@/lib/errors/seller'
-import { findStoreByUserId } from '@/features/store/store.repository'
+import {
+  assertStoreOwnership,
+  resolveSellerStoreContext,
+} from '@/features/store/store.service'
 import { uploadProductImageBinary, deleteProductImageBinary } from '@/features/media/media.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
@@ -28,6 +30,7 @@ import type {
 import type { ProductFilters } from './seller-product.repository'
 import {
   findProductsByStoreId,
+  findProductById,
   findProductByIdAndStoreId,
   createProduct as repoCreateProduct,
   createVariant as repoCreateVariant,
@@ -163,17 +166,17 @@ function toSellerProductDto(product: {
   }
 }
 
-async function getOwnedStore(user: SessionUser) {
-  const store = await findStoreByUserId(user.id)
-  if (!store) throw new StoreNotFoundError()
+async function getOwnedStore(user: SessionUser, storeId?: string) {
+  const store = await resolveSellerStoreContext(user, storeId)
   assertSellerOwnsStore(user, store)
   return store
 }
 
 async function getOwnedProduct(user: SessionUser, productId: string) {
-  const store = await getOwnedStore(user)
-  const product = await findProductByIdAndStoreId(productId, store.id)
+  const product = await findProductById(productId)
   if (!product) throw new ProductNotFoundError()
+
+  const store = await assertStoreOwnership(user.id, product.storeId)
   assertSellerOwnsProduct(product, store.id)
   return { store, product }
 }
@@ -296,9 +299,10 @@ async function synchronizeProductPrimaryImage(productId: string) {
 export async function getMyProducts(
   user: SessionUser,
   filters: ProductFilters,
+  storeId?: string,
 ): Promise<SellerProductSummaryDto[]> {
   requireSeller(user)
-  const store = await getOwnedStore(user)
+  const store = await getOwnedStore(user, storeId)
 
   const products = await findProductsByStoreId(store.id, filters)
   return products.map((product) => ({
@@ -329,7 +333,7 @@ export async function createProduct(
   data: CreateSellerProductDto,
 ): Promise<SellerProductDto> {
   requireSeller(user)
-  const store = await getOwnedStore(user)
+  const store = await getOwnedStore(user, data.storeId)
   await ensureCategoryExists(data.categoryId)
 
   const productSku = await resolveProductSku({
@@ -467,10 +471,10 @@ export async function updateVariant(
   data: UpdateVariantDto,
 ): Promise<SellerVariantDto> {
   requireSeller(user)
-  const store = await getOwnedStore(user)
   const variant = await findVariantByIdWithProduct(variantId)
 
   if (!variant) throw new ProductNotFoundError('Variant not found')
+  const store = await assertStoreOwnership(user.id, variant.product.storeId)
   assertSellerOwnsProduct(variant.product, store.id)
 
   const resolvedSku = data.sku !== undefined
@@ -497,10 +501,10 @@ export async function updateVariant(
 
 export async function removeVariant(user: SessionUser, variantId: string): Promise<void> {
   requireSeller(user)
-  const store = await getOwnedStore(user)
   const variant = await findVariantByIdWithProduct(variantId)
 
   if (!variant) throw new ProductNotFoundError('Variant not found')
+  const store = await assertStoreOwnership(user.id, variant.product.storeId)
   assertSellerOwnsProduct(variant.product, store.id)
 
   await repoDeleteVariant(variantId)
@@ -514,10 +518,10 @@ export async function updateInventory(
   if (stock < 0) throw new InvalidInventoryError()
 
   requireSeller(user)
-  const store = await getOwnedStore(user)
   const variant = await findVariantByIdWithProduct(variantId)
 
   if (!variant) throw new ProductNotFoundError('Variant not found')
+  const store = await assertStoreOwnership(user.id, variant.product.storeId)
   assertSellerOwnsProduct(variant.product, store.id)
 
   const updated = await repoUpdateVariantStock(variantId, stock)

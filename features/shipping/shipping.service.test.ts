@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/features/store/store.repository', () => ({
-  findStoreByUserId: vi.fn(),
+vi.mock('@/features/store/store.service', () => ({
+  assertStoreOwnership: vi.fn(),
+  resolveSellerStoreContext: vi.fn(),
 }))
 vi.mock('@/features/shipping/shipping.repository', () => ({
   countShipmentsByStoreId: vi.fn(),
@@ -27,7 +28,10 @@ vi.mock('@/features/shipping/providers/nova-poshta.provider', () => ({
 
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import { createOrderNotification } from '@/features/notifications/notifications.service'
-import { findStoreByUserId } from '@/features/store/store.repository'
+import {
+  assertStoreOwnership,
+  resolveSellerStoreContext,
+} from '@/features/store/store.service'
 import {
   countShipmentsByStoreId,
   createReturnShipment,
@@ -68,7 +72,8 @@ import type { SessionUser } from '@/features/auth/auth.dto'
 
 const mockRequireSeller = vi.mocked(requireSeller)
 const mockRequireAdmin = vi.mocked(requireAdmin)
-const mockFindStoreByUserId = vi.mocked(findStoreByUserId)
+const mockAssertStoreOwnership = vi.mocked(assertStoreOwnership)
+const mockResolveSellerStoreContext = vi.mocked(resolveSellerStoreContext)
 const mockFindStoreShippingSettingsByStoreId = vi.mocked(findStoreShippingSettingsByStoreId)
 const mockListStoreShippingSettingsByStoreIds = vi.mocked(listStoreShippingSettingsByStoreIds)
 const mockUpsertStoreShippingSettings = vi.mocked(upsertStoreShippingSettings)
@@ -156,7 +161,13 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockRequireSeller.mockReturnValue(undefined)
   mockRequireAdmin.mockReturnValue(undefined)
-  mockFindStoreByUserId.mockResolvedValue({
+  mockResolveSellerStoreContext.mockResolvedValue({
+    id: 'store-1',
+    ownerId: 'user-1',
+    slug: 'store',
+    name: 'Store',
+  } as never)
+  mockAssertStoreOwnership.mockResolvedValue({
     id: 'store-1',
     ownerId: 'user-1',
     slug: 'store',
@@ -241,12 +252,7 @@ describe('shipping service', () => {
   })
 
   it('seller cannot update another seller shipping settings', async () => {
-    mockFindStoreByUserId.mockResolvedValueOnce({
-      id: 'store-1',
-      ownerId: 'another-user',
-      slug: 'store',
-      name: 'Store',
-    } as never)
+    mockResolveSellerStoreContext.mockRejectedValueOnce(new StoreOwnershipError())
 
     await expect(
       updateMyStoreShippingSettings(user, {
@@ -420,11 +426,7 @@ describe('shipping service', () => {
   })
 
   it('seller cannot create TTN for another store shipment', async () => {
-    mockFindShipmentById.mockResolvedValueOnce(
-      makeShipment({
-        storeId: 'store-2',
-      }),
-    )
+    mockAssertStoreOwnership.mockRejectedValueOnce(new ShipmentOwnershipError())
 
     await expect(createMyShipmentTtn(user, 'shipment-1')).rejects.toThrow(ShipmentOwnershipError)
   })
@@ -719,6 +721,21 @@ describe('shipping service', () => {
       expect.objectContaining({ shipmentId: 'shipment-1', success: true }),
       expect.objectContaining({ shipmentId: 'shipment-2', success: false }),
     ])
+  })
+
+  it('requires explicit store context for shipment list when seller has multiple stores', async () => {
+    const invalidStoreContextError = new Error('multi-store')
+    invalidStoreContextError.name = 'InvalidStoreContextError'
+    // simulate the shared resolver refusing an implicit current store
+    mockResolveSellerStoreContext.mockRejectedValueOnce(invalidStoreContextError as never)
+
+    await expect(
+      getMyShipments(user, {
+        page: 1,
+        limit: 20,
+      }),
+    ).rejects.toThrow('multi-store')
+    expect(mockListShipmentsByStoreId).not.toHaveBeenCalled()
   })
 
   it('syncs pending shipments in bulk', async () => {
