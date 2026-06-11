@@ -1,6 +1,7 @@
 import { getServerEnvDiagnostics } from '@/config/env'
 import type { DeepHealthStatusDto, HealthStatusDto } from '@/features/health/health.dto'
 import { pingDatabase } from '@/features/health/health.repository'
+import { getStorageReadinessDiagnostics } from '@/features/media/storage.config'
 
 function getBaseHealthFields() {
   return {
@@ -18,6 +19,7 @@ export async function getHealthStatus(): Promise<HealthStatusDto> {
 
 export async function getDeepHealthStatus(): Promise<DeepHealthStatusDto> {
   const envDiagnostics = getServerEnvDiagnostics()
+  const storageDiagnostics = getStorageReadinessDiagnostics()
 
   let databaseOk = false
 
@@ -51,7 +53,7 @@ export async function getDeepHealthStatus(): Promise<DeepHealthStatusDto> {
         }
 
   return {
-    status: databaseOk && envDiagnostics.valid ? 'ok' : 'degraded',
+    status: databaseOk && envDiagnostics.valid && storageDiagnostics.ok ? 'ok' : 'degraded',
     ...getBaseHealthFields(),
     database: {
       ok: databaseOk,
@@ -61,6 +63,7 @@ export async function getDeepHealthStatus(): Promise<DeepHealthStatusDto> {
       issues: envDiagnostics.valid ? [] : envDiagnostics.issues,
     },
     providers,
+    storage: storageDiagnostics,
     featureFlags,
   }
 }

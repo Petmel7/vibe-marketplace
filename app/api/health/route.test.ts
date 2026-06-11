@@ -46,6 +46,11 @@ describe('health routes', () => {
         liqpayConfigured: true,
         novaPoshtaConfigured: true,
       },
+      storage: {
+        ok: true,
+        buckets: [],
+        issues: [],
+      },
       featureFlags: {
         emailEnabled: false,
         paymentsEnabled: true,

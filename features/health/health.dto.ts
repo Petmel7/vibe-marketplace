@@ -20,6 +20,17 @@ export type DeepHealthStatusDto = {
     liqpayConfigured: boolean
     novaPoshtaConfigured: boolean
   }
+  storage: {
+    ok: boolean
+    buckets: Array<{
+      bucket: string
+      visibility: 'public' | 'private'
+      uploadActors: string[]
+      readActors: string[]
+      usesSignedUrls: boolean
+    }>
+    issues: string[]
+  }
   featureFlags: {
     emailEnabled: boolean
     paymentsEnabled: boolean
