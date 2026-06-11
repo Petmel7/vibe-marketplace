@@ -118,6 +118,7 @@ export const recoverStaleJobsRequestSchema = z.object({
 export const jobRunnerHeaderSchema = z.object({
   authorization: z.string().optional(),
   'x-job-runner-secret': z.string().optional(),
+  'x-cron-secret': z.string().optional(),
 })
 
 export const jobIdSchema = z.uuid()

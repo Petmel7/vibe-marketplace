@@ -18,6 +18,11 @@ function getRunnerSecretFromRequest(request: Request) {
     return authHeader.slice('Bearer '.length).trim()
   }
 
+  const cronHeaderSecret = request.headers.get('x-cron-secret')?.trim()
+  if (cronHeaderSecret) {
+    return cronHeaderSecret
+  }
+
   return request.headers.get('x-job-runner-secret')?.trim() ?? null
 }
 
