@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth/guards'
 import {
   getAdminAuditLogById,
   listAdminAuditLogs,
+  recordAdminAudit,
   type AdminAuditLogRecord,
 } from '@/features/admin/audit/admin-audit'
 import {
@@ -71,6 +72,29 @@ function toAuditLogDto(record: AdminAuditLogRecord): AdminAuditLogDto {
   }
 }
 
+function getActorRole(user: SessionUser) {
+  return user.roles.find((role) => role === 'ADMIN') ?? user.roles[0] ?? null
+}
+
+async function auditAdminJobAction(
+  user: SessionUser,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  metadata?: Record<string, unknown> | null,
+) {
+  await recordAdminAudit({
+    actorId: user.id,
+    actorEmail: user.email ?? null,
+    actorRole: getActorRole(user),
+    domain: 'jobs',
+    action,
+    targetType: resourceType,
+    targetId: resourceId,
+    metadata,
+  })
+}
+
 export async function getAdminOperationsJobs(
   user: SessionUser,
   query: AdminOperationsJobQueryDto,
@@ -101,7 +125,13 @@ export async function retryAdminOperationsJob(
   assertOperationsAdmin(user)
 
   try {
-    return await retryAdminJob(user, jobId)
+    const result = await retryAdminJob(user, jobId)
+    await auditAdminJobAction(user, 'retry', 'job', jobId, {
+      jobType: result.job.type,
+      status: result.job.status,
+      attempts: result.job.attempts,
+    })
+    return result
   } catch (error) {
     if (error instanceof JobInvalidStateError) {
       throw new InvalidJobTransitionError(error.message)
@@ -117,7 +147,13 @@ export async function cancelAdminOperationsJob(
   assertOperationsAdmin(user)
 
   try {
-    return toOperationsJobDto(await cancelAdminJob(user, jobId))
+    const job = await cancelAdminJob(user, jobId)
+    await auditAdminJobAction(user, 'cancel', 'job', jobId, {
+      jobType: job.type,
+      status: job.status,
+      attempts: job.attempts,
+    })
+    return toOperationsJobDto(job)
   } catch (error) {
     if (error instanceof JobInvalidStateError) {
       throw new InvalidJobTransitionError(error.message)
@@ -133,7 +169,13 @@ export async function requeueStaleAdminOperationsJob(
   assertOperationsAdmin(user)
 
   try {
-    return toOperationsJobDto(await requeueStaleAdminJob(user, jobId))
+    const job = await requeueStaleAdminJob(user, jobId)
+    await auditAdminJobAction(user, 'requeue-stale', 'job', jobId, {
+      jobType: job.type,
+      status: job.status,
+      attempts: job.attempts,
+    })
+    return toOperationsJobDto(job)
   } catch (error) {
     if (error instanceof JobInvalidStateError) {
       throw new InvalidJobTransitionError(error.message)
@@ -147,7 +189,15 @@ export async function runDueAdminOperationsJobs(
   input: AdminOperationsRunDueRequestDto,
 ): Promise<AdminOperationsRunDueResponseDto> {
   assertOperationsAdmin(user)
-  return runDueAdminJobs(user, input)
+  const result = await runDueAdminJobs(user, input)
+  await auditAdminJobAction(user, 'run-due', 'job-runner', null, {
+    limit: input.limit,
+    processed: result.processed,
+    recovered: result.recovered,
+    succeeded: result.succeeded,
+    failed: result.failed,
+  })
+  return result
 }
 
 export async function recoverStaleAdminOperationsJobs(
@@ -155,7 +205,13 @@ export async function recoverStaleAdminOperationsJobs(
   input: AdminOperationsRecoverStaleRequestDto,
 ): Promise<AdminOperationsRecoverStaleResponseDto> {
   assertOperationsAdmin(user)
-  return recoverStaleAdminJobs(user, input)
+  const result = await recoverStaleAdminJobs(user, input)
+  await auditAdminJobAction(user, 'recover-stale', 'job-runner', null, {
+    limit: input.limit,
+    recoveredCount: result.recoveredCount,
+    recoveredJobIds: result.recoveredJobIds,
+  })
+  return result
 }
 
 export async function getAdminOperationsAuditLogs(

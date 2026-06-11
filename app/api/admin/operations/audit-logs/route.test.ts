@@ -42,13 +42,15 @@ describe('admin operations audit logs route', () => {
       total: 1,
     })
 
-    const response = await GET(new Request('http://localhost/api/admin/operations/audit-logs?domain=refunds') as never)
+    const response = await GET(
+      new Request('http://localhost/api/admin/operations/audit-logs?domain=refunds&resourceId=refund-1') as never,
+    )
     const json = await response.json()
 
     expect(response.status).toBe(200)
     expect(mockGetAdminOperationsAuditLogs).toHaveBeenCalledWith(
       { id: 'admin-1', email: 'admin@example.com', roles: ['ADMIN'] },
-      { page: 1, limit: 20, domain: 'refunds' },
+      { page: 1, limit: 20, domain: 'refunds', resourceId: 'refund-1' },
     )
     expect(json.success).toBe(true)
   })

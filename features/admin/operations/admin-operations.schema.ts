@@ -22,6 +22,7 @@ export const adminAuditLogQuerySchema = z.object({
   domain: z.string().trim().min(1).max(100).optional(),
   action: z.string().trim().min(1).max(100).optional(),
   resourceType: z.string().trim().min(1).max(100).optional(),
+  resourceId: z.string().trim().min(1).max(255).optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
 })

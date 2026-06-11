@@ -56,13 +56,14 @@ export type AdminAuditLogQueryDto = {
   domain?: string
   action?: string
   resourceType?: string
+  resourceId?: string
   dateFrom?: string
   dateTo?: string
 }
 
 export type AdminAuditLogDto = {
   id: string
-  actorId: string
+  actorId: string | null
   actorEmail: string | null
   domain: string
   action: string
