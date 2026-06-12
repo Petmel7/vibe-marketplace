@@ -13,6 +13,7 @@ import type {
 export type CheckoutInput = {
   cartId: string
   shippingAddressId?: string | null
+  acceptedPrivacy: boolean
   deliveryType?: CheckoutDeliverySelectionDto['selectedDeliveryType']
   recipientName?: string | null
   recipientPhone?: string | null

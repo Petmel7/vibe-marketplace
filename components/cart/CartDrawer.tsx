@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import CartItem from './CartItem'
-import StateView, { CART_EMPTY_STATE } from '@/components/ui/StateView'
+import StateView, {
+  CART_EMPTY_STATE,
+} from '@/components/ui/StateView'
 import { formatPrice } from '@/utils/formatters/price'
 import Loading from '@/app/cart/loading'
-import CartCheckbox from './CartCheckbox'
 import { pluralizeItems } from '@/utils/pluralize'
 import { useCart } from './hooks/useCart'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -19,7 +20,11 @@ function CartEmpty() {
 }
 
 function getCartBlockingIssues(
-  items: NonNullable<ReturnType<typeof useCart>['cart']>['items'],
+  items: NonNullable<
+    ReturnType<
+      typeof useCart
+    >['cart']
+  >['items'],
 ) {
   return items.flatMap((item) => {
     if (item.variant.stock <= 0) {
@@ -28,7 +33,10 @@ function getCartBlockingIssues(
       ]
     }
 
-    if (item.quantity > item.variant.stock) {
+    if (
+      item.quantity >
+      item.variant.stock
+    ) {
       return [
         `Товар "${item.variant.product.name}" має лише ${item.variant.stock} шт. у наявності, тому кількість у кошику потрібно зменшити.`,
       ]
@@ -39,9 +47,10 @@ function getCartBlockingIssues(
 }
 
 export default function CartDrawer() {
-  const { isAuthenticated } = useCurrentUser()
-  const [promoCode, setPromoCode] = useState('')
-  const [agreed, setAgreed] = useState(false)
+  const { isAuthenticated } =
+    useCurrentUser()
+  const [promoCode, setPromoCode] =
+    useState('')
 
   const {
     cart,
@@ -52,15 +61,25 @@ export default function CartDrawer() {
   } = useCart()
 
   if (isLoading) return <Loading />
-  if (!cart || cart.items.length === 0) return <CartEmpty />
+  if (
+    !cart ||
+    cart.items.length === 0
+  ) {
+    return <CartEmpty />
+  }
 
-  const checkoutHref = isAuthenticated
-    ? '/checkout'
-    : '/login?notice=auth-required&next=/checkout'
+  const checkoutHref =
+    isAuthenticated
+      ? '/checkout'
+      : '/login?notice=auth-required&next=/checkout'
 
-  const blockingIssues = getCartBlockingIssues(cart.items)
+  const blockingIssues =
+    getCartBlockingIssues(
+      cart.items,
+    )
 
-  const checkoutDisabled = blockingIssues.length > 0
+  const checkoutDisabled =
+    blockingIssues.length > 0
 
   return (
     <>
@@ -80,11 +99,15 @@ export default function CartDrawer() {
         <PageTitle
           title="Кошик"
           count={cart.itemCount}
-          countLabel={pluralizeItems(cart.itemCount)}
+          countLabel={pluralizeItems(
+            cart.itemCount,
+          )}
         />
         <p className="max-w-3xl text-sm text-copy-muted">
-          Перевірте товари, оновіть кількість і перейдіть до безпечного оформлення
-          замовлення з серверною перевіркою цін та залишків.
+          Перевірте товари, оновіть кількість і
+          переходьте до безпечного оформлення
+          замовлення з серверною перевіркою цін та
+          залишків.
         </p>
       </div>
 
@@ -97,7 +120,10 @@ export default function CartDrawer() {
             >
               <div className="space-y-3">
                 <div>
-                  <h2 id="cart-issues-title" className="text-sm font-semibold text-copy-strong">
+                  <h2
+                    id="cart-issues-title"
+                    className="text-sm font-semibold text-copy-strong"
+                  >
                     Кошик потребує уваги
                   </h2>
                   <p className="mt-1 text-sm text-copy-secondary">
@@ -106,14 +132,16 @@ export default function CartDrawer() {
                 </div>
 
                 <ul className="space-y-2 text-sm text-copy-primary">
-                  {blockingIssues.map((issue) => (
-                    <li
-                      key={issue}
-                      className="rounded-xl bg-white/50 px-3 py-2"
-                    >
-                      {issue}
-                    </li>
-                  ))}
+                  {blockingIssues.map(
+                    (issue) => (
+                      <li
+                        key={issue}
+                        className="rounded-xl bg-white/50 px-3 py-2"
+                      >
+                        {issue}
+                      </li>
+                    ),
+                  )}
                 </ul>
               </div>
             </section>
@@ -130,7 +158,9 @@ export default function CartDrawer() {
                   item={item}
                   onUpdateQuantity={handleUpdateQuantity}
                   onRemove={handleRemoveItem}
-                  isLoading={loadingItemIds.has(item.id)}
+                  isLoading={loadingItemIds.has(
+                    item.id,
+                  )}
                 />
               ))}
             </div>
@@ -145,14 +175,19 @@ export default function CartDrawer() {
                 <input
                   type="text"
                   value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
+                  onChange={(event) =>
+                    setPromoCode(
+                      event.target.value,
+                    )
+                  }
                   placeholder="Промокод"
                   className="ui-surface-input-plain h-12 w-full min-w-0 px-5 sm:w-74"
                   aria-label="Промокод"
                 />
               </div>
               <p className="text-sm text-copy-muted">
-                Знижка буде застосована на етапі оформлення, коли логіка промокодів
+                Знижка буде застосована на етапі
+                оформлення, коли логіка промокодів
                 стане доступною.
               </p>
             </div>
@@ -168,25 +203,38 @@ export default function CartDrawer() {
               <dl className="space-y-3 text-sm text-copy-secondary">
                 <div className="flex items-center justify-between gap-4">
                   <dt>Товари</dt>
-                  <dd className="text-copy-primary">{cart.itemCount}</dd>
+                  <dd className="text-copy-primary">
+                    {cart.itemCount}
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <dt>Підсумок товарів</dt>
-                  <dd className="text-copy-primary">{formatPrice(cart.totalAmount)}</dd>
+                  <dd className="text-copy-primary">
+                    {formatPrice(
+                      cart.totalAmount,
+                    )}
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <dt>Доставка</dt>
-                  <dd className="text-copy-primary">{formatPrice('0.00')}</dd>
+                  <dd className="text-copy-primary">
+                    {formatPrice('0.00')}
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between gap-4 border-t border-panelBorder pt-3 text-base font-semibold text-copy-strong">
                   <dt>Разом</dt>
-                  <dd>{formatPrice(cart.totalAmount)}</dd>
+                  <dd>
+                    {formatPrice(
+                      cart.totalAmount,
+                    )}
+                  </dd>
                 </div>
               </dl>
 
               {checkoutDisabled ? (
                 <div className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary">
-                  Поки що не можна перейти до оформлення: у кошику є позиції з
+                  Поки що не можна перейти до
+                  оформлення: у кошику є позиції з
                   недоступною кількістю.
                 </div>
               ) : null}
@@ -201,22 +249,25 @@ export default function CartDrawer() {
                   Оформити замовлення
                 </button>
               ) : (
-                <Link href={checkoutHref} className="ui-primary-button block w-full text-center">
+                <Link
+                  href={checkoutHref}
+                  className="ui-primary-button block w-full text-center"
+                >
                   Оформити замовлення
                 </Link>
               )}
 
-              <div className="flex items-start gap-2">
-                <CartCheckbox checked={agreed} onChange={setAgreed} />
-                <p className="text-[11px] leading-4 text-copy-secondary">
-                  Натискаючи на кнопку «Оформити замовлення», ви погоджуєтеся на обробку{' '}
-                  <a href="#" className="text-brand hover:underline">
-                    персональних даних
-                  </a>
-                  . На наступному етапі checkout ще раз перевірить ціни, адресу та
-                  наявність.
-                </p>
-              </div>
+              <p className="text-[11px] leading-4 text-copy-secondary">
+                На етапі checkout ми попросимо вас
+                явно погодитися з умовами обробки{' '}
+                <Link
+                  href="/privacy"
+                  className="text-brand hover:underline"
+                >
+                  персональних даних
+                </Link>
+                .
+              </p>
             </div>
           </DashboardCard>
         </div>

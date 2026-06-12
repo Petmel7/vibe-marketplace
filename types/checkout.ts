@@ -79,6 +79,7 @@ export type CheckoutPreview = {
 export type CheckoutSubmitPayload = {
   cartId: string
   shippingAddressId?: string | null
+  acceptedPrivacy: boolean
   deliveryType?: ShippingDeliveryType | null
   recipientName?: string | null
   recipientPhone?: string | null

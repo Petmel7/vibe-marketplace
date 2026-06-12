@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { cartApi } from './api/cart.api'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useCartStore } from '@/store/cartStore'
@@ -43,6 +44,7 @@ export default function AddToCartButton({
       )
 
       useCartStore.getState().setItemCount(cart.itemCount)
+      toast.success('Товар додано в кошик')
     } catch (error) {
       useCartStore.getState().setItemCount(prevCount)
       setErrorMessage(
@@ -64,6 +66,7 @@ export default function AddToCartButton({
   return (
     <div className="space-y-3">
       <button
+        type="button"
         onClick={handleAddToCart}
         disabled={!variantId || isAdding || disabled}
         className="ui-primary-button w-full disabled:cursor-not-allowed disabled:opacity-60"

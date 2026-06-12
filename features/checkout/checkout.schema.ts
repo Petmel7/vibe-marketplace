@@ -14,6 +14,11 @@ export const checkoutSchema = z
     expectedTotal: moneyStringSchema.nullish(),
     couponCode: z.string().trim().min(1).max(64).nullish(),
     note: z.string().max(500).optional(),
+    acceptedPrivacy: z
+      .boolean()
+      .refine((value) => value === true, {
+        message: 'Підтвердьте згоду на обробку персональних даних.',
+      }),
     paymentMethod: checkoutPaymentMethodSchema.default('CASH_ON_DELIVERY'),
   })
   .merge(checkoutDeliverySelectionSchema)

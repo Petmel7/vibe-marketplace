@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { useId, useRef, useState } from 'react'
 import EmptyState from '@/components/profile/EmptyState'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import DashboardCard from '@/components/profile/DashboardCard'
@@ -21,6 +23,12 @@ export default function CheckoutClient({
 }: {
   initialCartId?: string
 }) {
+  const privacyConsentHintId = useId()
+  const privacyConsentErrorId = useId()
+  const privacyConsentRef = useRef<HTMLInputElement | null>(null)
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
+  const [privacyConsentError, setPrivacyConsentError] = useState<string | null>(null)
+
   const {
     preview,
     isLoading,
@@ -69,6 +77,25 @@ export default function CheckoutClient({
   } = useCheckout(initialCartId)
 
   const handleAddAddress = async (payload: CreateAddressDto) => addAddress(payload)
+
+  const handlePrivacyConsentChange = (checked: boolean) => {
+    setAcceptedPrivacy(checked)
+
+    if (checked) {
+      setPrivacyConsentError(null)
+    }
+  }
+
+  const handleSubmitCheckout = () => {
+    if (!acceptedPrivacy) {
+      setPrivacyConsentError('Підтвердьте згоду на обробку персональних даних.')
+      privacyConsentRef.current?.focus()
+      return
+    }
+
+    setPrivacyConsentError(null)
+    void submitCheckout({ acceptedPrivacy: true })
+  }
 
   if (isLoading) {
     return (
@@ -198,10 +225,55 @@ export default function CheckoutClient({
               disabled={!canSubmit}
               isSubmitting={isSubmitting}
               paymentMethod={selectedPaymentMethod}
-              onSubmit={() => {
-                void submitCheckout()
-              }}
+              onSubmit={handleSubmitCheckout}
             />
+
+            <div className="rounded-2xl border border-panelBorder bg-panelAlt/70 px-4 py-3">
+              <div className="flex items-start gap-3">
+                <input
+                  ref={privacyConsentRef}
+                  id="checkout-privacy-consent"
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(event) => {
+                    handlePrivacyConsentChange(event.target.checked)
+                  }}
+                  aria-invalid={privacyConsentError ? 'true' : 'false'}
+                  aria-describedby={
+                    privacyConsentError
+                      ? `${privacyConsentHintId} ${privacyConsentErrorId}`
+                      : privacyConsentHintId
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border border-panelBorder text-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
+                />
+
+                <div className="space-y-1">
+                  <p
+                    id={privacyConsentHintId}
+                    className="text-sm text-copy-secondary"
+                  >
+                    Я погоджуюся з умовами обробки{' '}
+                    <Link
+                      href="/privacy"
+                      className="text-brand-accent underline underline-offset-2 hover:text-copy-strong"
+                    >
+                      персональних даних
+                    </Link>
+                    .
+                  </p>
+
+                  {privacyConsentError ? (
+                    <p
+                      id={privacyConsentErrorId}
+                      className="text-sm text-brand-danger"
+                      aria-live="polite"
+                    >
+                      {privacyConsentError}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
 
             {submitError ? (
               <p className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary">

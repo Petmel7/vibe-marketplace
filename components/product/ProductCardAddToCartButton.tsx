@@ -2,6 +2,7 @@
 
 import { ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { cartApi } from '@/components/cart/api/cart.api'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useCartStore } from '@/store/cartStore'
@@ -47,6 +48,7 @@ export default function ProductCardAddToCartButton({
       )
 
       useCartStore.getState().setItemCount(cart.itemCount)
+      toast.success('Товар додано в кошик')
     } catch (error) {
       useCartStore.getState().setItemCount(previousCount)
       setErrorMessage(

@@ -225,6 +225,7 @@ function makeCart(
 const checkoutInput = {
   cartId: CART_ID,
   shippingAddressId: ADDRESS_ID,
+  acceptedPrivacy: true as const,
   paymentMethod: 'CASH_ON_DELIVERY' as const,
 }
 
@@ -697,7 +698,12 @@ describe('checkout submit', () => {
     )
 
     await expect(
-      checkout(mockUser, { cartId: CART_ID, shippingAddressId: null, paymentMethod: 'CASH_ON_DELIVERY' }),
+      checkout(mockUser, {
+        cartId: CART_ID,
+        shippingAddressId: null,
+        acceptedPrivacy: true,
+        paymentMethod: 'CASH_ON_DELIVERY',
+      }),
     ).rejects.toThrow(InvalidShippingSelectionError)
   })
 
@@ -846,6 +852,7 @@ describe('checkout submit', () => {
     await checkout(mockUser, {
       cartId: CART_ID,
       shippingAddressId: null,
+      acceptedPrivacy: true,
       paymentMethod: 'CASH_ON_DELIVERY',
       deliveryType: 'NOVA_POSHTA_WAREHOUSE',
       recipientName: 'John Doe',

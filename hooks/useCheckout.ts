@@ -411,7 +411,7 @@ export function useCheckout(initialCartId?: string) {
     serializedDeliveryPayload,
   ])
 
-  const submitCheckout = useCallback(async () => {
+  const submitCheckout = useCallback(async ({ acceptedPrivacy }: { acceptedPrivacy: true }) => {
     if (!preview?.cartId || isSubmitting) {
       return null
     }
@@ -451,6 +451,7 @@ export function useCheckout(initialCartId?: string) {
       const result = await apiClient.post<CheckoutResponse>(API_ROUTES.checkoutSubmit, {
         cartId: preview.cartId,
         shippingAddressId: usingAddress ? selectedAddressId : null,
+        acceptedPrivacy,
         deliveryType: usingAddress ? null : deliveryPayload?.deliveryType ?? null,
         recipientName: usingAddress ? null : deliveryPayload?.recipientName?.trim() ?? null,
         recipientPhone: usingAddress ? null : deliveryPayload?.recipientPhone?.trim() ?? null,
