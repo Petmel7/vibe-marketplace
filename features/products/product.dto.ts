@@ -64,6 +64,7 @@ export interface ProductSummaryDto {
   isNew: boolean
   badgeContext: ProductBadgeContext
   badges: ProductMarketplaceBadgeDto[]
+  ratingSummary: ReviewRatingSummaryDto
   createdAt: string
   variants: ProductVariantDto[]
 }
@@ -74,7 +75,6 @@ export interface ProductDetailDto extends ProductSummaryDto {
   storeSlug: string
   categoryName: string | null
   categorySlug: string | null
-  ratingSummary: ReviewRatingSummaryDto
   variants: ProductVariantDto[]
 }
 
@@ -99,7 +99,6 @@ export interface ProductListDto {
 export interface ProductSearchItemDto extends ProductSummaryDto {
   storeName: string
   storeSlug: string
-  ratingSummary: ReviewRatingSummaryDto
 }
 
 export interface ProductSearchCategoryFacetDto {

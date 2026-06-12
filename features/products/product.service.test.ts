@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Product, ProductVariant } from '@/app/generated/prisma/client'
+import { Prisma, type Product, type ProductVariant } from '@/app/generated/prisma/client'
 import {
   ProductNotFoundError,
   getProduct,
@@ -285,6 +285,15 @@ describe('listProducts', () => {
               endsAt: '2026-01-31T00:00:00.000Z',
             },
           ],
+          ratingSummary: {
+            averageRating: 0,
+            totalCount: 0,
+            rating1Count: 0,
+            rating2Count: 0,
+            rating3Count: 0,
+            rating4Count: 0,
+            rating5Count: 0,
+          },
           createdAt: '2026-01-01T00:00:00.000Z',
           variants: [
             {
@@ -328,6 +337,15 @@ describe('listProducts', () => {
               endsAt: '2026-01-31T00:00:00.000Z',
             },
           ],
+          ratingSummary: {
+            averageRating: 0,
+            totalCount: 0,
+            rating1Count: 0,
+            rating2Count: 0,
+            rating3Count: 0,
+            rating4Count: 0,
+            rating5Count: 0,
+          },
           createdAt: '2026-01-01T00:00:00.000Z',
           variants: [
             {
@@ -531,6 +549,40 @@ describe('filtered product listings', () => {
     expect(result.items[0]?.isNew).toBe(true)
   })
 
+  it('maps rating summary into the New Products list DTO', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [
+        makeListProduct({}, [makeVariant()]),
+      ].map((item) => ({
+        ...item,
+        ratingSummary: {
+          productId: 'prod-1',
+          ratingAvg: new Prisma.Decimal('3.0'),
+          ratingCount: 1,
+          rating1Count: 0,
+          rating2Count: 0,
+          rating3Count: 1,
+          rating4Count: 0,
+          rating5Count: 0,
+          updatedAt: new Date('2026-01-05T00:00:00.000Z'),
+        },
+      })),
+      total: 1,
+    })
+
+    const result = await listNewProducts({ page: 1, limit: 12 })
+
+    expect(result.items[0]?.ratingSummary).toEqual({
+      averageRating: 3,
+      totalCount: 1,
+      rating1Count: 0,
+      rating2Count: 0,
+      rating3Count: 1,
+      rating4Count: 0,
+      rating5Count: 0,
+    })
+  })
+
   it('passes isHit=true to the repository for hit products', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
 
@@ -606,6 +658,25 @@ describe('filtered product listings', () => {
     expect(result.items[0]?.badges.map((badge) => badge.type)).toEqual(['HIT'])
     expect(result.items[0]?.isHit).toBe(true)
     expect(result.items[0]?.isNew).toBe(true)
+  })
+
+  it('returns zeroed rating summary in the Hit Products list DTO when a product has no reviews', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct({}, [makeVariant()])],
+      total: 1,
+    })
+
+    const result = await listHitProducts({ page: 1, limit: 12 })
+
+    expect(result.items[0]?.ratingSummary).toEqual({
+      averageRating: 0,
+      totalCount: 0,
+      rating1Count: 0,
+      rating2Count: 0,
+      rating3Count: 0,
+      rating4Count: 0,
+      rating5Count: 0,
+    })
   })
 })
 

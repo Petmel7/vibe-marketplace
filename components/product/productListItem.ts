@@ -1,5 +1,4 @@
 import type { ProductSummaryDto } from '@/features/products/product.dto'
-import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 import type {
   MarketplaceBadgeContext,
   MarketplaceProductBadge,
@@ -11,7 +10,6 @@ export type ProductListItem = ProductSummaryDto & {
   badgeContext?: MarketplaceBadgeContext
   imageAlt?: string | null
   storeName?: string | null
-  ratingSummary?: ReviewRatingSummaryDto
 }
 
 export function isRenderablePublicProduct(product: ProductListItem) {

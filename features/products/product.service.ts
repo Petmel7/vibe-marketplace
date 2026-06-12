@@ -79,6 +79,18 @@ type ProductSummaryVariantLike = Pick<ProductVariant, 'id' | 'sku' | 'price' | '
   color?: string | null
 }
 
+type ProductRatingSummaryLike = {
+  ratingAvg: {
+    toNumber(): number
+  }
+  ratingCount: number
+  rating1Count: number
+  rating2Count: number
+  rating3Count: number
+  rating4Count: number
+  rating5Count: number
+} | null
+
 // ---------------------------------------------------------------------------
 // Typed application errors
 // ---------------------------------------------------------------------------
@@ -127,6 +139,7 @@ function toProductSummaryDto(
     href: `/products/${product.id}`,
     badgeContext,
     badges: contextualBadges.map(toProductMarketplaceBadgeDto),
+    ratingSummary: toRatingSummaryDto('ratingSummary' in product ? product.ratingSummary : null),
     createdAt: product.createdAt.toISOString(),
     variants: variants.map(toProductVariantDto),
   }
@@ -170,30 +183,11 @@ function toSearchProductItemDto(
     ...toProductSummaryDto(product, product.variants, marketplaceBadges, 'DEFAULT'),
     storeName: product.store.name,
     storeSlug: product.store.slug,
-    ratingSummary: product.ratingSummary
-      ? {
-          averageRating: Number(product.ratingSummary.ratingAvg.toNumber().toFixed(2)),
-          totalCount: product.ratingSummary.ratingCount,
-          rating1Count: product.ratingSummary.rating1Count,
-          rating2Count: product.ratingSummary.rating2Count,
-          rating3Count: product.ratingSummary.rating3Count,
-          rating4Count: product.ratingSummary.rating4Count,
-          rating5Count: product.ratingSummary.rating5Count,
-        }
-      : {
-          averageRating: 0,
-          totalCount: 0,
-          rating1Count: 0,
-          rating2Count: 0,
-          rating3Count: 0,
-          rating4Count: 0,
-          rating5Count: 0,
-        },
   }
 }
 
-function toProductRatingSummaryDto(product: ProductDetailProduct): ReviewRatingSummaryDto {
-  if (!product.ratingSummary) {
+function toRatingSummaryDto(ratingSummary: ProductRatingSummaryLike): ReviewRatingSummaryDto {
+  if (!ratingSummary) {
     return {
       averageRating: 0,
       totalCount: 0,
@@ -206,13 +200,13 @@ function toProductRatingSummaryDto(product: ProductDetailProduct): ReviewRatingS
   }
 
   return {
-    averageRating: Number(product.ratingSummary.ratingAvg.toNumber().toFixed(2)),
-    totalCount: product.ratingSummary.ratingCount,
-    rating1Count: product.ratingSummary.rating1Count,
-    rating2Count: product.ratingSummary.rating2Count,
-    rating3Count: product.ratingSummary.rating3Count,
-    rating4Count: product.ratingSummary.rating4Count,
-    rating5Count: product.ratingSummary.rating5Count,
+    averageRating: Number(ratingSummary.ratingAvg.toNumber().toFixed(2)),
+    totalCount: ratingSummary.ratingCount,
+    rating1Count: ratingSummary.rating1Count,
+    rating2Count: ratingSummary.rating2Count,
+    rating3Count: ratingSummary.rating3Count,
+    rating4Count: ratingSummary.rating4Count,
+    rating5Count: ratingSummary.rating5Count,
   }
 }
 
@@ -669,7 +663,7 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     storeSlug: product.store.slug,
     categoryName: product.category?.name ?? null,
     categorySlug: product.category?.slug ?? null,
-    ratingSummary: toProductRatingSummaryDto(product),
+    ratingSummary: toRatingSummaryDto(product.ratingSummary),
     variants: product.variants.map(toProductVariantDto),
   }
 }
