@@ -1,44 +1,95 @@
-
 'use client'
 
 import { useCallback } from 'react'
-
 import {
   usePathname,
   useRouter,
 } from 'next/navigation'
-
 import { toast } from 'sonner'
-
-import { wishlistService } from '../services/wishlist.service'
-
 import {
   UnauthorizedError,
   WishlistApiError,
 } from '../errors/wishlist.errors'
-
+import { wishlistService } from '../services/wishlist.service'
 import {
   optimisticToggle,
   rollbackToggle,
 } from '../utils/wishlist.optimistic'
-
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useWishlistStore } from '@/store/wishlistStore'
+
+const AUTH_REQUIRED_MESSAGE =
+  'Авторизуйтеся, щоб додати в обране'
 
 export function useWishlist() {
   const router = useRouter()
   const pathname = usePathname()
+  const {
+    isAuthenticated,
+    isHydrated,
+    refreshUser,
+  } = useCurrentUser()
 
   const {
     productIds,
+    pendingProductIds,
     isLoading,
     add,
     remove,
-    has,
   } = useWishlistStore()
 
   const toggle = useCallback(
     async (productId: string) => {
-      const alreadyExists = has(productId)
+      const wishlistState =
+        useWishlistStore.getState()
+
+      if (
+        wishlistState.isPending(
+          productId,
+        )
+      ) {
+        return
+      }
+
+      let canMutateWishlist =
+        isAuthenticated
+
+      if (
+        !canMutateWishlist &&
+        !isHydrated
+      ) {
+        try {
+          canMutateWishlist = Boolean(
+            await refreshUser(),
+          )
+        } catch {
+          canMutateWishlist = false
+        }
+      }
+
+      if (!canMutateWishlist) {
+        toast.info(
+          AUTH_REQUIRED_MESSAGE,
+        )
+
+        const next = encodeURIComponent(
+          pathname || '/',
+        )
+
+        router.push(
+          `/login?notice=auth-required&next=${next}`,
+        )
+
+        return
+      }
+
+      const alreadyExists =
+        wishlistState.has(productId)
+
+      wishlistState.setPending(
+        productId,
+        true,
+      )
 
       optimisticToggle({
         productId,
@@ -66,9 +117,12 @@ export function useWishlist() {
           remove,
         })
 
-        if (error instanceof UnauthorizedError) {
+        if (
+          error instanceof
+          UnauthorizedError
+        ) {
           toast.info(
-            'Увійдіть, щоб зберегти товар до обраного',
+            AUTH_REQUIRED_MESSAGE,
           )
 
           const next = encodeURIComponent(
@@ -82,26 +136,39 @@ export function useWishlist() {
           return
         }
 
-        if (error instanceof WishlistApiError) {
+        if (
+          error instanceof
+          WishlistApiError
+        ) {
           toast.error(error.message)
 
           return
         }
 
-        toast.error('Помилка мережі')
+        toast.error(
+          'Помилка мережі',
+        )
+      } finally {
+        useWishlistStore.getState().setPending(
+          productId,
+          false,
+        )
       }
     },
     [
       add,
-      remove,
-      has,
+      isAuthenticated,
+      isHydrated,
       pathname,
+      refreshUser,
+      remove,
       router,
     ],
   )
 
   return {
     productIds,
+    pendingProductIds,
     isLoading,
     toggle,
   }

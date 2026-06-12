@@ -95,7 +95,7 @@ export async function addToWishlist(
   const existing = await findWishlistItem(wishlist.id, productId)
 
   if (existing) {
-    throw new ProductAlreadyInWishlistError(productId)
+    return toWishlistDto(wishlist)
   }
 
   const updated = await addWishlistItem(wishlist.id, productId)
@@ -124,7 +124,7 @@ export async function removeFromWishlist(
   const existing = await findWishlistItem(wishlist.id, productId)
 
   if (!existing) {
-    throw new WishlistItemNotFoundError(productId)
+    return toWishlistDto(wishlist)
   }
 
   const updated = await removeWishlistItem(wishlist.id, productId)

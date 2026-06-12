@@ -3,6 +3,8 @@ import { create } from 'zustand'
 interface WishlistState {
   /** Set of product IDs the user has wishlisted. */
   productIds: Set<string>
+  /** Set of product IDs currently being mutated. */
+  pendingProductIds: Set<string>
   /** True while the initial wishlist fetch is in-flight. */
   isLoading: boolean
 
@@ -10,6 +12,8 @@ interface WishlistState {
   add: (productId: string) => void
   remove: (productId: string) => void
   has: (productId: string) => boolean
+  setPending: (productId: string, pending: boolean) => void
+  isPending: (productId: string) => boolean
   setLoading: (loading: boolean) => void
   /** Reset wishlist state (e.g. on sign-out). */
   clear: () => void
@@ -17,6 +21,7 @@ interface WishlistState {
 
 export const useWishlistStore = create<WishlistState>((set, get) => ({
   productIds: new Set(),
+  pendingProductIds: new Set(),
   isLoading: false,
 
   setProductIds: (ids) => set({ productIds: new Set(ids) }),
@@ -33,7 +38,22 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
 
   has: (productId) => get().productIds.has(productId),
 
+  setPending: (productId, pending) =>
+    set((state) => {
+      const next = new Set(state.pendingProductIds)
+
+      if (pending) {
+        next.add(productId)
+      } else {
+        next.delete(productId)
+      }
+
+      return { pendingProductIds: next }
+    }),
+
+  isPending: (productId) => get().pendingProductIds.has(productId),
+
   setLoading: (loading) => set({ isLoading: loading }),
 
-  clear: () => set({ productIds: new Set(), isLoading: false }),
+  clear: () => set({ productIds: new Set(), pendingProductIds: new Set(), isLoading: false }),
 }))

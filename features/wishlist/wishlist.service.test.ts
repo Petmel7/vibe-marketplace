@@ -10,8 +10,6 @@ import {
   addToWishlist,
   removeFromWishlist,
   ProductNotFoundError,
-  ProductAlreadyInWishlistError,
-  WishlistItemNotFoundError,
 } from '@/features/wishlist/wishlist.service'
 
 // ---------------------------------------------------------------------------
@@ -132,13 +130,17 @@ describe('addToWishlist', () => {
       .rejects.toThrow(ProductNotFoundError)
   })
 
-  it('throws ProductAlreadyInWishlistError when product is already in wishlist', async () => {
+  it('returns the current wishlist when product is already in wishlist', async () => {
     mockProductExists.mockResolvedValue(true)
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist() as never)
+    const existingWishlist = makeWishlist()
+
+    mockRepo.findOrCreateWishlist.mockResolvedValue(existingWishlist as never)
     mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
 
-    await expect(addToWishlist(USER_ID, PRODUCT_ID))
-      .rejects.toThrow(ProductAlreadyInWishlistError)
+    const result = await addToWishlist(USER_ID, PRODUCT_ID)
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].productId).toBe(PRODUCT_ID)
   })
 
   it('does not call addWishlistItem when product is already present', async () => {
@@ -146,8 +148,11 @@ describe('addToWishlist', () => {
     mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist() as never)
     mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
 
-    await expect(addToWishlist(USER_ID, PRODUCT_ID)).rejects.toThrow()
+    await expect(addToWishlist(USER_ID, PRODUCT_ID)).resolves.toMatchObject({
+      id: WISHLIST_ID,
+    })
     expect(mockRepo.addWishlistItem).not.toHaveBeenCalled()
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).not.toHaveBeenCalled()
   })
 })
 
@@ -173,19 +178,23 @@ describe('removeFromWishlist', () => {
     expect(result.items).toHaveLength(0)
   })
 
-  it('throws WishlistItemNotFoundError when product is not in wishlist', async () => {
+  it('returns the current wishlist when product is not in wishlist', async () => {
     mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist([]) as never)
     mockRepo.findWishlistItem.mockResolvedValue(null)
 
-    await expect(removeFromWishlist(USER_ID, PRODUCT_ID))
-      .rejects.toThrow(WishlistItemNotFoundError)
+    const result = await removeFromWishlist(USER_ID, PRODUCT_ID)
+
+    expect(result.items).toHaveLength(0)
   })
 
   it('does not call removeWishlistItem when item is not present', async () => {
     mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist([]) as never)
     mockRepo.findWishlistItem.mockResolvedValue(null)
 
-    await expect(removeFromWishlist(USER_ID, PRODUCT_ID)).rejects.toThrow()
+    await expect(removeFromWishlist(USER_ID, PRODUCT_ID)).resolves.toMatchObject({
+      id: WISHLIST_ID,
+    })
     expect(mockRepo.removeWishlistItem).not.toHaveBeenCalled()
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).not.toHaveBeenCalled()
   })
 })

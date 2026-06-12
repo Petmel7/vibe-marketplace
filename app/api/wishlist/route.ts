@@ -7,7 +7,6 @@ import {
   getWishlist,
   addToWishlist,
   ProductNotFoundError,
-  ProductAlreadyInWishlistError,
 } from '@/features/wishlist/wishlist.service'
 
 // ---------------------------------------------------------------------------
@@ -62,7 +61,6 @@ export async function GET(request: NextRequest): Promise<Response> {
  *   400  { success: false, error: { message, code: 'VALIDATION_ERROR' } }
  *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
  *   404  { success: false, error: { message, code: 'NOT_FOUND' } }
- *   409  { success: false, error: { message, code: 'ALREADY_IN_WISHLIST' } }
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
 export async function POST(request: NextRequest): Promise<Response> {
@@ -93,13 +91,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json(
         { success: false, error: { message: error.message, code: error.code } },
         { status: 404 },
-      )
-    }
-
-    if (error instanceof ProductAlreadyInWishlistError) {
-      return Response.json(
-        { success: false, error: { message: error.message, code: error.code } },
-        { status: 409 },
       )
     }
 

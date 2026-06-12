@@ -3,10 +3,7 @@ import { ZodError } from 'zod'
 import { verifyBearerToken } from '@/lib/auth'
 import { logError } from '@/utils/logger'
 import { wishlistProductIdParamSchema } from '@/features/wishlist/wishlist.schema'
-import {
-  removeFromWishlist,
-  WishlistItemNotFoundError,
-} from '@/features/wishlist/wishlist.service'
+import { removeFromWishlist } from '@/features/wishlist/wishlist.service'
 
 /**
  * DELETE /api/wishlist/[productId]
@@ -20,7 +17,6 @@ import {
  *   200  { success: true,  data: WishlistDto }
  *   400  { success: false, error: { message, code: 'VALIDATION_ERROR' } }
  *   401  { success: false, error: { message, code: 'UNAUTHORIZED' } }
- *   404  { success: false, error: { message, code: 'NOT_FOUND' } }
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
 export async function DELETE(
@@ -46,13 +42,6 @@ export async function DELETE(
           },
         },
         { status: 400 },
-      )
-    }
-
-    if (error instanceof WishlistItemNotFoundError) {
-      return Response.json(
-        { success: false, error: { message: error.message, code: error.code } },
-        { status: 404 },
       )
     }
 
