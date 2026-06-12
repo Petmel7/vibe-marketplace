@@ -41,9 +41,9 @@ type NovaPoshtaEnvelope<T> = {
 type NovaPoshtaCityResponse = {
   Ref: string
   Description: string
+  DescriptionRu?: string
   AreaDescription?: string
   SettlementTypeDescription?: string
-  Addresses?: NovaPoshtaCityResponse[]
 }
 
 type NovaPoshtaWarehouseResponse = {
@@ -76,6 +76,7 @@ const FALLBACK_WAREHOUSE_ESTIMATE = '80.00'
 const FALLBACK_COURIER_ESTIMATE = '120.00'
 const DEFAULT_CITY_SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_WAREHOUSE_LOOKUP_CACHE_TTL_MS = 12 * 60 * 60 * 1000
+const CITY_SEARCH_CACHE_VERSION = 'v2'
 
 function normalizeCacheTtlMs(ttlSeconds: number | undefined, fallbackMs: number) {
   if (ttlSeconds == null) {
@@ -90,7 +91,7 @@ export function normalizeNovaPoshtaCityQuery(query: string) {
 }
 
 function buildCitySearchCacheKey(query: string) {
-  return `nova-poshta:cities:${normalizeNovaPoshtaCityQuery(query)}`
+  return `nova-poshta:cities:${CITY_SEARCH_CACHE_VERSION}:${normalizeNovaPoshtaCityQuery(query)}`
 }
 
 function buildWarehouseLookupCacheKey(cityRef: string) {
@@ -167,6 +168,20 @@ export class NovaPoshtaProvider {
     )
   }
 
+  private logCitySearchDiagnostics(input: {
+    normalizedQuery: string
+    providerResultCount: number
+  }) {
+    if (!this.config.logDiagnostics) return
+
+    logInfo('shipping:nova-poshta-city-search', {
+      domain: 'shipping',
+      normalizedQuery: input.normalizedQuery,
+      providerSuccess: true,
+      resultCount: input.providerResultCount,
+    })
+  }
+
   private async request<T>(modelName: string, calledMethod: string, methodProperties: object) {
     let response: Response
 
@@ -218,27 +233,31 @@ export class NovaPoshtaProvider {
       key: cacheKey,
       ttlMs: this.config.citySearchCacheTtlMs,
       enabled: this.config.directoryCacheEnabled,
+      shouldCache: (cities) => cities.length > 0,
       onHit: (key) => this.logDirectoryCacheHit(key),
       onMiss: (key) => this.logDirectoryCacheMiss(key),
       onLoadError: (key, error) => this.logDirectoryProviderFailure(key, error),
       loader: async () => {
-        const cities = await this.request<NovaPoshtaCityResponse>('Address', 'searchSettlements', {
-          CityName: query.trim(),
+        const cities = await this.request<NovaPoshtaCityResponse>('Address', 'getCities', {
+          FindByString: query.trim(),
           Limit: 20,
         })
 
-        return cities.flatMap((entry) => {
-          const addresses = Array.isArray(entry.Addresses) ? entry.Addresses : [entry]
+        const mappedCities = cities
+          .filter((city) => city.Ref && city.Description)
+          .map((city) => ({
+            ref: city.Ref,
+            name: city.Description,
+            area: city.AreaDescription ?? null,
+            settlementType: city.SettlementTypeDescription ?? null,
+          }))
 
-          return addresses
-            .filter((city) => city.Ref && city.Description)
-            .map((city) => ({
-              ref: city.Ref,
-              name: city.Description,
-              area: city.AreaDescription ?? null,
-              settlementType: city.SettlementTypeDescription ?? null,
-            }))
+        this.logCitySearchDiagnostics({
+          normalizedQuery,
+          providerResultCount: mappedCities.length,
         })
+
+        return mappedCities
       },
     })
   }

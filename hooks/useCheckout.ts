@@ -30,6 +30,13 @@ type DeliveryPayload = {
   recipientWarehouseName?: string | null
 }
 
+type AutoRefreshDeliveryInput = {
+  deliveryMode: CheckoutDeliveryMode
+  selectedDeliveryType: ShippingDeliveryType
+  selectedCity: NovaPoshtaCity | null
+  selectedWarehouse: NovaPoshtaWarehouse | null
+}
+
 function buildCheckoutPreviewUrl(
   cartId?: string,
   deliveryPayload?: DeliveryPayload,
@@ -126,6 +133,73 @@ function shouldRefreshPreviewAfterError(error: unknown) {
   )
 }
 
+export function buildAutoRefreshDeliveryPayload(
+  input: AutoRefreshDeliveryInput,
+): DeliveryPayload | undefined {
+  if (input.deliveryMode !== 'NOVA_POSHTA' || !input.selectedCity?.ref) {
+    return undefined
+  }
+
+  if (input.selectedDeliveryType === 'NOVA_POSHTA_COURIER') {
+    return {
+      deliveryType: input.selectedDeliveryType,
+      recipientCityRef: input.selectedCity.ref,
+      recipientCityName: input.selectedCity.name,
+    }
+  }
+
+  if (!input.selectedWarehouse?.ref) {
+    return undefined
+  }
+
+  return {
+    deliveryType: input.selectedDeliveryType,
+    recipientCityRef: input.selectedCity.ref,
+    recipientCityName: input.selectedCity.name,
+    recipientWarehouseRef: input.selectedWarehouse.ref,
+    recipientWarehouseName: input.selectedWarehouse.name,
+  }
+}
+
+export function buildAutoRefreshKey(
+  cartId: string | null | undefined,
+  deliveryMode: CheckoutDeliveryMode,
+  deliveryPayload?: DeliveryPayload,
+) {
+  if (!cartId) {
+    return null
+  }
+
+  if (deliveryMode !== 'NOVA_POSHTA') {
+    return null
+  }
+
+  if (!deliveryPayload?.deliveryType || !deliveryPayload.recipientCityRef) {
+    return null
+  }
+
+  if (deliveryPayload.deliveryType === 'NOVA_POSHTA_COURIER') {
+    return [
+      cartId,
+      deliveryMode,
+      deliveryPayload.deliveryType,
+      deliveryPayload.recipientCityRef,
+    ].join(':')
+  }
+
+  if (!deliveryPayload.recipientWarehouseRef) {
+    return null
+  }
+
+  return [
+    cartId,
+    deliveryMode,
+    deliveryPayload.deliveryType,
+    deliveryPayload.recipientCityRef,
+    deliveryPayload.recipientWarehouseRef,
+  ].join(':')
+}
+
 export function useCheckout(initialCartId?: string) {
   const router = useRouter()
   const setCartItemCount = useCartStore((state) => state.setItemCount)
@@ -158,6 +232,7 @@ export function useCheckout(initialCartId?: string) {
   const [couponSuccessMessage, setCouponSuccessMessage] = useState<string | null>(null)
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null)
   const appliedCouponCodeRef = useRef<string | null>(null)
+  const lastAutoRefreshKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     appliedCouponCodeRef.current = appliedCouponCode
@@ -276,10 +351,8 @@ export function useCheckout(initialCartId?: string) {
         }
 
         const nextDeliverySelection = nextPreview.deliverySelection
-        const shouldHydrateDelivery =
-          !preserveSelection || Boolean(nextDeliverySelection.selectedDeliveryType)
 
-        if (shouldHydrateDelivery) {
+        if (!preserveSelection) {
           setSelectedDeliveryType(
             nextDeliverySelection.selectedDeliveryType ?? 'NOVA_POSHTA_WAREHOUSE',
           )
@@ -327,6 +400,7 @@ export function useCheckout(initialCartId?: string) {
             nextPreview.defaultShippingAddress?.id ?? nextPreview.addressOptions[0]?.id,
           )
           setDeliveryMode(hasSavedAddress ? 'ADDRESS' : 'NOVA_POSHTA')
+          lastAutoRefreshKeyRef.current = null
         }
       } catch (error) {
         setLoadError(
@@ -344,6 +418,16 @@ export function useCheckout(initialCartId?: string) {
   }, [initialCartId, loadPreview])
 
   const previewDeliveryPayload = useMemo(() => getDeliveryPayload(), [getDeliveryPayload])
+  const autoRefreshDeliveryPayload = useMemo(
+    () =>
+      buildAutoRefreshDeliveryPayload({
+        deliveryMode,
+        selectedDeliveryType,
+        selectedCity,
+        selectedWarehouse,
+      }),
+    [deliveryMode, selectedCity, selectedDeliveryType, selectedWarehouse],
+  )
 
   const hasCompleteNovaPoshtaSelection = useMemo(() => {
     if (deliveryMode !== 'NOVA_POSHTA') {
@@ -375,9 +459,14 @@ export function useCheckout(initialCartId?: string) {
     selectedWarehouse?.ref,
   ])
 
-  const serializedDeliveryPayload = useMemo(
-    () => JSON.stringify(previewDeliveryPayload ?? null),
-    [previewDeliveryPayload],
+  const autoRefreshKey = useMemo(
+    () =>
+      buildAutoRefreshKey(
+        preview?.cartId,
+        deliveryMode,
+        autoRefreshDeliveryPayload,
+      ),
+    [autoRefreshDeliveryPayload, deliveryMode, preview?.cartId],
   )
 
   useEffect(() => {
@@ -385,30 +474,28 @@ export function useCheckout(initialCartId?: string) {
       return
     }
 
-    if (deliveryMode === 'ADDRESS') {
-      const timer = window.setTimeout(() => {
-        void loadPreview(preview.cartId ?? undefined, true)
-      }, 250)
-
-      return () => window.clearTimeout(timer)
-    }
-
-    if (!hasCompleteNovaPoshtaSelection || !previewDeliveryPayload) {
+    if (!autoRefreshKey || lastAutoRefreshKeyRef.current === autoRefreshKey) {
       return
     }
 
     const timer = window.setTimeout(() => {
-      void loadPreview(preview.cartId ?? undefined, true, previewDeliveryPayload)
-    }, 350)
+      lastAutoRefreshKeyRef.current = autoRefreshKey
+      void loadPreview(
+        preview.cartId ?? undefined,
+        true,
+        deliveryMode === 'NOVA_POSHTA' ? autoRefreshDeliveryPayload : undefined,
+      ).catch(() => {
+        lastAutoRefreshKeyRef.current = null
+      })
+    }, 250)
 
     return () => window.clearTimeout(timer)
   }, [
+    autoRefreshDeliveryPayload,
+    autoRefreshKey,
     deliveryMode,
-    hasCompleteNovaPoshtaSelection,
     loadPreview,
     preview?.cartId,
-    previewDeliveryPayload,
-    serializedDeliveryPayload,
   ])
 
   const submitCheckout = useCallback(async ({ acceptedPrivacy }: { acceptedPrivacy: true }) => {

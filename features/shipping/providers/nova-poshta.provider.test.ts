@@ -6,13 +6,8 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 import { ShippingProviderError } from '@/lib/errors/shipping'
-import {
-  InMemoryNovaPoshtaDirectoryCache,
-} from './nova-poshta-directory-cache'
-import {
-  NovaPoshtaProvider,
-  normalizeNovaPoshtaCityQuery,
-} from './nova-poshta.provider'
+import { InMemoryNovaPoshtaDirectoryCache } from './nova-poshta-directory-cache'
+import { NovaPoshtaProvider, normalizeNovaPoshtaCityQuery } from './nova-poshta.provider'
 
 const fetchMock = vi.fn()
 
@@ -64,14 +59,10 @@ describe('NovaPoshtaProvider directory cache', () => {
       success: true,
       data: [
         {
-          Addresses: [
-            {
-              Ref: 'city-ref',
-              Description: 'Київ',
-              AreaDescription: 'Київська',
-              SettlementTypeDescription: 'місто',
-            },
-          ],
+          Ref: 'city-ref',
+          Description: 'Київ',
+          AreaDescription: 'Київська',
+          SettlementTypeDescription: 'місто',
         },
       ],
     })
@@ -89,17 +80,13 @@ describe('NovaPoshtaProvider directory cache', () => {
       success: true,
       data: [
         {
-          Addresses: [
-            {
-              Ref: 'city-ref',
-              Description: 'Київ',
-            },
-          ],
+          Ref: 'city-ref',
+          Description: 'Київ',
         },
       ],
     })
 
-    await provider.searchCities('  КиЇв   ')
+    await provider.searchCities('  Київ   ')
     const cities = await provider.searchCities('київ')
 
     expect(cities[0]?.ref).toBe('city-ref')
@@ -131,11 +118,11 @@ describe('NovaPoshtaProvider directory cache', () => {
     const provider = createProvider({ citySearchCacheTtlMs: 1_000 })
     mockFetchSuccess({
       success: true,
-      data: [{ Addresses: [{ Ref: 'city-ref-1', Description: 'Київ' }] }],
+      data: [{ Ref: 'city-ref-1', Description: 'Київ' }],
     })
     mockFetchSuccess({
       success: true,
-      data: [{ Addresses: [{ Ref: 'city-ref-2', Description: 'Київ' }] }],
+      data: [{ Ref: 'city-ref-2', Description: 'Київ' }],
     })
 
     const first = await provider.searchCities('Київ')
@@ -152,7 +139,7 @@ describe('NovaPoshtaProvider directory cache', () => {
     fetchMock.mockRejectedValueOnce(new Error('network down'))
     mockFetchSuccess({
       success: true,
-      data: [{ Addresses: [{ Ref: 'city-ref', Description: 'Київ' }] }],
+      data: [{ Ref: 'city-ref', Description: 'Київ' }],
     })
 
     await expect(provider.searchCities('Київ')).rejects.toThrow(ShippingProviderError)
@@ -166,11 +153,11 @@ describe('NovaPoshtaProvider directory cache', () => {
     const provider = createProvider({ directoryCacheEnabled: false })
     mockFetchSuccess({
       success: true,
-      data: [{ Addresses: [{ Ref: 'city-ref-1', Description: 'Київ' }] }],
+      data: [{ Ref: 'city-ref-1', Description: 'Київ' }],
     })
     mockFetchSuccess({
       success: true,
-      data: [{ Addresses: [{ Ref: 'city-ref-2', Description: 'Київ' }] }],
+      data: [{ Ref: 'city-ref-2', Description: 'Київ' }],
     })
 
     const first = await provider.searchCities('Київ')
@@ -221,5 +208,94 @@ describe('NovaPoshtaProvider directory cache', () => {
 
     expect(first).toEqual(second)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends FindByString to getCities and maps provider city fields correctly', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [
+        {
+          Ref: 'kyiv-ref',
+          Description: 'Київ',
+          AreaDescription: 'Київська',
+          SettlementTypeDescription: 'м.',
+        },
+      ],
+    })
+
+    const cities = await provider.searchCities('Ки')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.novaposhta.example/json/',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify({
+          apiKey: 'nova-poshta-api-key',
+          modelName: 'Address',
+          calledMethod: 'getCities',
+          methodProperties: {
+            FindByString: 'Ки',
+            Limit: 20,
+          },
+        }),
+      }),
+    )
+    expect(cities).toEqual([
+      {
+        ref: 'kyiv-ref',
+        name: 'Київ',
+        area: 'Київська',
+        settlementType: 'м.',
+      },
+    ])
+  })
+
+  it('returns an empty list when provider search returns no cities', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [],
+    })
+
+    await expect(provider.searchCities('Ки')).resolves.toEqual([])
+  })
+
+  it('does not cache empty city search results so valid provider results are not masked later', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [],
+    })
+    mockFetchSuccess({
+      success: true,
+      data: [
+        {
+          Ref: 'kyiv-ref',
+          Description: 'Київ',
+          AreaDescription: 'Київська',
+          SettlementTypeDescription: 'м.',
+        },
+      ],
+    })
+
+    const first = await provider.searchCities('Ки')
+    const second = await provider.searchCities('Ки')
+
+    expect(first).toEqual([])
+    expect(second).toEqual([
+      {
+        ref: 'kyiv-ref',
+        name: 'Київ',
+        area: 'Київська',
+        settlementType: 'м.',
+      },
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })

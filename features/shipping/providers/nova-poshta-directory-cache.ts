@@ -8,6 +8,7 @@ type DirectoryCacheLoadOptions<T> = {
   ttlMs: number
   enabled: boolean
   loader: () => Promise<T>
+  shouldCache?: (value: T) => boolean
   onHit?: (key: string) => void
   onMiss?: (key: string) => void
   onLoadError?: (key: string, error: unknown) => void
@@ -53,10 +54,14 @@ export class InMemoryNovaPoshtaDirectoryCache implements NovaPoshtaDirectoryCach
     const loadingPromise = options
       .loader()
       .then((value) => {
-        this.entries.set(options.key, {
-          value,
-          expiresAt: this.now() + options.ttlMs,
-        })
+        if (options.shouldCache?.(value) ?? true) {
+          this.entries.set(options.key, {
+            value,
+            expiresAt: this.now() + options.ttlMs,
+          })
+        } else {
+          this.entries.delete(options.key)
+        }
         return value
       })
       .catch((error) => {
