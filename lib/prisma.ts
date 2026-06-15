@@ -192,6 +192,16 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+function getPrismaPoolMax() {
+  const isNextProductionBuild =
+    process.env.NEXT_PHASE === 'phase-production-build'
+
+  // During `next build`, Next.js can fan out static generation across many
+  // workers. Keeping one pooled session per worker avoids exhausting Supabase
+  // session-mode limits while preserving pooled access.
+  return isNextProductionBuild ? 1 : 10
+}
+
 function createPrismaClient(): PrismaClient {
   const { DATABASE_URL: connectionString } = getServerEnv()
   if (!connectionString) {
@@ -199,7 +209,7 @@ function createPrismaClient(): PrismaClient {
   }
 
   const sql = postgres(connectionString, {
-    max: 10,
+    max: getPrismaPoolMax(),
     idle_timeout: 30,
     connect_timeout: 10,
   })
