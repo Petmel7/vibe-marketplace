@@ -2,7 +2,7 @@ import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
 import { UnauthorizedError } from '@/lib/errors/auth'
 import type { SessionUser } from '@/features/auth/auth.dto'
-import { getUserRoles } from '@/features/auth/auth.repository'
+import { syncUser } from '@/features/auth/auth.service'
 
 /**
  * Returns the currently authenticated user from the session cookie, or null
@@ -14,8 +14,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return null
-  const roles = await getUserRoles(user.id)
-  return { id: user.id, email: user.email ?? '', roles }
+  return syncUser(user)
 })
 
 /**

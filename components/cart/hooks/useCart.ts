@@ -14,6 +14,7 @@ import type { CartDto } from '@/features/cart/cart.dto'
 export function useCart() {
     const { isAuthenticated } = useCurrentUser()
     const setItemCount = useCartStore((s) => s.setItemCount)
+    const refreshKey = useCartStore((s) => s.refreshKey)
 
     const [cart, setCart] = useState<CartDto | null>(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -50,7 +51,7 @@ export function useCart() {
         return () => {
             cancelled = true
         }
-    }, [isAuthenticated, setItemCount])
+    }, [isAuthenticated, refreshKey, setItemCount])
 
     const handleUpdateQuantity = useCallback(
         async (itemId: string, quantity: number) => {

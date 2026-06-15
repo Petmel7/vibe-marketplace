@@ -11,6 +11,7 @@ import {
   updateItem,
   removeItem,
   clearCart,
+  mergeGuestCartIntoUserCart,
   CartItemNotFoundError,
   InsufficientStockError,
   VariantNotFoundError,
@@ -296,5 +297,48 @@ describe('clearCart', () => {
     expect(mockRepo.deleteAllCartItems).toHaveBeenCalledWith(CART_ID)
     expect(result.items).toHaveLength(0)
     expect(result.totalAmount).toBe('0.00')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// mergeGuestCartIntoUserCart
+// ---------------------------------------------------------------------------
+
+describe('mergeGuestCartIntoUserCart', () => {
+  beforeEach(() => vi.resetAllMocks())
+
+  it('merges a guest cart into the authenticated user cart', async () => {
+    const mergedCart = makeCart([
+      makeCartItem({ quantity: 3 }),
+    ])
+
+    mockRepo.mergeGuestCartIntoUserCart.mockResolvedValue(mergedCart)
+
+    const result = await mergeGuestCartIntoUserCart('user-1', SESSION_ID)
+
+    expect(mockRepo.mergeGuestCartIntoUserCart).toHaveBeenCalledWith(
+      'user-1',
+      SESSION_ID,
+    )
+    expect(result?.itemCount).toBe(3)
+  })
+
+  it('returns null when there is no guest cart to merge', async () => {
+    mockRepo.mergeGuestCartIntoUserCart.mockResolvedValue(null)
+
+    const result = await mergeGuestCartIntoUserCart('user-1', SESSION_ID)
+
+    expect(result).toBeNull()
+  })
+
+  it('trims the guest session id before merging', async () => {
+    mockRepo.mergeGuestCartIntoUserCart.mockResolvedValue(makeCart([]))
+
+    await mergeGuestCartIntoUserCart('user-1', ` ${SESSION_ID} `)
+
+    expect(mockRepo.mergeGuestCartIntoUserCart).toHaveBeenCalledWith(
+      'user-1',
+      SESSION_ID,
+    )
   })
 })

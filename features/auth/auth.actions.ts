@@ -111,8 +111,6 @@ export async function signInWithPasswordAction(
     password,
   })
 
-  console.log('SIGN IN RESULT:', { data, error })
-
   if (error || !data.session) {
     return {
       formError: mapSupabaseAuthError(error?.code, error?.message),

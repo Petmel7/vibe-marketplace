@@ -10,6 +10,7 @@ import {
   updateCartItemQuantity,
   deleteCartItem,
   deleteAllCartItems,
+  mergeGuestCartIntoUserCart as mergeGuestCartIntoUserCartRecord,
   type CartIdentifier,
   type CartWithItems,
   type CartItemWithVariant,
@@ -23,6 +24,7 @@ import type {
   AddCartItemInput,
   UpdateCartItemInput,
 } from '@/features/cart/cart.schema'
+import { logError } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -222,4 +224,35 @@ export async function clearCart(identifier: CartIdentifier): Promise<CartDto> {
 
   const updated = await findCartById(cart.id)
   return toCartDto(updated!)
+}
+
+/**
+ * Best-effort guest cart merge that folds a session cart into the
+ * authenticated user's cart. Repeated calls are safe because the guest cart is
+ * removed after a successful merge.
+ */
+export async function mergeGuestCartIntoUserCart(
+  userId: string,
+  sessionId: string
+): Promise<CartDto | null> {
+  const normalizedSessionId = sessionId.trim()
+  if (!normalizedSessionId) {
+    return null
+  }
+
+  try {
+    const mergedCart = await mergeGuestCartIntoUserCartRecord(
+      userId,
+      normalizedSessionId
+    )
+
+    return mergedCart ? toCartDto(mergedCart) : null
+  } catch (error) {
+    logError('mergeGuestCartIntoUserCart', error, {
+      userId,
+      sessionId: normalizedSessionId,
+      domain: 'cart',
+    })
+    throw error
+  }
 }

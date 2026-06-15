@@ -158,3 +158,87 @@ export async function deleteCartItem(itemId: string): Promise<void> {
 export async function deleteAllCartItems(cartId: string): Promise<void> {
   await prisma.cartItem.deleteMany({ where: { cartId } })
 }
+
+/**
+ * Merge an anonymous session cart into the authenticated user's cart.
+ *
+ * - Guest items are folded into the user cart by variant id.
+ * - Quantities are combined and clamped to available stock.
+ * - Variants with zero stock are skipped during merge.
+ * - The guest cart is removed after a successful merge to keep the operation idempotent.
+ */
+export async function mergeGuestCartIntoUserCart(
+  userId: string,
+  sessionId: string
+): Promise<CartWithItems | null> {
+  return prisma.$transaction(async (tx) => {
+    const guestCart = await tx.cart.findUnique({
+      where: { sessionId },
+      include: { items: { include: ITEM_INCLUDE } },
+    }) as CartWithItems | null
+
+    const existingUserCart = await tx.cart.findUnique({
+      where: { userId },
+      include: { items: { include: ITEM_INCLUDE } },
+    }) as CartWithItems | null
+
+    if (!guestCart) {
+      return existingUserCart
+    }
+
+    const userCart = existingUserCart ??
+      (await tx.cart.create({
+        data: { userId },
+        include: { items: { include: ITEM_INCLUDE } },
+      }) as CartWithItems)
+
+    const mergedQuantities = new Map(
+      userCart.items.map((item) => [item.variantId, item.quantity])
+    )
+
+    for (const guestItem of guestCart.items) {
+      const availableStock = guestItem.variant.stock
+      if (availableStock <= 0) {
+        continue
+      }
+
+      const currentQuantity = mergedQuantities.get(guestItem.variantId) ?? 0
+      const nextQuantity = Math.min(
+        availableStock,
+        currentQuantity + guestItem.quantity
+      )
+
+      await tx.cartItem.upsert({
+        where: {
+          cartId_variantId: {
+            cartId: userCart.id,
+            variantId: guestItem.variantId,
+          },
+        },
+        create: {
+          cartId: userCart.id,
+          variantId: guestItem.variantId,
+          quantity: nextQuantity,
+        },
+        update: {
+          quantity: nextQuantity,
+        },
+      })
+
+      mergedQuantities.set(guestItem.variantId, nextQuantity)
+    }
+
+    await tx.cartItem.deleteMany({
+      where: { cartId: guestCart.id },
+    })
+
+    await tx.cart.delete({
+      where: { id: guestCart.id },
+    })
+
+    return tx.cart.findUnique({
+      where: { id: userCart.id },
+      include: { items: { include: ITEM_INCLUDE } },
+    }) as Promise<CartWithItems | null>
+  })
+}

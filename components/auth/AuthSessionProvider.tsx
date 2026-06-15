@@ -4,6 +4,8 @@ import { createContext, useEffect, useMemo, useRef, useState, useTransition } fr
 import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { API_ROUTES, isAuthPagePath } from '@/lib/constants/apiRoutes'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { useCartStore } from '@/store/cartStore'
 import type { SessionUser } from '@/types/auth'
 
 type AuthSessionContextValue = {
@@ -42,6 +44,40 @@ async function fetchCurrentUser(): Promise<SessionUser | null> {
   return payload.success ? payload.data : null
 }
 
+async function syncAuthenticatedUser(
+  accessToken: string,
+  guestSessionId?: string
+): Promise<SessionUser> {
+  const headers = new Headers({
+    Authorization: `Bearer ${accessToken}`,
+  })
+
+  if (guestSessionId) {
+    headers.set('x-session-id', guestSessionId)
+  }
+
+  const response = await fetch(API_ROUTES.authSync, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to sync authenticated session')
+  }
+
+  const payload = (await response.json()) as
+    | { success: true; data: SessionUser }
+    | { success: false; error: { message: string; code: string } }
+
+  if (!payload.success) {
+    throw new Error(payload.error.message)
+  }
+
+  return payload.data
+}
+
 export default function AuthSessionProvider({
   initialUser,
   children,
@@ -54,11 +90,20 @@ export default function AuthSessionProvider({
   const [hydratedPathname, setHydratedPathname] = useState<string | null>(
     initialUser ? pathname : null
   )
+  const [hasBootstrappedBrowserSession, setHasBootstrappedBrowserSession] = useState(
+    Boolean(initialUser) || isAuthPagePath(pathname)
+  )
   const [isRefreshing, startTransition] = useTransition()
   const inFlightPathRef = useRef<string | null>(null)
+  const lastSyncedAccessTokenRef = useRef<string | null>(null)
+  const syncingAccessTokenRef = useRef<string | null>(null)
   const isHydrated = !shouldRefreshSessionForPathname(pathname) || hydratedPathname === pathname
 
   useEffect(() => {
+    if (!hasBootstrappedBrowserSession) {
+      return
+    }
+
     if (!shouldRefreshSessionForPathname(pathname)) {
       return
     }
@@ -98,7 +143,161 @@ export default function AuthSessionProvider({
     return () => {
       isCancelled = true
     }
-  }, [hydratedPathname, pathname])
+  }, [hasBootstrappedBrowserSession, hydratedPathname, pathname])
+
+  useEffect(() => {
+    let cancelled = false
+    let subscription: { unsubscribe: () => void } | null = null
+    let supabase: ReturnType<typeof getSupabaseBrowser>
+
+    async function syncSession(
+      accessToken: string,
+      options?: { force?: boolean; refreshCart?: boolean }
+    ) {
+      if (!options?.force && lastSyncedAccessTokenRef.current === accessToken) {
+        return
+      }
+
+      if (syncingAccessTokenRef.current === accessToken) {
+        return
+      }
+
+      const guestSessionId = useCartStore.getState().sessionId || undefined
+      syncingAccessTokenRef.current = accessToken
+
+      startTransition(() => {
+        syncAuthenticatedUser(accessToken, guestSessionId)
+          .then((nextUser) => {
+            if (cancelled) {
+              return
+            }
+
+            lastSyncedAccessTokenRef.current = accessToken
+            setUser(nextUser)
+            setHydratedPathname(pathname)
+            setHasBootstrappedBrowserSession(true)
+
+            if (options?.refreshCart) {
+              useCartStore.getState().bumpRefreshKey()
+            }
+          })
+          .catch((error) => {
+            if (cancelled) {
+              return
+            }
+
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn('[AuthSessionProvider] auth sync failed', {
+                pathname,
+                route: API_ROUTES.authSync,
+                error: error instanceof Error ? error.message : String(error),
+              })
+            }
+
+            fetchCurrentUser()
+              .then((nextUser) => {
+                if (cancelled) {
+                  return
+                }
+
+                setUser(nextUser)
+                setHydratedPathname(pathname)
+                setHasBootstrappedBrowserSession(true)
+              })
+              .catch((refreshError) => {
+                if (cancelled) {
+                  return
+                }
+
+                if (process.env.NODE_ENV !== 'production') {
+                  console.warn('[AuthSessionProvider] fallback current-user refresh failed', {
+                    pathname,
+                    route: API_ROUTES.authMe,
+                    error:
+                      refreshError instanceof Error
+                        ? refreshError.message
+                        : String(refreshError),
+                  })
+                }
+                setHasBootstrappedBrowserSession(true)
+              })
+          })
+          .finally(() => {
+            if (syncingAccessTokenRef.current === accessToken) {
+              syncingAccessTokenRef.current = null
+            }
+          })
+      })
+    }
+
+    try {
+      supabase = getSupabaseBrowser()
+    } catch {
+      return () => {
+        cancelled = true
+      }
+    }
+
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) {
+          return
+        }
+
+        if (!session?.access_token) {
+          setUser(null)
+          setHydratedPathname(pathname)
+          setHasBootstrappedBrowserSession(true)
+          return
+        }
+
+        void syncSession(session.access_token, {
+          force: !initialUser,
+          refreshCart: Boolean(useCartStore.getState().sessionId),
+        })
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return
+        }
+
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[AuthSessionProvider] browser session bootstrap failed', {
+            pathname,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
+
+        setHasBootstrappedBrowserSession(true)
+      })
+
+    subscription = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_OUT' || !session) && !cancelled) {
+        lastSyncedAccessTokenRef.current = null
+        setUser(null)
+        setHydratedPathname(pathname)
+        setHasBootstrappedBrowserSession(true)
+        useCartStore.getState().bumpRefreshKey()
+        return
+      }
+
+      if (
+        session?.access_token &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')
+      ) {
+        void syncSession(session.access_token, {
+          force: event === 'SIGNED_IN',
+          refreshCart: event === 'SIGNED_IN',
+        })
+      }
+    }).data.subscription
+
+    return () => {
+      cancelled = true
+      subscription?.unsubscribe()
+    }
+  }, [initialUser, pathname])
 
   const value = useMemo<AuthSessionContextValue>(
     () => ({

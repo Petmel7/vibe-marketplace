@@ -3,6 +3,7 @@ export const API_ROUTES = {
   healthDeep: '/api/health/deep',
   productSearch: '/api/products/search',
   authMe: '/api/auth/me',
+  authSync: '/api/auth/sync',
   visitorInit: '/api/visitor/init',
   wishlist: '/api/wishlist',
   cart: '/api/cart',

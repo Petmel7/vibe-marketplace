@@ -10,6 +10,8 @@ interface CartStore {
   isOpen: boolean
   /** Optimistic item count — used for header badge without re-fetching. */
   itemCount: number
+  /** Forces cart hooks to refetch after auth/cart sync boundaries. */
+  refreshKey: number
 
   /**
    * Returns the current session ID, generating and persisting a new one
@@ -17,6 +19,7 @@ interface CartStore {
    */
   ensureSessionId: () => string
   setItemCount: (count: number) => void
+  bumpRefreshKey: () => void
   openCart: () => void
   closeCart: () => void
 }
@@ -27,6 +30,7 @@ export const useCartStore = create<CartStore>()(
       sessionId: '',
       isOpen: false,
       itemCount: 0,
+      refreshKey: 0,
 
       ensureSessionId: () => {
         const { sessionId } = get()
@@ -37,6 +41,7 @@ export const useCartStore = create<CartStore>()(
       },
 
       setItemCount: (count) => set({ itemCount: count }),
+      bumpRefreshKey: () => set((state) => ({ refreshKey: state.refreshKey + 1 })),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
     }),
