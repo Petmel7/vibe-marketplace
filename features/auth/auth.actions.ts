@@ -9,7 +9,7 @@ import {
   authCredentialsSchema,
   type AuthActionState,
 } from '@/features/auth/auth-form.schema'
-import { getPostAuthRedirectPath } from '@/lib/auth/redirects'
+import { getPostAuthRedirectPath, getSafeRedirectPath } from '@/lib/auth/redirects'
 import { getDefaultAuthenticatedHref } from '@/lib/auth/navigation'
 
 import { mergeGuestViewedProducts } from '@/features/viewed/viewed.repository'
@@ -61,6 +61,17 @@ async function getRequestOrigin(): Promise<string> {
   }
 
   return `${protocol}://${host}`
+}
+
+async function buildEmailConfirmationRedirectUrl(next: string | null | undefined) {
+  const origin = await getRequestOrigin()
+  const callbackUrl = new URL('/auth/callback', origin)
+
+  if (next) {
+    callbackUrl.searchParams.set('next', getSafeRedirectPath(next, '/profile'))
+  }
+
+  return callbackUrl.toString()
 }
 
 async function syncAuthenticatedUser(accessToken: string): Promise<SessionUser> {
@@ -144,9 +155,13 @@ export async function signUpWithPasswordAction(
 
   const { email, password, next } = validated.data
   const supabase = await createServerClient()
+  const emailRedirectTo = await buildEmailConfirmationRedirectUrl(next)
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo,
+    },
   })
 
   if (error) {

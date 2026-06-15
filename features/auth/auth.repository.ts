@@ -37,68 +37,66 @@ export async function createUserWithProfile(id: string, email: string) {
 }
 
 export async function ensureUserProvisioned(id: string, email: string) {
-  return prisma.$transaction(async (tx) => {
-    const existingUser = await tx.user.findUnique({
-      where: { id },
-      select: { id: true, email: true },
-    })
+  const existingUser = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, email: true },
+  })
 
-    if (!existingUser) {
-      await tx.user.create({
-        data: {
-          id,
-          email,
-          updatedAt: new Date(),
-        },
-      })
-    } else if (existingUser.email !== email) {
-      await tx.user.update({
-        where: { id },
-        data: {
-          email,
-          updatedAt: new Date(),
-        },
-      })
-    }
+  await prisma.user.upsert({
+    where: { id },
+    update:
+      existingUser?.email !== email
+        ? {
+            email,
+            updatedAt: new Date(),
+          }
+        : {
+            updatedAt: new Date(),
+          },
+    create: {
+      id,
+      email,
+      updatedAt: new Date(),
+    },
+  })
 
-    await tx.userProfile.upsert({
-      where: { userId: id },
-      update: {
-        updatedAt: new Date(),
-      },
-      create: {
-        userId: id,
-        updatedAt: new Date(),
-      },
-    })
+  await prisma.userProfile.upsert({
+    where: { userId: id },
+    update: {
+      updatedAt: new Date(),
+    },
+    create: {
+      userId: id,
+      updatedAt: new Date(),
+    },
+  })
 
-    await tx.buyerProfile.upsert({
-      where: { userId: id },
-      update: {
-        updatedAt: new Date(),
-      },
-      create: {
-        userId: id,
-        updatedAt: new Date(),
-      },
-    })
+  await prisma.buyerProfile.upsert({
+    where: { userId: id },
+    update: {
+      updatedAt: new Date(),
+    },
+    create: {
+      userId: id,
+      updatedAt: new Date(),
+    },
+  })
 
-    await tx.userRoleAssignment.upsert({
-      where: {
-        userId_role: {
-          userId: id,
-          role: UserRole.BUYER,
-        },
-      },
-      update: {},
-      create: {
+  await prisma.userRoleAssignment.upsert({
+    where: {
+      userId_role: {
         userId: id,
         role: UserRole.BUYER,
       },
-    })
-
-    return { created: !existingUser }
+    },
+    update: {},
+    create: {
+      userId: id,
+      role: UserRole.BUYER,
+    },
   })
+
+  return { created: !existingUser }
 }
 
 export async function getUserRoles(userId: string): Promise<UserRole[]> {
