@@ -3,6 +3,7 @@ import { Prisma, type Product, type ProductVariant } from '@/app/generated/prism
 import {
   ProductNotFoundError,
   getProduct,
+  getHomepageProductSections,
   listHitProducts,
   listNewProducts,
   listProducts,
@@ -12,8 +13,13 @@ import {
 import * as repository from './product.repository'
 import * as productBadgeService from './product-badge.service'
 
+vi.mock('next/cache', () => ({
+  unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
+}))
+
 vi.mock('./product.repository', () => ({
   findProducts: vi.fn(),
+  findProductCards: vi.fn(),
   findCategoryBySlug: vi.fn(),
   findCategoriesByParentIds: vi.fn(),
   findProductById: vi.fn(),
@@ -479,6 +485,7 @@ describe('filtered product listings', () => {
 
   it('passes isNew=true to the repository for new products', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
+    mockedRepository.findProductCards.mockResolvedValue([])
 
     await listNewProducts({ page: 1, limit: 12 })
 
@@ -585,6 +592,7 @@ describe('filtered product listings', () => {
 
   it('passes isHit=true to the repository for hit products', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
+    mockedRepository.findProductCards.mockResolvedValue([])
 
     await listHitProducts({ page: 2, limit: 6 })
 
@@ -612,7 +620,83 @@ describe('filtered product listings', () => {
       page: 2,
       limit: 6,
     })
-    expect(mockedBadgeService.resolveMarketplaceBadgesForProducts).toHaveBeenCalledWith([])
+    expect(mockedBadgeService.resolveMarketplaceBadgesForProducts).not.toHaveBeenCalled()
+  })
+
+  it('builds homepage product sections via no-count card queries', async () => {
+    mockedRepository.findProductCards
+      .mockResolvedValueOnce([
+        makeListProduct(
+          { id: 'prod-new', isNew: true, isHit: false },
+          [makeVariant({ productId: 'prod-new' })],
+        ),
+      ])
+      .mockResolvedValueOnce([
+        makeListProduct(
+          { id: 'prod-hit', isNew: false, isHit: true },
+          [makeVariant({ productId: 'prod-hit' })],
+        ),
+      ])
+
+    const result = await getHomepageProductSections()
+
+    expect(mockedRepository.findProductCards).toHaveBeenNthCalledWith(1, {
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
+        AND: [
+          { OR: [{ categoryId: null }, { category: { isActive: true } }] },
+          {
+            publishedAt: {
+              gte: expect.any(Date),
+            },
+          },
+        ],
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      limit: 4,
+    })
+    expect(mockedRepository.findProductCards).toHaveBeenNthCalledWith(2, {
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
+        AND: [
+          { OR: [{ categoryId: null }, { category: { isActive: true } }] },
+          {
+            badges: {
+              some: {
+                type: 'HIT',
+                OR: [{ startsAt: null }, { startsAt: { lte: expect.any(Date) } }],
+                AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: expect.any(Date) } }] }],
+              },
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      limit: 4,
+    })
+    expect(mockedRepository.findProducts).not.toHaveBeenCalled()
+    expect(result.newProducts[0]).toMatchObject({
+      id: 'prod-new',
+      ratingSummary: {
+        averageRating: 0,
+        totalCount: 0,
+      },
+    })
+    expect(result.hitProducts[0]).toMatchObject({
+      id: 'prod-hit',
+      ratingSummary: {
+        averageRating: 0,
+        totalCount: 0,
+      },
+    })
   })
 
   it('returns only the HIT badge in the Hit Products context even when NEW also exists internally', async () => {

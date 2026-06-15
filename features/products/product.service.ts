@@ -1,3 +1,5 @@
+import { unstable_cache } from 'next/cache'
+import { cache } from 'react'
 import { Prisma, ProductBadgeType, ProductStatus } from '@/app/generated/prisma/client'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import type {
@@ -14,11 +16,13 @@ import type {
   ProductStockStatus,
   ProductSummaryDto,
   ProductVariantDto,
+  HomepageProductSectionsDto,
 } from '@/features/products/product.dto'
 import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 import {
   findCategoriesByParentIds,
   findCategoryBySlug,
+  findProductCards,
   findProductById,
   findProducts,
   searchProducts as repositorySearchProducts,
@@ -36,6 +40,7 @@ import type {
   ProductSearchQuery,
 } from '@/features/products/product.schema'
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
+import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
 import {
   resolveMarketplaceBadgesForProducts,
 } from './product-badge.service'
@@ -256,23 +261,7 @@ async function toProductListDtoWithMarketplaceFlags(
   total: number,
   badgeContext: ProductBadgeContext = 'DEFAULT',
 ): Promise<ProductListDto> {
-  const badgesByProductId = await resolveMarketplaceBadgesForProducts(
-    items.map((item) => ({
-      id: item.id,
-      status: item.status,
-      publishedAt: item.publishedAt,
-      isActive: item.isActive,
-    })),
-  )
-
-  const mappedItems = items.map((item) =>
-    toProductSummaryDto(
-      item,
-      'variants' in item ? item.variants : [],
-      badgesByProductId.get(item.id) ?? [],
-      badgeContext,
-    ),
-  )
+  const mappedItems = await mapProductSummaryItems(items, badgeContext)
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit)
 
   return {
@@ -290,6 +279,33 @@ async function toProductListDtoWithMarketplaceFlags(
       hasNextPage: page * limit < total,
     },
   }
+}
+
+async function mapProductSummaryItems(
+  items: Array<Product | ProductListProduct>,
+  badgeContext: ProductBadgeContext,
+): Promise<ProductSummaryDto[]> {
+  if (items.length === 0) {
+    return []
+  }
+
+  const badgesByProductId = await resolveMarketplaceBadgesForProducts(
+    items.map((item) => ({
+      id: item.id,
+      status: item.status,
+      publishedAt: item.publishedAt,
+      isActive: item.isActive,
+    })),
+  )
+
+  return items.map((item) =>
+    toProductSummaryDto(
+      item,
+      'variants' in item ? item.variants : [],
+      badgesByProductId.get(item.id) ?? [],
+      badgeContext,
+    ),
+  )
 }
 
 function emptyProductListDto(
@@ -542,6 +558,69 @@ export async function listHitProducts(
 
   return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'HIT')
 }
+
+const getHomepageProductSectionsCached = unstable_cache(
+  async (limit: number): Promise<HomepageProductSectionsDto> => {
+    const newWhere = buildCatalogWhereInput({ isNew: true })
+    const hitWhere = buildCatalogWhereInput({ isHit: true })
+    const newOrderBy: Prisma.ProductOrderByWithRelationInput[] = [
+      { publishedAt: 'desc' },
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ]
+    const hitOrderBy = mapSortToOrderBy('newest')
+
+    // Keep homepage reads bounded and sequential to avoid unnecessary pool pressure.
+    const newItems = await findProductCards({
+      where: newWhere,
+      orderBy: newOrderBy,
+      limit,
+    })
+    const hitItems = await findProductCards({
+      where: hitWhere,
+      orderBy: hitOrderBy,
+      limit,
+    })
+
+    const badgeCandidates = new Map<string, Product | ProductListProduct>()
+    for (const item of [...newItems, ...hitItems]) {
+      badgeCandidates.set(item.id, item)
+    }
+
+    const badgesByProductId = await resolveMarketplaceBadgesForProducts(
+      [...badgeCandidates.values()].map((item) => ({
+        id: item.id,
+        status: item.status,
+        publishedAt: item.publishedAt,
+        isActive: item.isActive,
+      })),
+    )
+
+    const mapWithContext = (items: ProductListProduct[], badgeContext: ProductBadgeContext) =>
+      items.map((item) =>
+        toProductSummaryDto(
+          item,
+          item.variants,
+          badgesByProductId.get(item.id) ?? [],
+          badgeContext,
+        ),
+      )
+
+    return {
+      newProducts: mapWithContext(newItems, 'NEW'),
+      hitProducts: mapWithContext(hitItems, 'HIT'),
+    }
+  },
+  ['homepage-product-sections'],
+  {
+    revalidate: 120,
+    tags: [SEO_CACHE_TAGS.products, SEO_CACHE_TAGS.categories, SEO_CACHE_TAGS.stores],
+  },
+)
+
+export const getHomepageProductSections = cache(async (limit = 4): Promise<HomepageProductSectionsDto> =>
+  getHomepageProductSectionsCached(limit),
+)
 
 export async function listProductsByCategorySlug(
   slug: string,

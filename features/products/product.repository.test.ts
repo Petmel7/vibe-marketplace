@@ -41,6 +41,7 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 import {
+  findProductCards,
   findCategoriesByParentIds,
   findCategoryBySlug,
   findProducts,
@@ -175,6 +176,49 @@ describe('findProducts', () => {
       }),
     )
     expect(countMock).toHaveBeenCalledWith({ where })
+  })
+})
+
+describe('findProductCards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns a lightweight limited product-card query without a count call', async () => {
+    findManyMock.mockResolvedValue([{ ...makeProduct(), variants: [] }])
+
+    const where = { isActive: true }
+    const orderBy = [{ createdAt: 'desc' as const }, { id: 'desc' as const }]
+
+    const result = await findProductCards({
+      where,
+      orderBy,
+      limit: 4,
+    })
+
+    expect(findManyMock).toHaveBeenCalledWith({
+      where,
+      take: 4,
+      orderBy,
+      select: expect.objectContaining({
+        id: true,
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        ratingSummary: {
+          select: expect.objectContaining({
+            ratingAvg: true,
+            ratingCount: true,
+          }),
+        },
+      }),
+    })
+    expect(countMock).not.toHaveBeenCalled()
+    expect(result).toHaveLength(1)
   })
 })
 

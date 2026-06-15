@@ -124,6 +124,12 @@ interface FindProductsResult {
   total: number
 }
 
+interface FindProductCardsParams {
+  where: Prisma.ProductWhereInput
+  orderBy: Prisma.ProductOrderByWithRelationInput[]
+  limit: number
+}
+
 export interface ProductSearchRepositoryParams {
   q?: string
   categoryIds?: string[]
@@ -213,6 +219,19 @@ export async function findProducts(
   ])
 
   return { items, total }
+}
+
+export async function findProductCards(
+  params: FindProductCardsParams
+): Promise<ProductListProduct[]> {
+  const { where, orderBy, limit } = params
+
+  return prisma.product.findMany({
+    where,
+    take: limit,
+    orderBy,
+    select: PRODUCT_LIST_SELECT,
+  })
 }
 
 type ProductIdRow = { id: string }

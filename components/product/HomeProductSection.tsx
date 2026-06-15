@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowDownRight } from 'lucide-react'
 import ProductCardGrid from '@/components/product/ProductCardGrid'
 import { isRenderablePublicProduct } from '@/components/product/productListItem'
-import { listHitProducts, listNewProducts } from '@/features/products/product.service'
+import { getHomepageProductSections } from '@/features/products/product.service'
 
 interface Props {
   type: 'new' | 'hit'
@@ -10,12 +10,10 @@ interface Props {
 }
 
 export default async function HomeProductSection({ type, title }: Props) {
-  const result =
-    type === 'new'
-      ? await listNewProducts({ page: 1, limit: 4 })
-      : await listHitProducts({ page: 1, limit: 4 })
-
-  const visibleProducts = result.data.filter(isRenderablePublicProduct)
+  const sections = await getHomepageProductSections()
+  const visibleProducts = (
+    type === 'new' ? sections.newProducts : sections.hitProducts
+  ).filter(isRenderablePublicProduct)
 
   return (
     <section className="space-y-4">

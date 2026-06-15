@@ -96,6 +96,11 @@ export interface ProductListDto {
   meta: ProductListMetaDto
 }
 
+export interface HomepageProductSectionsDto {
+  newProducts: ProductSummaryDto[]
+  hitProducts: ProductSummaryDto[]
+}
+
 export interface ProductSearchItemDto extends ProductSummaryDto {
   storeName: string
   storeSlug: string

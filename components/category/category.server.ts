@@ -3,10 +3,55 @@ import { prisma } from '@/lib/prisma'
 import {
   decorateCategoryTree,
   type CategoryListItem,
-  type CategoryTreeApiNode,
   type CategoryTreeNode,
 } from '@/components/category/category.data'
 import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
+
+type PublicCategoryTreeRecord = {
+  id: string
+  name: string
+  slug: string
+  image: string | null
+  parentId: string | null
+  position: number
+}
+
+type PublicCategoryTreeApiNode = {
+  id: string
+  name: string
+  slug: string
+  image: string | null
+  children: PublicCategoryTreeApiNode[]
+}
+
+function buildCategoryTree(records: PublicCategoryTreeRecord[]): CategoryTreeNode[] {
+  const byParent = new Map<string | null, PublicCategoryTreeRecord[]>()
+
+  for (const record of records) {
+    const bucket = byParent.get(record.parentId) ?? []
+    bucket.push(record)
+    byParent.set(record.parentId, bucket)
+  }
+
+  const sortRecords = (items: PublicCategoryTreeRecord[]) =>
+    [...items].sort(
+      (left, right) =>
+        left.position - right.position ||
+        left.name.localeCompare(right.name, 'uk') ||
+        left.id.localeCompare(right.id),
+    )
+
+  const visit = (parentId: string | null): PublicCategoryTreeApiNode[] =>
+    sortRecords(byParent.get(parentId) ?? []).map((record) => ({
+      id: record.id,
+      name: record.name,
+      slug: record.slug,
+      image: record.image,
+      children: visit(record.id),
+    }))
+
+  return decorateCategoryTree(visit(null))
+}
 
 const fetchCategoriesCached = unstable_cache(
   async (): Promise<CategoryListItem[]> => {
@@ -38,46 +83,21 @@ const fetchCategoryTreeCached = unstable_cache(
     try {
       const data = await prisma.category.findMany({
         where: {
-          parentId: null,
           isActive: true,
           isVisible: true,
         },
-        orderBy: [{ position: 'asc' }, { name: 'asc' }],
+        orderBy: [{ position: 'asc' }, { name: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
           name: true,
           slug: true,
           image: true,
-          children: {
-            where: {
-              isActive: true,
-              isVisible: true,
-            },
-            orderBy: [{ position: 'asc' }, { name: 'asc' }],
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              image: true,
-              children: {
-                where: {
-                  isActive: true,
-                  isVisible: true,
-                },
-                orderBy: [{ position: 'asc' }, { name: 'asc' }],
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  image: true,
-                },
-              },
-            },
-          },
+          parentId: true,
+          position: true,
         },
       })
 
-      return decorateCategoryTree(data as unknown as CategoryTreeApiNode[])
+      return buildCategoryTree(data)
     } catch (error) {
       console.error('[fetchCategoryTree] Unexpected error:', error)
       return []
