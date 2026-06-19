@@ -196,10 +196,18 @@ function getPrismaPoolMax() {
   const isNextProductionBuild =
     process.env.NEXT_PHASE === 'phase-production-build'
 
-  // During `next build`, Next.js can fan out static generation across many
-  // workers. Keeping one pooled session per worker avoids exhausting Supabase
-  // session-mode limits while preserving pooled access.
-  return isNextProductionBuild ? 1 : 10
+  // Supabase Transaction Pooler allows a small number of concurrent sessions.
+  // Keep the Prisma driver adapter intentionally conservative:
+  // - build/production: one pooled session per process
+  // - development/test: two pooled sessions for local ergonomics
+  //
+  // This avoids multiplying session pressure across Next.js workers and
+  // serverless/runtime processes.
+  if (isNextProductionBuild || process.env.NODE_ENV === 'production') {
+    return 1
+  }
+
+  return 2
 }
 
 function createPrismaClient(): PrismaClient {
