@@ -5,6 +5,8 @@ import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
 import { getCachedGlobalSeo } from '@/app/_lib/seo.data'
 import { buildHomeMetadata } from '@/lib/seo/metadata'
 
+export const dynamic = 'force-dynamic'
+
 function HomeSectionSkeleton({ title }: { title: string }) {
   return (
     <section className="space-y-4">
@@ -15,8 +17,15 @@ function HomeSectionSkeleton({ title }: { title: string }) {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const seo = await getCachedGlobalSeo()
-  return buildHomeMetadata(seo)
+  try {
+    const seo = await getCachedGlobalSeo()
+    return buildHomeMetadata(seo)
+  } catch {
+    return {
+      title: 'Marketplace',
+      description: 'Marketplace для одягу, взуття та аксесуарів.',
+    }
+  }
 }
 
 export default async function Home() {

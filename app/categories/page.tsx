@@ -4,14 +4,27 @@ import { fetchCategories } from '@/components/category/category.server'
 import { getCachedPageSeo } from '@/app/_lib/seo.data'
 import { buildStaticPageMetadata } from '@/lib/seo/metadata'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const seo = await getCachedPageSeo('categories')
+export const dynamic = 'force-dynamic'
 
-  return buildStaticPageMetadata(seo, {
-    fallbackPath: '/categories',
-    fallbackTitle: 'Категорії товарів | Marketplace',
-    fallbackDescription: 'Оберіть категорію одягу, взуття та аксесуарів для зручного перегляду товарів на Marketplace.',
-  })
+const CATEGORY_PAGE_FALLBACK_TITLE = 'Категорії товарів | Marketplace'
+const CATEGORY_PAGE_FALLBACK_DESCRIPTION =
+  'Оберіть категорію одягу, взуття та аксесуарів для зручного перегляду товарів на Marketplace.'
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const seo = await getCachedPageSeo('categories')
+
+    return buildStaticPageMetadata(seo, {
+      fallbackPath: '/categories',
+      fallbackTitle: CATEGORY_PAGE_FALLBACK_TITLE,
+      fallbackDescription: CATEGORY_PAGE_FALLBACK_DESCRIPTION,
+    })
+  } catch {
+    return {
+      title: CATEGORY_PAGE_FALLBACK_TITLE,
+      description: CATEGORY_PAGE_FALLBACK_DESCRIPTION,
+    }
+  }
 }
 
 export default async function CategoriesPage() {
