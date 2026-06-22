@@ -159,12 +159,14 @@ function makeCheckoutState() {
     },
     isLoading: false,
     isSubmitting: false,
+    isPreviewRecalculating: false,
     isSavingAddress: false,
     isApplyingCoupon: false,
     paymentHandoffAction: null,
     loadError: null,
     hasLoadedPreviewOnce: true,
     submitError: null,
+    previewSyncMessage: null,
     addressError: null,
     deliveryError: null,
     paymentMethodError: null,
@@ -305,6 +307,38 @@ describe('CheckoutClient', () => {
 
     expect(container.textContent).toContain('protected-route-state')
     expect(container.textContent).not.toContain('empty-state')
+  })
+
+  it('shows an informational message while checkout totals are being recalculated', () => {
+    useCheckoutMock.mockReturnValue({
+      ...makeCheckoutState(),
+      isPreviewRecalculating: true,
+      canSubmit: false,
+    })
+
+    act(() => {
+      root.render(<CheckoutClient />)
+    })
+
+    expect(container.textContent).toContain(
+      'Updating checkout total with the latest shipping estimate...',
+    )
+  })
+
+  it('shows a non-error message after checkout totals were auto-refreshed', () => {
+    useCheckoutMock.mockReturnValue({
+      ...makeCheckoutState(),
+      previewSyncMessage:
+        'Checkout total was updated to match the latest shipping estimate. Please review the summary and submit again.',
+    })
+
+    act(() => {
+      root.render(<CheckoutClient />)
+    })
+
+    expect(container.textContent).toContain(
+      'Checkout total was updated to match the latest shipping estimate. Please review the summary and submit again.',
+    )
   })
 
   it('keeps checkout in loading state until the first preview load completes', () => {

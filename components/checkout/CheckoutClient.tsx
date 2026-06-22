@@ -33,12 +33,14 @@ export default function CheckoutClient({
     preview,
     isLoading,
     isSubmitting,
+    isPreviewRecalculating,
     isSavingAddress,
     isApplyingCoupon,
     paymentHandoffAction,
     loadError,
     hasLoadedPreviewOnce,
     submitError,
+    previewSyncMessage,
     addressError,
     deliveryError,
     paymentMethodError,
@@ -246,6 +248,24 @@ export default function CheckoutClient({
               paymentMethod={selectedPaymentMethod}
               onSubmit={handleSubmitCheckout}
             />
+
+            {isPreviewRecalculating ? (
+              <p
+                className="rounded-2xl border border-brand-accent/20 bg-brand-accent/10 px-4 py-3 text-sm text-copy-primary"
+                aria-live="polite"
+              >
+                Updating checkout total with the latest shipping estimate...
+              </p>
+            ) : null}
+
+            {previewSyncMessage ? (
+              <p
+                className="rounded-2xl border border-brand-accent/20 bg-brand-accent/10 px-4 py-3 text-sm text-copy-primary"
+                aria-live="polite"
+              >
+                {previewSyncMessage}
+              </p>
+            ) : null}
 
             <div className="rounded-2xl border border-panelBorder bg-panelAlt/70 px-4 py-3">
               <div className="flex items-start gap-3">

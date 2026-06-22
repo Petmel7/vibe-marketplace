@@ -38,8 +38,13 @@ type DeliveryPayload = {
 type AutoRefreshDeliveryInput = {
   deliveryMode: CheckoutDeliveryMode
   selectedDeliveryType: ShippingDeliveryType
+  recipientName: string
+  recipientPhone: string
   selectedCity: NovaPoshtaCity | null
   selectedWarehouse: NovaPoshtaWarehouse | null
+  recipientStreet: string
+  recipientBuilding: string
+  recipientApartment: string
 }
 
 function buildCheckoutPreviewUrl(
@@ -145,24 +150,30 @@ export function buildAutoRefreshDeliveryPayload(
     return undefined
   }
 
+  const recipientName = input.recipientName.trim() || null
+  const recipientPhone = input.recipientPhone.trim() || null
+
   if (input.selectedDeliveryType === 'NOVA_POSHTA_COURIER') {
     return {
       deliveryType: input.selectedDeliveryType,
+      recipientName,
+      recipientPhone,
       recipientCityRef: input.selectedCity.ref,
       recipientCityName: input.selectedCity.name,
+      recipientStreet: input.recipientStreet.trim() || null,
+      recipientBuilding: input.recipientBuilding.trim() || null,
+      recipientApartment: input.recipientApartment.trim() || null,
     }
-  }
-
-  if (!input.selectedWarehouse?.ref) {
-    return undefined
   }
 
   return {
     deliveryType: input.selectedDeliveryType,
+    recipientName,
+    recipientPhone,
     recipientCityRef: input.selectedCity.ref,
     recipientCityName: input.selectedCity.name,
-    recipientWarehouseRef: input.selectedWarehouse.ref,
-    recipientWarehouseName: input.selectedWarehouse.name,
+    recipientWarehouseRef: input.selectedWarehouse?.ref ?? null,
+    recipientWarehouseName: input.selectedWarehouse?.name ?? null,
   }
 }
 
@@ -183,17 +194,25 @@ export function buildAutoRefreshKey(
     return null
   }
 
+  const recipientState =
+    deliveryPayload.recipientName?.trim() && deliveryPayload.recipientPhone?.trim()
+      ? 'recipient-ready'
+      : 'recipient-pending'
+
   if (deliveryPayload.deliveryType === 'NOVA_POSHTA_COURIER') {
+    const addressState =
+      deliveryPayload.recipientStreet?.trim() && deliveryPayload.recipientBuilding?.trim()
+        ? 'address-ready'
+        : 'address-pending'
+
     return [
       cartId,
       deliveryMode,
       deliveryPayload.deliveryType,
       deliveryPayload.recipientCityRef,
+      recipientState,
+      addressState,
     ].join(':')
-  }
-
-  if (!deliveryPayload.recipientWarehouseRef) {
-    return null
   }
 
   return [
@@ -201,8 +220,30 @@ export function buildAutoRefreshKey(
     deliveryMode,
     deliveryPayload.deliveryType,
     deliveryPayload.recipientCityRef,
-    deliveryPayload.recipientWarehouseRef,
+    deliveryPayload.recipientWarehouseRef ?? 'warehouse-pending',
+    recipientState,
   ].join(':')
+}
+
+export function buildPreviewDeliverySyncKey(
+  cartId: string | null | undefined,
+  deliveryMode: CheckoutDeliveryMode,
+  deliverySelection?: Pick<
+    DeliveryPayload,
+    | 'deliveryType'
+    | 'recipientName'
+    | 'recipientPhone'
+    | 'recipientCityRef'
+    | 'recipientStreet'
+    | 'recipientBuilding'
+    | 'recipientWarehouseRef'
+  > | null,
+) {
+  if (!deliverySelection) {
+    return null
+  }
+
+  return buildAutoRefreshKey(cartId, deliveryMode, deliverySelection)
 }
 
 export function getVisibleCheckoutBlockingIssues(
@@ -278,6 +319,7 @@ export function useCheckout(initialCartId?: string) {
   const [couponCode, setCouponCode] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPreviewRecalculating, setIsPreviewRecalculating] = useState(false)
   const [isSavingAddress, setIsSavingAddress] = useState(false)
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [paymentHandoffAction, setPaymentHandoffAction] = useState<HostedPaymentAction | null>(null)
@@ -285,6 +327,7 @@ export function useCheckout(initialCartId?: string) {
   const [hasLoadedPreviewOnce, setHasLoadedPreviewOnce] = useState(false)
   const [isCartSyncPending, setIsCartSyncPending] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [previewSyncMessage, setPreviewSyncMessage] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
   const [deliveryError, setDeliveryError] = useState<string | null>(null)
   const [paymentMethodError, setPaymentMethodError] = useState<string | null>(null)
@@ -538,10 +581,25 @@ export function useCheckout(initialCartId?: string) {
       buildAutoRefreshDeliveryPayload({
         deliveryMode,
         selectedDeliveryType,
+        recipientName,
+        recipientPhone,
         selectedCity,
         selectedWarehouse,
+        recipientStreet,
+        recipientBuilding,
+        recipientApartment,
       }),
-    [deliveryMode, selectedCity, selectedDeliveryType, selectedWarehouse],
+    [
+      deliveryMode,
+      recipientApartment,
+      recipientBuilding,
+      recipientName,
+      recipientPhone,
+      recipientStreet,
+      selectedCity,
+      selectedDeliveryType,
+      selectedWarehouse,
+    ],
   )
 
   const hasCompleteNovaPoshtaSelection = useMemo(() => {
@@ -584,14 +642,50 @@ export function useCheckout(initialCartId?: string) {
     [autoRefreshDeliveryPayload, deliveryMode, preview?.cartId],
   )
 
+  const previewSyncKey = useMemo(
+    () =>
+      buildPreviewDeliverySyncKey(preview?.cartId, deliveryMode, {
+        deliveryType: preview?.deliverySelection.selectedDeliveryType ?? null,
+        recipientName: preview?.deliverySelection.recipientName ?? null,
+        recipientPhone: preview?.deliverySelection.recipientPhone ?? null,
+        recipientCityRef: preview?.deliverySelection.recipientCityRef ?? null,
+        recipientStreet: preview?.deliverySelection.recipientStreet ?? null,
+        recipientBuilding: preview?.deliverySelection.recipientBuilding ?? null,
+        recipientWarehouseRef: preview?.deliverySelection.recipientWarehouseRef ?? null,
+      }),
+    [
+      deliveryMode,
+      preview?.cartId,
+      preview?.deliverySelection.recipientBuilding,
+      preview?.deliverySelection.recipientCityRef,
+      preview?.deliverySelection.recipientName,
+      preview?.deliverySelection.recipientPhone,
+      preview?.deliverySelection.recipientStreet,
+      preview?.deliverySelection.recipientWarehouseRef,
+      preview?.deliverySelection.selectedDeliveryType,
+    ],
+  )
+
+  const isDeliveryPreviewStale =
+    deliveryMode === 'NOVA_POSHTA' &&
+    autoRefreshKey !== null &&
+    autoRefreshKey !== previewSyncKey
+
   useEffect(() => {
     if (!preview?.cartId) {
+      setIsPreviewRecalculating(false)
       return
     }
 
     if (!autoRefreshKey || lastAutoRefreshKeyRef.current === autoRefreshKey) {
+      if (!autoRefreshKey) {
+        setIsPreviewRecalculating(false)
+      }
       return
     }
+
+    setIsPreviewRecalculating(true)
+    setPreviewSyncMessage(null)
 
     const timer = window.setTimeout(() => {
       lastAutoRefreshKeyRef.current = autoRefreshKey
@@ -599,12 +693,18 @@ export function useCheckout(initialCartId?: string) {
         preview.cartId ?? undefined,
         true,
         deliveryMode === 'NOVA_POSHTA' ? autoRefreshDeliveryPayload : undefined,
-      ).catch(() => {
-        lastAutoRefreshKeyRef.current = null
-      })
+      )
+        .catch(() => {
+          lastAutoRefreshKeyRef.current = null
+        })
+        .finally(() => {
+          setIsPreviewRecalculating(false)
+        })
     }, 250)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+    }
   }, [
     autoRefreshDeliveryPayload,
     autoRefreshKey,
@@ -614,7 +714,7 @@ export function useCheckout(initialCartId?: string) {
   ])
 
   const submitCheckout = useCallback(async ({ acceptedPrivacy }: { acceptedPrivacy: true }) => {
-    if (!preview?.cartId || isSubmitting) {
+    if (!preview?.cartId || isSubmitting || isPreviewRecalculating || isDeliveryPreviewStale) {
       return null
     }
 
@@ -625,6 +725,7 @@ export function useCheckout(initialCartId?: string) {
 
     setIsSubmitting(true)
     setSubmitError(null)
+    setPreviewSyncMessage(null)
     setPaymentMethodError(null)
     setAddressError(null)
     setDeliveryError(null)
@@ -712,14 +813,26 @@ export function useCheckout(initialCartId?: string) {
       router.replace(`/checkout/success/${result.orderId}?${params.toString()}`)
       return result
     } catch (error) {
-      setSubmitError(
-        getFriendlyCheckoutError(error, 'Unable to place this order right now.'),
+      const friendlyError = getFriendlyCheckoutError(
+        error,
+        'Unable to place this order right now.',
       )
+      const isCheckoutPriceChanged =
+        error instanceof ApiError && error.code === 'CHECKOUT_PRICE_CHANGED'
 
       if (shouldRefreshPreviewAfterError(error)) {
         await loadPreview(preview.cartId, true, getDeliveryPayload())
       }
 
+      if (isCheckoutPriceChanged) {
+        setSubmitError(null)
+        setPreviewSyncMessage(
+          'Checkout total was updated to match the latest shipping estimate. Please review the summary and submit again.',
+        )
+        return null
+      }
+
+      setSubmitError(friendlyError)
       return null
     } finally {
       setIsSubmitting(false)
@@ -728,13 +841,21 @@ export function useCheckout(initialCartId?: string) {
     deliveryMode,
     getDeliveryPayload,
     hasCompleteNovaPoshtaSelection,
+    isDeliveryPreviewStale,
+    isPreviewRecalculating,
     isSubmitting,
     loadPreview,
     preview,
     router,
     selectedAddressId,
+    selectedCity,
     selectedDeliveryType,
     selectedPaymentMethod,
+    selectedWarehouse,
+    recipientBuilding,
+    recipientName,
+    recipientPhone,
+    recipientStreet,
     setCartItemCount,
   ])
 
@@ -806,11 +927,13 @@ export function useCheckout(initialCartId?: string) {
   const isSessionHydrating = !isHydrated || isRefreshing
   const isAuthCartSyncPending =
     isAuthenticated && (isSessionHydrating || isCartSyncPending)
+  const isPreviewPending = isPreviewRecalculating || isDeliveryPreviewStale
   const canSubmit =
     Boolean(preview?.cartId) &&
     !isEmpty &&
     !hasBlockingIssues &&
     (deliveryMode === 'ADDRESS' ? Boolean(selectedAddressId) : hasCompleteNovaPoshtaSelection) &&
+    !isPreviewPending &&
     !isSubmitting
 
   return {
@@ -828,12 +951,14 @@ export function useCheckout(initialCartId?: string) {
     selectedAddress,
     isLoading,
     isSubmitting,
+    isPreviewRecalculating: isPreviewPending,
     isSavingAddress,
     isApplyingCoupon,
     paymentHandoffAction,
     loadError,
     hasLoadedPreviewOnce,
     submitError,
+    previewSyncMessage,
     addressError,
     deliveryError,
     paymentMethodError,
