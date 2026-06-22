@@ -299,7 +299,14 @@ function getNovaPoshtaDeliveryError(input: {
 
 export function useCheckout(initialCartId?: string) {
   const router = useRouter()
-  const { isAuthenticated, isHydrated, isRefreshing } = useCurrentUser()
+  const {
+    hasCompletedInitialSync,
+    isAuthenticated,
+    isAuthLoading,
+    isHydrated,
+    isRefreshing,
+    isSyncingUser,
+  } = useCurrentUser()
   const setCartItemCount = useCartStore((state) => state.setItemCount)
   const cartRefreshKey = useCartStore((state) => state.refreshKey)
   const [preview, setPreview] = useState<CheckoutPreview | null>(null)
@@ -336,6 +343,7 @@ export function useCheckout(initialCartId?: string) {
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null)
   const appliedCouponCodeRef = useRef<string | null>(null)
   const lastAutoRefreshKeyRef = useRef<string | null>(null)
+  const lastHandledCartRefreshKeyRef = useRef<number | null>(null)
   const hasLoadedInitialPreviewRef = useRef(false)
   const deliveryPayloadRef = useRef<DeliveryPayload | undefined>(undefined)
   const previewCartIdRef = useRef<string | undefined>(initialCartId)
@@ -521,31 +529,46 @@ export function useCheckout(initialCartId?: string) {
     [initialCartId, setCartItemCount],
   )
 
-  useEffect(() => {
-    hasLoadedInitialPreviewRef.current = false
-    setHasLoadedPreviewOnce(false)
-
-    void loadPreview(initialCartId, false).finally(() => {
-      hasLoadedInitialPreviewRef.current = true
-    })
-  }, [initialCartId, loadPreview])
+  const isCheckoutPreviewBlocked =
+    !hasCompletedInitialSync ||
+    !isAuthenticated ||
+    isSyncingUser ||
+    !isHydrated ||
+    isRefreshing
 
   useEffect(() => {
-    if (!hasLoadedInitialPreviewRef.current) {
-      return
-    }
-
-    if (!isAuthenticated) {
+    if (isCheckoutPreviewBlocked) {
+      setIsLoading(true)
+      setLoadError(null)
       setIsCartSyncPending(false)
       return
     }
 
-    if (!isHydrated || isRefreshing) {
-      setIsCartSyncPending(true)
+    hasLoadedInitialPreviewRef.current = false
+    setHasLoadedPreviewOnce(false)
+    lastHandledCartRefreshKeyRef.current = cartRefreshKey
+
+    void loadPreview(initialCartId, false).finally(() => {
+      hasLoadedInitialPreviewRef.current = true
+    })
+  }, [initialCartId, isCheckoutPreviewBlocked, loadPreview])
+
+  useEffect(() => {
+    if (isCheckoutPreviewBlocked) {
+      setIsCartSyncPending(false)
+      return
+    }
+
+    if (!hasLoadedInitialPreviewRef.current) {
+      return
+    }
+
+    if (lastHandledCartRefreshKeyRef.current === cartRefreshKey) {
       return
     }
 
     let cancelled = false
+    lastHandledCartRefreshKeyRef.current = cartRefreshKey
     setIsCartSyncPending(true)
 
     void loadPreview(
@@ -564,9 +587,7 @@ export function useCheckout(initialCartId?: string) {
   }, [
     cartRefreshKey,
     initialCartId,
-    isAuthenticated,
-    isHydrated,
-    isRefreshing,
+    isCheckoutPreviewBlocked,
     loadPreview,
   ])
 
@@ -924,7 +945,8 @@ export function useCheckout(initialCartId?: string) {
   )
   const hasBlockingIssues = blockingIssues.length > 0
   const isEmpty = (preview?.items.length ?? 0) === 0
-  const isSessionHydrating = !isHydrated || isRefreshing
+  const isSessionHydrating =
+    isAuthLoading || !hasCompletedInitialSync || !isHydrated || isRefreshing || isSyncingUser
   const isAuthCartSyncPending =
     isAuthenticated && (isSessionHydrating || isCartSyncPending)
   const isPreviewPending = isPreviewRecalculating || isDeliveryPreviewStale

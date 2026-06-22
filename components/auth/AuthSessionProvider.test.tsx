@@ -68,7 +68,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useCartStore } from '@/store/cartStore'
 
 function SessionProbe() {
-  const { user, isAuthenticated } = useCurrentUser()
+  const {
+    user,
+    isAuthenticated,
+    hasCompletedInitialSync,
+    isSyncingUser,
+  } = useCurrentUser()
 
   return (
     <div>
@@ -76,6 +81,12 @@ function SessionProbe() {
         {isAuthenticated ? 'authenticated' : 'guest'}
       </span>
       <span data-testid="user-email">{user?.email ?? 'guest'}</span>
+      <span data-testid="sync-state">
+        {hasCompletedInitialSync ? 'sync-complete' : 'sync-pending'}
+      </span>
+      <span data-testid="user-sync-state">
+        {isSyncingUser ? 'user-syncing' : 'user-idle'}
+      </span>
     </div>
   )
 }
@@ -166,6 +177,12 @@ describe('AuthSessionProvider', () => {
     expect(container.querySelector('[data-testid="user-email"]')?.textContent).toBe(
       'user@example.com',
     )
+    expect(container.querySelector('[data-testid="sync-state"]')?.textContent).toBe(
+      'sync-complete',
+    )
+    expect(container.querySelector('[data-testid="user-sync-state"]')?.textContent).toBe(
+      'user-idle',
+    )
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/sync',
       expect.objectContaining({
@@ -180,6 +197,65 @@ describe('AuthSessionProvider', () => {
     expect(requestHeaders.get('Authorization')).toBe('Bearer access-token-1')
     expect(requestHeaders.get('x-session-id')).toBe('guest-session-1')
     expect(useCartStore.getState().refreshKey).toBe(1)
+  })
+
+  it('exposes sync-pending state while authenticated user sync is still running', async () => {
+    let resolveSync:
+      | ((value: {
+          ok: true
+          json: () => Promise<{
+            success: true
+            data: { id: string; email: string; roles: string[] }
+          }>
+        }) => void)
+      | null = null
+
+    fetchMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSync = resolve
+        }),
+    )
+
+    await act(async () => {
+      root.render(
+        <AuthSessionProvider initialUser={null}>
+          <SessionProbe />
+        </AuthSessionProvider>,
+      )
+
+      await Promise.resolve()
+    })
+
+    expect(container.querySelector('[data-testid="sync-state"]')?.textContent).toBe(
+      'sync-pending',
+    )
+    expect(container.querySelector('[data-testid="user-sync-state"]')?.textContent).toBe(
+      'user-syncing',
+    )
+
+    await act(async () => {
+      resolveSync?.({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            id: 'user-1',
+            email: 'user@example.com',
+            roles: ['BUYER'],
+          },
+        }),
+      })
+
+      await flushAsyncWork()
+    })
+
+    expect(container.querySelector('[data-testid="sync-state"]')?.textContent).toBe(
+      'sync-complete',
+    )
+    expect(container.querySelector('[data-testid="user-sync-state"]')?.textContent).toBe(
+      'user-idle',
+    )
   })
 
   it('clears the session immediately on sign out events', async () => {

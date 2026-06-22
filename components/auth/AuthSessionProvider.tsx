@@ -11,8 +11,11 @@ import type { SessionUser } from '@/types/auth'
 type AuthSessionContextValue = {
   user: SessionUser | null
   isAuthenticated: boolean
+  isAuthLoading: boolean
   isRefreshing: boolean
+  isSyncingUser: boolean
   isHydrated: boolean
+  hasCompletedInitialSync: boolean
   setUser: (user: SessionUser | null) => void
   refreshUser: () => Promise<SessionUser | null>
 }
@@ -93,6 +96,7 @@ export default function AuthSessionProvider({
   const [hasBootstrappedBrowserSession, setHasBootstrappedBrowserSession] = useState(
     Boolean(initialUser) || isAuthPagePath(pathname)
   )
+  const [isSyncingUser, setIsSyncingUser] = useState(false)
   const [isRefreshing, startTransition] = useTransition()
   const inFlightPathRef = useRef<string | null>(null)
   const lastSyncedAccessTokenRef = useRef<string | null>(null)
@@ -164,6 +168,7 @@ export default function AuthSessionProvider({
 
       const guestSessionId = useCartStore.getState().sessionId || undefined
       syncingAccessTokenRef.current = accessToken
+      setIsSyncingUser(true)
 
       startTransition(() => {
         syncAuthenticatedUser(accessToken, guestSessionId)
@@ -226,6 +231,9 @@ export default function AuthSessionProvider({
             if (syncingAccessTokenRef.current === accessToken) {
               syncingAccessTokenRef.current = null
             }
+            if (!cancelled) {
+              setIsSyncingUser(false)
+            }
           })
       })
     }
@@ -246,6 +254,7 @@ export default function AuthSessionProvider({
         }
 
         if (!session?.access_token) {
+          setIsSyncingUser(false)
           setUser(null)
           setHydratedPathname(pathname)
           setHasBootstrappedBrowserSession(true)
@@ -269,12 +278,14 @@ export default function AuthSessionProvider({
           })
         }
 
+        setIsSyncingUser(false)
         setHasBootstrappedBrowserSession(true)
       })
 
     subscription = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'SIGNED_OUT' || !session) && !cancelled) {
         lastSyncedAccessTokenRef.current = null
+        setIsSyncingUser(false)
         setUser(null)
         setHydratedPathname(pathname)
         setHasBootstrappedBrowserSession(true)
@@ -303,8 +314,11 @@ export default function AuthSessionProvider({
     () => ({
       user,
       isAuthenticated: Boolean(user),
+      isAuthLoading: !hasBootstrappedBrowserSession || isRefreshing || isSyncingUser,
       isRefreshing,
+      isSyncingUser,
       isHydrated,
+      hasCompletedInitialSync: hasBootstrappedBrowserSession,
       setUser,
       refreshUser: () =>
         new Promise<SessionUser | null>((resolve, reject) => {
@@ -344,7 +358,7 @@ export default function AuthSessionProvider({
           })
         }),
     }),
-    [isHydrated, isRefreshing, pathname, user]
+    [hasBootstrappedBrowserSession, isHydrated, isRefreshing, isSyncingUser, pathname, user]
   )
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>

@@ -12,7 +12,11 @@ import { useCartStore } from '@/store/cartStore'
 import type { CartDto } from '@/features/cart/cart.dto'
 
 export function useCart() {
-    const { isAuthenticated } = useCurrentUser()
+    const {
+        isAuthenticated,
+        hasCompletedInitialSync,
+        isSyncingUser,
+    } = useCurrentUser()
     const setItemCount = useCartStore((s) => s.setItemCount)
     const refreshKey = useCartStore((s) => s.refreshKey)
 
@@ -23,6 +27,11 @@ export function useCart() {
     const sessionIdRef = useRef('')
 
     useEffect(() => {
+        if (!hasCompletedInitialSync || isSyncingUser) {
+            setIsLoading(true)
+            return
+        }
+
         sessionIdRef.current = useCartStore.getState().ensureSessionId()
 
         let cancelled = false
@@ -51,7 +60,7 @@ export function useCart() {
         return () => {
             cancelled = true
         }
-    }, [isAuthenticated, refreshKey, setItemCount])
+    }, [hasCompletedInitialSync, isAuthenticated, isSyncingUser, refreshKey, setItemCount])
 
     const handleUpdateQuantity = useCallback(
         async (itemId: string, quantity: number) => {

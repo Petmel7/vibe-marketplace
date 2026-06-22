@@ -19,8 +19,8 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const pathname = usePathname()
-  const { isHydrated, isRefreshing } = useCurrentUser()
-  const isLoading = !user && (!isHydrated || isRefreshing)
+  const { isAuthLoading } = useCurrentUser()
+  const isLoading = !user && isAuthLoading
   const links = user ? getRoleAwareNavLinks(user) : []
   const loginHref = pathname
     ? `/login?next=${encodeURIComponent(pathname)}`
