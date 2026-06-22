@@ -163,6 +163,7 @@ function makeCheckoutState() {
     isApplyingCoupon: false,
     paymentHandoffAction: null,
     loadError: null,
+    hasLoadedPreviewOnce: true,
     submitError: null,
     addressError: null,
     deliveryError: null,
@@ -173,6 +174,7 @@ function makeCheckoutState() {
     appliedCouponCode: null,
     blockingIssues: [],
     isEmpty: false,
+    isSessionHydrating: false,
     isAuthCartSyncPending: false,
     canSubmit: true,
     selectedAddressId: '',
@@ -302,6 +304,25 @@ describe('CheckoutClient', () => {
     })
 
     expect(container.textContent).toContain('protected-route-state')
+    expect(container.textContent).not.toContain('empty-state')
+  })
+
+  it('keeps checkout in loading state until the first preview load completes', () => {
+    useCheckoutMock.mockReturnValue({
+      ...makeCheckoutState(),
+      preview: null,
+      isEmpty: true,
+      hasLoadedPreviewOnce: false,
+      isSessionHydrating: true,
+    })
+
+    act(() => {
+      root.render(<CheckoutClient />)
+    })
+
+    expect(
+      container.querySelector('[data-testid="checkout-loading-state"]'),
+    ).not.toBeNull()
     expect(container.textContent).not.toContain('empty-state')
   })
 })

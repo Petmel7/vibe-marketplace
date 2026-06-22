@@ -282,6 +282,7 @@ export function useCheckout(initialCartId?: string) {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [paymentHandoffAction, setPaymentHandoffAction] = useState<HostedPaymentAction | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [hasLoadedPreviewOnce, setHasLoadedPreviewOnce] = useState(false)
   const [isCartSyncPending, setIsCartSyncPending] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
@@ -407,6 +408,7 @@ export function useCheckout(initialCartId?: string) {
         }
 
         setPreview(nextPreview)
+        setHasLoadedPreviewOnce(true)
         previewCartIdRef.current = nextPreview.cartId ?? nextCartId ?? initialCartId
         setCartItemCount(nextPreview.itemCount)
         if (nextPreview.appliedPromotion?.type === 'AUTOMATIC_DISCOUNT' && !appliedCouponCodeRef.current) {
@@ -478,6 +480,7 @@ export function useCheckout(initialCartId?: string) {
 
   useEffect(() => {
     hasLoadedInitialPreviewRef.current = false
+    setHasLoadedPreviewOnce(false)
 
     void loadPreview(initialCartId, false).finally(() => {
       hasLoadedInitialPreviewRef.current = true
@@ -800,8 +803,9 @@ export function useCheckout(initialCartId?: string) {
   )
   const hasBlockingIssues = blockingIssues.length > 0
   const isEmpty = (preview?.items.length ?? 0) === 0
+  const isSessionHydrating = !isHydrated || isRefreshing
   const isAuthCartSyncPending =
-    isAuthenticated && (!isHydrated || isRefreshing || isCartSyncPending)
+    isAuthenticated && (isSessionHydrating || isCartSyncPending)
   const canSubmit =
     Boolean(preview?.cartId) &&
     !isEmpty &&
@@ -828,6 +832,7 @@ export function useCheckout(initialCartId?: string) {
     isApplyingCoupon,
     paymentHandoffAction,
     loadError,
+    hasLoadedPreviewOnce,
     submitError,
     addressError,
     deliveryError,
@@ -838,6 +843,7 @@ export function useCheckout(initialCartId?: string) {
     appliedCouponCode,
     blockingIssues,
     isEmpty,
+    isSessionHydrating,
     isAuthCartSyncPending,
     canSubmit,
     setSelectedAddressId,

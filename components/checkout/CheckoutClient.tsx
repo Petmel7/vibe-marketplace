@@ -37,6 +37,7 @@ export default function CheckoutClient({
     isApplyingCoupon,
     paymentHandoffAction,
     loadError,
+    hasLoadedPreviewOnce,
     submitError,
     addressError,
     deliveryError,
@@ -47,6 +48,7 @@ export default function CheckoutClient({
     appliedCouponCode,
     blockingIssues,
     isEmpty,
+    isSessionHydrating,
     isAuthCartSyncPending,
     canSubmit,
     selectedAddressId,
@@ -99,9 +101,13 @@ export default function CheckoutClient({
     void submitCheckout({ acceptedPrivacy: true })
   }
 
-  if (isLoading) {
+  if (isLoading || (!hasLoadedPreviewOnce && !loadError) || (isSessionHydrating && (!preview || isEmpty))) {
     return (
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+      <div
+        className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]"
+        aria-busy="true"
+        data-testid="checkout-loading-state"
+      >
         <div className="space-y-6">
           <div className="ui-elevated-panel h-72 animate-pulse bg-panel/60" />
           <div className="ui-elevated-panel h-64 animate-pulse bg-panel/60" />
