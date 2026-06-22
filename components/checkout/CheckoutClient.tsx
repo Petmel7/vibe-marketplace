@@ -45,7 +45,9 @@ export default function CheckoutClient({
     couponError,
     couponSuccessMessage,
     appliedCouponCode,
+    blockingIssues,
     isEmpty,
+    isAuthCartSyncPending,
     canSubmit,
     selectedAddressId,
     deliveryMode,
@@ -120,6 +122,17 @@ export default function CheckoutClient({
     )
   }
 
+  if (isAuthCartSyncPending && (!preview || isEmpty)) {
+    return (
+      <ProtectedRouteState
+        title="Синхронізуємо кошик..."
+        description="Зачекайте, поки ми об'єднаємо гостьовий кошик і оновимо оформлення замовлення."
+        actionHref="/cart"
+        actionLabel="Повернутися до кошика"
+      />
+    )
+  }
+
   if (!preview || isEmpty) {
     return (
       <EmptyState
@@ -138,7 +151,7 @@ export default function CheckoutClient({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
       <div className="space-y-6">
-        <CheckoutBlockingIssues issues={preview.blockingIssues} />
+        <CheckoutBlockingIssues issues={blockingIssues} />
         <CheckoutItemList items={preview.items} />
         <PaymentMethodSelector
           value={selectedPaymentMethod}

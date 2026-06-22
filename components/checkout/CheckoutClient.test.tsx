@@ -171,7 +171,9 @@ function makeCheckoutState() {
     couponError: null,
     couponSuccessMessage: null,
     appliedCouponCode: null,
+    blockingIssues: [],
     isEmpty: false,
+    isAuthCartSyncPending: false,
     canSubmit: true,
     selectedAddressId: '',
     deliveryMode: 'NOVA_POSHTA',
@@ -285,5 +287,21 @@ describe('CheckoutClient', () => {
     expect(submitCheckoutMock).toHaveBeenCalledWith({
       acceptedPrivacy: true,
     })
+  })
+
+  it('shows cart sync state instead of a false empty cart during post-login merge refresh', () => {
+    useCheckoutMock.mockReturnValue({
+      ...makeCheckoutState(),
+      preview: null,
+      isEmpty: true,
+      isAuthCartSyncPending: true,
+    })
+
+    act(() => {
+      root.render(<CheckoutClient />)
+    })
+
+    expect(container.textContent).toContain('protected-route-state')
+    expect(container.textContent).not.toContain('empty-state')
   })
 })

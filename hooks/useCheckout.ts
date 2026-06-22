@@ -6,8 +6,13 @@ import type { CreateAddressDto, ShippingAddressDto } from '@/features/address/ad
 import { API_ROUTES } from '@/lib/constants/apiRoutes'
 import { apiClient } from '@/shared/api/api.client'
 import { ApiError } from '@/shared/api/api.errors'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useCartStore } from '@/store/cartStore'
-import type { CheckoutPreview, CheckoutResponse } from '@/types/checkout'
+import type {
+  CheckoutBlockingIssue,
+  CheckoutPreview,
+  CheckoutResponse,
+} from '@/types/checkout'
 import type { CheckoutPaymentMethod, HostedPaymentAction } from '@/types/payments'
 import type { CheckoutPromotionPreview } from '@/types/promotions'
 import type {
@@ -200,9 +205,62 @@ export function buildAutoRefreshKey(
   ].join(':')
 }
 
+export function getVisibleCheckoutBlockingIssues(
+  issues: CheckoutBlockingIssue[],
+  deliveryMode: CheckoutDeliveryMode,
+): CheckoutBlockingIssue[] {
+  if (deliveryMode !== 'NOVA_POSHTA') {
+    return issues
+  }
+
+  return issues.filter((issue) => issue.code !== 'ADDRESS_REQUIRED')
+}
+
+function getNovaPoshtaDeliveryError(input: {
+  selectedDeliveryType: ShippingDeliveryType
+  recipientName: string
+  recipientPhone: string
+  selectedCity: NovaPoshtaCity | null
+  selectedWarehouse: NovaPoshtaWarehouse | null
+  recipientStreet: string
+  recipientBuilding: string
+}): string {
+  if (!input.recipientName.trim()) {
+    return 'Вкажіть імʼя отримувача.'
+  }
+
+  if (!input.recipientPhone.trim()) {
+    return 'Вкажіть номер телефону отримувача.'
+  }
+
+  if (!input.selectedCity?.ref) {
+    return 'Оберіть місто Нової Пошти.'
+  }
+
+  if (input.selectedDeliveryType === 'NOVA_POSHTA_COURIER') {
+    if (!input.recipientStreet.trim()) {
+      return 'Вкажіть вулицю для курʼєрської доставки Нової Пошти.'
+    }
+
+    if (!input.recipientBuilding.trim()) {
+      return 'Вкажіть номер будинку для курʼєрської доставки Нової Пошти.'
+    }
+
+    return 'Заповніть дані курʼєрської доставки Нової Пошти.'
+  }
+
+  if (!input.selectedWarehouse?.ref) {
+    return 'Оберіть відділення або поштомат Нової Пошти.'
+  }
+
+  return 'Заповніть дані доставки Нової Пошти.'
+}
+
 export function useCheckout(initialCartId?: string) {
   const router = useRouter()
+  const { isAuthenticated, isHydrated, isRefreshing } = useCurrentUser()
   const setCartItemCount = useCartStore((state) => state.setItemCount)
+  const cartRefreshKey = useCartStore((state) => state.refreshKey)
   const [preview, setPreview] = useState<CheckoutPreview | null>(null)
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [deliveryMode, setDeliveryMode] = useState<CheckoutDeliveryMode>('ADDRESS')
@@ -224,6 +282,7 @@ export function useCheckout(initialCartId?: string) {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [paymentHandoffAction, setPaymentHandoffAction] = useState<HostedPaymentAction | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [isCartSyncPending, setIsCartSyncPending] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
   const [deliveryError, setDeliveryError] = useState<string | null>(null)
@@ -233,6 +292,9 @@ export function useCheckout(initialCartId?: string) {
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null)
   const appliedCouponCodeRef = useRef<string | null>(null)
   const lastAutoRefreshKeyRef = useRef<string | null>(null)
+  const hasLoadedInitialPreviewRef = useRef(false)
+  const deliveryPayloadRef = useRef<DeliveryPayload | undefined>(undefined)
+  const previewCartIdRef = useRef<string | undefined>(initialCartId)
 
   useEffect(() => {
     appliedCouponCodeRef.current = appliedCouponCode
@@ -345,6 +407,7 @@ export function useCheckout(initialCartId?: string) {
         }
 
         setPreview(nextPreview)
+        previewCartIdRef.current = nextPreview.cartId ?? nextCartId ?? initialCartId
         setCartItemCount(nextPreview.itemCount)
         if (nextPreview.appliedPromotion?.type === 'AUTOMATIC_DISCOUNT' && !appliedCouponCodeRef.current) {
           setCouponCode('')
@@ -414,10 +477,59 @@ export function useCheckout(initialCartId?: string) {
   )
 
   useEffect(() => {
-    void loadPreview(initialCartId, false)
+    hasLoadedInitialPreviewRef.current = false
+
+    void loadPreview(initialCartId, false).finally(() => {
+      hasLoadedInitialPreviewRef.current = true
+    })
   }, [initialCartId, loadPreview])
 
+  useEffect(() => {
+    if (!hasLoadedInitialPreviewRef.current) {
+      return
+    }
+
+    if (!isAuthenticated) {
+      setIsCartSyncPending(false)
+      return
+    }
+
+    if (!isHydrated || isRefreshing) {
+      setIsCartSyncPending(true)
+      return
+    }
+
+    let cancelled = false
+    setIsCartSyncPending(true)
+
+    void loadPreview(
+      previewCartIdRef.current ?? initialCartId,
+      true,
+      deliveryPayloadRef.current,
+    ).finally(() => {
+      if (!cancelled) {
+        setIsCartSyncPending(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    cartRefreshKey,
+    initialCartId,
+    isAuthenticated,
+    isHydrated,
+    isRefreshing,
+    loadPreview,
+  ])
+
   const previewDeliveryPayload = useMemo(() => getDeliveryPayload(), [getDeliveryPayload])
+
+  useEffect(() => {
+    deliveryPayloadRef.current = previewDeliveryPayload
+  }, [previewDeliveryPayload])
+
   const autoRefreshDeliveryPayload = useMemo(
     () =>
       buildAutoRefreshDeliveryPayload({
@@ -519,6 +631,22 @@ export function useCheckout(initialCartId?: string) {
 
     if (usingAddress && !selectedAddressId) {
       setAddressError('Оберіть збережену адресу доставки або переключіться на Нову Пошту.')
+      setIsSubmitting(false)
+      return null
+    }
+
+    if (!usingAddress && !hasCompleteNovaPoshtaSelection) {
+      setDeliveryError(
+        getNovaPoshtaDeliveryError({
+          selectedDeliveryType,
+          recipientName,
+          recipientPhone,
+          selectedCity,
+          selectedWarehouse,
+          recipientStreet,
+          recipientBuilding,
+        }),
+      )
       setIsSubmitting(false)
       return null
     }
@@ -666,8 +794,14 @@ export function useCheckout(initialCartId?: string) {
     await loadPreview(preview?.cartId ?? undefined, true, getDeliveryPayload())
   }, [getDeliveryPayload, loadPreview, preview?.cartId])
 
-  const hasBlockingIssues = (preview?.blockingIssues.length ?? 0) > 0
+  const blockingIssues = useMemo(
+    () => getVisibleCheckoutBlockingIssues(preview?.blockingIssues ?? [], deliveryMode),
+    [deliveryMode, preview?.blockingIssues],
+  )
+  const hasBlockingIssues = blockingIssues.length > 0
   const isEmpty = (preview?.items.length ?? 0) === 0
+  const isAuthCartSyncPending =
+    isAuthenticated && (!isHydrated || isRefreshing || isCartSyncPending)
   const canSubmit =
     Boolean(preview?.cartId) &&
     !isEmpty &&
@@ -702,7 +836,9 @@ export function useCheckout(initialCartId?: string) {
     couponError,
     couponSuccessMessage,
     appliedCouponCode,
+    blockingIssues,
     isEmpty,
+    isAuthCartSyncPending,
     canSubmit,
     setSelectedAddressId,
     setDeliveryMode,

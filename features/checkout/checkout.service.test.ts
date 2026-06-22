@@ -375,6 +375,63 @@ describe('checkout preview', () => {
     expect(preview.cartId).toBe(CART_ID)
   })
 
+  it('does not require a saved shipping address in preview when Nova Poshta warehouse delivery is complete', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockRepo.listShippingAddressesByUserId.mockResolvedValue([])
+    mockShippingService.buildCheckoutDeliverySelectionDto.mockReturnValueOnce({
+      supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE', 'NOVA_POSHTA_COURIER'],
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+      estimatedCost: null,
+      currency: 'UAH',
+      isComplete: true,
+    })
+    mockShippingService.resolveCheckoutDeliverySelection.mockResolvedValueOnce({
+      provider: 'NOVA_POSHTA',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+      estimatedCost: '80.00',
+      currency: 'UAH',
+    } as never)
+    mockShippingService.estimateCheckoutDeliveryTotal.mockResolvedValueOnce({
+      estimatedCost: '80.00',
+      currency: 'UAH',
+    })
+
+    const preview = await getCheckoutPreview(mockUser, {
+      cartId: CART_ID,
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+    })
+
+    expect(preview.blockingIssues.map((issue) => issue.code)).not.toContain('ADDRESS_REQUIRED')
+    expect(preview.canCheckout).toBe(true)
+    expect(preview.deliverySelection.isComplete).toBe(true)
+  })
+
   it('includes applied automatic promotion totals in checkout preview', async () => {
     mockRepo.getCartWithItems.mockResolvedValue(
       makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,

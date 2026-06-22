@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildAutoRefreshDeliveryPayload,
   buildAutoRefreshKey,
+  getVisibleCheckoutBlockingIssues,
 } from '@/hooks/useCheckout'
 
 describe('useCheckout auto refresh helpers', () => {
@@ -89,5 +90,19 @@ describe('useCheckout auto refresh helpers', () => {
 
     expect(courierPayload).toBeUndefined()
     expect(buildAutoRefreshKey('cart-1', 'NOVA_POSHTA', courierPayload)).toBeNull()
+  })
+
+  it('hides generic address blocking issues when Nova Poshta delivery is selected', () => {
+    const issues = getVisibleCheckoutBlockingIssues(
+      [
+        { code: 'ADDRESS_REQUIRED', message: 'Select or add a shipping address before placing the order.' },
+        { code: 'STOCK_UNAVAILABLE', message: 'Out of stock', variantId: 'variant-1' },
+      ],
+      'NOVA_POSHTA',
+    )
+
+    expect(issues).toEqual([
+      { code: 'STOCK_UNAVAILABLE', message: 'Out of stock', variantId: 'variant-1' },
+    ])
   })
 })
