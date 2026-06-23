@@ -5,9 +5,13 @@ vi.mock('@/utils/logger', () => ({
   logWarn: vi.fn(),
 }))
 
-import { ShippingProviderError } from '@/lib/errors/shipping'
+import { NovaPoshtaCreateShipmentError, ShippingProviderError } from '@/lib/errors/shipping'
 import { InMemoryNovaPoshtaDirectoryCache } from './nova-poshta-directory-cache'
-import { NovaPoshtaProvider, normalizeNovaPoshtaCityQuery } from './nova-poshta.provider'
+import {
+  NovaPoshtaProvider,
+  formatNovaPoshtaDate,
+  normalizeNovaPoshtaCityQuery,
+} from './nova-poshta.provider'
 
 const fetchMock = vi.fn()
 
@@ -32,7 +36,7 @@ function createProvider(overrides?: {
 function mockFetchSuccess(payload: unknown) {
   fetchMock.mockResolvedValueOnce({
     ok: true,
-    json: vi.fn().mockResolvedValue(payload),
+    text: vi.fn().mockResolvedValue(JSON.stringify(payload)),
   })
 }
 
@@ -297,5 +301,166 @@ describe('NovaPoshtaProvider directory cache', () => {
       },
     ])
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('NovaPoshtaProvider shipment contracts', () => {
+  beforeEach(() => {
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('formats Nova Poshta dates as dd.MM.yyyy', () => {
+    expect(formatNovaPoshtaDate(new Date('2026-06-23T12:00:00.000Z'))).toBe('23.06.2026')
+  })
+
+  it('rejects invalid cargo fields before provider call', async () => {
+    const provider = createProvider()
+
+    await expect(
+      provider.createShipment({
+        shipmentId: 'shipment-1',
+        orderId: 'order-1',
+        deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+        senderName: 'Sender',
+        senderPhone: '+380000000000',
+        senderCityRef: 'sender-city-ref',
+        senderCityName: 'Kyiv',
+        senderWarehouseRef: 'sender-warehouse-ref',
+        senderWarehouseName: 'Warehouse 1',
+        senderCounterpartyRef: 'sender-counterparty-ref',
+        senderContactRef: 'sender-contact-ref',
+        senderAddressRef: 'sender-address-ref',
+        recipientName: 'Recipient',
+        recipientPhone: '+380111111111',
+        recipientCityRef: 'recipient-city-ref',
+        recipientCityName: 'Lviv',
+        recipientStreet: null,
+        recipientBuilding: null,
+        recipientApartment: null,
+        recipientWarehouseRef: 'recipient-warehouse-ref',
+        recipientWarehouseName: 'Warehouse 2',
+        recipientCounterpartyRef: 'recipient-counterparty-ref',
+        recipientContactRef: 'recipient-contact-ref',
+        cargoDescription: 'Order #1',
+        weight: '0',
+        volumeGeneral: '0.001',
+        seatsAmount: 1,
+        declaredCost: '600',
+      }),
+    ).rejects.toThrow(NovaPoshtaCreateShipmentError)
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('sends TTN payload with refs, cargo fields, and Nova Poshta date format', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [
+        {
+          Ref: 'provider-shipment-1',
+          IntDocNumber: '20451234567890',
+        },
+      ],
+    })
+
+    await provider.createShipment({
+      shipmentId: 'shipment-1',
+      orderId: 'order-1',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      senderName: 'Sender',
+      senderPhone: '+380000000000',
+      senderCityRef: 'sender-city-ref',
+      senderCityName: 'Kyiv',
+      senderWarehouseRef: 'sender-warehouse-ref',
+      senderWarehouseName: 'Warehouse 1',
+      senderCounterpartyRef: 'sender-counterparty-ref',
+      senderContactRef: 'sender-contact-ref',
+      senderAddressRef: 'sender-address-ref',
+      recipientName: 'Recipient',
+      recipientPhone: '+380111111111',
+      recipientCityRef: 'recipient-city-ref',
+      recipientCityName: 'Lviv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: 'recipient-warehouse-ref',
+      recipientWarehouseName: 'Warehouse 2',
+      recipientCounterpartyRef: 'recipient-counterparty-ref',
+      recipientContactRef: 'recipient-contact-ref',
+      cargoDescription: 'Order #1',
+      weight: '1',
+      volumeGeneral: '0.001',
+      seatsAmount: 1,
+      declaredCost: '600',
+    })
+
+    const request = fetchMock.mock.calls[0]?.[1]
+    const body = JSON.parse(String(request?.body ?? '{}'))
+
+    expect(body.methodProperties).toEqual(
+      expect.objectContaining({
+        DateTime: expect.stringMatching(/^\d{2}\.\d{2}\.\d{4}$/),
+        Sender: 'sender-counterparty-ref',
+        ContactSender: 'sender-contact-ref',
+        SenderAddress: 'sender-address-ref',
+        Recipient: 'recipient-counterparty-ref',
+        ContactRecipient: 'recipient-contact-ref',
+        Weight: '1',
+        VolumeGeneral: '0.001',
+        SeatsAmount: '1',
+      }),
+    )
+  })
+
+  it('maps provider validation errors to 422 during TTN creation', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: false,
+      errors: ['Weight is invalid', 'ContactRecipient is incorrect'],
+      warnings: [],
+      info: [],
+      data: [],
+    })
+
+    await expect(
+      provider.createShipment({
+        shipmentId: 'shipment-1',
+        orderId: 'order-1',
+        deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+        senderName: 'Sender',
+        senderPhone: '+380000000000',
+        senderCityRef: 'sender-city-ref',
+        senderCityName: 'Kyiv',
+        senderWarehouseRef: 'sender-warehouse-ref',
+        senderWarehouseName: 'Warehouse 1',
+        senderCounterpartyRef: 'sender-counterparty-ref',
+        senderContactRef: 'sender-contact-ref',
+        senderAddressRef: 'sender-address-ref',
+        recipientName: 'Recipient',
+        recipientPhone: '+380111111111',
+        recipientCityRef: 'recipient-city-ref',
+        recipientCityName: 'Lviv',
+        recipientStreet: null,
+        recipientBuilding: null,
+        recipientApartment: null,
+        recipientWarehouseRef: 'recipient-warehouse-ref',
+        recipientWarehouseName: 'Warehouse 2',
+        recipientCounterpartyRef: 'recipient-counterparty-ref',
+        recipientContactRef: 'recipient-contact-ref',
+        cargoDescription: 'Order #1',
+        weight: '1',
+        volumeGeneral: '0.001',
+        seatsAmount: 1,
+        declaredCost: '600',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+    })
   })
 })

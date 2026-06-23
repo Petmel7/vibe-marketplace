@@ -98,6 +98,27 @@ const adminUser: SessionUser = {
   roles: ['ADMIN'],
 }
 
+function makeStoreShippingSettings(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'settings-1',
+    storeId: 'store-1',
+    provider: 'NOVA_POSHTA',
+    senderName: 'Sender',
+    senderPhone: '+380000000000',
+    senderCityRef: 'sender-city-ref',
+    senderCityName: 'Kyiv',
+    senderWarehouseRef: 'sender-warehouse-ref',
+    senderWarehouseName: 'Warehouse 9',
+    senderCounterpartyRef: 'sender-counterparty-ref',
+    senderContactRef: 'sender-contact-ref',
+    senderAddressRef: 'sender-address-ref',
+    isConfigured: true,
+    createdAt: new Date('2026-01-01T10:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+    ...overrides,
+  } as never
+}
+
 function makeShipment(overrides: Record<string, unknown> = {}) {
   return {
     id: 'shipment-1',
@@ -185,6 +206,9 @@ beforeEach(() => {
     senderCityName: input.senderCityName ?? '',
     senderWarehouseRef: input.senderWarehouseRef ?? null,
     senderWarehouseName: input.senderWarehouseName ?? null,
+    senderCounterpartyRef: input.senderCounterpartyRef ?? null,
+    senderContactRef: input.senderContactRef ?? null,
+    senderAddressRef: input.senderAddressRef ?? null,
     isConfigured: input.isConfigured,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
@@ -233,6 +257,14 @@ beforeEach(() => {
 
 describe('shipping service', () => {
   it('seller can update own shipping settings', async () => {
+    mockGetNovaPoshtaProvider.mockReturnValue({
+      resolveSenderProfile: vi.fn().mockResolvedValue({
+        counterpartyRef: 'sender-counterparty-ref',
+        contactRef: 'sender-contact-ref',
+        addressRef: 'sender-address-ref',
+      }),
+    } as never)
+
     const result = await updateMyStoreShippingSettings(user, {
       senderName: 'Sender',
       senderPhone: '+380000000000',
@@ -245,6 +277,9 @@ describe('shipping service', () => {
     expect(mockUpsertStoreShippingSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         storeId: 'store-1',
+        senderCounterpartyRef: 'sender-counterparty-ref',
+        senderContactRef: 'sender-contact-ref',
+        senderAddressRef: 'sender-address-ref',
         isConfigured: true,
       }),
     )
@@ -391,30 +426,32 @@ describe('shipping service', () => {
   })
 
   it('seller can create TTN for own shipment', async () => {
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce({
-      id: 'settings-1',
-      storeId: 'store-1',
-      provider: 'NOVA_POSHTA',
-      senderName: 'Sender',
-      senderPhone: '+380000000000',
-      senderCityRef: 'sender-city-ref',
-      senderCityName: 'Kyiv',
-      senderWarehouseRef: 'sender-warehouse-ref',
-      senderWarehouseName: 'Warehouse 9',
-      isConfigured: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as never)
+    const createShipment = vi.fn().mockResolvedValue({
+      trackingNumber: '20451234567890',
+      providerShipmentId: 'provider-shipment-1',
+      rawStatus: null,
+    })
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(makeStoreShippingSettings())
     mockGetNovaPoshtaProvider.mockReturnValue({
-      createShipment: vi.fn().mockResolvedValue({
-        trackingNumber: '20451234567890',
-        providerShipmentId: 'provider-shipment-1',
-        rawStatus: null,
+      resolveRecipientProfile: vi.fn().mockResolvedValue({
+        counterpartyRef: 'recipient-counterparty-ref',
+        contactRef: 'recipient-contact-ref',
       }),
+      createShipment,
     } as never)
 
     const result = await createMyShipmentTtn(user, 'shipment-1')
 
+    expect(createShipment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        senderCounterpartyRef: 'sender-counterparty-ref',
+        senderContactRef: 'sender-contact-ref',
+        recipientCounterpartyRef: 'recipient-counterparty-ref',
+        recipientContactRef: 'recipient-contact-ref',
+        weight: '1',
+        volumeGeneral: '0.001',
+      }),
+    )
     expect(mockUpdateShipmentById).toHaveBeenCalledWith({
       id: 'shipment-1',
       trackingNumber: '20451234567890',
@@ -423,6 +460,55 @@ describe('shipping service', () => {
     })
     expect(result.trackingNumber).toBe('20451234567890')
     expect(mockCreateOrderNotification).toHaveBeenCalled()
+  })
+
+  it('initializes missing sender refs before creating TTN', async () => {
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(
+      makeStoreShippingSettings({
+        senderCounterpartyRef: null,
+        senderContactRef: null,
+        senderAddressRef: null,
+        isConfigured: false,
+      }),
+    )
+    const resolveSenderProfile = vi.fn().mockResolvedValue({
+      counterpartyRef: 'sender-counterparty-ref',
+      contactRef: 'sender-contact-ref',
+      addressRef: 'sender-address-ref',
+    })
+    const resolveRecipientProfile = vi.fn().mockResolvedValue({
+      counterpartyRef: 'recipient-counterparty-ref',
+      contactRef: 'recipient-contact-ref',
+    })
+    const createShipment = vi.fn().mockResolvedValue({
+        trackingNumber: '20451234567890',
+        providerShipmentId: 'provider-shipment-1',
+        rawStatus: null,
+      })
+    mockGetNovaPoshtaProvider.mockReturnValue({
+      resolveSenderProfile,
+      resolveRecipientProfile,
+      createShipment,
+    } as never)
+
+    const result = await createMyShipmentTtn(user, 'shipment-1')
+
+    expect(resolveSenderProfile).toHaveBeenCalled()
+    expect(mockUpsertStoreShippingSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        senderCounterpartyRef: 'sender-counterparty-ref',
+        senderContactRef: 'sender-contact-ref',
+        senderAddressRef: 'sender-address-ref',
+        isConfigured: true,
+      }),
+    )
+    expect(mockUpdateShipmentById).toHaveBeenCalledWith({
+      id: 'shipment-1',
+      trackingNumber: '20451234567890',
+      providerShipmentId: 'provider-shipment-1',
+      status: 'LABEL_CREATED',
+    })
+    expect(result.trackingNumber).toBe('20451234567890')
   })
 
   it('seller cannot create TTN for another store shipment', async () => {
@@ -449,6 +535,28 @@ describe('shipping service', () => {
 
     await expect(createMyShipmentTtn(user, 'shipment-1')).rejects.toThrow(
       StoreShippingSettingsRequiredError,
+    )
+  })
+
+  it('missing sender contact setup blocks TTN with a clear error', async () => {
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(
+      makeStoreShippingSettings({
+        senderCounterpartyRef: null,
+        senderContactRef: null,
+        senderAddressRef: null,
+        isConfigured: false,
+      }),
+    )
+    mockGetNovaPoshtaProvider.mockReturnValue({
+      resolveSenderProfile: vi.fn().mockRejectedValue(
+        new StoreShippingSettingsRequiredError(
+          'Nova Poshta sender settings must be initialized with valid sender and contact refs before creating TTN',
+        ),
+      ),
+    } as never)
+
+    await expect(createMyShipmentTtn(user, 'shipment-1')).rejects.toThrow(
+      'Nova Poshta sender settings must be initialized with valid sender and contact refs before creating TTN',
     )
   })
 
@@ -533,21 +641,12 @@ describe('shipping service', () => {
   })
 
   it('notification failures do not break shipment flow', async () => {
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce({
-      id: 'settings-1',
-      storeId: 'store-1',
-      provider: 'NOVA_POSHTA',
-      senderName: 'Sender',
-      senderPhone: '+380000000000',
-      senderCityRef: 'sender-city-ref',
-      senderCityName: 'Kyiv',
-      senderWarehouseRef: 'sender-warehouse-ref',
-      senderWarehouseName: 'Warehouse 9',
-      isConfigured: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as never)
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(makeStoreShippingSettings())
     mockGetNovaPoshtaProvider.mockReturnValue({
+      resolveRecipientProfile: vi.fn().mockResolvedValue({
+        counterpartyRef: 'recipient-counterparty-ref',
+        contactRef: 'recipient-contact-ref',
+      }),
       createShipment: vi.fn().mockResolvedValue({
         trackingNumber: '20451234567890',
         providerShipmentId: 'provider-shipment-1',
@@ -572,26 +671,17 @@ describe('shipping service', () => {
         recipientWarehouseName: null,
       }),
     )
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce({
-      id: 'settings-1',
-      storeId: 'store-1',
-      provider: 'NOVA_POSHTA',
-      senderName: 'Sender',
-      senderPhone: '+380000000000',
-      senderCityRef: 'sender-city-ref',
-      senderCityName: 'Kyiv',
-      senderWarehouseRef: 'sender-warehouse-ref',
-      senderWarehouseName: 'Warehouse 9',
-      isConfigured: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as never)
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(makeStoreShippingSettings())
     const createShipment = vi.fn().mockResolvedValue({
       trackingNumber: '20451234567891',
       providerShipmentId: 'provider-shipment-2',
       rawStatus: null,
     })
     mockGetNovaPoshtaProvider.mockReturnValue({
+      resolveRecipientProfile: vi.fn().mockResolvedValue({
+        counterpartyRef: 'recipient-counterparty-ref',
+        contactRef: 'recipient-contact-ref',
+      }),
       createShipment,
     } as never)
 
@@ -614,20 +704,7 @@ describe('shipping service', () => {
         trackingNumber: '20450000000001',
       }),
     )
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce({
-      id: 'settings-1',
-      storeId: 'store-1',
-      provider: 'NOVA_POSHTA',
-      senderName: 'Sender',
-      senderPhone: '+380000000000',
-      senderCityRef: 'sender-city-ref',
-      senderCityName: 'Kyiv',
-      senderWarehouseRef: 'sender-warehouse-ref',
-      senderWarehouseName: 'Warehouse 9',
-      isConfigured: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as never)
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(makeStoreShippingSettings())
 
     const result = await createMyReturnShipment(user, 'shipment-1')
 
@@ -649,20 +726,7 @@ describe('shipping service', () => {
         trackingNumber: '20450000000001',
       }),
     )
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce({
-      id: 'settings-1',
-      storeId: 'store-1',
-      provider: 'NOVA_POSHTA',
-      senderName: 'Sender',
-      senderPhone: '+380000000000',
-      senderCityRef: 'sender-city-ref',
-      senderCityName: 'Kyiv',
-      senderWarehouseRef: 'sender-warehouse-ref',
-      senderWarehouseName: 'Warehouse 9',
-      isConfigured: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as never)
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(makeStoreShippingSettings())
 
     const result = await createAdminReturnShipment(adminUser, 'shipment-1')
 
@@ -690,24 +754,15 @@ describe('shipping service', () => {
   })
 
   it('bulk TTN creation reports partial success', async () => {
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValue({
-      id: 'settings-1',
-      storeId: 'store-1',
-      provider: 'NOVA_POSHTA',
-      senderName: 'Sender',
-      senderPhone: '+380000000000',
-      senderCityRef: 'sender-city-ref',
-      senderCityName: 'Kyiv',
-      senderWarehouseRef: 'sender-warehouse-ref',
-      senderWarehouseName: 'Warehouse 9',
-      isConfigured: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as never)
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValue(makeStoreShippingSettings())
     mockFindShipmentById
       .mockResolvedValueOnce(makeShipment({ id: 'shipment-1' }))
       .mockResolvedValueOnce(makeShipment({ id: 'shipment-2', trackingNumber: '20450000000001' }))
     mockGetNovaPoshtaProvider.mockReturnValue({
+      resolveRecipientProfile: vi.fn().mockResolvedValue({
+        counterpartyRef: 'recipient-counterparty-ref',
+        contactRef: 'recipient-contact-ref',
+      }),
       createShipment: vi.fn().mockResolvedValue({
         trackingNumber: '20451234567890',
         providerShipmentId: 'provider-shipment-1',

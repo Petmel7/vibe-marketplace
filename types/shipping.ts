@@ -62,6 +62,9 @@ export type StoreShippingSettings = {
   senderCityName: string | null
   senderWarehouseRef: string | null
   senderWarehouseName: string | null
+  senderCounterpartyRef: string | null
+  senderContactRef: string | null
+  senderAddressRef: string | null
   isConfigured: boolean
   createdAt: string | null
   updatedAt: string | null

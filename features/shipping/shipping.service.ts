@@ -32,6 +32,8 @@ import type {
   NovaPoshtaEstimateDto,
   NovaPoshtaEstimateInput,
   NovaPoshtaCityDto,
+  NovaPoshtaResolvedRecipientProfileDto,
+  NovaPoshtaResolvedSenderProfileDto,
   NovaPoshtaWarehouseDto,
   ResolvedCheckoutDeliverySelectionDto,
   SellerShipmentDto,
@@ -111,6 +113,9 @@ function toStoreShippingSettingsDto(input: {
   senderCityName: string | null
   senderWarehouseRef: string | null
   senderWarehouseName: string | null
+  senderCounterpartyRef: string | null
+  senderContactRef: string | null
+  senderAddressRef: string | null
   isConfigured: boolean
   createdAt: Date | null
   updatedAt: Date | null
@@ -127,6 +132,9 @@ function toStoreShippingSettingsDto(input: {
     senderCityName: normalize(input.senderCityName),
     senderWarehouseRef: normalize(input.senderWarehouseRef),
     senderWarehouseName: normalize(input.senderWarehouseName),
+    senderCounterpartyRef: normalize(input.senderCounterpartyRef),
+    senderContactRef: normalize(input.senderContactRef),
+    senderAddressRef: normalize(input.senderAddressRef),
     isConfigured: input.isConfigured,
     createdAt: input.createdAt,
     updatedAt: input.updatedAt,
@@ -170,7 +178,7 @@ function toSellerShipmentDto(
   }
 }
 
-function isConfigured(input: UpdateStoreShippingSettingsInput) {
+function hasBaseSenderConfiguration(input: UpdateStoreShippingSettingsInput) {
   return Boolean(
     input.senderName?.trim() &&
       input.senderPhone?.trim() &&
@@ -179,6 +187,27 @@ function isConfigured(input: UpdateStoreShippingSettingsInput) {
       input.senderWarehouseRef?.trim() &&
       input.senderWarehouseName?.trim(),
   )
+}
+
+function resolveShipmentWeight() {
+  return '1'
+}
+
+function resolveShipmentVolumeGeneral() {
+  return '0.001'
+}
+
+function resolveShipmentSeatsAmount(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+) {
+  return Math.max(
+    1,
+    shipment.items.reduce((sum, item) => sum + item.quantity, 0),
+  )
+}
+
+function getMissingSenderSetupMessage() {
+  return 'Nova Poshta sender settings must be initialized with valid sender and contact refs before creating TTN'
 }
 
 function assertShipmentHasRecipientSnapshot(
@@ -319,6 +348,47 @@ function resolveShipmentDeclaredCost(
   }, 0)
 
   return Math.max(1, Math.round(total)).toString()
+}
+
+async function ensureSenderProfile(
+  settings: NonNullable<Awaited<ReturnType<typeof findStoreShippingSettingsByStoreId>>>,
+): Promise<NovaPoshtaResolvedSenderProfileDto> {
+  if (settings.senderCounterpartyRef?.trim() && settings.senderContactRef?.trim()) {
+    return {
+      counterpartyRef: settings.senderCounterpartyRef.trim(),
+      contactRef: settings.senderContactRef.trim(),
+      addressRef: settings.senderAddressRef?.trim() || settings.senderWarehouseRef?.trim() || null,
+    }
+  }
+
+  if (
+    !settings.senderName.trim() ||
+    !settings.senderPhone.trim() ||
+    !settings.senderCityRef.trim() ||
+    !settings.senderWarehouseRef?.trim()
+  ) {
+    throw new StoreShippingSettingsRequiredError(getMissingSenderSetupMessage())
+  }
+
+  return getNovaPoshtaProvider().resolveSenderProfile({
+    senderName: settings.senderName,
+    senderPhone: settings.senderPhone,
+    senderCityRef: settings.senderCityRef,
+    senderWarehouseRef: settings.senderWarehouseRef,
+    senderCounterpartyRef: settings.senderCounterpartyRef,
+    senderContactRef: settings.senderContactRef,
+    senderAddressRef: settings.senderAddressRef,
+  })
+}
+
+async function resolveRecipientProfile(
+  shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
+): Promise<NovaPoshtaResolvedRecipientProfileDto> {
+  return getNovaPoshtaProvider().resolveRecipientProfile({
+    recipientName: shipment.recipientName,
+    recipientPhone: shipment.recipientPhone,
+    recipientCityRef: shipment.recipientCityRef,
+  })
 }
 
 async function getOwnedSellerShipment(
@@ -565,6 +635,9 @@ export async function getMyStoreShippingSettings(
     senderCityName: settings?.senderCityName ?? null,
     senderWarehouseRef: settings?.senderWarehouseRef ?? null,
     senderWarehouseName: settings?.senderWarehouseName ?? null,
+    senderCounterpartyRef: settings?.senderCounterpartyRef ?? null,
+    senderContactRef: settings?.senderContactRef ?? null,
+    senderAddressRef: settings?.senderAddressRef ?? null,
     isConfigured: settings?.isConfigured ?? false,
     createdAt: settings?.createdAt ?? null,
     updatedAt: settings?.updatedAt ?? null,
@@ -577,9 +650,7 @@ export async function updateMyStoreShippingSettings(
   storeId?: string,
 ): Promise<StoreShippingSettingsDto> {
   const store = await resolveSellerStoreContext(user, storeId)
-
-  const settings = await upsertStoreShippingSettings({
-    storeId: store.id,
+  const normalizedInput: Required<UpdateStoreShippingSettingsInput> = {
     provider: data.provider ?? ShippingProvider.NOVA_POSHTA,
     senderName: data.senderName?.trim() ?? null,
     senderPhone: data.senderPhone?.trim() ?? null,
@@ -587,7 +658,31 @@ export async function updateMyStoreShippingSettings(
     senderCityName: data.senderCityName?.trim() ?? null,
     senderWarehouseRef: data.senderWarehouseRef?.trim() ?? null,
     senderWarehouseName: data.senderWarehouseName?.trim() ?? null,
-    isConfigured: isConfigured(data),
+  }
+
+  let senderProfile: NovaPoshtaResolvedSenderProfileDto | null = null
+  if (hasBaseSenderConfiguration(normalizedInput)) {
+    senderProfile = await getNovaPoshtaProvider().resolveSenderProfile({
+      senderName: normalizedInput.senderName!,
+      senderPhone: normalizedInput.senderPhone!,
+      senderCityRef: normalizedInput.senderCityRef!,
+      senderWarehouseRef: normalizedInput.senderWarehouseRef!,
+    })
+  }
+
+  const settings = await upsertStoreShippingSettings({
+    storeId: store.id,
+    provider: normalizedInput.provider ?? ShippingProvider.NOVA_POSHTA,
+    senderName: normalizedInput.senderName,
+    senderPhone: normalizedInput.senderPhone,
+    senderCityRef: normalizedInput.senderCityRef,
+    senderCityName: normalizedInput.senderCityName,
+    senderWarehouseRef: normalizedInput.senderWarehouseRef,
+    senderWarehouseName: normalizedInput.senderWarehouseName,
+    senderCounterpartyRef: senderProfile?.counterpartyRef ?? null,
+    senderContactRef: senderProfile?.contactRef ?? null,
+    senderAddressRef: senderProfile?.addressRef ?? null,
+    isConfigured: Boolean(senderProfile),
   })
 
   return toStoreShippingSettingsDto({
@@ -600,6 +695,9 @@ export async function updateMyStoreShippingSettings(
     senderCityName: settings.senderCityName,
     senderWarehouseRef: settings.senderWarehouseRef,
     senderWarehouseName: settings.senderWarehouseName,
+    senderCounterpartyRef: settings.senderCounterpartyRef,
+    senderContactRef: settings.senderContactRef,
+    senderAddressRef: settings.senderAddressRef,
     isConfigured: settings.isConfigured,
     createdAt: settings.createdAt,
     updatedAt: settings.updatedAt,
@@ -812,7 +910,7 @@ export async function createMyShipmentTtn(
 
   const settings = await findStoreShippingSettingsByStoreId(store.id)
   if (
-    !settings?.isConfigured ||
+    !settings ||
     !settings.senderName.trim() ||
     !settings.senderPhone.trim() ||
     !settings.senderCityRef.trim() ||
@@ -823,6 +921,26 @@ export async function createMyShipmentTtn(
     throw new StoreShippingSettingsRequiredError()
   }
 
+  const senderProfile = await ensureSenderProfile(settings)
+  const recipientProfile = await resolveRecipientProfile(shipment)
+
+  if (!settings.senderCounterpartyRef?.trim() || !settings.senderContactRef?.trim()) {
+    await upsertStoreShippingSettings({
+      storeId: settings.storeId,
+      provider: settings.provider,
+      senderName: settings.senderName,
+      senderPhone: settings.senderPhone,
+      senderCityRef: settings.senderCityRef,
+      senderCityName: settings.senderCityName,
+      senderWarehouseRef: settings.senderWarehouseRef,
+      senderWarehouseName: settings.senderWarehouseName,
+      senderCounterpartyRef: senderProfile.counterpartyRef,
+      senderContactRef: senderProfile.contactRef,
+      senderAddressRef: senderProfile.addressRef,
+      isConfigured: true,
+    })
+  }
+
   logInfo('shipping:create-ttn-preflight', {
     domain: 'shipping',
     shipmentId: shipment.id,
@@ -830,13 +948,17 @@ export async function createMyShipmentTtn(
     deliveryType: shipment.deliveryType,
     senderCityRefExists: Boolean(settings.senderCityRef?.trim()),
     senderWarehouseRefExists: Boolean(settings.senderWarehouseRef?.trim()),
+    senderCounterpartyRefExists: Boolean(senderProfile.counterpartyRef),
+    senderContactRefExists: Boolean(senderProfile.contactRef),
     recipientCityRefExists: Boolean(shipment.recipientCityRef?.trim()),
     recipientWarehouseRefExists: Boolean(shipment.recipientWarehouseRef?.trim()),
     recipientStreetExists: Boolean(shipment.recipientStreet?.trim()),
     recipientBuildingExists: Boolean(shipment.recipientBuilding?.trim()),
+    recipientCounterpartyRefExists: Boolean(recipientProfile.counterpartyRef),
+    recipientContactRefExists: Boolean(recipientProfile.contactRef),
   })
 
-  const seatsAmount = shipment.items.reduce((sum, item) => sum + item.quantity, 0)
+  const seatsAmount = resolveShipmentSeatsAmount(shipment)
   const providerResult = await getNovaPoshtaProvider().createShipment({
     shipmentId: shipment.id,
     orderId: shipment.orderId,
@@ -847,6 +969,9 @@ export async function createMyShipmentTtn(
     senderCityName: settings.senderCityName,
     senderWarehouseRef: settings.senderWarehouseRef,
     senderWarehouseName: settings.senderWarehouseName,
+    senderCounterpartyRef: senderProfile.counterpartyRef,
+    senderContactRef: senderProfile.contactRef,
+    senderAddressRef: senderProfile.addressRef,
     recipientName: shipment.recipientName,
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
@@ -856,7 +981,11 @@ export async function createMyShipmentTtn(
     recipientApartment: shipment.recipientApartment,
     recipientWarehouseRef: shipment.recipientWarehouseRef,
     recipientWarehouseName: shipment.recipientWarehouseName,
+    recipientCounterpartyRef: recipientProfile.counterpartyRef,
+    recipientContactRef: recipientProfile.contactRef,
     cargoDescription: resolveShipmentCargoDescription(shipment),
+    weight: resolveShipmentWeight(),
+    volumeGeneral: resolveShipmentVolumeGeneral(),
     seatsAmount,
     declaredCost: resolveShipmentDeclaredCost(shipment),
   })
@@ -952,7 +1081,7 @@ export async function createMyReturnShipment(
 
   const settings = await findStoreShippingSettingsByStoreId(store.id)
   if (
-    !settings?.isConfigured ||
+    !settings ||
     !settings.senderName.trim() ||
     !settings.senderPhone.trim() ||
     !settings.senderCityRef.trim() ||
@@ -1009,7 +1138,7 @@ export async function createAdminReturnShipment(
 
   const settings = await findStoreShippingSettingsByStoreId(shipment.storeId)
   if (
-    !settings?.isConfigured ||
+    !settings ||
     !settings.senderName.trim() ||
     !settings.senderPhone.trim() ||
     !settings.senderCityRef.trim() ||

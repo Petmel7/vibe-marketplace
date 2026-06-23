@@ -45,6 +45,9 @@ export type StoreShippingSettingsDto = {
   senderCityName: string | null
   senderWarehouseRef: string | null
   senderWarehouseName: string | null
+  senderCounterpartyRef: string | null
+  senderContactRef: string | null
+  senderAddressRef: string | null
   isConfigured: boolean
   createdAt: Date | null
   updatedAt: Date | null
@@ -133,6 +136,9 @@ export type NovaPoshtaCreateShipmentInput = {
   senderCityName: string
   senderWarehouseRef: string
   senderWarehouseName: string
+  senderCounterpartyRef: string
+  senderContactRef: string
+  senderAddressRef: string | null
   recipientName: string
   recipientPhone: string
   recipientCityRef: string
@@ -142,9 +148,36 @@ export type NovaPoshtaCreateShipmentInput = {
   recipientApartment: string | null
   recipientWarehouseRef: string | null
   recipientWarehouseName: string | null
+  recipientCounterpartyRef: string
+  recipientContactRef: string
   cargoDescription: string
+  weight: string
+  volumeGeneral: string
   seatsAmount: number
   declaredCost: string
+}
+
+export type NovaPoshtaCounterpartyDto = {
+  ref: string
+  name: string | null
+  phone: string | null
+}
+
+export type NovaPoshtaContactPersonDto = {
+  ref: string
+  name: string | null
+  phone: string | null
+}
+
+export type NovaPoshtaResolvedSenderProfileDto = {
+  counterpartyRef: string
+  contactRef: string
+  addressRef: string | null
+}
+
+export type NovaPoshtaResolvedRecipientProfileDto = {
+  counterpartyRef: string
+  contactRef: string
 }
 
 export type NovaPoshtaCreateShipmentDto = {

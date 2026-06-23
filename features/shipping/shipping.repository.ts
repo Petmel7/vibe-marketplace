@@ -32,6 +32,9 @@ export async function upsertStoreShippingSettings(input: {
   senderCityName: string | null
   senderWarehouseRef: string | null
   senderWarehouseName: string | null
+  senderCounterpartyRef: string | null
+  senderContactRef: string | null
+  senderAddressRef: string | null
   isConfigured: boolean
 }) {
   return prisma.storeShippingSettings.upsert({
@@ -45,6 +48,9 @@ export async function upsertStoreShippingSettings(input: {
       senderCityName: input.senderCityName ?? '',
       senderWarehouseRef: input.senderWarehouseRef ?? null,
       senderWarehouseName: input.senderWarehouseName ?? null,
+      senderCounterpartyRef: input.senderCounterpartyRef ?? null,
+      senderContactRef: input.senderContactRef ?? null,
+      senderAddressRef: input.senderAddressRef ?? null,
       isConfigured: input.isConfigured,
     },
     update: {
@@ -55,6 +61,9 @@ export async function upsertStoreShippingSettings(input: {
       senderCityName: input.senderCityName ?? '',
       senderWarehouseRef: input.senderWarehouseRef ?? null,
       senderWarehouseName: input.senderWarehouseName ?? null,
+      senderCounterpartyRef: input.senderCounterpartyRef ?? null,
+      senderContactRef: input.senderContactRef ?? null,
+      senderAddressRef: input.senderAddressRef ?? null,
       isConfigured: input.isConfigured,
       updatedAt: new Date(),
     },
