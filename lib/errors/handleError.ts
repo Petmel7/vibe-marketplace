@@ -431,7 +431,6 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof ShipmentCreationError ||
     err instanceof ShipmentReturnCreationError ||
     err instanceof ShipmentSyncError ||
-    err instanceof NovaPoshtaCreateShipmentError ||
     err instanceof NovaPoshtaTrackingError ||
     err instanceof NovaPoshtaCancelShipmentError ||
     err instanceof AnalyticsAggregationError ||
@@ -440,6 +439,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
       { status: 500 },
+    )
+  if (err instanceof NovaPoshtaCreateShipmentError)
+    return Response.json(
+      { success: false, error: { message: err.message, code: err.code } },
+      { status: err.statusCode },
     )
   logError(label, err)
   return Response.json(

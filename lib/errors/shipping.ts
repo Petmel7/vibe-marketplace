@@ -27,10 +27,26 @@ export class NovaPoshtaWarehouseNotFoundError extends Error {
 
 export class NovaPoshtaCreateShipmentError extends Error {
   code = 'NOVA_POSHTA_CREATE_SHIPMENT_ERROR'
+  readonly statusCode: number
+  readonly providerErrors: string[]
+  readonly providerWarnings: string[]
+  readonly providerInfo: string[]
 
-  constructor(message = 'Nova Poshta shipment could not be created') {
+  constructor(
+    message = 'Nova Poshta shipment could not be created',
+    options?: {
+      statusCode?: number
+      providerErrors?: string[]
+      providerWarnings?: string[]
+      providerInfo?: string[]
+    },
+  ) {
     super(message)
     this.name = 'NovaPoshtaCreateShipmentError'
+    this.statusCode = options?.statusCode ?? 422
+    this.providerErrors = options?.providerErrors ?? []
+    this.providerWarnings = options?.providerWarnings ?? []
+    this.providerInfo = options?.providerInfo ?? []
   }
 }
 

@@ -35,6 +35,9 @@ type NovaPoshtaConfig = {
 type NovaPoshtaEnvelope<T> = {
   success?: boolean
   errors?: string[]
+  warnings?: string[]
+  info?: string[]
+  messageCodes?: string[]
   data?: T[]
 }
 
@@ -77,6 +80,11 @@ const FALLBACK_COURIER_ESTIMATE = '120.00'
 const DEFAULT_CITY_SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_WAREHOUSE_LOOKUP_CACHE_TTL_MS = 12 * 60 * 60 * 1000
 const CITY_SEARCH_CACHE_VERSION = 'v2'
+
+type NovaPoshtaRequestEnvelopeResult<T> = {
+  payload: NovaPoshtaEnvelope<T>
+  rawPayload: string
+}
 
 function normalizeCacheTtlMs(ttlSeconds: number | undefined, fallbackMs: number) {
   if (ttlSeconds == null) {
@@ -182,7 +190,11 @@ export class NovaPoshtaProvider {
     })
   }
 
-  private async request<T>(modelName: string, calledMethod: string, methodProperties: object) {
+  private async requestEnvelope<T>(
+    modelName: string,
+    calledMethod: string,
+    methodProperties: object,
+  ): Promise<NovaPoshtaRequestEnvelopeResult<T>> {
     let response: Response
 
     try {
@@ -207,12 +219,33 @@ export class NovaPoshtaProvider {
       throw new ShippingProviderError(`Nova Poshta responded with status ${response.status}`)
     }
 
+    const rawPayload = await response.text()
+
     let payload: NovaPoshtaEnvelope<T>
     try {
-      payload = (await response.json()) as NovaPoshtaEnvelope<T>
-    } catch {
+      payload = JSON.parse(rawPayload) as NovaPoshtaEnvelope<T>
+    } catch (error) {
+      logWarn(
+        'shipping:nova-poshta-response-parse-failure',
+        {
+          domain: 'shipping',
+          modelName,
+          calledMethod,
+          rawPayload,
+        },
+        error,
+      )
       throw new ShippingProviderError('Nova Poshta response could not be parsed')
     }
+
+    return {
+      payload,
+      rawPayload,
+    }
+  }
+
+  private async request<T>(modelName: string, calledMethod: string, methodProperties: object) {
+    const { payload } = await this.requestEnvelope<T>(modelName, calledMethod, methodProperties)
 
     if (!payload.success) {
       throw new ShippingProviderError(payload.errors?.[0] ?? 'Nova Poshta request was rejected')
@@ -411,45 +444,132 @@ export class NovaPoshtaProvider {
   async createShipment(input: NovaPoshtaCreateShipmentInput): Promise<NovaPoshtaCreateShipmentDto> {
     const cargoDescription = input.cargoDescription.trim() || `Shipment ${input.shipmentId}`
     const isCourier = input.deliveryType === ShippingDeliveryType.NOVA_POSHTA_COURIER
-    const providerResponse = await this.request<NovaPoshtaShipmentCreateResponse>(
-      'InternetDocument',
-      'save',
-      {
-        PayerType: 'Recipient',
-        PaymentMethod: 'Cash',
-        DateTime: new Date().toISOString().slice(0, 10),
-        CargoType: 'Cargo',
-        ServiceType: isCourier ? 'WarehouseDoors' : 'WarehouseWarehouse',
-        SeatsAmount: String(Math.max(1, input.seatsAmount)),
-        Description: cargoDescription.slice(0, 90),
-        Cost: input.declaredCost,
-        CitySender: input.senderCityRef,
-        Sender: input.senderCityRef,
-        SenderAddress: input.senderWarehouseRef,
-        ContactSender: input.senderName,
-        SendersPhone: input.senderPhone,
-        CityRecipient: input.recipientCityRef,
-        ...(isCourier
-          ? {
-              RecipientAddressName: input.recipientStreet ?? undefined,
-              RecipientHouse: input.recipientBuilding ?? undefined,
-              RecipientFlat: input.recipientApartment ?? undefined,
-              RecipientStreet: input.recipientStreet ?? undefined,
-            }
-          : {
-              RecipientAddress: input.recipientWarehouseRef,
-            }),
-        ContactRecipient: input.recipientName,
-        RecipientsPhone: input.recipientPhone,
-      },
-    ).catch(() => {
-      throw new NovaPoshtaCreateShipmentError()
+    const methodProperties = {
+      PayerType: 'Recipient',
+      PaymentMethod: 'Cash',
+      DateTime: new Date().toISOString().slice(0, 10),
+      CargoType: 'Cargo',
+      ServiceType: isCourier ? 'WarehouseDoors' : 'WarehouseWarehouse',
+      SeatsAmount: String(Math.max(1, input.seatsAmount)),
+      Description: cargoDescription.slice(0, 90),
+      Cost: input.declaredCost,
+      CitySender: input.senderCityRef,
+      Sender: input.senderCityRef,
+      SenderAddress: input.senderWarehouseRef,
+      ContactSender: input.senderName,
+      SendersPhone: input.senderPhone,
+      CityRecipient: input.recipientCityRef,
+      ...(isCourier
+        ? {
+            RecipientAddressName: input.recipientStreet ?? undefined,
+            RecipientHouse: input.recipientBuilding ?? undefined,
+            RecipientFlat: input.recipientApartment ?? undefined,
+            RecipientStreet: input.recipientStreet ?? undefined,
+          }
+        : {
+            RecipientAddress: input.recipientWarehouseRef,
+          }),
+      ContactRecipient: input.recipientName,
+      RecipientsPhone: input.recipientPhone,
+    }
+
+    logInfo('shipping:nova-poshta-create-shipment-request', {
+      domain: 'shipping',
+      shipmentId: input.shipmentId,
+      orderId: input.orderId,
+      deliveryType: input.deliveryType,
+      senderCityRefExists: Boolean(input.senderCityRef?.trim()),
+      senderWarehouseRefExists: Boolean(input.senderWarehouseRef?.trim()),
+      recipientCityRefExists: Boolean(input.recipientCityRef?.trim()),
+      recipientWarehouseRefExists: Boolean(input.recipientWarehouseRef?.trim()),
+      recipientStreetExists: Boolean(input.recipientStreet?.trim()),
+      recipientBuildingExists: Boolean(input.recipientBuilding?.trim()),
+      seatsAmount: input.seatsAmount,
+      declaredCost: input.declaredCost,
+      serviceType: methodProperties.ServiceType,
     })
 
-    const created = providerResponse[0]
+    const { payload, rawPayload } = await this.requestEnvelope<NovaPoshtaShipmentCreateResponse>(
+      'InternetDocument',
+      'save',
+      methodProperties,
+    ).catch((error) => {
+      if (error instanceof NovaPoshtaCreateShipmentError) {
+        throw error
+      }
+
+      throw new NovaPoshtaCreateShipmentError(
+        error instanceof Error ? error.message : 'Nova Poshta shipment could not be created',
+        { statusCode: 422 },
+      )
+    })
+
+    logInfo('shipping:nova-poshta-create-shipment-response', {
+      domain: 'shipping',
+      shipmentId: input.shipmentId,
+      providerSuccess: payload.success ?? false,
+      errors: payload.errors ?? [],
+      warnings: payload.warnings ?? [],
+      info: payload.info ?? [],
+      messageCodes: payload.messageCodes ?? [],
+      dataCount: payload.data?.length ?? 0,
+    })
+
+    if (!payload.success) {
+      const providerErrors = payload.errors ?? []
+      const providerWarnings = payload.warnings ?? []
+      const providerInfo = payload.info ?? []
+      const providerMessage = [
+        ...providerErrors,
+        ...providerWarnings,
+        ...providerInfo,
+      ]
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .join('; ')
+
+      const loweredMessage = providerMessage.toLowerCase()
+      const statusCode =
+        loweredMessage.includes('не знайден') ||
+        loweredMessage.includes('не найден') ||
+        loweredMessage.includes('invalid') ||
+        loweredMessage.includes('must be') ||
+        loweredMessage.includes('обов')
+          ? 400
+          : 422
+
+      logWarn('shipping:nova-poshta-create-shipment-rejected', {
+        domain: 'shipping',
+        shipmentId: input.shipmentId,
+        providerErrors,
+        providerWarnings,
+        providerInfo,
+        rawPayload,
+      })
+
+      throw new NovaPoshtaCreateShipmentError(
+        providerMessage || 'Nova Poshta shipment could not be created',
+        {
+          statusCode,
+          providerErrors,
+          providerWarnings,
+          providerInfo,
+        },
+      )
+    }
+
+    const created = payload.data?.[0]
     const trackingNumber = created?.IntDocNumber?.trim()
     if (!trackingNumber) {
-      throw new NovaPoshtaCreateShipmentError('Nova Poshta did not return a tracking number')
+      logWarn('shipping:nova-poshta-create-shipment-missing-tracking', {
+        domain: 'shipping',
+        shipmentId: input.shipmentId,
+        rawPayload,
+      })
+
+      throw new NovaPoshtaCreateShipmentError('Nova Poshta did not return a tracking number', {
+        statusCode: 422,
+      })
     }
 
     return {

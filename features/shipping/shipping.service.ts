@@ -23,7 +23,7 @@ import {
   StoreShippingSettingsRequiredError,
 } from '@/lib/errors/shipping'
 import { createOrderNotification } from '@/features/notifications/notifications.service'
-import { logError } from '@/utils/logger'
+import { logError, logInfo } from '@/utils/logger'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type {
   CheckoutDeliverySelectionDto,
@@ -822,6 +822,19 @@ export async function createMyShipmentTtn(
   ) {
     throw new StoreShippingSettingsRequiredError()
   }
+
+  logInfo('shipping:create-ttn-preflight', {
+    domain: 'shipping',
+    shipmentId: shipment.id,
+    orderId: shipment.orderId,
+    deliveryType: shipment.deliveryType,
+    senderCityRefExists: Boolean(settings.senderCityRef?.trim()),
+    senderWarehouseRefExists: Boolean(settings.senderWarehouseRef?.trim()),
+    recipientCityRefExists: Boolean(shipment.recipientCityRef?.trim()),
+    recipientWarehouseRefExists: Boolean(shipment.recipientWarehouseRef?.trim()),
+    recipientStreetExists: Boolean(shipment.recipientStreet?.trim()),
+    recipientBuildingExists: Boolean(shipment.recipientBuilding?.trim()),
+  })
 
   const seatsAmount = shipment.items.reduce((sum, item) => sum + item.quantity, 0)
   const providerResult = await getNovaPoshtaProvider().createShipment({
