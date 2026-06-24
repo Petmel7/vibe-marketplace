@@ -8,17 +8,21 @@ import {
 import { getServerEnv } from '@/config/env'
 import { logInfo, logWarn } from '@/utils/logger'
 import type {
+  AdminNovaPoshtaSenderDiagnosticsDto,
   NovaPoshtaCityDto,
   NovaPoshtaContactPersonDto,
   NovaPoshtaCounterpartyDto,
+  NovaPoshtaSenderCounterpartyAddressDebugDto,
   NovaPoshtaCreateShipmentDto,
   NovaPoshtaCreateShipmentInput,
   NovaPoshtaEstimateDto,
   NovaPoshtaEstimateInput,
   NovaPoshtaResolvedRecipientProfileDto,
-  NovaPoshtaResolvedSenderProfileDto,
+  NovaPoshtaSenderContactDebugDto,
+  NovaPoshtaSenderCounterpartyDebugDto,
   NovaPoshtaShipmentStatusDto,
   NovaPoshtaTrackingEventDto,
+  NovaPoshtaSenderAddressDebugDto,
   NovaPoshtaWarehouseDto,
 } from '../shipping.dto'
 import { ShipmentStatus, ShippingDeliveryType } from '@/app/generated/prisma/client'
@@ -106,6 +110,15 @@ type NovaPoshtaSaveCounterpartyResponse = {
   ContactPersonRef?: string
 }
 
+type NovaPoshtaCounterpartyAddressResponse = {
+  Ref?: string
+  Description?: string
+  CityRef?: string
+  SettlementRef?: string
+  CityDescription?: string
+  SettlementDescription?: string
+}
+
 const DEFAULT_API_URL = 'https://api.novaposhta.ua/v2.0/json/'
 const FALLBACK_WAREHOUSE_ESTIMATE = '80.00'
 const FALLBACK_COURIER_ESTIMATE = '120.00'
@@ -144,6 +157,23 @@ function buildCitySearchCacheKey(query: string) {
 
 function buildWarehouseLookupCacheKey(cityRef: string) {
   return `nova-poshta:warehouses:${cityRef.trim()}`
+}
+
+function dedupeByRef<T extends { ref: string }>(items: T[]) {
+  const seen = new Set<string>()
+  const unique: T[] = []
+
+  for (const item of items) {
+    const normalizedRef = item.ref.trim()
+    if (!normalizedRef || seen.has(normalizedRef)) {
+      continue
+    }
+
+    seen.add(normalizedRef)
+    unique.push(item)
+  }
+
+  return unique
 }
 
 function getConfigFromEnv(): NovaPoshtaConfig {
@@ -316,6 +346,11 @@ export class NovaPoshtaProvider {
     return normalized || phone.trim()
   }
 
+  private isValidPhone(phone: string) {
+    const digitsOnly = this.normalizePhone(phone).replace(/\D/g, '')
+    return digitsOnly.length >= 10
+  }
+
   private matchByNameOrPhone<T extends { name: string | null; phone: string | null }>(
     entries: T[],
     input: { fullName: string; phone: string },
@@ -334,15 +369,46 @@ export class NovaPoshtaProvider {
     counterpartyProperty: 'Sender' | 'Recipient'
     findByString?: string
   }): Promise<NovaPoshtaCounterpartyDto[]> {
-    const counterparties = await this.request<NovaPoshtaCounterpartyResponse>(
+    const findByString = input.findByString?.trim() ?? ''
+    if (!findByString) {
+      throw new ShippingProviderError('Nova Poshta counterparty lookup requires FindByString')
+    }
+
+    const methodProperties = {
+      CounterpartyProperty: input.counterpartyProperty,
+      FindByString: findByString,
+      Page: 1,
+    }
+
+    logInfo('shipping:nova-poshta-counterparty-lookup-request', {
+      domain: 'shipping',
+      counterpartyProperty: input.counterpartyProperty,
+      methodProperties,
+    })
+
+    const { payload } = await this.requestEnvelope<NovaPoshtaCounterpartyResponse>(
       'Counterparty',
       'getCounterparties',
-      {
-        CounterpartyProperty: input.counterpartyProperty,
-        Page: 1,
-        ...(input.findByString?.trim() ? { FindByString: input.findByString.trim() } : {}),
-      },
+      methodProperties,
     )
+
+    logInfo('shipping:nova-poshta-counterparty-lookup-response', {
+      domain: 'shipping',
+      counterpartyProperty: input.counterpartyProperty,
+      providerSuccess: payload.success ?? false,
+      errors: payload.errors ?? [],
+      warnings: payload.warnings ?? [],
+      info: payload.info ?? [],
+      dataCount: payload.data?.length ?? 0,
+    })
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta counterparty lookup failed',
+      )
+    }
+
+    const counterparties = payload.data ?? []
 
     return counterparties
       .filter((counterparty) => counterparty.Ref)
@@ -359,17 +425,64 @@ export class NovaPoshtaProvider {
       }))
   }
 
+  async findCounterparty(input: {
+    counterpartyProperty: 'Sender' | 'Recipient'
+    fullName: string
+    phone: string
+  }): Promise<NovaPoshtaCounterpartyDto | null> {
+    const findByString = input.fullName.trim()
+    if (!findByString) {
+      throw new ShippingProviderError('Nova Poshta counterparty lookup requires sender name')
+    }
+
+    const counterparties = await this.getCounterparties({
+      counterpartyProperty: input.counterpartyProperty,
+      findByString,
+    })
+
+    return this.matchByNameOrPhone(counterparties, {
+      fullName: input.fullName,
+      phone: input.phone,
+    })
+  }
+
   async getCounterpartyContactPersons(
     counterpartyRef: string,
   ): Promise<NovaPoshtaContactPersonDto[]> {
-    const contacts = await this.request<NovaPoshtaContactPersonResponse>(
+    const methodProperties = {
+      Ref: counterpartyRef.trim(),
+      Page: 1,
+    }
+
+    logInfo('shipping:nova-poshta-contact-lookup-request', {
+      domain: 'shipping',
+      modelName: 'Counterparty',
+      calledMethod: 'getCounterpartyContactPersons',
+      methodProperties,
+    })
+
+    const { payload } = await this.requestEnvelope<NovaPoshtaContactPersonResponse>(
       'Counterparty',
       'getCounterpartyContactPersons',
-      {
-        Ref: counterpartyRef.trim(),
-        Page: 1,
-      },
+      methodProperties,
     )
+
+    logInfo('shipping:nova-poshta-contact-lookup-response', {
+      domain: 'shipping',
+      providerSuccess: payload.success ?? false,
+      errors: payload.errors ?? [],
+      warnings: payload.warnings ?? [],
+      info: payload.info ?? [],
+      dataCount: payload.data?.length ?? 0,
+    })
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta contact lookup failed',
+      )
+    }
+
+    const contacts = payload.data ?? []
 
     return contacts
       .filter((contact) => contact.Ref)
@@ -383,6 +496,104 @@ export class NovaPoshtaProvider {
       }))
   }
 
+  async getSenderCounterpartiesDebug(): Promise<NovaPoshtaSenderCounterpartyDebugDto[]> {
+    const { payload } = await this.requestEnvelope<NovaPoshtaCounterpartyResponse>(
+      'Counterparty',
+      'getCounterparties',
+      {
+        CounterpartyProperty: 'Sender',
+        Page: 1,
+      },
+    )
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta sender counterparties lookup failed',
+      )
+    }
+
+    return (payload.data ?? [])
+      .filter((counterparty) => counterparty.Ref)
+      .map((counterparty) => ({
+        ref: counterparty.Ref!.trim(),
+        description: counterparty.Description?.trim() || null,
+        firstName: counterparty.FirstName?.trim() || null,
+        lastName: counterparty.LastName?.trim() || null,
+      }))
+  }
+
+  async getCounterpartyContactPersonsDebug(
+    counterpartyRef: string,
+  ): Promise<NovaPoshtaSenderContactDebugDto[]> {
+    const { payload } = await this.requestEnvelope<NovaPoshtaContactPersonResponse>(
+      'Counterparty',
+      'getCounterpartyContactPersons',
+      {
+        Ref: counterpartyRef.trim(),
+        Page: 1,
+      },
+    )
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta sender contacts lookup failed',
+      )
+    }
+
+    return (payload.data ?? [])
+      .filter((contact) => contact.Ref)
+      .map((contact) => ({
+        ref: contact.Ref!.trim(),
+        fullName:
+          contact.Description?.trim() ||
+          [contact.FirstName, contact.LastName, contact.MiddleName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
+          null,
+        phones: contact.Phones?.trim() || contact.Phone?.trim() || null,
+      }))
+  }
+
+  async getSenderAddressesDebug(cityRef: string): Promise<NovaPoshtaSenderAddressDebugDto[]> {
+    const warehouses = await this.getWarehouses(cityRef)
+
+    return warehouses.map((warehouse) => ({
+      ref: warehouse.ref,
+      name: warehouse.name,
+      cityRef: warehouse.cityRef,
+      cityName: warehouse.cityName,
+    }))
+  }
+
+  async getCounterpartyAddressesDebug(
+    counterpartyRef: string,
+  ): Promise<NovaPoshtaSenderCounterpartyAddressDebugDto[]> {
+    const { payload } = await this.requestEnvelope<NovaPoshtaCounterpartyAddressResponse>(
+      'Address',
+      'getCounterpartyAddresses',
+      {
+        Ref: counterpartyRef.trim(),
+        CounterpartyProperty: 'Sender',
+      },
+    )
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta sender addresses lookup failed',
+      )
+    }
+
+    return (payload.data ?? [])
+      .filter((address) => address.Ref)
+      .map((address) => ({
+        ref: address.Ref!.trim(),
+        description: address.Description?.trim() || null,
+        cityRef: address.CityRef?.trim() || address.SettlementRef?.trim() || null,
+        cityName: address.CityDescription?.trim() || address.SettlementDescription?.trim() || null,
+      }))
+  }
+
   async createCounterparty(input: {
     counterpartyProperty: 'Sender' | 'Recipient'
     fullName: string
@@ -390,7 +601,7 @@ export class NovaPoshtaProvider {
     cityRef?: string
   }): Promise<string> {
     const { firstName, lastName, middleName } = this.splitPersonName(input.fullName)
-    const created = await this.request<NovaPoshtaSaveCounterpartyResponse>('Counterparty', 'save', {
+    const methodProperties = {
       FirstName: firstName,
       LastName: lastName,
       MiddleName: middleName,
@@ -398,8 +609,40 @@ export class NovaPoshtaProvider {
       CounterpartyType: 'PrivatePerson',
       CounterpartyProperty: input.counterpartyProperty,
       ...(input.cityRef?.trim() ? { CityRef: input.cityRef.trim() } : {}),
+    }
+
+    logInfo('shipping:nova-poshta-before-counterparty-creation', {
+      domain: 'shipping',
+      modelName: 'Counterparty',
+      calledMethod: 'save',
+      counterpartyProperty: input.counterpartyProperty,
+      hasCityRef: Boolean(input.cityRef?.trim()),
+      fullNameLength: input.fullName.trim().length,
+      methodProperties,
     })
 
+    const { payload } = await this.requestEnvelope<NovaPoshtaSaveCounterpartyResponse>(
+      'Counterparty',
+      'save',
+      methodProperties,
+    )
+
+    logInfo('shipping:nova-poshta-counterparty-creation-response', {
+      domain: 'shipping',
+      providerSuccess: payload.success ?? false,
+      errors: payload.errors ?? [],
+      warnings: payload.warnings ?? [],
+      info: payload.info ?? [],
+      dataCount: payload.data?.length ?? 0,
+    })
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta counterparty could not be created',
+      )
+    }
+
+    const created = payload.data ?? []
     const counterpartyRef = created[0]?.Ref?.trim()
     if (!counterpartyRef) {
       throw new ShippingProviderError('Nova Poshta counterparty could not be created')
@@ -414,14 +657,45 @@ export class NovaPoshtaProvider {
     phone: string
   }): Promise<string> {
     const { firstName, lastName, middleName } = this.splitPersonName(input.fullName)
-    const created = await this.request<NovaPoshtaSaveCounterpartyResponse>('Counterparty', 'save', {
+    const methodProperties = {
       CounterpartyRef: input.counterpartyRef.trim(),
       FirstName: firstName,
       LastName: lastName,
       MiddleName: middleName,
       Phone: this.normalizePhone(input.phone),
+    }
+
+    logInfo('shipping:nova-poshta-before-contact-creation', {
+      domain: 'shipping',
+      modelName: 'Counterparty',
+      calledMethod: 'save',
+      hasCounterpartyRef: Boolean(input.counterpartyRef.trim()),
+      fullNameLength: input.fullName.trim().length,
+      methodProperties,
     })
 
+    const { payload } = await this.requestEnvelope<NovaPoshtaSaveCounterpartyResponse>(
+      'Counterparty',
+      'save',
+      methodProperties,
+    )
+
+    logInfo('shipping:nova-poshta-contact-creation-response', {
+      domain: 'shipping',
+      providerSuccess: payload.success ?? false,
+      errors: payload.errors ?? [],
+      warnings: payload.warnings ?? [],
+      info: payload.info ?? [],
+      dataCount: payload.data?.length ?? 0,
+    })
+
+    if (!payload.success) {
+      throw new ShippingProviderError(
+        payload.errors?.join('; ').trim() || 'Nova Poshta contact person could not be created',
+      )
+    }
+
+    const created = payload.data ?? []
     const contactRef =
       created[0]?.ContactPerson?.Ref?.trim() || created[0]?.ContactPersonRef?.trim() || null
 
@@ -442,11 +716,17 @@ export class NovaPoshtaProvider {
   }) {
     let counterpartyRef = input.existingCounterpartyRef?.trim() || null
     if (!counterpartyRef) {
-      const counterparties = await this.getCounterparties({
+      logInfo('shipping:nova-poshta-before-counterparty-lookup', {
+        domain: 'shipping',
         counterpartyProperty: input.counterpartyProperty,
-        findByString: input.fullName,
+        fullNameLength: input.fullName.trim().length,
       })
-      const matchedCounterparty = this.matchByNameOrPhone(counterparties, input)
+
+      const matchedCounterparty = await this.findCounterparty({
+        counterpartyProperty: input.counterpartyProperty,
+        fullName: input.fullName,
+        phone: input.phone,
+      })
       counterpartyRef =
         matchedCounterparty?.ref ??
         (await this.createCounterparty({
@@ -459,6 +739,12 @@ export class NovaPoshtaProvider {
 
     let contactRef = input.existingContactRef?.trim() || null
     if (!contactRef) {
+      logInfo('shipping:nova-poshta-before-contact-lookup', {
+        domain: 'shipping',
+        counterpartyProperty: input.counterpartyProperty,
+        hasCounterpartyRef: Boolean(counterpartyRef),
+      })
+
       const contacts = await this.getCounterpartyContactPersons(counterpartyRef)
       const matchedContact = this.matchByNameOrPhone(contacts, input)
       contactRef =
@@ -478,7 +764,7 @@ export class NovaPoshtaProvider {
 
   async searchCities(query: string): Promise<NovaPoshtaCityDto[]> {
     const normalizedQuery = normalizeNovaPoshtaCityQuery(query)
-    if (!normalizedQuery) {
+    if (!normalizedQuery || normalizedQuery.length < 2) {
       return []
     }
 
@@ -512,7 +798,7 @@ export class NovaPoshtaProvider {
           providerResultCount: mappedCities.length,
         })
 
-        return mappedCities
+        return dedupeByRef(mappedCities)
       },
     })
   }
@@ -542,14 +828,16 @@ export class NovaPoshtaProvider {
           },
         )
 
-        return warehouses
+        return dedupeByRef(
+          warehouses
           .filter((warehouse) => warehouse.Ref && warehouse.Description)
           .map((warehouse) => ({
             ref: warehouse.Ref,
             name: warehouse.Description,
             cityRef: warehouse.CityRef,
             cityName: warehouse.CityDescription ?? null,
-          }))
+          })),
+        )
       },
     })
   }
@@ -608,36 +896,23 @@ export class NovaPoshtaProvider {
     }
   }
 
-  async resolveSenderProfile(input: {
-    senderName: string
-    senderPhone: string
-    senderCityRef: string
-    senderWarehouseRef: string
-    senderCounterpartyRef?: string | null
-    senderContactRef?: string | null
-    senderAddressRef?: string | null
-  }): Promise<NovaPoshtaResolvedSenderProfileDto> {
-    const resolved = await this.ensureCounterpartyAndContact({
-      counterpartyProperty: 'Sender',
-      fullName: input.senderName,
-      phone: input.senderPhone,
-      cityRef: input.senderCityRef,
-      existingCounterpartyRef: input.senderCounterpartyRef,
-      existingContactRef: input.senderContactRef,
-    })
-
-    return {
-      counterpartyRef: resolved.counterpartyRef,
-      contactRef: resolved.contactRef,
-      addressRef: input.senderAddressRef?.trim() || input.senderWarehouseRef.trim(),
-    }
-  }
-
   async resolveRecipientProfile(input: {
     recipientName: string
     recipientPhone: string
     recipientCityRef: string
   }): Promise<NovaPoshtaResolvedRecipientProfileDto> {
+    if (!input.recipientName.trim()) {
+      throw new ShippingProviderError('Nova Poshta recipient initialization requires recipientName')
+    }
+
+    if (!this.isValidPhone(input.recipientPhone)) {
+      throw new ShippingProviderError('Nova Poshta recipient initialization requires a valid recipient phone')
+    }
+
+    if (!input.recipientCityRef.trim()) {
+      throw new ShippingProviderError('Nova Poshta recipient initialization requires recipientCityRef')
+    }
+
     const resolved = await this.ensureCounterpartyAndContact({
       counterpartyProperty: 'Recipient',
       fullName: input.recipientName,

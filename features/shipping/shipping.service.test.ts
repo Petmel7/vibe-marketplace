@@ -22,10 +22,14 @@ vi.mock('@/lib/auth/guards', () => ({
   requireAdmin: vi.fn(),
   requireSeller: vi.fn(),
 }))
+vi.mock('@/config/env', () => ({
+  getServerEnv: vi.fn(),
+}))
 vi.mock('@/features/shipping/providers/nova-poshta.provider', () => ({
   getNovaPoshtaProvider: vi.fn(),
 }))
 
+import { getServerEnv } from '@/config/env'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import { createOrderNotification } from '@/features/notifications/notifications.service'
 import {
@@ -56,12 +60,14 @@ import {
   getMyShipments,
   refreshMyShipmentStatus,
   resolveCheckoutDeliverySelection,
+  searchNovaPoshtaCities,
   syncPendingShipments,
   syncShipmentStatus,
   updateMyStoreShippingSettings,
 } from '@/features/shipping/shipping.service'
 import { StoreOwnershipError } from '@/lib/errors/seller'
 import {
+  NovaPoshtaCreateShipmentError,
   NovaPoshtaWarehouseNotFoundError,
   ShipmentAlreadyReturnedError,
   ShipmentAlreadyHasTrackingError,
@@ -84,6 +90,7 @@ const mockListTrackableShipments = vi.mocked(listTrackableShipments)
 const mockCreateReturnShipment = vi.mocked(createReturnShipment)
 const mockUpdateShipmentById = vi.mocked(updateShipmentById)
 const mockGetNovaPoshtaProvider = vi.mocked(getNovaPoshtaProvider)
+const mockGetServerEnv = vi.mocked(getServerEnv)
 const mockCreateOrderNotification = vi.mocked(createOrderNotification)
 
 const user: SessionUser = {
@@ -253,18 +260,17 @@ beforeEach(() => {
   mockCreateOrderNotification.mockResolvedValue({
     id: 'notification-1',
   } as never)
+  mockGetServerEnv.mockReturnValue({
+    NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF: 'platform-counterparty-ref',
+    NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF: 'platform-contact-ref',
+    NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF: 'platform-address-ref',
+    NOVA_POSHTA_PLATFORM_SENDER_CITY_REF: 'platform-city-ref',
+    NOVA_POSHTA_PLATFORM_SENDER_PHONE: '+380999999999',
+  } as never)
 })
 
 describe('shipping service', () => {
-  it('seller can update own shipping settings', async () => {
-    mockGetNovaPoshtaProvider.mockReturnValue({
-      resolveSenderProfile: vi.fn().mockResolvedValue({
-        counterpartyRef: 'sender-counterparty-ref',
-        contactRef: 'sender-contact-ref',
-        addressRef: 'sender-address-ref',
-      }),
-    } as never)
-
+  it('seller can update own shipping settings without calling Nova Poshta', async () => {
     const result = await updateMyStoreShippingSettings(user, {
       senderName: 'Sender',
       senderPhone: '+380000000000',
@@ -277,12 +283,13 @@ describe('shipping service', () => {
     expect(mockUpsertStoreShippingSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         storeId: 'store-1',
-        senderCounterpartyRef: 'sender-counterparty-ref',
-        senderContactRef: 'sender-contact-ref',
-        senderAddressRef: 'sender-address-ref',
+        senderCounterpartyRef: null,
+        senderContactRef: null,
+        senderAddressRef: null,
         isConfigured: true,
       }),
     )
+    expect(mockGetNovaPoshtaProvider).not.toHaveBeenCalled()
     expect(result.isConfigured).toBe(true)
   })
 
@@ -294,6 +301,36 @@ describe('shipping service', () => {
         senderName: 'Sender',
       }),
     ).rejects.toThrow(StoreOwnershipError)
+  })
+
+  it('saving shipping settings succeeds even if provider would be unavailable', async () => {
+    await expect(
+      updateMyStoreShippingSettings(user, {
+        senderName: 'Sender',
+        senderPhone: '+380000000000',
+        senderCityRef: 'city-ref',
+        senderCityName: 'Kyiv',
+        senderWarehouseRef: 'warehouse-ref',
+        senderWarehouseName: 'Warehouse 1',
+      }),
+    ).resolves.toMatchObject({
+      isConfigured: true,
+    })
+
+    expect(mockUpsertStoreShippingSettings).toHaveBeenCalled()
+    expect(mockGetNovaPoshtaProvider).not.toHaveBeenCalled()
+  })
+
+  it('does not call provider city search for short queries', async () => {
+    const searchCities = vi.fn()
+    mockGetNovaPoshtaProvider.mockReturnValue({
+      searchCities,
+    } as never)
+
+    await expect(searchNovaPoshtaCities('К')).resolves.toEqual([])
+    await expect(searchNovaPoshtaCities('   ')).resolves.toEqual([])
+
+    expect(searchCities).not.toHaveBeenCalled()
   })
 
   it('resolves Nova Poshta warehouse selection against provider results', async () => {
@@ -444,8 +481,11 @@ describe('shipping service', () => {
 
     expect(createShipment).toHaveBeenCalledWith(
       expect.objectContaining({
-        senderCounterpartyRef: 'sender-counterparty-ref',
-        senderContactRef: 'sender-contact-ref',
+        senderCounterpartyRef: 'platform-counterparty-ref',
+        senderContactRef: 'platform-contact-ref',
+        senderAddressRef: 'platform-address-ref',
+        senderCityRef: 'platform-city-ref',
+        senderPhone: '+380999999999',
         recipientCounterpartyRef: 'recipient-counterparty-ref',
         recipientContactRef: 'recipient-contact-ref',
         weight: '1',
@@ -460,55 +500,6 @@ describe('shipping service', () => {
     })
     expect(result.trackingNumber).toBe('20451234567890')
     expect(mockCreateOrderNotification).toHaveBeenCalled()
-  })
-
-  it('initializes missing sender refs before creating TTN', async () => {
-    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(
-      makeStoreShippingSettings({
-        senderCounterpartyRef: null,
-        senderContactRef: null,
-        senderAddressRef: null,
-        isConfigured: false,
-      }),
-    )
-    const resolveSenderProfile = vi.fn().mockResolvedValue({
-      counterpartyRef: 'sender-counterparty-ref',
-      contactRef: 'sender-contact-ref',
-      addressRef: 'sender-address-ref',
-    })
-    const resolveRecipientProfile = vi.fn().mockResolvedValue({
-      counterpartyRef: 'recipient-counterparty-ref',
-      contactRef: 'recipient-contact-ref',
-    })
-    const createShipment = vi.fn().mockResolvedValue({
-        trackingNumber: '20451234567890',
-        providerShipmentId: 'provider-shipment-1',
-        rawStatus: null,
-      })
-    mockGetNovaPoshtaProvider.mockReturnValue({
-      resolveSenderProfile,
-      resolveRecipientProfile,
-      createShipment,
-    } as never)
-
-    const result = await createMyShipmentTtn(user, 'shipment-1')
-
-    expect(resolveSenderProfile).toHaveBeenCalled()
-    expect(mockUpsertStoreShippingSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        senderCounterpartyRef: 'sender-counterparty-ref',
-        senderContactRef: 'sender-contact-ref',
-        senderAddressRef: 'sender-address-ref',
-        isConfigured: true,
-      }),
-    )
-    expect(mockUpdateShipmentById).toHaveBeenCalledWith({
-      id: 'shipment-1',
-      trackingNumber: '20451234567890',
-      providerShipmentId: 'provider-shipment-1',
-      status: 'LABEL_CREATED',
-    })
-    expect(result.trackingNumber).toBe('20451234567890')
   })
 
   it('seller cannot create TTN for another store shipment', async () => {
@@ -538,26 +529,36 @@ describe('shipping service', () => {
     )
   })
 
-  it('missing sender contact setup blocks TTN with a clear error', async () => {
+  it('missing platform sender refs blocks TTN creation with a clear error', async () => {
+    mockGetServerEnv.mockReturnValue({
+      NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF: '',
+      NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF: '',
+      NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF: '',
+      NOVA_POSHTA_PLATFORM_SENDER_CITY_REF: '',
+      NOVA_POSHTA_PLATFORM_SENDER_PHONE: '',
+    } as never)
+    mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(makeStoreShippingSettings())
+
+    await expect(createMyShipmentTtn(user, 'shipment-1')).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'NOVA_POSHTA_CREATE_SHIPMENT_ERROR',
+      message: 'Nova Poshta platform sender is not configured. Set platform sender refs before creating TTN.',
+    } satisfies Partial<NovaPoshtaCreateShipmentError>)
+  })
+
+  it('missing seller shipping snapshot blocks TTN before provider call', async () => {
     mockFindStoreShippingSettingsByStoreId.mockResolvedValueOnce(
       makeStoreShippingSettings({
-        senderCounterpartyRef: null,
-        senderContactRef: null,
-        senderAddressRef: null,
+        senderWarehouseRef: null,
+        senderWarehouseName: null,
         isConfigured: false,
       }),
     )
-    mockGetNovaPoshtaProvider.mockReturnValue({
-      resolveSenderProfile: vi.fn().mockRejectedValue(
-        new StoreShippingSettingsRequiredError(
-          'Nova Poshta sender settings must be initialized with valid sender and contact refs before creating TTN',
-        ),
-      ),
-    } as never)
 
     await expect(createMyShipmentTtn(user, 'shipment-1')).rejects.toThrow(
-      'Nova Poshta sender settings must be initialized with valid sender and contact refs before creating TTN',
+      StoreShippingSettingsRequiredError,
     )
+    expect(mockGetNovaPoshtaProvider).not.toHaveBeenCalled()
   })
 
   it('status refresh maps provider status correctly', async () => {

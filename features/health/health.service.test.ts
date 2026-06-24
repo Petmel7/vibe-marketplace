@@ -60,6 +60,7 @@ describe('health.service', () => {
         resend: true,
         liqpay: false,
         novaPoshta: true,
+        novaPoshtaPlatformSender: true,
         jobRunnerSecret: true,
       },
       featureFlags: {

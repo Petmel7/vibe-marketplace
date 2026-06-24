@@ -42,6 +42,11 @@ const serverEnvSchema = publicEnvSchema
     NOVA_POSHTA_API_URL: z.url().optional(),
     NOVA_POSHTA_CACHE_ENABLED: optionalBooleanSettingSchema,
     NOVA_POSHTA_CACHE_TTL_SECONDS: z.coerce.number().int().positive().optional(),
+    NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF: z.string().min(1).optional(),
+    NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF: z.string().min(1).optional(),
+    NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF: z.string().min(1).optional(),
+    NOVA_POSHTA_PLATFORM_SENDER_CITY_REF: z.string().min(1).optional(),
+    NOVA_POSHTA_PLATFORM_SENDER_PHONE: z.string().min(1).optional(),
     APP_URL: z.url().optional(),
     JOB_RUNNER_SECRET: z.string().min(1).optional(),
     JOB_LOCK_TIMEOUT_SECONDS: z.coerce.number().int().positive().optional(),
@@ -221,6 +226,13 @@ export function getServerEnvDiagnostics(source: EnvSource = process.env) {
       resend: Boolean(env.RESEND_API_KEY),
       liqpay: Boolean(env.LIQPAY_PUBLIC_KEY && env.LIQPAY_PRIVATE_KEY),
       novaPoshta: Boolean(env.NOVA_POSHTA_API_KEY),
+      novaPoshtaPlatformSender: Boolean(
+        env.NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF &&
+          env.NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF &&
+          env.NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF &&
+          env.NOVA_POSHTA_PLATFORM_SENDER_CITY_REF &&
+          env.NOVA_POSHTA_PLATFORM_SENDER_PHONE,
+      ),
       jobRunnerSecret: Boolean(env.JOB_RUNNER_SECRET),
     },
     featureFlags: {

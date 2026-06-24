@@ -14,6 +14,39 @@ import type { NovaPoshtaCity } from '@/types/shipping'
 const MIN_QUERY_LENGTH = 2
 const SEARCH_DEBOUNCE_MS = 300
 
+function dedupeCitiesByRef(cities: NovaPoshtaCity[]) {
+  const seen = new Set<string>()
+  const duplicateRefs = new Set<string>()
+  const uniqueCities = cities.filter((city) => {
+    const normalizedRef = city.ref.trim()
+    if (!normalizedRef) {
+      return false
+    }
+
+    if (seen.has(normalizedRef)) {
+      duplicateRefs.add(normalizedRef)
+      return false
+    }
+
+    seen.add(normalizedRef)
+    return true
+  })
+
+  if (
+    duplicateRefs.size > 0 &&
+    process.env.NODE_ENV !== 'production'
+  ) {
+    console.warn(
+      'Nova Poshta city search returned duplicate refs',
+      {
+        duplicateRefs: [...duplicateRefs],
+      },
+    )
+  }
+
+  return uniqueCities
+}
+
 function formatCityOption(
   city: NovaPoshtaCity,
 ) {
@@ -137,7 +170,7 @@ export default function NovaPoshtaCityCombobox({
               return
             }
 
-            setResults(data)
+            setResults(dedupeCitiesByRef(data))
             setHasSearched(true)
           })
           .catch((error) => {

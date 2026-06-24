@@ -6,6 +6,19 @@ import { apiClient } from '@/shared/api/api.client'
 import { ApiError } from '@/shared/api/api.errors'
 import type { NovaPoshtaWarehouse } from '@/types/shipping'
 
+function uniqueWarehousesByRef(warehouses: NovaPoshtaWarehouse[]) {
+  const seen = new Set<string>()
+  return warehouses.filter((warehouse) => {
+    const normalizedRef = warehouse.ref.trim()
+    if (!normalizedRef || seen.has(normalizedRef)) {
+      return false
+    }
+
+    seen.add(normalizedRef)
+    return true
+  })
+}
+
 function getFriendlyError(error: unknown) {
   if (error instanceof ApiError) {
     return error.message
@@ -58,8 +71,10 @@ export default function NovaPoshtaWarehouseSelect({
           return
         }
 
-        setWarehouses(data)
-        if (!data.some((warehouse) => warehouse.ref === value?.ref)) {
+        const uniqueWarehouses = uniqueWarehousesByRef(data)
+
+        setWarehouses(uniqueWarehouses)
+        if (!uniqueWarehouses.some((warehouse) => warehouse.ref === value?.ref)) {
           onChange(null)
         }
       } catch (error) {

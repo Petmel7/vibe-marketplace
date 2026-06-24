@@ -17,6 +17,12 @@ export const novaPoshtaWarehousesQuerySchema = z.object({
   cityRef: z.string().trim().min(1, 'cityRef is required').max(120),
 })
 
+export const adminNovaPoshtaSenderDiagnosticsQuerySchema = z.object({
+  senderRef: z.string().trim().min(1).max(120).optional(),
+  cityRef: z.string().trim().min(1).max(120).optional(),
+  cityName: z.string().trim().min(1).max(120).optional(),
+})
+
 export const novaPoshtaEstimateSchema = z
   .object({
     deliveryType: z.nativeEnum(ShippingDeliveryType),
@@ -234,3 +240,6 @@ export const shipmentSyncSchema = z.object({
 
 export type NovaPoshtaCitiesQueryInput = z.infer<typeof novaPoshtaCitiesQuerySchema>
 export type NovaPoshtaWarehousesQueryInput = z.infer<typeof novaPoshtaWarehousesQuerySchema>
+export type AdminNovaPoshtaSenderDiagnosticsQueryInput = z.infer<
+  typeof adminNovaPoshtaSenderDiagnosticsQuerySchema
+>

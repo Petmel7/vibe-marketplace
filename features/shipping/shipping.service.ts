@@ -4,6 +4,7 @@ import {
   ShippingDeliveryType,
   ShippingProvider,
 } from '@/app/generated/prisma/client'
+import { getServerEnv } from '@/config/env'
 import Decimal from 'decimal.js'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import {
@@ -20,12 +21,15 @@ import {
   ShipmentNotFoundError,
   ShipmentReturnCreationError,
   ShipmentSyncError,
+  ShippingProviderError,
   StoreShippingSettingsRequiredError,
 } from '@/lib/errors/shipping'
 import { createOrderNotification } from '@/features/notifications/notifications.service'
-import { logError, logInfo } from '@/utils/logger'
+import { logError, logInfo, logWarn } from '@/utils/logger'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type {
+  AdminNovaPoshtaSenderDiagnosticsDto,
+  AdminNovaPoshtaSenderDiagnosticsQueryDto,
   CheckoutDeliverySelectionDto,
   CheckoutDeliverySelectionInput,
   BulkCreateShipmentTtnResponseDto,
@@ -33,7 +37,6 @@ import type {
   NovaPoshtaEstimateInput,
   NovaPoshtaCityDto,
   NovaPoshtaResolvedRecipientProfileDto,
-  NovaPoshtaResolvedSenderProfileDto,
   NovaPoshtaWarehouseDto,
   ResolvedCheckoutDeliverySelectionDto,
   SellerShipmentDto,
@@ -206,8 +209,42 @@ function resolveShipmentSeatsAmount(
   )
 }
 
-function getMissingSenderSetupMessage() {
-  return 'Nova Poshta sender settings must be initialized with valid sender and contact refs before creating TTN'
+function getMissingPlatformSenderMessage() {
+  return 'Nova Poshta platform sender is not configured. Set platform sender refs before creating TTN.'
+}
+
+function getMissingStoreShippingSettingsMessage() {
+  return 'Configured store shipping settings are required for this action'
+}
+
+function getPlatformSenderConfig() {
+  const env = getServerEnv()
+
+  return {
+    counterpartyRef: env.NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF?.trim() ?? '',
+    contactRef: env.NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF?.trim() ?? '',
+    addressRef: env.NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF?.trim() ?? '',
+    cityRef: env.NOVA_POSHTA_PLATFORM_SENDER_CITY_REF?.trim() ?? '',
+    phone: env.NOVA_POSHTA_PLATFORM_SENDER_PHONE?.trim() ?? '',
+  }
+}
+
+function resolvePlatformSenderProfile() {
+  const config = getPlatformSenderConfig()
+
+  if (
+    !config.counterpartyRef ||
+    !config.contactRef ||
+    !config.addressRef ||
+    !config.cityRef ||
+    !config.phone
+  ) {
+    throw new NovaPoshtaCreateShipmentError(getMissingPlatformSenderMessage(), {
+      statusCode: 422,
+    })
+  }
+
+  return config
 }
 
 function assertShipmentHasRecipientSnapshot(
@@ -348,37 +385,6 @@ function resolveShipmentDeclaredCost(
   }, 0)
 
   return Math.max(1, Math.round(total)).toString()
-}
-
-async function ensureSenderProfile(
-  settings: NonNullable<Awaited<ReturnType<typeof findStoreShippingSettingsByStoreId>>>,
-): Promise<NovaPoshtaResolvedSenderProfileDto> {
-  if (settings.senderCounterpartyRef?.trim() && settings.senderContactRef?.trim()) {
-    return {
-      counterpartyRef: settings.senderCounterpartyRef.trim(),
-      contactRef: settings.senderContactRef.trim(),
-      addressRef: settings.senderAddressRef?.trim() || settings.senderWarehouseRef?.trim() || null,
-    }
-  }
-
-  if (
-    !settings.senderName.trim() ||
-    !settings.senderPhone.trim() ||
-    !settings.senderCityRef.trim() ||
-    !settings.senderWarehouseRef?.trim()
-  ) {
-    throw new StoreShippingSettingsRequiredError(getMissingSenderSetupMessage())
-  }
-
-  return getNovaPoshtaProvider().resolveSenderProfile({
-    senderName: settings.senderName,
-    senderPhone: settings.senderPhone,
-    senderCityRef: settings.senderCityRef,
-    senderWarehouseRef: settings.senderWarehouseRef,
-    senderCounterpartyRef: settings.senderCounterpartyRef,
-    senderContactRef: settings.senderContactRef,
-    senderAddressRef: settings.senderAddressRef,
-  })
 }
 
 async function resolveRecipientProfile(
@@ -605,7 +611,12 @@ export function buildCheckoutDeliverySelectionDto(
 }
 
 export async function searchNovaPoshtaCities(query: string): Promise<NovaPoshtaCityDto[]> {
-  return getNovaPoshtaProvider().searchCities(query)
+  const normalizedQuery = query.trim()
+  if (normalizedQuery.length < 2) {
+    return []
+  }
+
+  return getNovaPoshtaProvider().searchCities(normalizedQuery)
 }
 
 export async function getNovaPoshtaWarehouses(cityRef: string): Promise<NovaPoshtaWarehouseDto[]> {
@@ -660,15 +671,20 @@ export async function updateMyStoreShippingSettings(
     senderWarehouseName: data.senderWarehouseName?.trim() ?? null,
   }
 
-  let senderProfile: NovaPoshtaResolvedSenderProfileDto | null = null
-  if (hasBaseSenderConfiguration(normalizedInput)) {
-    senderProfile = await getNovaPoshtaProvider().resolveSenderProfile({
-      senderName: normalizedInput.senderName!,
-      senderPhone: normalizedInput.senderPhone!,
-      senderCityRef: normalizedInput.senderCityRef!,
-      senderWarehouseRef: normalizedInput.senderWarehouseRef!,
-    })
-  }
+  logInfo('shipping:update-store-settings-before-save', {
+    domain: 'shipping',
+    storeId: store.id,
+    hasSenderName: Boolean(normalizedInput.senderName),
+    hasSenderPhone: Boolean(normalizedInput.senderPhone),
+    hasSenderCityRef: Boolean(normalizedInput.senderCityRef),
+    hasSenderWarehouseRef: Boolean(normalizedInput.senderWarehouseRef),
+  })
+
+  logInfo('shipping:update-store-settings-before-db-upsert', {
+    domain: 'shipping',
+    storeId: store.id,
+    isConfigured: hasBaseSenderConfiguration(normalizedInput),
+  })
 
   const settings = await upsertStoreShippingSettings({
     storeId: store.id,
@@ -679,10 +695,10 @@ export async function updateMyStoreShippingSettings(
     senderCityName: normalizedInput.senderCityName,
     senderWarehouseRef: normalizedInput.senderWarehouseRef,
     senderWarehouseName: normalizedInput.senderWarehouseName,
-    senderCounterpartyRef: senderProfile?.counterpartyRef ?? null,
-    senderContactRef: senderProfile?.contactRef ?? null,
-    senderAddressRef: senderProfile?.addressRef ?? null,
-    isConfigured: Boolean(senderProfile),
+    senderCounterpartyRef: null,
+    senderContactRef: null,
+    senderAddressRef: null,
+    isConfigured: hasBaseSenderConfiguration(normalizedInput),
   })
 
   return toStoreShippingSettingsDto({
@@ -918,38 +934,21 @@ export async function createMyShipmentTtn(
     !settings.senderWarehouseRef?.trim() ||
     !settings.senderWarehouseName?.trim()
   ) {
-    throw new StoreShippingSettingsRequiredError()
+    throw new StoreShippingSettingsRequiredError(getMissingStoreShippingSettingsMessage())
   }
 
-  const senderProfile = await ensureSenderProfile(settings)
+  const platformSender = resolvePlatformSenderProfile()
   const recipientProfile = await resolveRecipientProfile(shipment)
-
-  if (!settings.senderCounterpartyRef?.trim() || !settings.senderContactRef?.trim()) {
-    await upsertStoreShippingSettings({
-      storeId: settings.storeId,
-      provider: settings.provider,
-      senderName: settings.senderName,
-      senderPhone: settings.senderPhone,
-      senderCityRef: settings.senderCityRef,
-      senderCityName: settings.senderCityName,
-      senderWarehouseRef: settings.senderWarehouseRef,
-      senderWarehouseName: settings.senderWarehouseName,
-      senderCounterpartyRef: senderProfile.counterpartyRef,
-      senderContactRef: senderProfile.contactRef,
-      senderAddressRef: senderProfile.addressRef,
-      isConfigured: true,
-    })
-  }
 
   logInfo('shipping:create-ttn-preflight', {
     domain: 'shipping',
     shipmentId: shipment.id,
     orderId: shipment.orderId,
     deliveryType: shipment.deliveryType,
-    senderCityRefExists: Boolean(settings.senderCityRef?.trim()),
-    senderWarehouseRefExists: Boolean(settings.senderWarehouseRef?.trim()),
-    senderCounterpartyRefExists: Boolean(senderProfile.counterpartyRef),
-    senderContactRefExists: Boolean(senderProfile.contactRef),
+    platformSenderCityRefExists: Boolean(platformSender.cityRef),
+    platformSenderAddressRefExists: Boolean(platformSender.addressRef),
+    platformSenderCounterpartyRefExists: Boolean(platformSender.counterpartyRef),
+    platformSenderContactRefExists: Boolean(platformSender.contactRef),
     recipientCityRefExists: Boolean(shipment.recipientCityRef?.trim()),
     recipientWarehouseRefExists: Boolean(shipment.recipientWarehouseRef?.trim()),
     recipientStreetExists: Boolean(shipment.recipientStreet?.trim()),
@@ -964,14 +963,14 @@ export async function createMyShipmentTtn(
     orderId: shipment.orderId,
     deliveryType: shipment.deliveryType,
     senderName: settings.senderName,
-    senderPhone: settings.senderPhone,
-    senderCityRef: settings.senderCityRef,
+    senderPhone: platformSender.phone,
+    senderCityRef: platformSender.cityRef,
     senderCityName: settings.senderCityName,
-    senderWarehouseRef: settings.senderWarehouseRef,
+    senderWarehouseRef: platformSender.addressRef,
     senderWarehouseName: settings.senderWarehouseName,
-    senderCounterpartyRef: senderProfile.counterpartyRef,
-    senderContactRef: senderProfile.contactRef,
-    senderAddressRef: senderProfile.addressRef,
+    senderCounterpartyRef: platformSender.counterpartyRef,
+    senderContactRef: platformSender.contactRef,
+    senderAddressRef: platformSender.addressRef,
     recipientName: shipment.recipientName,
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
@@ -1221,6 +1220,87 @@ export async function syncPendingShipments(limit = 50): Promise<ShipmentSyncResp
   }
 
   return { results }
+}
+
+export async function getAdminNovaPoshtaSenderDiagnostics(
+  user: SessionUser,
+  query: AdminNovaPoshtaSenderDiagnosticsQueryDto,
+): Promise<AdminNovaPoshtaSenderDiagnosticsDto> {
+  requireAdmin(user)
+
+  const provider = getNovaPoshtaProvider()
+  const senderCounterparties = await provider.getSenderCounterpartiesDebug()
+  const senderContacts = query.senderRef
+    ? await provider.getCounterpartyContactPersonsDebug(query.senderRef)
+    : []
+  let senderCounterpartyAddressesLookupError: string | null = null
+  const senderCounterpartyAddresses = query.senderRef
+    ? await provider.getCounterpartyAddressesDebug(query.senderRef).catch((error) => {
+        if (error instanceof ShippingProviderError) {
+          senderCounterpartyAddressesLookupError = error.message
+          logWarn('shipping:nova-poshta-debug-sender-addresses-unsupported', {
+            domain: 'shipping',
+            senderRef: query.senderRef,
+            message: error.message,
+          })
+          return []
+        }
+
+        throw error
+      })
+    : []
+  const inferredCityRefs = [
+    ...new Set(
+      senderCounterpartyAddresses
+        .map((address) => address.cityRef)
+        .filter((cityRef): cityRef is string => Boolean(cityRef)),
+    ),
+  ]
+  const citySearchResults =
+    !query.cityRef && query.cityName
+      ? await provider.searchCities(query.cityName)
+      : []
+  const exactCityMatches =
+    query.cityName == null
+      ? []
+      : citySearchResults.filter(
+          (city) => city.name.trim().toLowerCase() === query.cityName!.trim().toLowerCase(),
+        )
+  const selectedCityFromName =
+    exactCityMatches.length === 1
+      ? exactCityMatches[0]!.ref
+      : citySearchResults.length === 1
+        ? citySearchResults[0]!.ref
+        : null
+  const selectedCityRef =
+    query.cityRef ??
+    (inferredCityRefs.length === 1 ? inferredCityRefs[0]! : null) ??
+    selectedCityFromName
+  const senderAddresses = selectedCityRef
+    ? await provider.getSenderAddressesDebug(selectedCityRef)
+    : []
+  const selectedCounterpartyRef =
+    query.senderRef ?? (senderCounterparties.length === 1 ? senderCounterparties[0]!.ref : null)
+  const selectedContact = senderContacts.length === 1 ? senderContacts[0]! : null
+  const selectedAddress = senderAddresses.length === 1 ? senderAddresses[0]! : null
+
+  return {
+    senderCounterparties,
+    senderContacts,
+    senderCounterpartyAddresses,
+    senderCounterpartyAddressesLookupError,
+    citySearchResults,
+    inferredCityRefs,
+    selectedCityRef,
+    senderAddresses,
+    envSuggestion: {
+      NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF: selectedCounterpartyRef,
+      NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF: selectedContact?.ref ?? null,
+      NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF: selectedAddress?.ref ?? null,
+      NOVA_POSHTA_PLATFORM_SENDER_CITY_REF: selectedCityRef,
+      NOVA_POSHTA_PLATFORM_SENDER_PHONE: selectedContact?.phones ?? null,
+    },
+  }
 }
 
 export function buildShipmentDrafts(input: {

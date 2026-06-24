@@ -23,6 +23,14 @@ vi.mock('@/shared/api/api.client', () => ({
 
 import NovaPoshtaCityCombobox from '@/components/shipping/NovaPoshtaCityCombobox'
 
+const KYI = '\u041a\u0438'
+const KYIV = '\u041a\u0438\u0457\u0432'
+const LVIV = '\u041b\u044c\u0432'
+const KYIV_AREA = '\u041a\u0438\u0457\u0432\u0441\u044c\u043a\u0430'
+const BROVARY = '\u0411\u0440\u043e\u0432\u0430\u0440\u0438'
+const SETTLEMENT_TYPE = '\u043c.'
+const NO_CITIES_TEXT = '\u041c\u0456\u0441\u0442 \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e'
+
 function setInputValue(
   input: HTMLInputElement,
   value: string,
@@ -60,10 +68,16 @@ describe(
     let root: ReturnType<
       typeof createRoot
     >
+    let consoleWarnSpy: ReturnType<
+      typeof vi.spyOn
+    >
 
     beforeEach(() => {
       vi.clearAllMocks()
       vi.useFakeTimers()
+      consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {})
       ;(
         globalThis as typeof globalThis & {
           IS_REACT_ACT_ENVIRONMENT?: boolean
@@ -83,6 +97,7 @@ describe(
       act(() => {
         root.unmount()
       })
+      consoleWarnSpy.mockRestore()
       container.remove()
       vi.useRealTimers()
     })
@@ -97,19 +112,17 @@ describe(
           .mockResolvedValueOnce([
             {
               ref: 'city-1',
-              name: 'Київ',
-              area: 'Київська',
-              settlementType:
-                'м.',
+              name: KYIV,
+              area: KYIV_AREA,
+              settlementType: SETTLEMENT_TYPE,
             },
           ])
           .mockResolvedValueOnce([
             {
               ref: 'city-1',
-              name: 'Київ',
-              area: 'Київська',
-              settlementType:
-                'м.',
+              name: KYIV,
+              area: KYIV_AREA,
+              settlementType: SETTLEMENT_TYPE,
             },
           ])
 
@@ -132,7 +145,7 @@ describe(
         expect(
           container.textContent,
         ).not.toContain(
-          'Міст не знайдено',
+          NO_CITIES_TEXT,
         )
 
         act(() => {
@@ -142,7 +155,7 @@ describe(
         act(() => {
           setInputValue(
             input!,
-            'Ки',
+            KYI,
           )
         })
 
@@ -151,16 +164,16 @@ describe(
         expect(
           apiGetMock,
         ).toHaveBeenCalledWith(
-          '/api/shipping/nova-poshta/cities?q=%D0%9A%D0%B8',
+          `/api/shipping/nova-poshta/cities?q=${encodeURIComponent(KYI)}`,
         )
         expect(
           container.textContent,
-        ).toContain('Київ')
+        ).toContain(KYIV)
 
         act(() => {
           setInputValue(
             input!,
-            'Київ',
+            KYIV,
           )
         })
 
@@ -169,7 +182,7 @@ describe(
         expect(
           apiGetMock,
         ).toHaveBeenLastCalledWith(
-          '/api/shipping/nova-poshta/cities?q=%D0%9A%D0%B8%D1%97%D0%B2',
+          `/api/shipping/nova-poshta/cities?q=${encodeURIComponent(KYIV)}`,
         )
 
         const optionButton =
@@ -179,7 +192,7 @@ describe(
             ),
           ).find((button) =>
             button.textContent?.includes(
-              'Київ',
+              KYIV,
             ),
           )
 
@@ -198,10 +211,9 @@ describe(
         expect(onChange).toHaveBeenCalledWith(
           {
             ref: 'city-1',
-            name: 'Київ',
-            area: 'Київська',
-            settlementType:
-              'м.',
+            name: KYIV,
+            area: KYIV_AREA,
+            settlementType: SETTLEMENT_TYPE,
           },
         )
       },
@@ -232,22 +244,85 @@ describe(
           input?.focus()
           setInputValue(
             input!,
-            'Льв',
+            LVIV,
           )
         })
 
         expect(
           container.textContent,
         ).not.toContain(
-          'Міст не знайдено',
+          NO_CITIES_TEXT,
         )
 
         await flushSearch()
 
         expect(
           container.textContent,
-        ).toContain(
-          'Міст не знайдено',
+        ).toContain(NO_CITIES_TEXT)
+      },
+    )
+
+    it(
+      'deduplicates city results by ref before rendering and logs duplicates in development',
+      async () => {
+        apiGetMock.mockResolvedValueOnce([
+          {
+            ref: 'city-1',
+            name: KYIV,
+            area: KYIV_AREA,
+            settlementType: SETTLEMENT_TYPE,
+          },
+          {
+            ref: 'city-1',
+            name: `${KYIV} \u0434\u0443\u0431\u043b\u044c`,
+            area: KYIV_AREA,
+            settlementType: SETTLEMENT_TYPE,
+          },
+          {
+            ref: 'city-2',
+            name: BROVARY,
+            area: KYIV_AREA,
+            settlementType: SETTLEMENT_TYPE,
+          },
+        ])
+
+        act(() => {
+          root.render(
+            <NovaPoshtaCityCombobox
+              value={null}
+              onChange={vi.fn()}
+            />,
+          )
+        })
+
+        const input =
+          container.querySelector(
+            'input',
+          ) as HTMLInputElement | null
+
+        act(() => {
+          input?.focus()
+          setInputValue(
+            input!,
+            KYI,
+          )
+        })
+
+        await flushSearch()
+
+        const optionButtons =
+          Array.from(
+            container.querySelectorAll(
+              'button[role="option"]',
+            ),
+          )
+
+        expect(optionButtons).toHaveLength(2)
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          'Nova Poshta city search returned duplicate refs',
+          {
+            duplicateRefs: ['city-1'],
+          },
         )
       },
     )

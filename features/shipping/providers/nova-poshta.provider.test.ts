@@ -6,6 +6,7 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 import { NovaPoshtaCreateShipmentError, ShippingProviderError } from '@/lib/errors/shipping'
+import { logInfo } from '@/utils/logger'
 import { InMemoryNovaPoshtaDirectoryCache } from './nova-poshta-directory-cache'
 import {
   NovaPoshtaProvider,
@@ -14,6 +15,7 @@ import {
 } from './nova-poshta.provider'
 
 const fetchMock = vi.fn()
+const mockLogInfo = vi.mocked(logInfo)
 
 function createProvider(overrides?: {
   directoryCacheEnabled?: boolean
@@ -51,6 +53,15 @@ describe('NovaPoshtaProvider directory cache', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+  })
+
+  it('returns empty results without provider call for short city queries', async () => {
+    const provider = createProvider()
+
+    await expect(provider.searchCities(' ')).resolves.toEqual([])
+    await expect(provider.searchCities('К')).resolves.toEqual([])
+
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('normalizes city queries for cache keys safely', () => {
@@ -97,6 +108,24 @@ describe('NovaPoshtaProvider directory cache', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('deduplicates city results by ref safely', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [
+        { Ref: 'dup-ref', Description: 'РљРёС—РІ' },
+        { Ref: 'dup-ref', Description: 'РљРёС—РІ дубль' },
+        { Ref: 'unique-ref', Description: 'Р‘СЂРѕРІР°СЂРё' },
+      ],
+    })
+
+    const cities = await provider.searchCities('РљРё')
+
+    expect(cities).toHaveLength(2)
+    expect(cities[0]?.ref).toBe('dup-ref')
+    expect(cities[1]?.ref).toBe('unique-ref')
+  })
+
   it('caches warehouse lookup results after first provider call', async () => {
     const provider = createProvider()
     mockFetchSuccess({
@@ -116,6 +145,32 @@ describe('NovaPoshtaProvider directory cache', () => {
 
     expect(first).toEqual(second)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('deduplicates warehouse results by ref safely', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [
+        {
+          Ref: 'warehouse-ref',
+          Description: 'Р’С–РґРґС–Р»РµРЅРЅСЏ 1',
+          CityRef: 'city-ref',
+          CityDescription: 'РљРёС—РІ',
+        },
+        {
+          Ref: 'warehouse-ref',
+          Description: 'Р’С–РґРґС–Р»РµРЅРЅСЏ 1 дубль',
+          CityRef: 'city-ref',
+          CityDescription: 'РљРёС—РІ',
+        },
+      ],
+    })
+
+    const warehouses = await provider.getWarehouses('city-ref')
+
+    expect(warehouses).toHaveLength(1)
+    expect(warehouses[0]?.ref).toBe('warehouse-ref')
   })
 
   it('refetches after cache expiration', async () => {
@@ -258,6 +313,45 @@ describe('NovaPoshtaProvider directory cache', () => {
         settlementType: 'м.',
       },
     ])
+  })
+
+  it('counterparty lookup includes FindByString', async () => {
+    const provider = createProvider()
+    mockFetchSuccess({
+      success: true,
+      data: [{ Ref: 'sender-ref', Description: 'Sender' }],
+    })
+
+    await provider.getCounterparties({
+      counterpartyProperty: 'Sender',
+      findByString: 'Sender',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.novaposhta.example/json/',
+      expect.objectContaining({
+        body: JSON.stringify({
+          apiKey: 'nova-poshta-api-key',
+          modelName: 'Counterparty',
+          calledMethod: 'getCounterparties',
+          methodProperties: {
+            CounterpartyProperty: 'Sender',
+            FindByString: 'Sender',
+            Page: 1,
+          },
+        }),
+      }),
+    )
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      'shipping:nova-poshta-counterparty-lookup-request',
+      expect.objectContaining({
+        methodProperties: {
+          CounterpartyProperty: 'Sender',
+          FindByString: 'Sender',
+          Page: 1,
+        },
+      }),
+    )
   })
 
   it('returns an empty list when provider search returns no cities', async () => {
@@ -463,4 +557,5 @@ describe('NovaPoshtaProvider shipment contracts', () => {
       statusCode: 422,
     })
   })
+
 })

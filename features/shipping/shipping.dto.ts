@@ -169,6 +169,59 @@ export type NovaPoshtaContactPersonDto = {
   phone: string | null
 }
 
+export type NovaPoshtaSenderCounterpartyDebugDto = {
+  ref: string
+  description: string | null
+  firstName: string | null
+  lastName: string | null
+}
+
+export type NovaPoshtaSenderContactDebugDto = {
+  ref: string
+  fullName: string | null
+  phones: string | null
+}
+
+export type NovaPoshtaSenderAddressDebugDto = {
+  ref: string
+  name: string
+  cityRef: string
+  cityName: string | null
+}
+
+export type NovaPoshtaSenderCounterpartyAddressDebugDto = {
+  ref: string
+  description: string | null
+  cityRef: string | null
+  cityName: string | null
+}
+
+export type AdminNovaPoshtaSenderDiagnosticsQueryDto = {
+  senderRef?: string
+  cityRef?: string
+  cityName?: string
+}
+
+export type NovaPoshtaPlatformSenderEnvSuggestionDto = {
+  NOVA_POSHTA_PLATFORM_SENDER_COUNTERPARTY_REF: string | null
+  NOVA_POSHTA_PLATFORM_SENDER_CONTACT_REF: string | null
+  NOVA_POSHTA_PLATFORM_SENDER_ADDRESS_REF: string | null
+  NOVA_POSHTA_PLATFORM_SENDER_CITY_REF: string | null
+  NOVA_POSHTA_PLATFORM_SENDER_PHONE: string | null
+}
+
+export type AdminNovaPoshtaSenderDiagnosticsDto = {
+  senderCounterparties: NovaPoshtaSenderCounterpartyDebugDto[]
+  senderContacts: NovaPoshtaSenderContactDebugDto[]
+  senderCounterpartyAddresses: NovaPoshtaSenderCounterpartyAddressDebugDto[]
+  senderCounterpartyAddressesLookupError: string | null
+  citySearchResults: NovaPoshtaCityDto[]
+  inferredCityRefs: string[]
+  selectedCityRef: string | null
+  senderAddresses: NovaPoshtaSenderAddressDebugDto[]
+  envSuggestion: NovaPoshtaPlatformSenderEnvSuggestionDto
+}
+
 export type NovaPoshtaResolvedSenderProfileDto = {
   counterpartyRef: string
   contactRef: string
