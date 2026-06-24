@@ -103,6 +103,9 @@ const shipmentDetailSelect = {
   originalShipmentId: true,
   isReturnShipment: true,
   recipientName: true,
+  recipientFirstName: true,
+  recipientLastName: true,
+  recipientMiddleName: true,
   recipientPhone: true,
   recipientCityRef: true,
   recipientCityName: true,
@@ -275,6 +278,9 @@ export async function createReturnShipment(input: {
   provider: ShippingProvider
   deliveryType: Prisma.ShipmentCreateInput['deliveryType']
   recipientName: string
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
@@ -301,6 +307,9 @@ export async function createReturnShipment(input: {
         deliveryType: input.deliveryType,
         status: ShipmentStatus.PENDING,
         recipientName: input.recipientName,
+        recipientFirstName: input.recipientFirstName ?? null,
+        recipientLastName: input.recipientLastName ?? null,
+        recipientMiddleName: input.recipientMiddleName ?? null,
         recipientPhone: input.recipientPhone,
         recipientCityRef: input.recipientCityRef,
         recipientCityName: input.recipientCityName,

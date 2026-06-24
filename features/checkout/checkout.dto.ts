@@ -16,6 +16,9 @@ export type CheckoutInput = {
   acceptedPrivacy: boolean
   deliveryType?: CheckoutDeliverySelectionDto['selectedDeliveryType']
   recipientName?: string | null
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null
@@ -35,6 +38,9 @@ export type CheckoutPreviewInput = {
   cartId?: string
   deliveryType?: CheckoutDeliverySelectionDto['selectedDeliveryType']
   recipientName?: string | null
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null

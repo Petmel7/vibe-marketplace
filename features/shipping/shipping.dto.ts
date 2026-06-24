@@ -66,6 +66,9 @@ export type UpdateStoreShippingSettingsInput = {
 export type CheckoutDeliverySelectionInput = {
   deliveryType?: ShippingDeliveryType | null
   recipientName?: string | null
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null
@@ -80,6 +83,9 @@ export type CheckoutDeliverySelectionDto = {
   supportedDeliveryTypes: ShippingDeliveryType[]
   selectedDeliveryType: ShippingDeliveryType | null
   recipientName: string | null
+  recipientFirstName: string | null
+  recipientLastName: string | null
+  recipientMiddleName: string | null
   recipientPhone: string | null
   recipientCityRef: string | null
   recipientCityName: string | null
@@ -97,6 +103,9 @@ export type ResolvedCheckoutDeliverySelectionDto = {
   provider: ShippingProvider
   deliveryType: ShippingDeliveryType
   recipientName: string
+  recipientFirstName: string
+  recipientLastName: string
+  recipientMiddleName: string | null
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
@@ -140,6 +149,9 @@ export type NovaPoshtaCreateShipmentInput = {
   senderContactRef: string
   senderAddressRef: string | null
   recipientName: string
+  recipientFirstName: string
+  recipientLastName: string
+  recipientMiddleName: string | null
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
@@ -309,6 +321,9 @@ export type SellerShipmentDto = {
   status: ShipmentStatus
   isReturnShipment: boolean
   recipientName: string
+  recipientFirstName: string | null
+  recipientLastName: string | null
+  recipientMiddleName: string | null
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string
@@ -345,6 +360,9 @@ export type ShipmentDraftDto = {
   deliveryType: ShippingDeliveryType
   status: ShipmentStatus
   recipientName: string
+  recipientFirstName: string
+  recipientLastName: string
+  recipientMiddleName: string | null
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string

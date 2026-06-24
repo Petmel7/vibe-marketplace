@@ -25,6 +25,9 @@ import type {
 type DeliveryPayload = {
   deliveryType?: ShippingDeliveryType | null
   recipientName?: string | null
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null
@@ -38,13 +41,29 @@ type DeliveryPayload = {
 type AutoRefreshDeliveryInput = {
   deliveryMode: CheckoutDeliveryMode
   selectedDeliveryType: ShippingDeliveryType
-  recipientName: string
+  recipientFirstName: string
+  recipientLastName: string
+  recipientMiddleName: string
   recipientPhone: string
   selectedCity: NovaPoshtaCity | null
   selectedWarehouse: NovaPoshtaWarehouse | null
   recipientStreet: string
   recipientBuilding: string
   recipientApartment: string
+}
+
+function buildRecipientName(input: {
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
+}) {
+  return [
+    input.recipientLastName?.trim() ?? '',
+    input.recipientFirstName?.trim() ?? '',
+    input.recipientMiddleName?.trim() ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 function buildCheckoutPreviewUrl(
@@ -63,6 +82,9 @@ function buildCheckoutPreviewUrl(
 
   const pairs = [
     ['recipientName', deliveryPayload?.recipientName],
+    ['recipientFirstName', deliveryPayload?.recipientFirstName],
+    ['recipientLastName', deliveryPayload?.recipientLastName],
+    ['recipientMiddleName', deliveryPayload?.recipientMiddleName],
     ['recipientPhone', deliveryPayload?.recipientPhone],
     ['recipientCityRef', deliveryPayload?.recipientCityRef],
     ['recipientCityName', deliveryPayload?.recipientCityName],
@@ -150,13 +172,24 @@ export function buildAutoRefreshDeliveryPayload(
     return undefined
   }
 
-  const recipientName = input.recipientName.trim() || null
+  const recipientFirstName = input.recipientFirstName.trim() || null
+  const recipientLastName = input.recipientLastName.trim() || null
+  const recipientMiddleName = input.recipientMiddleName.trim() || null
+  const recipientName =
+    buildRecipientName({
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
+    }) || null
   const recipientPhone = input.recipientPhone.trim() || null
 
   if (input.selectedDeliveryType === 'NOVA_POSHTA_COURIER') {
     return {
       deliveryType: input.selectedDeliveryType,
       recipientName,
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
       recipientPhone,
       recipientCityRef: input.selectedCity.ref,
       recipientCityName: input.selectedCity.name,
@@ -169,6 +202,9 @@ export function buildAutoRefreshDeliveryPayload(
   return {
     deliveryType: input.selectedDeliveryType,
     recipientName,
+    recipientFirstName,
+    recipientLastName,
+    recipientMiddleName,
     recipientPhone,
     recipientCityRef: input.selectedCity.ref,
     recipientCityName: input.selectedCity.name,
@@ -195,7 +231,9 @@ export function buildAutoRefreshKey(
   }
 
   const recipientState =
-    deliveryPayload.recipientName?.trim() && deliveryPayload.recipientPhone?.trim()
+    deliveryPayload.recipientFirstName?.trim() &&
+    deliveryPayload.recipientLastName?.trim() &&
+    deliveryPayload.recipientPhone?.trim()
       ? 'recipient-ready'
       : 'recipient-pending'
 
@@ -232,6 +270,9 @@ export function buildPreviewDeliverySyncKey(
     DeliveryPayload,
     | 'deliveryType'
     | 'recipientName'
+    | 'recipientFirstName'
+    | 'recipientLastName'
+    | 'recipientMiddleName'
     | 'recipientPhone'
     | 'recipientCityRef'
     | 'recipientStreet'
@@ -259,15 +300,20 @@ export function getVisibleCheckoutBlockingIssues(
 
 function getNovaPoshtaDeliveryError(input: {
   selectedDeliveryType: ShippingDeliveryType
-  recipientName: string
+  recipientFirstName: string
+  recipientLastName: string
   recipientPhone: string
   selectedCity: NovaPoshtaCity | null
   selectedWarehouse: NovaPoshtaWarehouse | null
   recipientStreet: string
   recipientBuilding: string
 }): string {
-  if (!input.recipientName.trim()) {
+  if (!input.recipientFirstName.trim()) {
     return 'Вкажіть імʼя отримувача.'
+  }
+
+  if (!input.recipientLastName.trim()) {
+    return 'Вкажіть прізвище отримувача.'
   }
 
   if (!input.recipientPhone.trim()) {
@@ -314,7 +360,9 @@ export function useCheckout(initialCartId?: string) {
   const [deliveryMode, setDeliveryMode] = useState<CheckoutDeliveryMode>('ADDRESS')
   const [selectedDeliveryType, setSelectedDeliveryType] =
     useState<ShippingDeliveryType>('NOVA_POSHTA_WAREHOUSE')
-  const [recipientName, setRecipientName] = useState('')
+  const [recipientFirstName, setRecipientFirstName] = useState('')
+  const [recipientLastName, setRecipientLastName] = useState('')
+  const [recipientMiddleName, setRecipientMiddleName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
   const [selectedCity, setSelectedCity] = useState<NovaPoshtaCity | null>(null)
   const [selectedWarehouse, setSelectedWarehouse] = useState<NovaPoshtaWarehouse | null>(null)
@@ -359,7 +407,14 @@ export function useCheckout(initialCartId?: string) {
 
     return {
       deliveryType: selectedDeliveryType,
-      recipientName,
+      recipientName: buildRecipientName({
+        recipientFirstName,
+        recipientLastName,
+        recipientMiddleName,
+      }),
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
       recipientPhone,
       recipientCityRef: selectedCity?.ref ?? null,
       recipientCityName: selectedCity?.name ?? null,
@@ -375,7 +430,9 @@ export function useCheckout(initialCartId?: string) {
     deliveryMode,
     recipientApartment,
     recipientBuilding,
-    recipientName,
+    recipientFirstName,
+    recipientLastName,
+    recipientMiddleName,
     recipientPhone,
     recipientStreet,
     selectedCity,
@@ -472,7 +529,9 @@ export function useCheckout(initialCartId?: string) {
           setSelectedDeliveryType(
             nextDeliverySelection.selectedDeliveryType ?? 'NOVA_POSHTA_WAREHOUSE',
           )
-          setRecipientName(nextDeliverySelection.recipientName ?? '')
+          setRecipientFirstName(nextDeliverySelection.recipientFirstName ?? '')
+          setRecipientLastName(nextDeliverySelection.recipientLastName ?? '')
+          setRecipientMiddleName(nextDeliverySelection.recipientMiddleName ?? '')
           setRecipientPhone(nextDeliverySelection.recipientPhone ?? '')
           setRecipientStreet(nextDeliverySelection.recipientStreet ?? '')
           setRecipientBuilding(nextDeliverySelection.recipientBuilding ?? '')
@@ -602,7 +661,9 @@ export function useCheckout(initialCartId?: string) {
       buildAutoRefreshDeliveryPayload({
         deliveryMode,
         selectedDeliveryType,
-        recipientName,
+        recipientFirstName,
+        recipientLastName,
+        recipientMiddleName,
         recipientPhone,
         selectedCity,
         selectedWarehouse,
@@ -614,7 +675,9 @@ export function useCheckout(initialCartId?: string) {
       deliveryMode,
       recipientApartment,
       recipientBuilding,
-      recipientName,
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
       recipientPhone,
       recipientStreet,
       selectedCity,
@@ -629,7 +692,8 @@ export function useCheckout(initialCartId?: string) {
     }
 
     const hasBaseFields =
-      Boolean(recipientName.trim()) &&
+      Boolean(recipientFirstName.trim()) &&
+      Boolean(recipientLastName.trim()) &&
       Boolean(recipientPhone.trim()) &&
       Boolean(selectedCity?.ref)
 
@@ -645,7 +709,8 @@ export function useCheckout(initialCartId?: string) {
   }, [
     deliveryMode,
     recipientBuilding,
-    recipientName,
+    recipientFirstName,
+    recipientLastName,
     recipientPhone,
     recipientStreet,
     selectedCity?.ref,
@@ -668,6 +733,9 @@ export function useCheckout(initialCartId?: string) {
       buildPreviewDeliverySyncKey(preview?.cartId, deliveryMode, {
         deliveryType: preview?.deliverySelection.selectedDeliveryType ?? null,
         recipientName: preview?.deliverySelection.recipientName ?? null,
+        recipientFirstName: preview?.deliverySelection.recipientFirstName ?? null,
+        recipientLastName: preview?.deliverySelection.recipientLastName ?? null,
+        recipientMiddleName: preview?.deliverySelection.recipientMiddleName ?? null,
         recipientPhone: preview?.deliverySelection.recipientPhone ?? null,
         recipientCityRef: preview?.deliverySelection.recipientCityRef ?? null,
         recipientStreet: preview?.deliverySelection.recipientStreet ?? null,
@@ -680,6 +748,9 @@ export function useCheckout(initialCartId?: string) {
       preview?.deliverySelection.recipientBuilding,
       preview?.deliverySelection.recipientCityRef,
       preview?.deliverySelection.recipientName,
+      preview?.deliverySelection.recipientFirstName,
+      preview?.deliverySelection.recipientLastName,
+      preview?.deliverySelection.recipientMiddleName,
       preview?.deliverySelection.recipientPhone,
       preview?.deliverySelection.recipientStreet,
       preview?.deliverySelection.recipientWarehouseRef,
@@ -764,7 +835,8 @@ export function useCheckout(initialCartId?: string) {
       setDeliveryError(
         getNovaPoshtaDeliveryError({
           selectedDeliveryType,
-          recipientName,
+          recipientFirstName,
+          recipientLastName,
           recipientPhone,
           selectedCity,
           selectedWarehouse,
@@ -794,6 +866,12 @@ export function useCheckout(initialCartId?: string) {
         acceptedPrivacy,
         deliveryType: usingAddress ? null : deliveryPayload?.deliveryType ?? null,
         recipientName: usingAddress ? null : deliveryPayload?.recipientName?.trim() ?? null,
+        recipientFirstName:
+          usingAddress ? null : deliveryPayload?.recipientFirstName?.trim() ?? null,
+        recipientLastName:
+          usingAddress ? null : deliveryPayload?.recipientLastName?.trim() ?? null,
+        recipientMiddleName:
+          usingAddress ? null : deliveryPayload?.recipientMiddleName?.trim() ?? null,
         recipientPhone: usingAddress ? null : deliveryPayload?.recipientPhone?.trim() ?? null,
         recipientCityRef: usingAddress ? null : deliveryPayload?.recipientCityRef ?? null,
         recipientCityName: usingAddress ? null : deliveryPayload?.recipientCityName ?? null,
@@ -874,7 +952,8 @@ export function useCheckout(initialCartId?: string) {
     selectedPaymentMethod,
     selectedWarehouse,
     recipientBuilding,
-    recipientName,
+    recipientFirstName,
+    recipientLastName,
     recipientPhone,
     recipientStreet,
     setCartItemCount,
@@ -963,7 +1042,9 @@ export function useCheckout(initialCartId?: string) {
     selectedAddressId,
     deliveryMode,
     selectedDeliveryType,
-    recipientName,
+    recipientFirstName,
+    recipientLastName,
+    recipientMiddleName,
     recipientPhone,
     selectedCity,
     selectedWarehouse,
@@ -996,7 +1077,9 @@ export function useCheckout(initialCartId?: string) {
     setSelectedAddressId,
     setDeliveryMode,
     setSelectedDeliveryType,
-    setRecipientName,
+    setRecipientFirstName,
+    setRecipientLastName,
+    setRecipientMiddleName,
     setRecipientPhone,
     setSelectedCity,
     setSelectedWarehouse,

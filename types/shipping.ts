@@ -39,6 +39,9 @@ export type CheckoutDeliverySelection = {
   supportedDeliveryTypes: ShippingDeliveryType[]
   selectedDeliveryType: ShippingDeliveryType | null
   recipientName: string | null
+  recipientFirstName: string | null
+  recipientLastName: string | null
+  recipientMiddleName: string | null
   recipientPhone: string | null
   recipientCityRef: string | null
   recipientCityName: string | null
@@ -107,6 +110,9 @@ export type SellerShipment = {
   status: ShipmentStatus
   isReturnShipment: boolean
   recipientName: string
+  recipientFirstName: string | null
+  recipientLastName: string | null
+  recipientMiddleName: string | null
   recipientPhone: string
   recipientCityRef: string
   recipientCityName: string

@@ -56,7 +56,9 @@ export default function CheckoutClient({
     selectedAddressId,
     deliveryMode,
     selectedDeliveryType,
-    recipientName,
+    recipientFirstName,
+    recipientLastName,
+    recipientMiddleName,
     recipientPhone,
     selectedCity,
     selectedWarehouse,
@@ -67,7 +69,9 @@ export default function CheckoutClient({
     setSelectedAddressId,
     setDeliveryMode,
     setSelectedDeliveryType,
-    setRecipientName,
+    setRecipientFirstName,
+    setRecipientLastName,
+    setRecipientMiddleName,
     setRecipientPhone,
     setSelectedCity,
     setSelectedWarehouse,
@@ -172,14 +176,18 @@ export default function CheckoutClient({
           onDeliveryModeChange={setDeliveryMode}
           selectedDeliveryType={selectedDeliveryType}
           onDeliveryTypeChange={setSelectedDeliveryType}
-          recipientName={recipientName}
+          recipientFirstName={recipientFirstName}
+          recipientLastName={recipientLastName}
+          recipientMiddleName={recipientMiddleName}
           recipientPhone={recipientPhone}
           selectedCity={selectedCity}
           selectedWarehouse={selectedWarehouse}
           recipientStreet={recipientStreet}
           recipientBuilding={recipientBuilding}
           recipientApartment={recipientApartment}
-          onRecipientNameChange={setRecipientName}
+          onRecipientFirstNameChange={setRecipientFirstName}
+          onRecipientLastNameChange={setRecipientLastName}
+          onRecipientMiddleNameChange={setRecipientMiddleName}
           onRecipientPhoneChange={setRecipientPhone}
           onCityChange={setSelectedCity}
           onWarehouseChange={setSelectedWarehouse}

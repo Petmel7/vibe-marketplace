@@ -19,14 +19,18 @@ export default function CheckoutDeliverySection({
   onDeliveryModeChange,
   selectedDeliveryType,
   onDeliveryTypeChange,
-  recipientName,
+  recipientFirstName,
+  recipientLastName,
+  recipientMiddleName,
   recipientPhone,
   selectedCity,
   selectedWarehouse,
   recipientStreet,
   recipientBuilding,
   recipientApartment,
-  onRecipientNameChange,
+  onRecipientFirstNameChange,
+  onRecipientLastNameChange,
+  onRecipientMiddleNameChange,
   onRecipientPhoneChange,
   onCityChange,
   onWarehouseChange,
@@ -40,14 +44,18 @@ export default function CheckoutDeliverySection({
   onDeliveryModeChange: (mode: CheckoutDeliveryMode) => void
   selectedDeliveryType: ShippingDeliveryType
   onDeliveryTypeChange: (value: ShippingDeliveryType) => void
-  recipientName: string
+  recipientFirstName: string
+  recipientLastName: string
+  recipientMiddleName: string
   recipientPhone: string
   selectedCity: NovaPoshtaCity | null
   selectedWarehouse: NovaPoshtaWarehouse | null
   recipientStreet: string
   recipientBuilding: string
   recipientApartment: string
-  onRecipientNameChange: (value: string) => void
+  onRecipientFirstNameChange: (value: string) => void
+  onRecipientLastNameChange: (value: string) => void
+  onRecipientMiddleNameChange: (value: string) => void
   onRecipientPhoneChange: (value: string) => void
   onCityChange: (city: NovaPoshtaCity | null) => void
   onWarehouseChange: (warehouse: NovaPoshtaWarehouse | null) => void
@@ -59,7 +67,8 @@ export default function CheckoutDeliverySection({
 }) {
   const isCourier = selectedDeliveryType === 'NOVA_POSHTA_COURIER'
   const isEstimateReady =
-    Boolean(recipientName.trim()) &&
+    Boolean(recipientFirstName.trim()) &&
+    Boolean(recipientLastName.trim()) &&
     Boolean(recipientPhone.trim()) &&
     Boolean(selectedCity?.ref) &&
     (isCourier
@@ -143,9 +152,31 @@ export default function CheckoutDeliverySection({
                 <span className="block text-sm font-medium text-copy-strong">Ім’я отримувача</span>
                 <input
                   className="ui-surface-input"
-                  value={recipientName}
-                  onChange={(event) => onRecipientNameChange(event.target.value)}
-                  placeholder="Наприклад, Іван Петренко"
+                  value={recipientFirstName}
+                  onChange={(event) => onRecipientFirstNameChange(event.target.value)}
+                  placeholder="Наприклад, Іван"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-copy-strong">Прізвище отримувача</span>
+                <input
+                  className="ui-surface-input"
+                  value={recipientLastName}
+                  onChange={(event) => onRecipientLastNameChange(event.target.value)}
+                  placeholder="Наприклад, Петренко"
+                />
+              </label>
+
+              <label className="space-y-2 sm:col-span-2">
+                <span className="block text-sm font-medium text-copy-strong">
+                  По батькові (необов’язково)
+                </span>
+                <input
+                  className="ui-surface-input"
+                  value={recipientMiddleName}
+                  onChange={(event) => onRecipientMiddleNameChange(event.target.value)}
+                  placeholder="Наприклад, Іванович"
                 />
               </label>
 

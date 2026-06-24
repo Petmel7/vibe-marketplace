@@ -25,6 +25,12 @@ export async function GET(request: NextRequest): Promise<Response> {
       cartId: request.nextUrl.searchParams.get('cartId') ?? undefined,
       deliveryType: request.nextUrl.searchParams.get('deliveryType') ?? undefined,
       recipientName: request.nextUrl.searchParams.get('recipientName') ?? undefined,
+      recipientFirstName:
+        request.nextUrl.searchParams.get('recipientFirstName') ?? undefined,
+      recipientLastName:
+        request.nextUrl.searchParams.get('recipientLastName') ?? undefined,
+      recipientMiddleName:
+        request.nextUrl.searchParams.get('recipientMiddleName') ?? undefined,
       recipientPhone: request.nextUrl.searchParams.get('recipientPhone') ?? undefined,
       recipientCityRef: request.nextUrl.searchParams.get('recipientCityRef') ?? undefined,
       recipientCityName: request.nextUrl.searchParams.get('recipientCityName') ?? undefined,

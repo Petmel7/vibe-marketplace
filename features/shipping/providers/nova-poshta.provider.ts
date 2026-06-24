@@ -110,6 +110,12 @@ type NovaPoshtaSaveCounterpartyResponse = {
   ContactPersonRef?: string
 }
 
+type NovaPoshtaPersonNameInput = {
+  firstName: string
+  lastName: string
+  middleName?: string | null
+}
+
 type NovaPoshtaCounterpartyAddressResponse = {
   Ref?: string
   Description?: string
@@ -339,6 +345,20 @@ export class NovaPoshtaProvider {
       lastName,
       middleName,
     }
+  }
+
+  private normalizePersonName(input: NovaPoshtaPersonNameInput) {
+    return {
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      middleName: input.middleName?.trim() || undefined,
+    }
+  }
+
+  private buildFullName(input: NovaPoshtaPersonNameInput) {
+    return [input.lastName.trim(), input.firstName.trim(), input.middleName?.trim() ?? '']
+      .filter(Boolean)
+      .join(' ')
   }
 
   private normalizePhone(phone: string) {
@@ -599,8 +619,11 @@ export class NovaPoshtaProvider {
     fullName: string
     phone: string
     cityRef?: string
+    personName?: NovaPoshtaPersonNameInput
   }): Promise<string> {
-    const { firstName, lastName, middleName } = this.splitPersonName(input.fullName)
+    const { firstName, lastName, middleName } = input.personName
+      ? this.normalizePersonName(input.personName)
+      : this.splitPersonName(input.fullName)
     const methodProperties = {
       FirstName: firstName,
       LastName: lastName,
@@ -655,8 +678,11 @@ export class NovaPoshtaProvider {
     counterpartyRef: string
     fullName: string
     phone: string
+    personName?: NovaPoshtaPersonNameInput
   }): Promise<string> {
-    const { firstName, lastName, middleName } = this.splitPersonName(input.fullName)
+    const { firstName, lastName, middleName } = input.personName
+      ? this.normalizePersonName(input.personName)
+      : this.splitPersonName(input.fullName)
     const methodProperties = {
       CounterpartyRef: input.counterpartyRef.trim(),
       FirstName: firstName,
@@ -713,6 +739,7 @@ export class NovaPoshtaProvider {
     cityRef?: string
     existingCounterpartyRef?: string | null
     existingContactRef?: string | null
+    personName?: NovaPoshtaPersonNameInput
   }) {
     let counterpartyRef = input.existingCounterpartyRef?.trim() || null
     if (!counterpartyRef) {
@@ -734,6 +761,7 @@ export class NovaPoshtaProvider {
           fullName: input.fullName,
           phone: input.phone,
           cityRef: input.cityRef,
+          personName: input.personName,
         }))
     }
 
@@ -753,6 +781,7 @@ export class NovaPoshtaProvider {
           counterpartyRef,
           fullName: input.fullName,
           phone: input.phone,
+          personName: input.personName,
         }))
     }
 
@@ -898,11 +927,18 @@ export class NovaPoshtaProvider {
 
   async resolveRecipientProfile(input: {
     recipientName: string
+    recipientFirstName: string
+    recipientLastName: string
+    recipientMiddleName?: string | null
     recipientPhone: string
     recipientCityRef: string
   }): Promise<NovaPoshtaResolvedRecipientProfileDto> {
-    if (!input.recipientName.trim()) {
-      throw new ShippingProviderError('Nova Poshta recipient initialization requires recipientName')
+    if (!input.recipientFirstName.trim()) {
+      throw new ShippingProviderError('Nova Poshta recipient initialization requires recipientFirstName')
+    }
+
+    if (!input.recipientLastName.trim()) {
+      throw new ShippingProviderError('Nova Poshta recipient initialization requires recipientLastName')
     }
 
     if (!this.isValidPhone(input.recipientPhone)) {
@@ -915,9 +951,20 @@ export class NovaPoshtaProvider {
 
     const resolved = await this.ensureCounterpartyAndContact({
       counterpartyProperty: 'Recipient',
-      fullName: input.recipientName,
+      fullName:
+        input.recipientName.trim() ||
+        this.buildFullName({
+          firstName: input.recipientFirstName,
+          lastName: input.recipientLastName,
+          middleName: input.recipientMiddleName,
+        }),
       phone: input.recipientPhone,
       cityRef: input.recipientCityRef,
+      personName: {
+        firstName: input.recipientFirstName,
+        lastName: input.recipientLastName,
+        middleName: input.recipientMiddleName,
+      },
     })
 
     return {
@@ -996,6 +1043,13 @@ export class NovaPoshtaProvider {
       )
     }
 
+    if (!input.recipientFirstName.trim() || !input.recipientLastName.trim()) {
+      throw new NovaPoshtaCreateShipmentError(
+        'Nova Poshta recipient first and last name are required before creating TTN',
+        { statusCode: 422 },
+      )
+    }
+
     if (!Number.isFinite(Number(input.weight)) || Number(input.weight) <= 0) {
       throw new NovaPoshtaCreateShipmentError('Nova Poshta shipment weight must be greater than zero', {
         statusCode: 422,
@@ -1033,6 +1087,11 @@ export class NovaPoshtaProvider {
       RecipientsPhone: input.recipientPhone,
       RecipientType: 'PrivatePerson',
       RecipientContactName: input.recipientName,
+      FirstName: input.recipientFirstName,
+      LastName: input.recipientLastName,
+      ...(input.recipientMiddleName?.trim()
+        ? { MiddleName: input.recipientMiddleName.trim() }
+        : {}),
       ...(isCourier
         ? {
             NewAddress: '1',

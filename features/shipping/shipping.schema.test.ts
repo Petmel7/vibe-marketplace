@@ -27,7 +27,8 @@ describe('shipping schema', () => {
   it('requires courier street and building for courier delivery selection', () => {
     const parsed = requiredCheckoutDeliverySelectionSchema.safeParse({
       deliveryType: 'NOVA_POSHTA_COURIER',
-      recipientName: 'John Doe',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-ref',
       recipientCityName: 'Kyiv',
@@ -39,7 +40,9 @@ describe('shipping schema', () => {
   it('still accepts complete warehouse delivery selection', () => {
     const parsed = requiredCheckoutDeliverySelectionSchema.safeParse({
       deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'John Doe',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: 'Іванович',
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-ref',
       recipientCityName: 'Kyiv',
@@ -48,6 +51,21 @@ describe('shipping schema', () => {
     })
 
     expect(parsed.success).toBe(true)
+  })
+
+  it('rejects recipient names with digits before provider call', () => {
+    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse({
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientFirstName: 'Тест1',
+      recipientLastName: 'Петренко',
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+    })
+
+    expect(parsed.success).toBe(false)
   })
 
   it('validates estimate delivery input safely', () => {

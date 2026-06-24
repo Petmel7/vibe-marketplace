@@ -82,6 +82,9 @@ export async function submitCheckoutOrder(data: {
     provider: ShippingProvider
     deliveryType: ShippingDeliveryType
     recipientName: string
+    recipientFirstName: string
+    recipientLastName: string
+    recipientMiddleName: string | null
     recipientPhone: string
     recipientCityRef: string
     recipientCityName: string

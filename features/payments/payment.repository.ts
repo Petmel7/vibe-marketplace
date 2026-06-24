@@ -197,6 +197,9 @@ export async function submitCheckoutOrderWithPayment(data: {
     provider: ShippingProvider
     deliveryType: ShippingDeliveryType
     recipientName: string
+    recipientFirstName: string
+    recipientLastName: string
+    recipientMiddleName: string | null
     recipientPhone: string
     recipientCityRef: string
     recipientCityName: string
@@ -425,6 +428,9 @@ export async function submitCheckoutOrderWithPayment(data: {
               deliveryType: draft.deliveryType,
               status: draft.status,
               recipientName: draft.recipientName,
+              recipientFirstName: draft.recipientFirstName,
+              recipientLastName: draft.recipientLastName,
+              recipientMiddleName: draft.recipientMiddleName,
               recipientPhone: draft.recipientPhone,
               recipientCityRef: draft.recipientCityRef,
               recipientCityName: draft.recipientCityName,

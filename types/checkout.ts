@@ -82,6 +82,9 @@ export type CheckoutSubmitPayload = {
   acceptedPrivacy: boolean
   deliveryType?: ShippingDeliveryType | null
   recipientName?: string | null
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
   recipientPhone?: string | null
   recipientCityRef?: string | null
   recipientCityName?: string | null

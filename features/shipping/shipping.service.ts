@@ -158,6 +158,9 @@ function toSellerShipmentDto(
     status: shipment.status,
     isReturnShipment: shipment.isReturnShipment,
     recipientName: shipment.recipientName,
+    recipientFirstName: shipment.recipientFirstName,
+    recipientLastName: shipment.recipientLastName,
+    recipientMiddleName: shipment.recipientMiddleName,
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
     recipientCityName: shipment.recipientCityName,
@@ -178,6 +181,75 @@ function toSellerShipmentDto(
       quantity: item.quantity,
       fulfillmentStatus: item.orderItem.fulfillmentStatus,
     })),
+  }
+}
+
+function buildStructuredRecipientName(input: {
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
+}) {
+  return [
+    input.recipientLastName?.trim() ?? '',
+    input.recipientFirstName?.trim() ?? '',
+    input.recipientMiddleName?.trim() ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function splitLegacyRecipientName(recipientName: string) {
+  const parts = recipientName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (parts.length < 2) {
+    return {
+      recipientFirstName: null,
+      recipientLastName: null,
+      recipientMiddleName: null,
+    }
+  }
+
+  return {
+    recipientLastName: parts[0] ?? null,
+    recipientFirstName: parts[1] ?? null,
+    recipientMiddleName: parts.slice(2).join(' ') || null,
+  }
+}
+
+function resolveStructuredRecipientName(input: {
+  recipientName: string
+  recipientFirstName?: string | null
+  recipientLastName?: string | null
+  recipientMiddleName?: string | null
+}) {
+  const recipientFirstName = input.recipientFirstName?.trim() || null
+  const recipientLastName = input.recipientLastName?.trim() || null
+  const recipientMiddleName = input.recipientMiddleName?.trim() || null
+
+  if (recipientFirstName && recipientLastName) {
+    return {
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
+      recipientName:
+        buildStructuredRecipientName({
+          recipientFirstName,
+          recipientLastName,
+          recipientMiddleName,
+        }) || input.recipientName.trim(),
+    }
+  }
+
+  const legacy = splitLegacyRecipientName(input.recipientName)
+
+  return {
+    recipientFirstName: legacy.recipientFirstName,
+    recipientLastName: legacy.recipientLastName,
+    recipientMiddleName: legacy.recipientMiddleName,
+    recipientName: input.recipientName.trim(),
   }
 }
 
@@ -250,8 +322,16 @@ function resolvePlatformSenderProfile() {
 function assertShipmentHasRecipientSnapshot(
   shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
 ) {
+  const structuredName = resolveStructuredRecipientName({
+    recipientName: shipment.recipientName,
+    recipientFirstName: shipment.recipientFirstName,
+    recipientLastName: shipment.recipientLastName,
+    recipientMiddleName: shipment.recipientMiddleName,
+  })
   const hasBaseSnapshot =
-    shipment.recipientName.trim() &&
+    structuredName.recipientName &&
+    structuredName.recipientFirstName &&
+    structuredName.recipientLastName &&
     shipment.recipientPhone.trim() &&
     shipment.recipientCityRef.trim() &&
     shipment.recipientCityName.trim()
@@ -390,8 +470,18 @@ function resolveShipmentDeclaredCost(
 async function resolveRecipientProfile(
   shipment: NonNullable<Awaited<ReturnType<typeof findShipmentById>>>,
 ): Promise<NovaPoshtaResolvedRecipientProfileDto> {
-  return getNovaPoshtaProvider().resolveRecipientProfile({
+  const structuredName = resolveStructuredRecipientName({
     recipientName: shipment.recipientName,
+    recipientFirstName: shipment.recipientFirstName,
+    recipientLastName: shipment.recipientLastName,
+    recipientMiddleName: shipment.recipientMiddleName,
+  })
+
+  return getNovaPoshtaProvider().resolveRecipientProfile({
+    recipientName: structuredName.recipientName,
+    recipientFirstName: structuredName.recipientFirstName ?? '',
+    recipientLastName: structuredName.recipientLastName ?? '',
+    recipientMiddleName: structuredName.recipientMiddleName,
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
   })
@@ -569,7 +659,17 @@ export function buildCheckoutDeliverySelectionDto(
   input: CheckoutDeliverySelectionInput,
 ): CheckoutDeliverySelectionDto {
   const selectedDeliveryType = input.deliveryType ?? null
-  const recipientName = input.recipientName?.trim() || null
+  const recipientFirstName = input.recipientFirstName?.trim() || null
+  const recipientLastName = input.recipientLastName?.trim() || null
+  const recipientMiddleName = input.recipientMiddleName?.trim() || null
+  const recipientName =
+    buildStructuredRecipientName({
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
+    }) ||
+    input.recipientName?.trim() ||
+    null
   const recipientPhone = input.recipientPhone?.trim() || null
   const recipientCityRef = input.recipientCityRef?.trim() || null
   const recipientCityName = input.recipientCityName?.trim() || null
@@ -588,6 +688,9 @@ export function buildCheckoutDeliverySelectionDto(
     ],
     selectedDeliveryType,
     recipientName,
+    recipientFirstName,
+    recipientLastName,
+    recipientMiddleName,
     recipientPhone,
     recipientCityRef,
     recipientCityName,
@@ -600,7 +703,8 @@ export function buildCheckoutDeliverySelectionDto(
     currency: 'UAH',
     isComplete: Boolean(
       selectedDeliveryType &&
-        recipientName &&
+        recipientFirstName &&
+        recipientLastName &&
         recipientPhone &&
         recipientCityRef &&
         recipientCityName &&
@@ -731,6 +835,9 @@ export async function resolveCheckoutDeliverySelection(
   const parsed = requiredCheckoutDeliverySelectionSchema.safeParse({
     deliveryType: selection.selectedDeliveryType,
     recipientName: selection.recipientName,
+    recipientFirstName: selection.recipientFirstName,
+    recipientLastName: selection.recipientLastName,
+    recipientMiddleName: selection.recipientMiddleName,
     recipientPhone: selection.recipientPhone,
     recipientCityRef: selection.recipientCityRef,
     recipientCityName: selection.recipientCityName,
@@ -759,7 +866,15 @@ export async function resolveCheckoutDeliverySelection(
   return {
     provider: ShippingProvider.NOVA_POSHTA,
     deliveryType: parsed.data.deliveryType,
-    recipientName: parsed.data.recipientName,
+    recipientName:
+      buildStructuredRecipientName({
+        recipientFirstName: parsed.data.recipientFirstName,
+        recipientLastName: parsed.data.recipientLastName,
+        recipientMiddleName: parsed.data.recipientMiddleName,
+      }) || parsed.data.recipientName?.trim() || '',
+    recipientFirstName: parsed.data.recipientFirstName,
+    recipientLastName: parsed.data.recipientLastName,
+    recipientMiddleName: parsed.data.recipientMiddleName?.trim() ?? null,
     recipientPhone: parsed.data.recipientPhone,
     recipientCityRef: parsed.data.recipientCityRef,
     recipientCityName: parsed.data.recipientCityName,
@@ -938,6 +1053,12 @@ export async function createMyShipmentTtn(
   }
 
   const platformSender = resolvePlatformSenderProfile()
+  const structuredRecipientName = resolveStructuredRecipientName({
+    recipientName: shipment.recipientName,
+    recipientFirstName: shipment.recipientFirstName,
+    recipientLastName: shipment.recipientLastName,
+    recipientMiddleName: shipment.recipientMiddleName,
+  })
   const recipientProfile = await resolveRecipientProfile(shipment)
 
   logInfo('shipping:create-ttn-preflight', {
@@ -949,6 +1070,8 @@ export async function createMyShipmentTtn(
     platformSenderAddressRefExists: Boolean(platformSender.addressRef),
     platformSenderCounterpartyRefExists: Boolean(platformSender.counterpartyRef),
     platformSenderContactRefExists: Boolean(platformSender.contactRef),
+    recipientFirstNameExists: Boolean(structuredRecipientName.recipientFirstName),
+    recipientLastNameExists: Boolean(structuredRecipientName.recipientLastName),
     recipientCityRefExists: Boolean(shipment.recipientCityRef?.trim()),
     recipientWarehouseRefExists: Boolean(shipment.recipientWarehouseRef?.trim()),
     recipientStreetExists: Boolean(shipment.recipientStreet?.trim()),
@@ -971,7 +1094,10 @@ export async function createMyShipmentTtn(
     senderCounterpartyRef: platformSender.counterpartyRef,
     senderContactRef: platformSender.contactRef,
     senderAddressRef: platformSender.addressRef,
-    recipientName: shipment.recipientName,
+    recipientName: structuredRecipientName.recipientName,
+    recipientFirstName: structuredRecipientName.recipientFirstName ?? '',
+    recipientLastName: structuredRecipientName.recipientLastName ?? '',
+    recipientMiddleName: structuredRecipientName.recipientMiddleName,
     recipientPhone: shipment.recipientPhone,
     recipientCityRef: shipment.recipientCityRef,
     recipientCityName: shipment.recipientCityName,
@@ -1090,6 +1216,7 @@ export async function createMyReturnShipment(
   }
 
   try {
+    const structuredSenderName = splitLegacyRecipientName(settings.senderName)
     const returnShipment = await createReturnShipment({
       originalShipmentId: shipment.id,
       orderId: shipment.orderId,
@@ -1097,6 +1224,9 @@ export async function createMyReturnShipment(
       provider: shipment.provider,
       deliveryType: shipment.deliveryType,
       recipientName: settings.senderName,
+      recipientFirstName: structuredSenderName.recipientFirstName,
+      recipientLastName: structuredSenderName.recipientLastName,
+      recipientMiddleName: structuredSenderName.recipientMiddleName,
       recipientPhone: settings.senderPhone,
       recipientCityRef: settings.senderCityRef,
       recipientCityName: settings.senderCityName,
@@ -1147,6 +1277,7 @@ export async function createAdminReturnShipment(
   }
 
   try {
+    const structuredSenderName = splitLegacyRecipientName(settings.senderName)
     const returnShipment = await createReturnShipment({
       originalShipmentId: shipment.id,
       orderId: shipment.orderId,
@@ -1154,6 +1285,9 @@ export async function createAdminReturnShipment(
       provider: shipment.provider,
       deliveryType: shipment.deliveryType,
       recipientName: settings.senderName,
+      recipientFirstName: structuredSenderName.recipientFirstName,
+      recipientLastName: structuredSenderName.recipientLastName,
+      recipientMiddleName: structuredSenderName.recipientMiddleName,
       recipientPhone: settings.senderPhone,
       recipientCityRef: settings.senderCityRef,
       recipientCityName: settings.senderCityName,
@@ -1325,6 +1459,9 @@ export function buildShipmentDrafts(input: {
       deliveryType: input.deliverySelection.deliveryType,
       status: ShipmentStatus.PENDING,
       recipientName: input.deliverySelection.recipientName,
+      recipientFirstName: input.deliverySelection.recipientFirstName,
+      recipientLastName: input.deliverySelection.recipientLastName,
+      recipientMiddleName: input.deliverySelection.recipientMiddleName,
       recipientPhone: input.deliverySelection.recipientPhone,
       recipientCityRef: input.deliverySelection.recipientCityRef,
       recipientCityName: input.deliverySelection.recipientCityName,

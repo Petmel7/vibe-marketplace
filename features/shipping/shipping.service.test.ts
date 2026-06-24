@@ -32,6 +32,7 @@ vi.mock('@/features/shipping/providers/nova-poshta.provider', () => ({
 import { getServerEnv } from '@/config/env'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import { createOrderNotification } from '@/features/notifications/notifications.service'
+import { InvalidShippingSelectionError } from '@/lib/errors/shipping'
 import {
   assertStoreOwnership,
   resolveSellerStoreContext,
@@ -135,6 +136,9 @@ function makeShipment(overrides: Record<string, unknown> = {}) {
     deliveryType: 'NOVA_POSHTA_WAREHOUSE',
     status: 'PENDING',
     recipientName: 'John Doe',
+    recipientFirstName: 'John',
+    recipientLastName: 'Doe',
+    recipientMiddleName: null,
     recipientPhone: '+380000000000',
     recipientCityRef: 'city-ref',
     recipientCityName: 'Kyiv',
@@ -231,6 +235,9 @@ beforeEach(() => {
       isReturnShipment: true,
       status: 'PENDING',
       recipientName: input.recipientName,
+      recipientFirstName: input.recipientFirstName ?? null,
+      recipientLastName: input.recipientLastName ?? null,
+      recipientMiddleName: input.recipientMiddleName ?? null,
       recipientPhone: input.recipientPhone,
       recipientCityRef: input.recipientCityRef,
       recipientCityName: input.recipientCityName,
@@ -347,7 +354,10 @@ describe('shipping service', () => {
 
     const result = await resolveCheckoutDeliverySelection({
       deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'John Doe',
+      recipientName: 'Петренко Іван',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: null,
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-ref',
       recipientCityName: 'Kyiv',
@@ -374,7 +384,10 @@ describe('shipping service', () => {
     await expect(
       resolveCheckoutDeliverySelection({
         deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-        recipientName: 'John Doe',
+        recipientName: 'Петренко Іван',
+        recipientFirstName: 'Іван',
+        recipientLastName: 'Петренко',
+        recipientMiddleName: null,
         recipientPhone: '+380000000000',
         recipientCityRef: 'city-ref',
         recipientCityName: 'Kyiv',
@@ -387,7 +400,10 @@ describe('shipping service', () => {
   it('resolves Nova Poshta courier selection safely', async () => {
     const result = await resolveCheckoutDeliverySelection({
       deliveryType: 'NOVA_POSHTA_COURIER',
-      recipientName: 'John Doe',
+      recipientName: 'Петренко Іван',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: null,
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-ref',
       recipientCityName: 'Kyiv',
@@ -399,6 +415,21 @@ describe('shipping service', () => {
     expect(result?.deliveryType).toBe('NOVA_POSHTA_COURIER')
     expect(result?.recipientStreet).toBe('Khreshchatyk')
     expect(result?.recipientWarehouseRef).toBeNull()
+  })
+
+  it('rejects invalid recipient names before Nova Poshta provider calls', async () => {
+    await expect(
+      resolveCheckoutDeliverySelection({
+        deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+        recipientFirstName: 'Тест1',
+        recipientLastName: 'Петренко',
+        recipientPhone: '+380000000000',
+        recipientCityRef: 'city-ref',
+        recipientCityName: 'Kyiv',
+        recipientWarehouseRef: 'warehouse-ref',
+        recipientWarehouseName: 'Warehouse 1',
+      }),
+    ).rejects.toThrow(InvalidShippingSelectionError)
   })
 
   it('estimates delivery total across grouped store shipments', async () => {
@@ -430,6 +461,9 @@ describe('shipping service', () => {
         provider: 'NOVA_POSHTA',
         deliveryType: 'NOVA_POSHTA_WAREHOUSE',
         recipientName: 'John Doe',
+        recipientFirstName: 'John',
+        recipientLastName: 'Doe',
+        recipientMiddleName: null,
         recipientPhone: '+380000000000',
         recipientCityRef: 'city-ref',
         recipientCityName: 'Kyiv',
@@ -486,6 +520,8 @@ describe('shipping service', () => {
         senderAddressRef: 'platform-address-ref',
         senderCityRef: 'platform-city-ref',
         senderPhone: '+380999999999',
+        recipientFirstName: 'John',
+        recipientLastName: 'Doe',
         recipientCounterpartyRef: 'recipient-counterparty-ref',
         recipientContactRef: 'recipient-contact-ref',
         weight: '1',
@@ -835,6 +871,9 @@ describe('shipping service', () => {
         provider: 'NOVA_POSHTA',
         deliveryType: 'NOVA_POSHTA_WAREHOUSE',
         recipientName: 'John Doe',
+        recipientFirstName: 'John',
+        recipientLastName: 'Doe',
+        recipientMiddleName: null,
         recipientPhone: '+380000000000',
         recipientCityRef: 'city-ref',
         recipientCityName: 'Kyiv',
@@ -865,6 +904,9 @@ describe('shipping service', () => {
           deliveryType: 'NOVA_POSHTA_WAREHOUSE',
           status: 'PENDING',
           recipientName: 'John Doe',
+          recipientFirstName: 'John',
+          recipientLastName: 'Doe',
+          recipientMiddleName: null,
           recipientPhone: '+380000000000',
           recipientCityRef: 'city-ref',
           recipientCityName: 'Kyiv',
@@ -883,6 +925,9 @@ describe('shipping service', () => {
           deliveryType: 'NOVA_POSHTA_WAREHOUSE',
           status: 'PENDING',
           recipientName: 'John Doe',
+          recipientFirstName: 'John',
+          recipientLastName: 'Doe',
+          recipientMiddleName: null,
           recipientPhone: '+380000000000',
           recipientCityRef: 'city-ref',
           recipientCityName: 'Kyiv',

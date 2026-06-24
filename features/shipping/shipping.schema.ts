@@ -8,6 +8,20 @@ import { z } from 'zod'
 const trimmedOptionalString = z.string().trim().max(255).nullish()
 const trimmedRequiredString = (label: string, max = 255) =>
   z.string().trim().min(1, `${label} is required`).max(max)
+const novaPoshtaNamePattern = /^[\p{Script=Cyrillic}'’ -]+$/u
+const trimmedOptionalRecipientName = z
+  .string()
+  .trim()
+  .max(80)
+  .regex(novaPoshtaNamePattern, 'Name must contain only Cyrillic letters')
+  .nullish()
+const trimmedRequiredRecipientName = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(80)
+    .regex(novaPoshtaNamePattern, `${label} must contain only Cyrillic letters`)
 
 export const novaPoshtaCitiesQuerySchema = z.object({
   q: z.string().trim().max(120).optional().default(''),
@@ -91,6 +105,9 @@ export const checkoutDeliverySelectionSchema = z
   .object({
     deliveryType: z.nativeEnum(ShippingDeliveryType).nullish(),
     recipientName: trimmedOptionalString,
+    recipientFirstName: trimmedOptionalRecipientName,
+    recipientLastName: trimmedOptionalRecipientName,
+    recipientMiddleName: trimmedOptionalRecipientName,
     recipientPhone: trimmedOptionalString,
     recipientCityRef: trimmedOptionalString,
     recipientCityName: trimmedOptionalString,
@@ -104,6 +121,9 @@ export const checkoutDeliverySelectionSchema = z
     const hasAnyField = Boolean(
       input.deliveryType ??
         input.recipientName?.trim() ??
+        input.recipientFirstName?.trim() ??
+        input.recipientLastName?.trim() ??
+        input.recipientMiddleName?.trim() ??
         input.recipientPhone?.trim() ??
         input.recipientCityRef?.trim() ??
         input.recipientCityName?.trim() ??
@@ -129,7 +149,13 @@ export const checkoutDeliverySelectionSchema = z
       })
     }
 
-    const requiredFields = ['recipientName', 'recipientPhone', 'recipientCityRef', 'recipientCityName'] as const
+    const requiredFields = [
+      'recipientFirstName',
+      'recipientLastName',
+      'recipientPhone',
+      'recipientCityRef',
+      'recipientCityName',
+    ] as const
 
     for (const field of requiredFields) {
       const value = input[field]
@@ -172,7 +198,10 @@ export const checkoutDeliverySelectionSchema = z
 export const requiredCheckoutDeliverySelectionSchema = z
   .object({
     deliveryType: z.nativeEnum(ShippingDeliveryType),
-    recipientName: trimmedRequiredString('recipientName', 120),
+    recipientName: trimmedOptionalString,
+    recipientFirstName: trimmedRequiredRecipientName('recipientFirstName'),
+    recipientLastName: trimmedRequiredRecipientName('recipientLastName'),
+    recipientMiddleName: trimmedOptionalRecipientName,
     recipientPhone: trimmedRequiredString('recipientPhone', 30),
     recipientCityRef: trimmedRequiredString('recipientCityRef', 120),
     recipientCityName: trimmedRequiredString('recipientCityName', 255),

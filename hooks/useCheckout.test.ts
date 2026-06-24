@@ -12,7 +12,9 @@ describe('useCheckout auto refresh helpers', () => {
     const payload = buildAutoRefreshDeliveryPayload({
       deliveryMode: 'NOVA_POSHTA',
       selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'Іван Петренко',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: '',
       recipientPhone: '+380000000000',
       selectedCity: {
         ref: 'city-1',
@@ -33,7 +35,10 @@ describe('useCheckout auto refresh helpers', () => {
 
     expect(payload).toEqual({
       deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'Іван Петренко',
+      recipientName: 'Петренко Іван',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: null,
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-1',
       recipientCityName: 'Київ',
@@ -46,7 +51,9 @@ describe('useCheckout auto refresh helpers', () => {
     const payload = buildAutoRefreshDeliveryPayload({
       deliveryMode: 'NOVA_POSHTA',
       selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'Іван Петренко',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: '',
       recipientPhone: '+380000000000',
       selectedCity: {
         ref: 'city-1',
@@ -62,7 +69,10 @@ describe('useCheckout auto refresh helpers', () => {
 
     expect(payload).toEqual({
       deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'Іван Петренко',
+      recipientName: 'Петренко Іван',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: null,
       recipientPhone: '+380000000000',
       recipientCityRef: 'city-1',
       recipientCityName: 'Київ',
@@ -75,7 +85,9 @@ describe('useCheckout auto refresh helpers', () => {
     const payload = buildAutoRefreshDeliveryPayload({
       deliveryMode: 'NOVA_POSHTA',
       selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: 'Іван Петренко',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: '',
       recipientPhone: '+380000000000',
       selectedCity: {
         ref: 'city-1',
@@ -106,7 +118,9 @@ describe('useCheckout auto refresh helpers', () => {
     const payload = buildAutoRefreshDeliveryPayload({
       deliveryMode: 'NOVA_POSHTA',
       selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientName: '',
+      recipientFirstName: '',
+      recipientLastName: '',
+      recipientMiddleName: '',
       recipientPhone: '',
       selectedCity: {
         ref: 'city-1',
@@ -131,7 +145,9 @@ describe('useCheckout auto refresh helpers', () => {
     const courierPayload = buildAutoRefreshDeliveryPayload({
       deliveryMode: 'NOVA_POSHTA',
       selectedDeliveryType: 'NOVA_POSHTA_COURIER',
-      recipientName: 'Іван Петренко',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: '',
       recipientPhone: '+380000000000',
       selectedCity: null,
       selectedWarehouse: null,
@@ -148,7 +164,10 @@ describe('useCheckout auto refresh helpers', () => {
     expect(
       buildPreviewDeliverySyncKey('cart-1', 'NOVA_POSHTA', {
         deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-        recipientName: 'Іван Петренко',
+        recipientName: 'Петренко Іван',
+        recipientFirstName: 'Іван',
+        recipientLastName: 'Петренко',
+        recipientMiddleName: '',
         recipientPhone: '+380000000000',
         recipientCityRef: 'city-1',
         recipientStreet: null,
