@@ -2,18 +2,9 @@
 
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const {
-  apiGetMock,
-} = vi.hoisted(() => ({
+const { apiGetMock } = vi.hoisted(() => ({
   apiGetMock: vi.fn(),
 }))
 
@@ -57,11 +48,7 @@ describe('NovaPoshtaWarehouseSelect', () => {
 
     await act(async () => {
       root.render(
-        <NovaPoshtaWarehouseSelect
-          cityRef="city-1"
-          value={null}
-          onChange={onChange}
-        />,
+        <NovaPoshtaWarehouseSelect cityRef="city-1" value={null} onChange={onChange} />,
       )
       await Promise.resolve()
     })
@@ -70,5 +57,45 @@ describe('NovaPoshtaWarehouseSelect', () => {
       '/api/shipping/nova-poshta/warehouses?cityRef=city-1',
     )
     expect(container.textContent).toContain('Відділення №1')
+  })
+
+  it('reuses cached warehouse results for the same cityRef', async () => {
+    const onChange = vi.fn()
+
+    apiGetMock.mockResolvedValueOnce([
+      {
+        ref: 'warehouse-cache-1',
+        name: 'Відділення №2',
+        cityRef: 'city-cache-1',
+        cityName: 'Львів',
+      },
+    ])
+
+    await act(async () => {
+      root.render(
+        <NovaPoshtaWarehouseSelect cityRef="city-cache-1" value={null} onChange={onChange} />,
+      )
+      await Promise.resolve()
+    })
+
+    expect(apiGetMock).toHaveBeenCalledTimes(1)
+    expect(container.textContent).toContain('Відділення №2')
+
+    await act(async () => {
+      root.render(
+        <NovaPoshtaWarehouseSelect cityRef={null} value={null} onChange={onChange} />,
+      )
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      root.render(
+        <NovaPoshtaWarehouseSelect cityRef="city-cache-1" value={null} onChange={onChange} />,
+      )
+      await Promise.resolve()
+    })
+
+    expect(apiGetMock).toHaveBeenCalledTimes(1)
+    expect(container.textContent).toContain('Відділення №2')
   })
 })

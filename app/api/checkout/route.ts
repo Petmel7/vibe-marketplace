@@ -5,6 +5,7 @@ import { checkout, getCheckoutPreview } from '@/features/checkout/checkout.servi
 import { toErrorResponse } from '@/lib/errors/handleError'
 import { assertRateLimit, rateLimitProfiles } from '@/lib/security/rate-limit'
 import { validationErrorResponse } from '@/lib/http/validation'
+import { logWarn } from '@/utils/logger'
 
 /**
  * POST /api/checkout
@@ -60,6 +61,48 @@ export async function POST(request: NextRequest): Promise<Response> {
     const body = await request.json()
     const parsed = checkoutSchema.safeParse(body)
     if (!parsed.success) {
+      logWarn('checkout:submit-validation-failed', {
+        userId: user.id,
+        body: {
+          cartId: typeof body?.cartId === 'string' ? body.cartId : null,
+          shippingAddressId:
+            typeof body?.shippingAddressId === 'string' ? body.shippingAddressId : null,
+          deliveryType: typeof body?.deliveryType === 'string' ? body.deliveryType : null,
+          recipientName: typeof body?.recipientName === 'string' ? body.recipientName : null,
+          recipientFirstName:
+            typeof body?.recipientFirstName === 'string' ? body.recipientFirstName : null,
+          recipientLastName:
+            typeof body?.recipientLastName === 'string' ? body.recipientLastName : null,
+          recipientMiddleName:
+            typeof body?.recipientMiddleName === 'string' ? body.recipientMiddleName : null,
+          recipientPhone: typeof body?.recipientPhone === 'string' ? body.recipientPhone : null,
+          recipientCityRef:
+            typeof body?.recipientCityRef === 'string' ? body.recipientCityRef : null,
+          recipientCityName:
+            typeof body?.recipientCityName === 'string' ? body.recipientCityName : null,
+          recipientStreet:
+            typeof body?.recipientStreet === 'string' ? body.recipientStreet : null,
+          recipientBuilding:
+            typeof body?.recipientBuilding === 'string' ? body.recipientBuilding : null,
+          recipientApartment:
+            typeof body?.recipientApartment === 'string' ? body.recipientApartment : null,
+          recipientWarehouseRef:
+            typeof body?.recipientWarehouseRef === 'string'
+              ? body.recipientWarehouseRef
+              : null,
+          recipientWarehouseName:
+            typeof body?.recipientWarehouseName === 'string'
+              ? body.recipientWarehouseName
+              : null,
+          paymentMethod: typeof body?.paymentMethod === 'string' ? body.paymentMethod : null,
+          acceptedPrivacy: body?.acceptedPrivacy === true,
+        },
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+          code: issue.code,
+        })),
+      })
       return validationErrorResponse(parsed.error)
     }
     const data = await checkout(user, parsed.data)

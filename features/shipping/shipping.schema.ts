@@ -8,12 +8,14 @@ import { z } from 'zod'
 const trimmedOptionalString = z.string().trim().max(255).nullish()
 const trimmedRequiredString = (label: string, max = 255) =>
   z.string().trim().min(1, `${label} is required`).max(max)
-const novaPoshtaNamePattern = /^[\p{Script=Cyrillic}'’ -]+$/u
+export const UKRAINIAN_NAME_REGEX = /^[\p{Script=Cyrillic}'\u2019\u02BC -]+$/u
+export const ukrainianNameValidationMessage =
+  'Name must contain only Ukrainian Cyrillic letters, apostrophes, hyphens, and spaces'
 const trimmedOptionalRecipientName = z
   .string()
   .trim()
   .max(80)
-  .regex(novaPoshtaNamePattern, 'Name must contain only Cyrillic letters')
+  .regex(UKRAINIAN_NAME_REGEX, ukrainianNameValidationMessage)
   .nullish()
 const trimmedRequiredRecipientName = (label: string) =>
   z
@@ -21,7 +23,10 @@ const trimmedRequiredRecipientName = (label: string) =>
     .trim()
     .min(1, `${label} is required`)
     .max(80)
-    .regex(novaPoshtaNamePattern, `${label} must contain only Cyrillic letters`)
+    .regex(
+      UKRAINIAN_NAME_REGEX,
+      `${label} must contain only Ukrainian Cyrillic letters, apostrophes, hyphens, and spaces`,
+    )
 
 export const novaPoshtaCitiesQuerySchema = z.object({
   q: z.string().trim().max(120).optional().default(''),

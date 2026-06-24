@@ -1,22 +1,24 @@
 'use client'
 
 import Link from 'next/link'
-import { useId, useRef, useState } from 'react'
-import EmptyState from '@/components/profile/EmptyState'
+import { useEffect, useId, useRef, useState } from 'react'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
+import EmptyState from '@/components/profile/EmptyState'
 import DashboardCard from '@/components/profile/DashboardCard'
 import type { CreateAddressDto } from '@/features/address/address.dto'
 import { useCheckout } from '@/hooks/useCheckout'
+import AppliedCouponCard from './AppliedCouponCard'
 import CheckoutAddressSelector from './CheckoutAddressSelector'
 import CheckoutBlockingIssues from './CheckoutBlockingIssues'
 import CheckoutDeliverySection from './CheckoutDeliverySection'
 import CheckoutItemList from './CheckoutItemList'
-import PaymentMethodSelector from './PaymentMethodSelector'
 import CheckoutSubmitButton from './CheckoutSubmitButton'
 import CheckoutSummary from './CheckoutSummary'
-import LiqPayPaymentHandoff from './LiqPayPaymentHandoff'
 import CouponInput from './CouponInput'
-import AppliedCouponCard from './AppliedCouponCard'
+import LiqPayPaymentHandoff from './LiqPayPaymentHandoff'
+import PaymentMethodSelector from './PaymentMethodSelector'
+
+const CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY = 'checkout:privacy-consent:v1'
 
 export default function CheckoutClient({
   initialCartId,
@@ -26,8 +28,27 @@ export default function CheckoutClient({
   const privacyConsentHintId = useId()
   const privacyConsentErrorId = useId()
   const privacyConsentRef = useRef<HTMLInputElement | null>(null)
-  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false
+    }
+
+    return window.localStorage.getItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY) === 'true'
+  })
   const [privacyConsentError, setPrivacyConsentError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    if (acceptedPrivacy) {
+      window.localStorage.setItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY, 'true')
+      return
+    }
+
+    window.localStorage.removeItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY)
+  }, [acceptedPrivacy])
 
   const {
     preview,
@@ -59,6 +80,9 @@ export default function CheckoutClient({
     recipientFirstName,
     recipientLastName,
     recipientMiddleName,
+    recipientFirstNameError,
+    recipientLastNameError,
+    recipientMiddleNameError,
     recipientPhone,
     selectedCity,
     selectedWarehouse,
@@ -96,18 +120,27 @@ export default function CheckoutClient({
     }
   }
 
-  const handleSubmitCheckout = () => {
+  const handleSubmitCheckout = async () => {
     if (!acceptedPrivacy) {
-      setPrivacyConsentError('Підтвердьте згоду на обробку персональних даних.')
+      setPrivacyConsentError('Підтвердіть згоду на обробку персональних даних.')
       privacyConsentRef.current?.focus()
       return
     }
 
     setPrivacyConsentError(null)
-    void submitCheckout({ acceptedPrivacy: true })
+    const result = await submitCheckout({ acceptedPrivacy: true })
+
+    if (result && typeof window !== 'undefined') {
+      window.localStorage.removeItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY)
+      setAcceptedPrivacy(false)
+    }
   }
 
-  if (isLoading || (!hasLoadedPreviewOnce && !loadError) || (isSessionHydrating && (!preview || isEmpty))) {
+  if (
+    isLoading ||
+    (!hasLoadedPreviewOnce && !loadError) ||
+    (isSessionHydrating && (!preview || isEmpty))
+  ) {
     return (
       <div
         className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]"
@@ -179,6 +212,9 @@ export default function CheckoutClient({
           recipientFirstName={recipientFirstName}
           recipientLastName={recipientLastName}
           recipientMiddleName={recipientMiddleName}
+          recipientFirstNameError={recipientFirstNameError}
+          recipientLastNameError={recipientLastNameError}
+          recipientMiddleNameError={recipientMiddleNameError}
           recipientPhone={recipientPhone}
           selectedCity={selectedCity}
           selectedWarehouse={selectedWarehouse}
@@ -213,120 +249,83 @@ export default function CheckoutClient({
         ) : null}
       </div>
 
-      <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-        <DashboardCard
-          title="Coupon"
-          description="Apply a marketplace coupon and refresh totals from the backend before placing the order."
-        >
-          <div className="space-y-4">
-            <CouponInput
-              value={couponCode}
-              onChange={setCouponCode}
-              onApply={() => {
-                void applyCoupon()
-              }}
-              disabled={isSubmitting}
-              isApplying={isApplyingCoupon}
-              errorMessage={couponError}
-              successMessage={couponSuccessMessage}
-            />
-
-            {preview.appliedPromotion ? (
-              <AppliedCouponCard
-                promotion={preview.appliedPromotion}
-                removable={Boolean(appliedCouponCode)}
-                disabled={isSubmitting || isApplyingCoupon}
-                onRemove={() => {
-                  void removeCoupon()
-                }}
-              />
-            ) : null}
-          </div>
-        </DashboardCard>
-
+      <div className="space-y-6">
+        <CouponInput
+          value={couponCode}
+          onChange={setCouponCode}
+          onApply={applyCoupon}
+          disabled={isApplyingCoupon || isSubmitting || !preview.cartId}
+          isApplying={isApplyingCoupon}
+          errorMessage={couponError}
+          successMessage={couponSuccessMessage}
+        />
+        {preview.appliedPromotion ? (
+          <AppliedCouponCard
+            promotion={preview.appliedPromotion}
+            onRemove={removeCoupon}
+            removable
+            disabled={isApplyingCoupon || isSubmitting}
+          />
+        ) : null}
         <CheckoutSummary preview={preview} paymentMethod={selectedPaymentMethod} />
         <DashboardCard
           title="Підтвердження"
-          description="Під час оформлення сервер ще раз перевірить наявність товарів, актуальні ціни, адресу доставки та обраний спосіб оплати."
+          description="Перед оформленням замовлення підтвердіть згоду на обробку персональних даних."
         >
           <div className="space-y-4">
-            <CheckoutSubmitButton
-              disabled={!canSubmit}
-              isSubmitting={isSubmitting}
-              paymentMethod={selectedPaymentMethod}
-              onSubmit={handleSubmitCheckout}
-            />
+            <label className="flex items-start gap-3 text-sm text-copy-primary">
+              <input
+                ref={privacyConsentRef}
+                type="checkbox"
+                checked={acceptedPrivacy}
+                onChange={(event) => handlePrivacyConsentChange(event.target.checked)}
+                className="mt-1 h-4 w-4"
+                aria-invalid={privacyConsentError ? true : undefined}
+                aria-describedby={
+                  privacyConsentError
+                    ? privacyConsentErrorId
+                    : privacyConsentHintId
+                }
+              />
+              <span>
+                Я погоджуюся з умовами обробки{' '}
+                <Link href="/privacy" className="ui-link">
+                  персональних даних
+                </Link>
+                .
+              </span>
+            </label>
 
-            {isPreviewRecalculating ? (
+            <p id={privacyConsentHintId} className="text-xs text-copy-muted">
+              Ми використовуємо ці дані лише для оформлення, оплати та доставки замовлення.
+            </p>
+
+            {privacyConsentError ? (
               <p
-                className="rounded-2xl border border-brand-accent/20 bg-brand-accent/10 px-4 py-3 text-sm text-copy-primary"
-                aria-live="polite"
+                id={privacyConsentErrorId}
+                className="text-sm text-brand-danger"
+                role="alert"
               >
-                Updating checkout total with the latest shipping estimate...
+                {privacyConsentError}
               </p>
             ) : null}
 
             {previewSyncMessage ? (
-              <p
-                className="rounded-2xl border border-brand-accent/20 bg-brand-accent/10 px-4 py-3 text-sm text-copy-primary"
-                aria-live="polite"
-              >
-                {previewSyncMessage}
-              </p>
+              <p className="text-sm text-copy-muted">{previewSyncMessage}</p>
             ) : null}
 
-            <div className="rounded-2xl border border-panelBorder bg-panelAlt/70 px-4 py-3">
-              <div className="flex items-start gap-3">
-                <input
-                  ref={privacyConsentRef}
-                  id="checkout-privacy-consent"
-                  type="checkbox"
-                  checked={acceptedPrivacy}
-                  onChange={(event) => {
-                    handlePrivacyConsentChange(event.target.checked)
-                  }}
-                  aria-invalid={privacyConsentError ? 'true' : 'false'}
-                  aria-describedby={
-                    privacyConsentError
-                      ? `${privacyConsentHintId} ${privacyConsentErrorId}`
-                      : privacyConsentHintId
-                  }
-                  className="mt-0.5 h-4 w-4 rounded border border-panelBorder text-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
-                />
-
-                <div className="space-y-1">
-                  <p
-                    id={privacyConsentHintId}
-                    className="text-sm text-copy-secondary"
-                  >
-                    Я погоджуюся з умовами обробки{' '}
-                    <Link
-                      href="/privacy"
-                      className="text-brand-accent underline underline-offset-2 hover:text-copy-strong"
-                    >
-                      персональних даних
-                    </Link>
-                    .
-                  </p>
-
-                  {privacyConsentError ? (
-                    <p
-                      id={privacyConsentErrorId}
-                      className="text-sm text-brand-danger"
-                      aria-live="polite"
-                    >
-                      {privacyConsentError}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
             {submitError ? (
-              <p className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary">
+              <p className="text-sm text-brand-danger" role="alert">
                 {submitError}
               </p>
             ) : null}
+
+            <CheckoutSubmitButton
+              onSubmit={handleSubmitCheckout}
+              disabled={!canSubmit || isSubmitting}
+              isSubmitting={isSubmitting}
+              paymentMethod={selectedPaymentMethod}
+            />
           </div>
         </DashboardCard>
       </div>

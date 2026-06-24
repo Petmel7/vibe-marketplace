@@ -10,6 +10,20 @@ import {
   shipmentIdParamsSchema,
 } from './shipping.schema'
 
+function buildWarehouseSelection(overrides: Record<string, unknown> = {}) {
+  return {
+    deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+    recipientFirstName: 'Іван',
+    recipientLastName: 'Петренко',
+    recipientPhone: '+380000000000',
+    recipientCityRef: 'city-ref',
+    recipientCityName: 'Kyiv',
+    recipientWarehouseRef: 'warehouse-ref',
+    recipientWarehouseName: 'Warehouse 1',
+    ...overrides,
+  }
+}
+
 describe('shipping schema', () => {
   it('accepts empty city search query safely', () => {
     const parsed = novaPoshtaCitiesQuerySchema.safeParse({})
@@ -38,32 +52,61 @@ describe('shipping schema', () => {
   })
 
   it('still accepts complete warehouse delivery selection', () => {
-    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse({
-      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientFirstName: 'Іван',
-      recipientLastName: 'Петренко',
-      recipientMiddleName: 'Іванович',
-      recipientPhone: '+380000000000',
-      recipientCityRef: 'city-ref',
-      recipientCityName: 'Kyiv',
-      recipientWarehouseRef: 'warehouse-ref',
-      recipientWarehouseName: 'Warehouse 1',
-    })
+    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse(
+      buildWarehouseSelection({
+        recipientMiddleName: 'Іванович',
+      }),
+    )
 
     expect(parsed.success).toBe(true)
   })
 
-  it('rejects recipient names with digits before provider call', () => {
-    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse({
-      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
-      recipientFirstName: 'Тест1',
-      recipientLastName: 'Петренко',
-      recipientPhone: '+380000000000',
-      recipientCityRef: 'city-ref',
-      recipientCityName: 'Kyiv',
-      recipientWarehouseRef: 'warehouse-ref',
-      recipientWarehouseName: 'Warehouse 1',
-    })
+  it('accepts regression case with Oleg Syuma', () => {
+    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse(
+      buildWarehouseSelection({
+        recipientFirstName: 'Олег',
+        recipientLastName: 'Сюма',
+      }),
+    )
+
+    expect(parsed.success).toBe(true)
+  })
+
+  it.each([
+    'Олег',
+    'Сюма',
+    'Марія',
+    'Іван',
+    'Євген',
+    'Ґалаган',
+    'Анна-Марія',
+    'О’Браєн',
+  ])('accepts valid Ukrainian recipient names: %s', (name) => {
+    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse(
+      buildWarehouseSelection({
+        recipientFirstName: name,
+      }),
+    )
+
+    expect(parsed.success).toBe(true)
+  })
+
+  it.each(['Petro', 'Тест1', 'Oлег'])('rejects invalid first names: %s', (name) => {
+    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse(
+      buildWarehouseSelection({
+        recipientFirstName: name,
+      }),
+    )
+
+    expect(parsed.success).toBe(false)
+  })
+
+  it('rejects invalid last name with latin mix', () => {
+    const parsed = requiredCheckoutDeliverySelectionSchema.safeParse(
+      buildWarehouseSelection({
+        recipientLastName: 'Oлег',
+      }),
+    )
 
     expect(parsed.success).toBe(false)
   })

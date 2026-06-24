@@ -38,6 +38,8 @@ type DeliveryPayload = {
   recipientWarehouseName?: string | null
 }
 
+const NOVA_POSHTA_RECIPIENT_NAME_PATTERN = /^[\p{Script=Cyrillic}'’ʼ -]+$/u
+
 type AutoRefreshDeliveryInput = {
   deliveryMode: CheckoutDeliveryMode
   selectedDeliveryType: ShippingDeliveryType
@@ -52,6 +54,138 @@ type AutoRefreshDeliveryInput = {
   recipientApartment: string
 }
 
+type PersistedCheckoutDeliveryDraft = {
+  deliveryMode: CheckoutDeliveryMode
+  selectedDeliveryType: ShippingDeliveryType
+  recipientFirstName: string
+  recipientLastName: string
+  recipientMiddleName: string
+  recipientPhone: string
+  selectedCity: NovaPoshtaCity | null
+  selectedWarehouse: NovaPoshtaWarehouse | null
+  recipientStreet: string
+  recipientBuilding: string
+  recipientApartment: string
+}
+
+type PersistedCheckoutDeliveryDraftEnvelope = {
+  version: 1
+  draft: PersistedCheckoutDeliveryDraft
+}
+
+export const CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY =
+  'checkout:delivery-draft:v1'
+
+function isCheckoutDeliveryMode(value: unknown): value is CheckoutDeliveryMode {
+  return value === 'ADDRESS' || value === 'NOVA_POSHTA'
+}
+
+function isShippingDeliveryType(value: unknown): value is ShippingDeliveryType {
+  return value === 'NOVA_POSHTA_WAREHOUSE' || value === 'NOVA_POSHTA_COURIER'
+}
+
+function normalizePersistedCity(value: unknown): NovaPoshtaCity | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Record<string, unknown>
+  if (typeof candidate.ref !== 'string' || typeof candidate.name !== 'string') {
+    return null
+  }
+
+  return {
+    ref: candidate.ref,
+    name: candidate.name,
+    area: typeof candidate.area === 'string' ? candidate.area : null,
+    settlementType:
+      typeof candidate.settlementType === 'string' ? candidate.settlementType : null,
+  }
+}
+
+function normalizePersistedWarehouse(value: unknown): NovaPoshtaWarehouse | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Record<string, unknown>
+  if (
+    typeof candidate.ref !== 'string' ||
+    typeof candidate.name !== 'string' ||
+    typeof candidate.cityRef !== 'string'
+  ) {
+    return null
+  }
+
+  return {
+    ref: candidate.ref,
+    name: candidate.name,
+    cityRef: candidate.cityRef,
+    cityName: typeof candidate.cityName === 'string' ? candidate.cityName : null,
+  }
+}
+
+export function loadCheckoutDeliveryDraft(
+  storage: Pick<Storage, 'getItem'>,
+): PersistedCheckoutDeliveryDraft | null {
+  const raw = storage.getItem(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY)
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PersistedCheckoutDeliveryDraftEnvelope> | null
+    if (!parsed || parsed.version !== 1 || !parsed.draft) {
+      return null
+    }
+
+    const draft = parsed.draft as Partial<PersistedCheckoutDeliveryDraft>
+    if (
+      !isCheckoutDeliveryMode(draft.deliveryMode) ||
+      !isShippingDeliveryType(draft.selectedDeliveryType)
+    ) {
+      return null
+    }
+
+    return {
+      deliveryMode: draft.deliveryMode,
+      selectedDeliveryType: draft.selectedDeliveryType,
+      recipientFirstName:
+        typeof draft.recipientFirstName === 'string' ? draft.recipientFirstName : '',
+      recipientLastName:
+        typeof draft.recipientLastName === 'string' ? draft.recipientLastName : '',
+      recipientMiddleName:
+        typeof draft.recipientMiddleName === 'string' ? draft.recipientMiddleName : '',
+      recipientPhone: typeof draft.recipientPhone === 'string' ? draft.recipientPhone : '',
+      selectedCity: normalizePersistedCity(draft.selectedCity),
+      selectedWarehouse: normalizePersistedWarehouse(draft.selectedWarehouse),
+      recipientStreet: typeof draft.recipientStreet === 'string' ? draft.recipientStreet : '',
+      recipientBuilding:
+        typeof draft.recipientBuilding === 'string' ? draft.recipientBuilding : '',
+      recipientApartment:
+        typeof draft.recipientApartment === 'string' ? draft.recipientApartment : '',
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveCheckoutDeliveryDraft(
+  storage: Pick<Storage, 'setItem'>,
+  draft: PersistedCheckoutDeliveryDraft,
+) {
+  const payload: PersistedCheckoutDeliveryDraftEnvelope = {
+    version: 1,
+    draft,
+  }
+
+  storage.setItem(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY, JSON.stringify(payload))
+}
+
+export function clearCheckoutDeliveryDraft(storage: Pick<Storage, 'removeItem'>) {
+  storage.removeItem(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY)
+}
+
 function buildRecipientName(input: {
   recipientFirstName?: string | null
   recipientLastName?: string | null
@@ -64,6 +198,42 @@ function buildRecipientName(input: {
   ]
     .filter(Boolean)
     .join(' ')
+}
+
+export function getNovaPoshtaRecipientNameFieldError(
+  value: string,
+  field: 'firstName' | 'lastName' | 'middleName',
+) {
+  const trimmedValue = value.trim()
+
+  if (!trimmedValue) {
+    return null
+  }
+
+  if (NOVA_POSHTA_RECIPIENT_NAME_PATTERN.test(trimmedValue)) {
+    return null
+  }
+
+  switch (field) {
+    case 'firstName':
+      return 'Імʼя має містити лише українську кирилицю, апостроф, дефіс або пробіли.'
+    case 'lastName':
+      return 'Прізвище має містити лише українську кирилицю, апостроф, дефіс або пробіли.'
+    case 'middleName':
+      return 'По батькові має містити лише українську кирилицю, апостроф, дефіс або пробіли.'
+  }
+}
+
+function buildPersistedDeliveryDraft(
+  input: PersistedCheckoutDeliveryDraft,
+): DeliveryPayload | undefined {
+  return buildAutoRefreshDeliveryPayload(input)
+}
+
+export function buildSubmitDeliveryPayload(
+  input: AutoRefreshDeliveryInput,
+): DeliveryPayload | undefined {
+  return buildAutoRefreshDeliveryPayload(input)
 }
 
 function buildCheckoutPreviewUrl(
@@ -175,6 +345,23 @@ export function buildAutoRefreshDeliveryPayload(
   const recipientFirstName = input.recipientFirstName.trim() || null
   const recipientLastName = input.recipientLastName.trim() || null
   const recipientMiddleName = input.recipientMiddleName.trim() || null
+  const recipientFirstNameError = getNovaPoshtaRecipientNameFieldError(
+    recipientFirstName ?? '',
+    'firstName',
+  )
+  const recipientLastNameError = getNovaPoshtaRecipientNameFieldError(
+    recipientLastName ?? '',
+    'lastName',
+  )
+  const recipientMiddleNameError = getNovaPoshtaRecipientNameFieldError(
+    recipientMiddleName ?? '',
+    'middleName',
+  )
+
+  if (recipientFirstNameError || recipientLastNameError || recipientMiddleNameError) {
+    return undefined
+  }
+
   const recipientName =
     buildRecipientName({
       recipientFirstName,
@@ -381,6 +568,7 @@ export function useCheckout(initialCartId?: string) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasLoadedPreviewOnce, setHasLoadedPreviewOnce] = useState(false)
   const [isCartSyncPending, setIsCartSyncPending] = useState(false)
+  const [hasRestoredPersistedDraft, setHasRestoredPersistedDraft] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [previewSyncMessage, setPreviewSyncMessage] = useState<string | null>(null)
   const [addressError, setAddressError] = useState<string | null>(null)
@@ -395,37 +583,58 @@ export function useCheckout(initialCartId?: string) {
   const hasLoadedInitialPreviewRef = useRef(false)
   const deliveryPayloadRef = useRef<DeliveryPayload | undefined>(undefined)
   const previewCartIdRef = useRef<string | undefined>(initialCartId)
+  const initialPersistedDraftRef = useRef<PersistedCheckoutDeliveryDraft | null>(null)
+  const cartRefreshKeyRef = useRef(cartRefreshKey)
 
   useEffect(() => {
     appliedCouponCodeRef.current = appliedCouponCode
   }, [appliedCouponCode])
 
-  const getDeliveryPayload = useCallback((): DeliveryPayload | undefined => {
-    if (deliveryMode !== 'NOVA_POSHTA') {
-      return undefined
+  useEffect(() => {
+    cartRefreshKeyRef.current = cartRefreshKey
+  }, [cartRefreshKey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setHasRestoredPersistedDraft(true)
+      return
     }
 
-    return {
-      deliveryType: selectedDeliveryType,
-      recipientName: buildRecipientName({
-        recipientFirstName,
-        recipientLastName,
-        recipientMiddleName,
-      }),
+    const draft = loadCheckoutDeliveryDraft(window.localStorage)
+    initialPersistedDraftRef.current = draft
+
+    if (draft) {
+      setDeliveryMode(draft.deliveryMode)
+      setSelectedDeliveryType(draft.selectedDeliveryType)
+      setRecipientFirstName(draft.recipientFirstName)
+      setRecipientLastName(draft.recipientLastName)
+      setRecipientMiddleName(draft.recipientMiddleName)
+      setRecipientPhone(draft.recipientPhone)
+      setSelectedCity(draft.selectedCity)
+      setSelectedWarehouse(draft.selectedWarehouse)
+      setRecipientStreet(draft.recipientStreet)
+      setRecipientBuilding(draft.recipientBuilding)
+      setRecipientApartment(draft.recipientApartment)
+      deliveryPayloadRef.current = buildPersistedDeliveryDraft(draft)
+    }
+
+    setHasRestoredPersistedDraft(true)
+  }, [])
+
+  const getDeliveryPayload = useCallback((): DeliveryPayload | undefined => {
+    return buildSubmitDeliveryPayload({
+      deliveryMode,
+      selectedDeliveryType,
       recipientFirstName,
       recipientLastName,
       recipientMiddleName,
       recipientPhone,
-      recipientCityRef: selectedCity?.ref ?? null,
-      recipientCityName: selectedCity?.name ?? null,
-      recipientStreet: selectedDeliveryType === 'NOVA_POSHTA_COURIER' ? recipientStreet : null,
-      recipientBuilding: selectedDeliveryType === 'NOVA_POSHTA_COURIER' ? recipientBuilding : null,
-      recipientApartment: selectedDeliveryType === 'NOVA_POSHTA_COURIER' ? recipientApartment : null,
-      recipientWarehouseRef:
-        selectedDeliveryType === 'NOVA_POSHTA_WAREHOUSE' ? selectedWarehouse?.ref ?? null : null,
-      recipientWarehouseName:
-        selectedDeliveryType === 'NOVA_POSHTA_WAREHOUSE' ? selectedWarehouse?.name ?? null : null,
-    }
+      selectedCity,
+      selectedWarehouse,
+      recipientStreet,
+      recipientBuilding,
+      recipientApartment,
+    })
   }, [
     deliveryMode,
     recipientApartment,
@@ -596,6 +805,10 @@ export function useCheckout(initialCartId?: string) {
     isRefreshing
 
   useEffect(() => {
+    if (!hasRestoredPersistedDraft) {
+      return
+    }
+
     if (isCheckoutPreviewBlocked) {
       setIsLoading(true)
       setLoadError(null)
@@ -605,12 +818,17 @@ export function useCheckout(initialCartId?: string) {
 
     hasLoadedInitialPreviewRef.current = false
     setHasLoadedPreviewOnce(false)
-    lastHandledCartRefreshKeyRef.current = cartRefreshKey
 
-    void loadPreview(initialCartId, false).finally(() => {
+    const initialPersistedDraft = initialPersistedDraftRef.current
+    const initialDeliveryPayload = initialPersistedDraft
+      ? buildPersistedDeliveryDraft(initialPersistedDraft)
+      : undefined
+
+    void loadPreview(initialCartId, Boolean(initialPersistedDraft), initialDeliveryPayload).finally(() => {
       hasLoadedInitialPreviewRef.current = true
+      lastHandledCartRefreshKeyRef.current = cartRefreshKeyRef.current
     })
-  }, [initialCartId, isCheckoutPreviewBlocked, loadPreview])
+  }, [hasRestoredPersistedDraft, initialCartId, isCheckoutPreviewBlocked, loadPreview])
 
   useEffect(() => {
     if (isCheckoutPreviewBlocked) {
@@ -656,6 +874,39 @@ export function useCheckout(initialCartId?: string) {
     deliveryPayloadRef.current = previewDeliveryPayload
   }, [previewDeliveryPayload])
 
+  useEffect(() => {
+    if (!hasRestoredPersistedDraft || typeof window === 'undefined') {
+      return
+    }
+
+    saveCheckoutDeliveryDraft(window.localStorage, {
+      deliveryMode,
+      selectedDeliveryType,
+      recipientFirstName,
+      recipientLastName,
+      recipientMiddleName,
+      recipientPhone,
+      selectedCity,
+      selectedWarehouse,
+      recipientStreet,
+      recipientBuilding,
+      recipientApartment,
+    })
+  }, [
+    deliveryMode,
+    hasRestoredPersistedDraft,
+    recipientApartment,
+    recipientBuilding,
+    recipientFirstName,
+    recipientLastName,
+    recipientMiddleName,
+    recipientPhone,
+    recipientStreet,
+    selectedCity,
+    selectedDeliveryType,
+    selectedWarehouse,
+  ])
+
   const autoRefreshDeliveryPayload = useMemo(
     () =>
       buildAutoRefreshDeliveryPayload({
@@ -686,8 +937,25 @@ export function useCheckout(initialCartId?: string) {
     ],
   )
 
+  const recipientFirstNameError = useMemo(
+    () => getNovaPoshtaRecipientNameFieldError(recipientFirstName, 'firstName'),
+    [recipientFirstName],
+  )
+  const recipientLastNameError = useMemo(
+    () => getNovaPoshtaRecipientNameFieldError(recipientLastName, 'lastName'),
+    [recipientLastName],
+  )
+  const recipientMiddleNameError = useMemo(
+    () => getNovaPoshtaRecipientNameFieldError(recipientMiddleName, 'middleName'),
+    [recipientMiddleName],
+  )
+
   const hasCompleteNovaPoshtaSelection = useMemo(() => {
     if (deliveryMode !== 'NOVA_POSHTA') {
+      return false
+    }
+
+    if (recipientFirstNameError || recipientLastNameError || recipientMiddleNameError) {
       return false
     }
 
@@ -711,6 +979,9 @@ export function useCheckout(initialCartId?: string) {
     recipientBuilding,
     recipientFirstName,
     recipientLastName,
+    recipientFirstNameError,
+    recipientLastNameError,
+    recipientMiddleNameError,
     recipientPhone,
     recipientStreet,
     selectedCity?.ref,
@@ -887,6 +1158,9 @@ export function useCheckout(initialCartId?: string) {
       })
 
       setCartItemCount(0)
+      if (typeof window !== 'undefined') {
+        clearCheckoutDeliveryDraft(window.localStorage)
+      }
 
       if (result.paymentAction?.checkoutAction === 'POST_FORM') {
         setPaymentHandoffAction(result.paymentAction)
@@ -1045,6 +1319,9 @@ export function useCheckout(initialCartId?: string) {
     recipientFirstName,
     recipientLastName,
     recipientMiddleName,
+    recipientFirstNameError,
+    recipientLastNameError,
+    recipientMiddleNameError,
     recipientPhone,
     selectedCity,
     selectedWarehouse,

@@ -14,32 +14,7 @@ import type {
   ShippingDeliveryType,
 } from '@/types/shipping'
 
-export default function CheckoutDeliverySection({
-  deliveryMode,
-  onDeliveryModeChange,
-  selectedDeliveryType,
-  onDeliveryTypeChange,
-  recipientFirstName,
-  recipientLastName,
-  recipientMiddleName,
-  recipientPhone,
-  selectedCity,
-  selectedWarehouse,
-  recipientStreet,
-  recipientBuilding,
-  recipientApartment,
-  onRecipientFirstNameChange,
-  onRecipientLastNameChange,
-  onRecipientMiddleNameChange,
-  onRecipientPhoneChange,
-  onCityChange,
-  onWarehouseChange,
-  onRecipientStreetChange,
-  onRecipientBuildingChange,
-  onRecipientApartmentChange,
-  deliverySelection,
-  hasSavedAddresses,
-}: {
+type CheckoutDeliverySectionProps = {
   deliveryMode: CheckoutDeliveryMode
   onDeliveryModeChange: (mode: CheckoutDeliveryMode) => void
   selectedDeliveryType: ShippingDeliveryType
@@ -47,6 +22,9 @@ export default function CheckoutDeliverySection({
   recipientFirstName: string
   recipientLastName: string
   recipientMiddleName: string
+  recipientFirstNameError: string | null
+  recipientLastNameError: string | null
+  recipientMiddleNameError: string | null
   recipientPhone: string
   selectedCity: NovaPoshtaCity | null
   selectedWarehouse: NovaPoshtaWarehouse | null
@@ -64,7 +42,37 @@ export default function CheckoutDeliverySection({
   onRecipientApartmentChange: (value: string) => void
   deliverySelection: CheckoutDeliverySelection
   hasSavedAddresses: boolean
-}) {
+}
+
+export default function CheckoutDeliverySection({
+  deliveryMode,
+  onDeliveryModeChange,
+  selectedDeliveryType,
+  onDeliveryTypeChange,
+  recipientFirstName,
+  recipientLastName,
+  recipientMiddleName,
+  recipientFirstNameError,
+  recipientLastNameError,
+  recipientMiddleNameError,
+  recipientPhone,
+  selectedCity,
+  selectedWarehouse,
+  recipientStreet,
+  recipientBuilding,
+  recipientApartment,
+  onRecipientFirstNameChange,
+  onRecipientLastNameChange,
+  onRecipientMiddleNameChange,
+  onRecipientPhoneChange,
+  onCityChange,
+  onWarehouseChange,
+  onRecipientStreetChange,
+  onRecipientBuildingChange,
+  onRecipientApartmentChange,
+  deliverySelection,
+  hasSavedAddresses,
+}: CheckoutDeliverySectionProps) {
   const isCourier = selectedDeliveryType === 'NOVA_POSHTA_COURIER'
   const isEstimateReady =
     Boolean(recipientFirstName.trim()) &&
@@ -155,7 +163,20 @@ export default function CheckoutDeliverySection({
                   value={recipientFirstName}
                   onChange={(event) => onRecipientFirstNameChange(event.target.value)}
                   placeholder="Наприклад, Іван"
+                  aria-invalid={recipientFirstNameError ? true : undefined}
+                  aria-describedby={
+                    recipientFirstNameError ? 'checkout-recipient-first-name-error' : undefined
+                  }
                 />
+                {recipientFirstNameError ? (
+                  <p
+                    id="checkout-recipient-first-name-error"
+                    className="text-sm text-brand-danger"
+                    role="alert"
+                  >
+                    {recipientFirstNameError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="space-y-2">
@@ -165,7 +186,20 @@ export default function CheckoutDeliverySection({
                   value={recipientLastName}
                   onChange={(event) => onRecipientLastNameChange(event.target.value)}
                   placeholder="Наприклад, Петренко"
+                  aria-invalid={recipientLastNameError ? true : undefined}
+                  aria-describedby={
+                    recipientLastNameError ? 'checkout-recipient-last-name-error' : undefined
+                  }
                 />
+                {recipientLastNameError ? (
+                  <p
+                    id="checkout-recipient-last-name-error"
+                    className="text-sm text-brand-danger"
+                    role="alert"
+                  >
+                    {recipientLastNameError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="space-y-2 sm:col-span-2">
@@ -177,7 +211,20 @@ export default function CheckoutDeliverySection({
                   value={recipientMiddleName}
                   onChange={(event) => onRecipientMiddleNameChange(event.target.value)}
                   placeholder="Наприклад, Іванович"
+                  aria-invalid={recipientMiddleNameError ? true : undefined}
+                  aria-describedby={
+                    recipientMiddleNameError ? 'checkout-recipient-middle-name-error' : undefined
+                  }
                 />
+                {recipientMiddleNameError ? (
+                  <p
+                    id="checkout-recipient-middle-name-error"
+                    className="text-sm text-brand-danger"
+                    role="alert"
+                  >
+                    {recipientMiddleNameError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="space-y-2">
@@ -192,7 +239,6 @@ export default function CheckoutDeliverySection({
 
               <div className="sm:col-span-2">
                 <NovaPoshtaCityCombobox
-                  key={selectedCity?.ref ?? 'checkout-city'}
                   value={selectedCity}
                   onChange={(city) => {
                     onCityChange(city)
@@ -214,7 +260,6 @@ export default function CheckoutDeliverySection({
               />
             ) : (
               <NovaPoshtaWarehouseSelect
-                key={selectedCity?.ref ?? 'checkout-warehouse'}
                 cityRef={selectedCity?.ref ?? null}
                 value={selectedWarehouse}
                 onChange={onWarehouseChange}

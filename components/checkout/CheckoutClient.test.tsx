@@ -219,9 +219,26 @@ function makeCheckoutState() {
 describe('CheckoutClient', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot>
+  let localStorageMock: {
+    getItem: (key: string) => string | null
+    setItem: (key: string, value: string) => void
+    removeItem: (key: string) => void
+    clear: () => void
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorageMock = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    }
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      configurable: true,
+    })
+    localStorageMock.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -229,10 +246,12 @@ describe('CheckoutClient', () => {
   })
 
   afterEach(() => {
-    act(() => {
-      root.unmount()
-    })
-    container.remove()
+    if (root) {
+      act(() => {
+        root.unmount()
+      })
+    }
+    container?.remove()
   })
 
   it('blocks checkout when privacy consent is unchecked and focuses the checkbox', () => {
@@ -365,5 +384,38 @@ describe('CheckoutClient', () => {
       container.querySelector('[data-testid="checkout-loading-state"]'),
     ).not.toBeNull()
     expect(container.textContent).not.toContain('empty-state')
+  })
+
+  it('restores privacy consent from localStorage and clears it after successful checkout', async () => {
+    submitCheckoutMock.mockResolvedValueOnce({
+      orderId: 'order-1',
+    })
+    vi.mocked(localStorageMock.getItem).mockReturnValue('true')
+
+    await act(async () => {
+      root.render(<CheckoutClient />)
+    })
+
+    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement | null
+    const submitButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('submit-checkout'),
+    )
+
+    expect(checkbox?.checked).toBe(true)
+
+    await act(async () => {
+      submitButton?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await Promise.resolve()
+    })
+
+    expect(submitCheckoutMock).toHaveBeenCalledWith({
+      acceptedPrivacy: true,
+    })
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('checkout:privacy-consent:v1')
   })
 })

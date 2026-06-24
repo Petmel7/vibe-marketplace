@@ -6,6 +6,8 @@ import { apiClient } from '@/shared/api/api.client'
 import { ApiError } from '@/shared/api/api.errors'
 import type { NovaPoshtaWarehouse } from '@/types/shipping'
 
+const warehouseResultsCache = new Map<string, NovaPoshtaWarehouse[]>()
+
 function uniqueWarehousesByRef(warehouses: NovaPoshtaWarehouse[]) {
   const seen = new Set<string>()
   return warehouses.filter((warehouse) => {
@@ -50,9 +52,31 @@ export default function NovaPoshtaWarehouseSelect({
   const [warehouses, setWarehouses] = useState<NovaPoshtaWarehouse[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const displayedWarehouses =
+    value && !warehouses.some((warehouse) => warehouse.ref === value.ref)
+      ? [value, ...warehouses]
+      : warehouses
 
   useEffect(() => {
     if (!cityRef) {
+      setWarehouses([])
+      setLoadError(null)
+      setIsLoading(false)
+      return
+    }
+
+    const normalizedCityRef = cityRef.trim()
+    const cachedWarehouses = warehouseResultsCache.get(normalizedCityRef)
+
+    if (cachedWarehouses) {
+      setWarehouses(cachedWarehouses)
+      setLoadError(null)
+      setIsLoading(false)
+
+      if (!cachedWarehouses.some((warehouse) => warehouse.ref === value?.ref)) {
+        onChange(null)
+      }
+
       return
     }
 
@@ -64,7 +88,7 @@ export default function NovaPoshtaWarehouseSelect({
 
       try {
         const data = await apiClient.get<NovaPoshtaWarehouse[]>(
-          `${API_ROUTES.shippingNovaPoshtaWarehouses}?cityRef=${encodeURIComponent(cityRef)}`,
+          `${API_ROUTES.shippingNovaPoshtaWarehouses}?cityRef=${encodeURIComponent(normalizedCityRef)}`,
         )
 
         if (cancelled) {
@@ -72,8 +96,9 @@ export default function NovaPoshtaWarehouseSelect({
         }
 
         const uniqueWarehouses = uniqueWarehousesByRef(data)
-
+        warehouseResultsCache.set(normalizedCityRef, uniqueWarehouses)
         setWarehouses(uniqueWarehouses)
+
         if (!uniqueWarehouses.some((warehouse) => warehouse.ref === value?.ref)) {
           onChange(null)
         }
@@ -109,10 +134,12 @@ export default function NovaPoshtaWarehouseSelect({
         value={value?.ref ?? ''}
         onChange={(event) => {
           const nextValue = event.target.value
-          const nextWarehouse = warehouses.find((warehouse) => warehouse.ref === nextValue) ?? null
+          const nextWarehouse =
+            displayedWarehouses.find((warehouse) => warehouse.ref === nextValue) ?? null
           onChange(nextWarehouse)
         }}
-        disabled={disabled || !cityRef || isLoading}
+        disabled={disabled || !cityRef}
+        aria-busy={isLoading}
         aria-invalid={Boolean(errorMessage || loadError)}
         aria-describedby={describedBy}
       >
@@ -121,11 +148,11 @@ export default function NovaPoshtaWarehouseSelect({
             ? 'Спочатку оберіть місто'
             : isLoading
               ? 'Завантажуємо відділення...'
-              : warehouses.length === 0
+              : displayedWarehouses.length === 0
                 ? 'Немає доступних відділень'
                 : 'Оберіть відділення'}
         </option>
-        {warehouses.map((warehouse) => (
+        {displayedWarehouses.map((warehouse) => (
           <option key={warehouse.ref} value={warehouse.ref}>
             {warehouse.name}
           </option>

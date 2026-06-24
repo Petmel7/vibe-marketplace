@@ -1,10 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   buildAutoRefreshDeliveryPayload,
   buildAutoRefreshKey,
   buildPreviewDeliverySyncKey,
+  buildSubmitDeliveryPayload,
+  CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY,
+  clearCheckoutDeliveryDraft,
+  getNovaPoshtaRecipientNameFieldError,
   getVisibleCheckoutBlockingIssues,
+  loadCheckoutDeliveryDraft,
+  saveCheckoutDeliveryDraft,
 } from '@/hooks/useCheckout'
 
 describe('useCheckout auto refresh helpers', () => {
@@ -79,6 +85,66 @@ describe('useCheckout auto refresh helpers', () => {
       recipientWarehouseRef: null,
       recipientWarehouseName: null,
     })
+  })
+
+  it('derives recipientName only from structured Nova Poshta recipient fields', () => {
+    const payload = buildAutoRefreshDeliveryPayload({
+      deliveryMode: 'NOVA_POSHTA',
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientFirstName: 'Олег',
+      recipientLastName: 'Меличин',
+      recipientMiddleName: '',
+      recipientPhone: '+380000000000',
+      selectedCity: {
+        ref: 'city-1',
+        name: 'Київ',
+        area: null,
+        settlementType: null,
+      },
+      selectedWarehouse: {
+        ref: 'warehouse-1',
+        name: 'Відділення 1',
+        cityRef: 'city-1',
+        cityName: 'Київ',
+      },
+      recipientStreet: '',
+      recipientBuilding: '',
+      recipientApartment: '',
+    })
+
+    expect(payload?.recipientFirstName).toBe('Олег')
+    expect(payload?.recipientLastName).toBe('Меличин')
+    expect(payload?.recipientName).toBe('Меличин Олег')
+  })
+
+  it('rejects Latin letters in structured recipient fields before checkout preview request payload is built', () => {
+    expect(getNovaPoshtaRecipientNameFieldError('Oлег', 'firstName')).toBeTruthy()
+
+    const payload = buildAutoRefreshDeliveryPayload({
+      deliveryMode: 'NOVA_POSHTA',
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientFirstName: 'Oлег',
+      recipientLastName: 'Меличин',
+      recipientMiddleName: '',
+      recipientPhone: '+380000000000',
+      selectedCity: {
+        ref: 'city-1',
+        name: 'Київ',
+        area: null,
+        settlementType: null,
+      },
+      selectedWarehouse: {
+        ref: 'warehouse-1',
+        name: 'Відділення 1',
+        cityRef: 'city-1',
+        cityName: 'Київ',
+      },
+      recipientStreet: '',
+      recipientBuilding: '',
+      recipientApartment: '',
+    })
+
+    expect(payload).toBeUndefined()
   })
 
   it('builds one stable auto refresh key for the same warehouse selection', () => {
@@ -180,7 +246,10 @@ describe('useCheckout auto refresh helpers', () => {
   it('hides generic address blocking issues when Nova Poshta delivery is selected', () => {
     const issues = getVisibleCheckoutBlockingIssues(
       [
-        { code: 'ADDRESS_REQUIRED', message: 'Select or add a shipping address before placing the order.' },
+        {
+          code: 'ADDRESS_REQUIRED',
+          message: 'Select or add a shipping address before placing the order.',
+        },
         { code: 'STOCK_UNAVAILABLE', message: 'Out of stock', variantId: 'variant-1' },
       ],
       'NOVA_POSHTA',
@@ -189,5 +258,82 @@ describe('useCheckout auto refresh helpers', () => {
     expect(issues).toEqual([
       { code: 'STOCK_UNAVAILABLE', message: 'Out of stock', variantId: 'variant-1' },
     ])
+  })
+})
+
+describe('checkout delivery draft persistence', () => {
+  it('saves and restores delivery draft values including city and warehouse', () => {
+    const storage = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    }
+
+    saveCheckoutDeliveryDraft(storage, {
+      deliveryMode: 'NOVA_POSHTA',
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: 'Іванович',
+      recipientPhone: '+380000000000',
+      selectedCity: {
+        ref: 'city-1',
+        name: 'Київ',
+        area: 'Київська',
+        settlementType: 'м.',
+      },
+      selectedWarehouse: {
+        ref: 'warehouse-1',
+        name: 'Відділення 1',
+        cityRef: 'city-1',
+        cityName: 'Київ',
+      },
+      recipientStreet: '',
+      recipientBuilding: '',
+      recipientApartment: '',
+    })
+
+    expect(storage.setItem).toHaveBeenCalledTimes(1)
+    expect(storage.setItem).toHaveBeenCalledWith(
+      CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY,
+      expect.stringContaining('"recipientFirstName":"Іван"'),
+    )
+
+    const persistedValue = (storage.setItem.mock.calls[0] ?? [])[1] as string
+    storage.getItem.mockReturnValue(persistedValue)
+
+    expect(loadCheckoutDeliveryDraft(storage)).toEqual({
+      deliveryMode: 'NOVA_POSHTA',
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientFirstName: 'Іван',
+      recipientLastName: 'Петренко',
+      recipientMiddleName: 'Іванович',
+      recipientPhone: '+380000000000',
+      selectedCity: {
+        ref: 'city-1',
+        name: 'Київ',
+        area: 'Київська',
+        settlementType: 'м.',
+      },
+      selectedWarehouse: {
+        ref: 'warehouse-1',
+        name: 'Відділення 1',
+        cityRef: 'city-1',
+        cityName: 'Київ',
+      },
+      recipientStreet: '',
+      recipientBuilding: '',
+      recipientApartment: '',
+    })
+  })
+
+  it('clears persisted draft after successful order placement', () => {
+    const storage = {
+      removeItem: vi.fn(),
+    }
+
+    clearCheckoutDeliveryDraft(storage)
+
+    expect(storage.removeItem).toHaveBeenCalledWith(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY)
   })
 })
