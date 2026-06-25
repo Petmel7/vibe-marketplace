@@ -43,6 +43,53 @@ import {
 
 const TOP_LIMIT = 10
 
+function isTransientConnectionReset(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  const message = error.message.toLowerCase()
+  return message.includes('econnreset') || message.includes('connection reset')
+}
+
+async function retryAdminAnalyticsOperation<T>(
+  operation: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run()
+  } catch (error) {
+    if (!isTransientConnectionReset(error)) {
+      throw error
+    }
+
+    return measureServerOperation(
+      `${operation}.retry`,
+      {
+        service: 'features/admin/analytics/admin-analytics.service',
+        analytics: 'marketplace-full',
+      },
+      () => run(),
+    )
+  }
+}
+
+async function runConcurrentGroup<T extends readonly unknown[]>(
+  group: string,
+  operations: { [K in keyof T]: () => Promise<T[K]> },
+): Promise<T> {
+  return measureServerOperation(
+    `getMarketplaceAnalytics.${group}`,
+    {
+      service: 'features/admin/analytics/admin-analytics.service',
+      analytics: 'marketplace-full',
+      concurrentGroup: group,
+      operationCount: operations.length,
+    },
+    () => Promise.all(operations.map((operation) => operation())) as unknown as Promise<T>,
+  )
+}
+
 function toGroupedMap(
   rows: AnalyticsBucketValueRow[],
   interval: AnalyticsQuery['interval'],
@@ -72,105 +119,131 @@ export async function getMarketplaceAnalytics(
       totalOrders,
       totalSellers,
       totalBuyers,
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupA', () =>
+      runConcurrentGroup('A-core-counts', [
+        () => getGMV(),
+        () => getTotalOrderCount(),
+        () => getTotalSellerCount(),
+        () => getTotalBuyerCount(),
+      ] as const),
+    )
+
+    const [
       totalProducts,
       sellerGrowthLast30Days,
       orderGrowthLast30Days,
       moderationStats,
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupB', () =>
+      runConcurrentGroup('B-growth-and-moderation', [
+        () => getTotalProductCount(),
+        () => getSellerGrowthLast30Days(),
+        () => getOrderGrowthLast30Days(),
+        () => getModerationStats(),
+      ] as const),
+    )
+
+    const [
       currentOrderMetrics,
       previousOrderMetrics,
       currentCommissionMetrics,
       currentRefundMetrics,
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupC', () =>
+      runConcurrentGroup('C-period-metrics', [
+        () => getAdminOrderMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
+        () => getAdminOrderMetricsForRange(resolvedRange.previous.from, resolvedRange.previous.to),
+        () => getAdminCommissionMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
+        () => getAdminRefundMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
+      ] as const),
+    )
+
+    const [
       disputeCount,
       currentSellerGrowthCount,
       previousSellerGrowthCount,
       activeSellerCount,
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupD', () =>
+      runConcurrentGroup('D-supporting-counts', [
+        () => getAdminDisputeCountForRange(resolvedRange.current.from, resolvedRange.current.to),
+        () => getSellerGrowthCountForRange(resolvedRange.current.from, resolvedRange.current.to),
+        () => getSellerGrowthCountForRange(resolvedRange.previous.from, resolvedRange.previous.to),
+        () => getActiveSellerCount(),
+      ] as const),
+    )
+
+    const [
       publishedProductCount,
       riskSummary,
       topSellers,
       topProducts,
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupE', () =>
+      runConcurrentGroup('E-toplists-and-risk', [
+        () => getPublishedProductCount(),
+        () => getRiskSummary(),
+        () => getAdminTopSellersForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          TOP_LIMIT,
+        ),
+        () => getAdminTopProductsForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          TOP_LIMIT,
+        ),
+      ] as const),
+    )
+
+    const [
       topCategories,
       revenueSeriesRows,
       orderSeriesRows,
       sellerGrowthSeriesRows,
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupF', () =>
+      runConcurrentGroup('F-primary-series', [
+        () => getAdminTopCategoriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          TOP_LIMIT,
+        ),
+        () => getAdminRevenueSeriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          resolvedRange.interval,
+        ),
+        () => getAdminOrderSeriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          resolvedRange.interval,
+        ),
+        () => getAdminSellerGrowthSeriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          resolvedRange.interval,
+        ),
+      ] as const),
+    )
+
+    const [
       refundSeriesRows,
       disputeSeriesRows,
       commissionSeriesRows,
-    ] = await measureServerOperation(
-      'getMarketplaceAnalytics',
-      {
-        service: 'features/admin/analytics/admin-analytics.service',
-        route: '/admin/analytics',
-        analytics: 'marketplace-full',
-        adminId: admin.id,
-        range: query.range,
-        interval: resolvedRange.interval,
-      },
-      () =>
-        Promise.all([
-          getGMV(),
-          getTotalOrderCount(),
-          getTotalSellerCount(),
-          getTotalBuyerCount(),
-          getTotalProductCount(),
-          getSellerGrowthLast30Days(),
-          getOrderGrowthLast30Days(),
-          getModerationStats(),
-          getAdminOrderMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
-          getAdminOrderMetricsForRange(resolvedRange.previous.from, resolvedRange.previous.to),
-          getAdminCommissionMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
-          getAdminRefundMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
-          getAdminDisputeCountForRange(resolvedRange.current.from, resolvedRange.current.to),
-          getSellerGrowthCountForRange(resolvedRange.current.from, resolvedRange.current.to),
-          getSellerGrowthCountForRange(resolvedRange.previous.from, resolvedRange.previous.to),
-          getActiveSellerCount(),
-          getPublishedProductCount(),
-          getRiskSummary(),
-          getAdminTopSellersForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            TOP_LIMIT,
-          ),
-          getAdminTopProductsForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            TOP_LIMIT,
-          ),
-          getAdminTopCategoriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            TOP_LIMIT,
-          ),
-          getAdminRevenueSeriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            resolvedRange.interval,
-          ),
-          getAdminOrderSeriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            resolvedRange.interval,
-          ),
-          getAdminSellerGrowthSeriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            resolvedRange.interval,
-          ),
-          getAdminRefundSeriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            resolvedRange.interval,
-          ),
-          getAdminDisputeSeriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            resolvedRange.interval,
-          ),
-          getAdminCommissionSeriesForRange(
-            resolvedRange.current.from,
-            resolvedRange.current.to,
-            resolvedRange.interval,
-          ),
-        ]),
+    ] = await retryAdminAnalyticsOperation('getMarketplaceAnalytics.groupG', () =>
+      runConcurrentGroup('G-secondary-series', [
+        () => getAdminRefundSeriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          resolvedRange.interval,
+        ),
+        () => getAdminDisputeSeriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          resolvedRange.interval,
+        ),
+        () => getAdminCommissionSeriesForRange(
+          resolvedRange.current.from,
+          resolvedRange.current.to,
+          resolvedRange.interval,
+        ),
+      ] as const),
     )
 
     const buckets = buildDateBuckets(

@@ -248,6 +248,23 @@ describe('getMarketplaceAnalytics', () => {
 
     expect(mockRepo.getGMV).not.toHaveBeenCalled()
   })
+
+  it('retries once when a transient ECONNRESET occurs during aggregation', async () => {
+    setupRepoMocks()
+    mockRepo.getPublishedProductCount
+      .mockRejectedValueOnce(new Error('read ECONNRESET'))
+      .mockResolvedValueOnce(2500)
+
+    const result = await getMarketplaceAnalytics(mockAdmin, {
+      range: 'custom',
+      from: '2026-06-01',
+      to: '2026-06-03',
+      interval: 'day',
+    })
+
+    expect(result.publishedProductCount).toBe(2500)
+    expect(mockRepo.getPublishedProductCount).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('getMarketplaceOverviewAnalytics', () => {

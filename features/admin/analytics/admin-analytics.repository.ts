@@ -227,25 +227,23 @@ export async function getModerationStats(): Promise<{
   suspendedSellers: number
   rejectedProducts: number
 }> {
-  const [
-    pendingSellerApprovals,
-    pendingProductApprovals,
-    suspendedSellers,
-    rejectedProducts,
-  ] = await measureServerOperation(
+  const pendingSellerApprovals = await measureServerOperation(
     'adminAnalytics.getModerationStats',
     {
       repository: 'features/admin/analytics/admin-analytics.repository',
-      sql: 'sellerProfile.count x2 + product.count x2',
+      sql: 'prisma.sellerProfile.count(verificationStatus=PENDING)',
     },
-    () =>
-      Promise.all([
-        prisma.sellerProfile.count({ where: { verificationStatus: 'PENDING' } }),
-        prisma.product.count({ where: { status: 'PENDING_REVIEW' } }),
-        prisma.sellerProfile.count({ where: { verificationStatus: 'SUSPENDED' } }),
-        prisma.product.count({ where: { status: 'REJECTED' } }),
-      ]),
+    () => prisma.sellerProfile.count({ where: { verificationStatus: 'PENDING' } }),
   )
+  const pendingProductApprovals = await prisma.product.count({
+    where: { status: 'PENDING_REVIEW' },
+  })
+  const suspendedSellers = await prisma.sellerProfile.count({
+    where: { verificationStatus: 'SUSPENDED' },
+  })
+  const rejectedProducts = await prisma.product.count({
+    where: { status: 'REJECTED' },
+  })
 
   return {
     pendingSellerApprovals,
@@ -347,33 +345,47 @@ export async function getSellerGrowthCountForRange(
   from: Date,
   to: Date,
 ): Promise<number> {
-  return prisma.sellerProfile.count({
-    where: {
-      createdAt: { gte: from, lte: to },
+  return measureServerOperation(
+    'adminAnalytics.getSellerGrowthCountForRange',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.sellerProfile.count(createdAt range)',
     },
-  })
+    () =>
+      prisma.sellerProfile.count({
+        where: {
+          createdAt: { gte: from, lte: to },
+        },
+      }),
+  )
 }
 
 export async function getAdminRefundMetricsForRange(
   from: Date,
   to: Date,
 ): Promise<AdminRefundMetrics> {
-  const [count, sum] = await Promise.all([
-    prisma.refundRequest.count({
-      where: {
-        createdAt: { gte: from, lte: to },
-      },
-    }),
-    prisma.refundRequest.aggregate({
-      where: {
-        createdAt: { gte: from, lte: to },
-        status: RefundRequestStatus.SUCCEEDED,
-      },
-      _sum: {
-        amount: true,
-      },
-    }),
-  ])
+  const count = await measureServerOperation(
+    'adminAnalytics.getAdminRefundMetricsForRange.count',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.refundRequest.count(createdAt range)',
+    },
+    () =>
+      prisma.refundRequest.count({
+        where: {
+          createdAt: { gte: from, lte: to },
+        },
+      }),
+  )
+  const sum = await prisma.refundRequest.aggregate({
+    where: {
+      createdAt: { gte: from, lte: to },
+      status: RefundRequestStatus.SUCCEEDED,
+    },
+    _sum: {
+      amount: true,
+    },
+  })
 
   return {
     refundCount: count,
@@ -584,19 +596,35 @@ export async function getAdminTopCategoriesForRange(
 }
 
 export async function getActiveSellerCount(): Promise<number> {
-  const [row] = await prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
-    SELECT COUNT(DISTINCT s.owner_id)::int AS value
-    FROM stores s
-    WHERE s.is_active = true
-  `)
+  const [row] = await measureServerOperation(
+    'adminAnalytics.getActiveSellerCount',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'count distinct active store owners',
+    },
+    () =>
+      prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
+        SELECT COUNT(DISTINCT s.owner_id)::int AS value
+        FROM stores s
+        WHERE s.is_active = true
+      `),
+  )
 
   return toInteger(row?.value)
 }
 
 export async function getPublishedProductCount(): Promise<number> {
-  return prisma.product.count({
-    where: { status: 'PUBLISHED' },
-  })
+  return measureServerOperation(
+    'adminAnalytics.getPublishedProductCount',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.product.count(status=PUBLISHED)',
+    },
+    () =>
+      prisma.product.count({
+        where: { status: 'PUBLISHED' },
+      }),
+  )
 }
 
 export async function getRiskSummary(): Promise<{
@@ -605,10 +633,18 @@ export async function getRiskSummary(): Promise<{
   high: number
   critical: number
 }> {
-  const profiles = await prisma.riskProfile.groupBy({
-    by: ['level'],
-    _count: { level: true },
-  })
+  const profiles = await measureServerOperation(
+    'adminAnalytics.getRiskSummary',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.riskProfile.groupBy(level)',
+    },
+    () =>
+      prisma.riskProfile.groupBy({
+        by: ['level'],
+        _count: { level: true },
+      }),
+  )
 
   return {
     low: profiles.find((profile) => profile.level === RiskLevel.LOW)?._count.level ?? 0,
