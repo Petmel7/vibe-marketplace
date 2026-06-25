@@ -123,4 +123,22 @@ describe('seller analytics repository', () => {
       },
     ])
   })
+
+  it('uses GROUP BY on UUID product identifiers instead of MIN(uuid)', async () => {
+    queryRawMock.mockResolvedValueOnce([])
+
+    await getSellerTopProductsForRange(
+      ['store-1'],
+      new Date('2026-06-01T00:00:00.000Z'),
+      new Date('2026-06-03T23:59:59.999Z'),
+      10,
+    )
+
+    const query = queryRawMock.mock.calls[0]?.[0] as { strings?: readonly string[] } | undefined
+    const sql = query?.strings?.join(' ') ?? ''
+
+    expect(sql).toContain('oi.variant_id::text AS "productId"')
+    expect(sql).toContain('GROUP BY oi.variant_id, oi.product_name_snapshot')
+    expect(sql).not.toContain('MIN(oi.variant_id)')
+  })
 })

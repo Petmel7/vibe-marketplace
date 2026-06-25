@@ -254,7 +254,7 @@ export async function getSellerTopProductsForRange(
 ): Promise<TopProductEntry[]> {
   const rows = await prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
     SELECT
-      MIN(oi.variant_id)::text AS "productId",
+      oi.variant_id::text AS "productId",
       oi.product_name_snapshot AS name,
       COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
       COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
@@ -264,7 +264,7 @@ export async function getSellerTopProductsForRange(
       AND oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${revenueStatusFilterSql()}
-    GROUP BY oi.product_name_snapshot
+    GROUP BY oi.variant_id, oi.product_name_snapshot
     ORDER BY "totalSold" DESC, revenue DESC, name ASC
     LIMIT ${limit}
   `)
