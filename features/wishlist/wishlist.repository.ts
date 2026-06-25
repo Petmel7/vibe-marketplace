@@ -2,13 +2,24 @@ import { prisma } from '@/lib/prisma'
 import type { Wishlist, WishlistItem, Product } from '@/app/generated/prisma/client'
 export { productExists } from '@/lib/db/productExists'
 
-export type WishlistItemWithProduct = WishlistItem & { product: Product }
+type WishlistProductPreview = Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'>
+
+export type WishlistItemWithProduct = WishlistItem & { product: WishlistProductPreview }
 export type WishlistWithItems = Wishlist & { items: WishlistItemWithProduct[] }
 
 // Reused include shape — items newest-first so the UI shows recent additions at top.
 const wishlistInclude = {
   items: {
-    include: { product: true },
+    include: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          imageUrl: true,
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' as const },
   },
 } as const
@@ -83,4 +94,3 @@ async function fetchWishlistWithItems(wishlistId: string): Promise<WishlistWithI
     include: wishlistInclude,
   })
 }
-

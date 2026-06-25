@@ -8,6 +8,7 @@ import type {
   Store,
 } from '@/app/generated/prisma/client'
 import { Prisma } from '@/app/generated/prisma/client'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 type ProductImagePreview = Pick<ProductImage, 'id' | 'url' | 'isPrimary' | 'position' | 'createdAt'>
 type ProductImageDetailPreview = Pick<
@@ -130,6 +131,15 @@ interface FindProductCardsParams {
   limit: number
 }
 
+interface FindProductCardsPageParams extends FindProductCardsParams {
+  page: number
+}
+
+interface FindProductCardsPageResult {
+  items: ProductListProduct[]
+  hasNextPage: boolean
+}
+
 export interface ProductSearchRepositoryParams {
   q?: string
   categoryIds?: string[]
@@ -207,16 +217,26 @@ export async function findProducts(
   const { where, orderBy, page, limit } = params
   const skip = (page - 1) * limit
 
-  const [items, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy,
-      select: PRODUCT_LIST_SELECT,
-    }),
-    prisma.product.count({ where }),
-  ])
+  const [items, total] = await measureServerOperation(
+    'findProducts',
+    {
+      repository: 'features/products/product.repository',
+      sql: 'prisma.product.findMany + prisma.product.count',
+      page,
+      limit,
+    },
+    () =>
+      Promise.all([
+        prisma.product.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy,
+          select: PRODUCT_LIST_SELECT,
+        }),
+        prisma.product.count({ where }),
+      ]),
+  )
 
   return { items, total }
 }
@@ -226,12 +246,51 @@ export async function findProductCards(
 ): Promise<ProductListProduct[]> {
   const { where, orderBy, limit } = params
 
-  return prisma.product.findMany({
-    where,
-    take: limit,
-    orderBy,
-    select: PRODUCT_LIST_SELECT,
-  })
+  return measureServerOperation(
+    'findProductCards',
+    {
+      repository: 'features/products/product.repository',
+      sql: 'prisma.product.findMany(card select)',
+      limit,
+    },
+    () =>
+      prisma.product.findMany({
+        where,
+        take: limit,
+        orderBy,
+        select: PRODUCT_LIST_SELECT,
+      }),
+  )
+}
+
+export async function findProductCardsPage(
+  params: FindProductCardsPageParams,
+): Promise<FindProductCardsPageResult> {
+  const { where, orderBy, limit, page } = params
+  const skip = (page - 1) * limit
+
+  const rows = await measureServerOperation(
+    'findProductCardsPage',
+    {
+      repository: 'features/products/product.repository',
+      sql: 'prisma.product.findMany(card select, limit + 1)',
+      page,
+      limit,
+    },
+    () =>
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limit + 1,
+        orderBy,
+        select: PRODUCT_LIST_SELECT,
+      }),
+  )
+
+  return {
+    items: rows.slice(0, limit),
+    hasNextPage: rows.length > limit,
+  }
 }
 
 type ProductIdRow = { id: string }

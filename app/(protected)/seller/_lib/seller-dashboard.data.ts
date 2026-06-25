@@ -2,7 +2,10 @@ import { ProfileNotFoundError, SellerProfileNotFoundError } from '@/lib/errors/p
 import { ProductNotFoundError, StoreNotFoundError } from '@/lib/errors/seller'
 import { getMyProfile } from '@/features/profile/profile.service'
 import { getMySellerProfile } from '@/features/seller/seller.service'
-import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.service'
+import {
+  getMyAnalytics,
+  getMyOverviewAnalytics,
+} from '@/features/seller/analytics/seller-analytics.service'
 import { getMyProducts, getMyProductById } from '@/features/seller/products/seller-product.service'
 import { getMyOrderItems } from '@/features/seller/orders/seller-order.service'
 import { getOnboardingStatus } from '@/features/storefront/storefront.service'
@@ -10,6 +13,7 @@ import { listReviews } from '@/features/review/review.service'
 import type { SessionUser } from '@/types/auth'
 import { getSellerOnboardingState } from '@/types/seller'
 import { hasRole } from '@/lib/rbac/guards'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 export async function getSellerLayoutData(user: SessionUser) {
   let sellerProfile = null
@@ -86,7 +90,15 @@ export function getSellerStorefrontRedirect(data: {
 }
 
 export async function getSellerOverviewData(user: SessionUser) {
-  const layout = await getSellerLayoutData(user)
+  const layout = await measureServerOperation(
+    'getSellerLayoutData',
+    {
+      route: '/seller',
+      component: 'app/(protected)/seller/_lib/seller-dashboard.data',
+      sellerId: user.id,
+    },
+    () => getSellerLayoutData(user),
+  )
 
   if (!layout.store) {
     return {
@@ -99,11 +111,20 @@ export async function getSellerOverviewData(user: SessionUser) {
     }
   }
 
-  const [analytics, productSummaries, orderItems] = await Promise.all([
-    getMyAnalytics(user),
-    getMyProducts(user, { page: 1, limit: 8 }),
-    getMyOrderItems(user, { page: 1, limit: 8 }),
-  ])
+  const [analytics, productSummaries, orderItems] = await measureServerOperation(
+    'getSellerOverviewData',
+    {
+      route: '/seller',
+      component: 'app/(protected)/seller/_lib/seller-dashboard.data',
+      sellerId: user.id,
+    },
+    () =>
+      Promise.all([
+        getMyOverviewAnalytics(user),
+        getMyProducts(user, { page: 1, limit: 8 }),
+        getMyOrderItems(user, { page: 1, limit: 8 }),
+      ]),
+  )
 
   const lowStockProducts = productSummaries.filter((product) => product.totalStock <= 5)
 

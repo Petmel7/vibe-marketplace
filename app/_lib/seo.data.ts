@@ -12,6 +12,7 @@ import {
   getCachedSitemapEntries,
   SEO_CACHE_TAGS,
 } from '@/features/seo/seo.cache'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 export { getCachedRobotsConfig, getCachedSitemapEntries } from '@/features/seo/seo.cache'
 
@@ -51,12 +52,64 @@ const getCategorySeoCached = unstable_cache(
   },
 )
 
-export const getCachedGlobalSeo = cache(async () => getGlobalSeoCached())
+export const getCachedGlobalSeo = cache(async () =>
+  measureServerOperation(
+    'getCachedGlobalSeo',
+    {
+      component: 'app/_lib/seo.data',
+      seo: 'global',
+      cache: 'unstable_cache:seo-global',
+    },
+    () => getGlobalSeoCached(),
+  ),
+)
 
-export const getCachedPageSeo = cache(async (pageKey: string) => getPageSeoCached(pageKey))
+export const getCachedPageSeo = cache(async (pageKey: string) =>
+  measureServerOperation(
+    'getCachedPageSeo',
+    {
+      component: 'app/_lib/seo.data',
+      seo: 'page',
+      cache: 'unstable_cache:seo-page',
+      pageKey,
+    },
+    () => getPageSeoCached(pageKey),
+  ),
+)
 
-export const getCachedProductSeo = cache(async (id: string) => getProductSeoCached(id))
+export const getCachedProductSeo = cache(async (id: string) =>
+  measureServerOperation(
+    'getCachedProductSeo',
+    {
+      component: 'app/_lib/seo.data',
+      seo: 'product',
+      cache: 'unstable_cache:seo-product',
+      id,
+    },
+    () => getProductSeoCached(id),
+  ),
+)
 
-export const getCachedCategorySeo = cache(async (slug: string) => getCategorySeoCached(slug))
+export const getCachedCategorySeo = cache(async (slug: string) =>
+  measureServerOperation(
+    'getCachedCategorySeo',
+    {
+      component: 'app/_lib/seo.data',
+      seo: 'category',
+      cache: 'unstable_cache:seo-category',
+      slug,
+    },
+    () => getCategorySeoCached(slug),
+  ),
+)
 
-export const getCachedWebsiteJsonLd = cache(async () => getWebsiteSearchActionJsonLd())
+export const getCachedWebsiteJsonLd = cache(async () =>
+  measureServerOperation(
+    'getCachedWebsiteJsonLd',
+    {
+      component: 'app/_lib/seo.data',
+      seo: 'website-jsonld',
+    },
+    () => getWebsiteSearchActionJsonLd(),
+  ),
+)

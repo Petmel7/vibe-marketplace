@@ -6,6 +6,7 @@ import {
   type CategoryTreeNode,
 } from '@/components/category/category.data'
 import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 type PublicCategoryTreeRecord = {
   id: string
@@ -56,16 +57,26 @@ function buildCategoryTree(records: PublicCategoryTreeRecord[]): CategoryTreeNod
 const fetchCategoriesCached = unstable_cache(
   async (): Promise<CategoryListItem[]> => {
     try {
-      const data = await prisma.$queryRaw<CategoryListItem[]>`
-        SELECT
-          id,
-          name,
-          slug,
-          image_url AS "imageUrl"
-        FROM categories
-        ORDER BY created_at ASC, id ASC
-      `
-      return data
+      return await measureServerOperation(
+        'fetchCategories',
+        {
+          component: 'components/category/category.server',
+          repository: 'fetchCategoriesCached',
+          sql: 'SELECT categories list ORDER BY created_at, id',
+          categoryTree: 'categories-list',
+          cache: 'unstable_cache:public-categories-list',
+        },
+        async () =>
+          prisma.$queryRaw<CategoryListItem[]>`
+            SELECT
+              id,
+              name,
+              slug,
+              image_url AS "imageUrl"
+            FROM categories
+            ORDER BY created_at ASC, id ASC
+          `,
+      )
     } catch (error) {
       console.error('[fetchCategories] Unexpected error:', error)
       return []
@@ -81,21 +92,32 @@ const fetchCategoriesCached = unstable_cache(
 const fetchCategoryTreeCached = unstable_cache(
   async (): Promise<CategoryTreeNode[]> => {
     try {
-      const data = await prisma.category.findMany({
-        where: {
-          isActive: true,
-          isVisible: true,
+      const data = await measureServerOperation(
+        'fetchCategoryTree',
+        {
+          component: 'components/category/category.server',
+          repository: 'fetchCategoryTreeCached',
+          sql: 'prisma.category.findMany(active visible tree)',
+          categoryTree: 'active-tree',
+          cache: 'unstable_cache:public-category-tree',
         },
-        orderBy: [{ position: 'asc' }, { name: 'asc' }, { id: 'asc' }],
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          image: true,
-          parentId: true,
-          position: true,
-        },
-      })
+        () =>
+          prisma.category.findMany({
+            where: {
+              isActive: true,
+              isVisible: true,
+            },
+            orderBy: [{ position: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              image: true,
+              parentId: true,
+              position: true,
+            },
+          }),
+      )
 
       return buildCategoryTree(data)
     } catch (error) {

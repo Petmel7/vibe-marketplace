@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import { AdminProfileNotFoundError } from '@/lib/errors/profile'
 import { getMyAdminProfile } from '@/features/admin/admin.service'
-import { getMarketplaceAnalytics } from '@/features/admin/analytics/admin-analytics.service'
+import {
+  getMarketplaceAnalytics,
+  getMarketplaceOverviewAnalytics,
+} from '@/features/admin/analytics/admin-analytics.service'
 import {
   getAllOrders,
   getAllProducts,
@@ -19,6 +22,7 @@ import { getPendingProductQueue, getRejectedProducts } from '@/features/moderati
 import { getAdminReviews } from '@/features/review/review.service'
 import { adminReviewListQuerySchema } from '@/features/review/review.schema'
 import type { SessionUser } from '@/types/auth'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 const moderationPaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -63,13 +67,22 @@ export async function getAdminLayoutData(user: SessionUser) {
 
 export async function getAdminOverviewData(user: SessionUser) {
   const [analytics, pendingSellerQueue, pendingProductQueue, suspendedSellerQueue, rejectedProductQueue] =
-    await Promise.all([
-      getMarketplaceAnalytics(user),
-      getPendingSellerQueue(user, { page: 1, limit: 5 }),
-      getPendingProductQueue(user, { page: 1, limit: 5 }),
-      getSuspendedSellers(user, { page: 1, limit: 5 }),
-      getRejectedProducts(user, { page: 1, limit: 5 }),
-    ])
+    await measureServerOperation(
+      'getAdminOverviewData',
+      {
+        route: '/admin',
+        component: 'app/(protected)/admin/_lib/admin-dashboard.data',
+        adminId: user.id,
+      },
+      () =>
+        Promise.all([
+          getMarketplaceOverviewAnalytics(user),
+          getPendingSellerQueue(user, { page: 1, limit: 5 }),
+          getPendingProductQueue(user, { page: 1, limit: 5 }),
+          getSuspendedSellers(user, { page: 1, limit: 5 }),
+          getRejectedProducts(user, { page: 1, limit: 5 }),
+        ]),
+    )
 
   return {
     analytics,

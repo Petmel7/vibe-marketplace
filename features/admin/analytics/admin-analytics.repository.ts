@@ -7,6 +7,7 @@ import {
 } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { AnalyticsInterval } from '@/features/analytics/analytics.helpers'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 import type {
   AnalyticsTopCategoryDto,
   AnalyticsTopProductDto,
@@ -129,43 +130,95 @@ function mapSeriesRows(rows: SeriesRow[]): AnalyticsBucketValueRow[] {
 }
 
 export async function getGMV(): Promise<Decimal> {
-  const result = await prisma.order.aggregate({
-    where: {
-      status: { in: GMV_ORDER_STATUSES },
+  const result = await measureServerOperation(
+    'adminAnalytics.getGMV',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.order.aggregate(sum totalAmount by GMV statuses)',
     },
-    _sum: { totalAmount: true },
-  })
+    () =>
+      prisma.order.aggregate({
+        where: {
+          status: { in: GMV_ORDER_STATUSES },
+        },
+        _sum: { totalAmount: true },
+      }),
+  )
   return new Decimal(result._sum?.totalAmount?.toString() ?? '0')
 }
 
 export async function getTotalOrderCount(): Promise<number> {
-  return prisma.order.count()
+  return measureServerOperation(
+    'adminAnalytics.getTotalOrderCount',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.order.count',
+    },
+    () => prisma.order.count(),
+  )
 }
 
 export async function getTotalSellerCount(): Promise<number> {
-  return prisma.sellerProfile.count()
+  return measureServerOperation(
+    'adminAnalytics.getTotalSellerCount',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.sellerProfile.count',
+    },
+    () => prisma.sellerProfile.count(),
+  )
 }
 
 export async function getTotalBuyerCount(): Promise<number> {
-  return prisma.buyerProfile.count()
+  return measureServerOperation(
+    'adminAnalytics.getTotalBuyerCount',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.buyerProfile.count',
+    },
+    () => prisma.buyerProfile.count(),
+  )
 }
 
 export async function getTotalProductCount(): Promise<number> {
-  return prisma.product.count()
+  return measureServerOperation(
+    'adminAnalytics.getTotalProductCount',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.product.count',
+    },
+    () => prisma.product.count(),
+  )
 }
 
 export async function getSellerGrowthLast30Days(): Promise<number> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  return prisma.sellerProfile.count({
-    where: { createdAt: { gte: since } },
-  })
+  return measureServerOperation(
+    'adminAnalytics.getSellerGrowthLast30Days',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.sellerProfile.count(createdAt >= since)',
+    },
+    () =>
+      prisma.sellerProfile.count({
+        where: { createdAt: { gte: since } },
+      }),
+  )
 }
 
 export async function getOrderGrowthLast30Days(): Promise<number> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  return prisma.order.count({
-    where: { createdAt: { gte: since } },
-  })
+  return measureServerOperation(
+    'adminAnalytics.getOrderGrowthLast30Days',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'prisma.order.count(createdAt >= since)',
+    },
+    () =>
+      prisma.order.count({
+        where: { createdAt: { gte: since } },
+      }),
+  )
 }
 
 export async function getModerationStats(): Promise<{
@@ -179,12 +232,20 @@ export async function getModerationStats(): Promise<{
     pendingProductApprovals,
     suspendedSellers,
     rejectedProducts,
-  ] = await Promise.all([
-    prisma.sellerProfile.count({ where: { verificationStatus: 'PENDING' } }),
-    prisma.product.count({ where: { status: 'PENDING_REVIEW' } }),
-    prisma.sellerProfile.count({ where: { verificationStatus: 'SUSPENDED' } }),
-    prisma.product.count({ where: { status: 'REJECTED' } }),
-  ])
+  ] = await measureServerOperation(
+    'adminAnalytics.getModerationStats',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'sellerProfile.count x2 + product.count x2',
+    },
+    () =>
+      Promise.all([
+        prisma.sellerProfile.count({ where: { verificationStatus: 'PENDING' } }),
+        prisma.product.count({ where: { status: 'PENDING_REVIEW' } }),
+        prisma.sellerProfile.count({ where: { verificationStatus: 'SUSPENDED' } }),
+        prisma.product.count({ where: { status: 'REJECTED' } }),
+      ]),
+  )
 
   return {
     pendingSellerApprovals,
@@ -416,23 +477,32 @@ export async function getAdminTopSellersForRange(
   to: Date,
   limit: number,
 ): Promise<AnalyticsTopSellerDto[]> {
-  const rows = await prisma.$queryRaw<TopSellerRow[]>(Prisma.sql`
-    SELECT
-      s.owner_id::text AS "sellerId",
-      oi.store_id::text AS "storeId",
-      s.name::text AS "storeName",
-      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue,
-      COUNT(DISTINCT oi.order_id)::int AS "orderCount"
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    JOIN stores s ON s.id = oi.store_id
-    WHERE oi.created_at >= ${from}
-      AND oi.created_at <= ${to}
-      AND o.status ${gmvStatusFilterSql()}
-    GROUP BY oi.store_id, s.owner_id, s.name
-    ORDER BY revenue DESC, "orderCount" DESC, "storeName" ASC
-    LIMIT ${limit}
-  `)
+  const rows = await measureServerOperation(
+    'adminAnalytics.getAdminTopSellersForRange',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'top sellers revenue/orderCount grouped by store_id, owner_id, name',
+      limit,
+    },
+    () =>
+      prisma.$queryRaw<TopSellerRow[]>(Prisma.sql`
+        SELECT
+          s.owner_id::text AS "sellerId",
+          oi.store_id::text AS "storeId",
+          s.name::text AS "storeName",
+          COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue,
+          COUNT(DISTINCT oi.order_id)::int AS "orderCount"
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN stores s ON s.id = oi.store_id
+        WHERE oi.created_at >= ${from}
+          AND oi.created_at <= ${to}
+          AND o.status ${gmvStatusFilterSql()}
+        GROUP BY oi.store_id, s.owner_id, s.name
+        ORDER BY revenue DESC, "orderCount" DESC, "storeName" ASC
+        LIMIT ${limit}
+      `),
+  )
 
   return rows.map((row) => ({
     sellerId: row.sellerId,
@@ -448,21 +518,30 @@ export async function getAdminTopProductsForRange(
   to: Date,
   limit: number,
 ): Promise<AnalyticsTopProductDto[]> {
-  const rows = await prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
-    SELECT
-      oi.variant_id::text AS "productId",
-      oi.product_name_snapshot AS name,
-      COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
-      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    WHERE oi.created_at >= ${from}
-      AND oi.created_at <= ${to}
-      AND o.status ${gmvStatusFilterSql()}
-    GROUP BY oi.variant_id, oi.product_name_snapshot
-    ORDER BY "totalSold" DESC, revenue DESC, name ASC
-    LIMIT ${limit}
-  `)
+  const rows = await measureServerOperation(
+    'adminAnalytics.getAdminTopProductsForRange',
+    {
+      repository: 'features/admin/analytics/admin-analytics.repository',
+      sql: 'top products grouped by variant_id and product_name_snapshot',
+      limit,
+    },
+    () =>
+      prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
+        SELECT
+          oi.variant_id::text AS "productId",
+          oi.product_name_snapshot AS name,
+          COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
+          COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE oi.created_at >= ${from}
+          AND oi.created_at <= ${to}
+          AND o.status ${gmvStatusFilterSql()}
+        GROUP BY oi.variant_id, oi.product_name_snapshot
+        ORDER BY "totalSold" DESC, revenue DESC, name ASC
+        LIMIT ${limit}
+      `),
+  )
 
   return rows.map((row) => ({
     productId: row.productId,

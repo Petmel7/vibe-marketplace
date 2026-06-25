@@ -5,6 +5,7 @@ import type { Product, ProductVariant } from '@/app/generated/prisma/client'
 import type {
   ProductDetailDto,
   ProductBadgeContext,
+  ProductFeedPageDto,
   ProductImageDto,
   ProductMarketplaceBadgeDto,
   ProductListDto,
@@ -23,6 +24,7 @@ import {
   findCategoriesByParentIds,
   findCategoryBySlug,
   findProductCards,
+  findProductCardsPage,
   findProductById,
   findProducts,
   searchProducts as repositorySearchProducts,
@@ -41,6 +43,7 @@ import type {
 } from '@/features/products/product.schema'
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
 import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 import {
   resolveMarketplaceBadgesForProducts,
 } from './product-badge.service'
@@ -536,27 +539,49 @@ export async function listProducts(
 export async function listNewProducts(
   query: ProductPaginationQuery,
 ): Promise<ProductListDto> {
-  const { page, limit } = query
-  const where = buildCatalogWhereInput({ isNew: true })
-  const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
-    { publishedAt: 'desc' },
-    { createdAt: 'desc' },
-    { id: 'desc' },
-  ]
-  const { items, total } = await findProducts({ where, orderBy, page, limit })
+  return measureServerOperation(
+    'listNewProducts',
+    {
+      service: 'features/products/product.service',
+      route: '/products/new',
+      page: query.page,
+      limit: query.limit,
+    },
+    async () => {
+      const { page, limit } = query
+      const where = buildCatalogWhereInput({ isNew: true })
+      const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+        { publishedAt: 'desc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ]
+      const { items, total } = await findProducts({ where, orderBy, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'NEW')
+      return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'NEW')
+    },
+  )
 }
 
 export async function listHitProducts(
   query: ProductPaginationQuery,
 ): Promise<ProductListDto> {
-  const { page, limit } = query
-  const where = buildCatalogWhereInput({ isHit: true })
-  const orderBy = mapSortToOrderBy('newest')
-  const { items, total } = await findProducts({ where, orderBy, page, limit })
+  return measureServerOperation(
+    'listHitProducts',
+    {
+      service: 'features/products/product.service',
+      route: '/products/hit',
+      page: query.page,
+      limit: query.limit,
+    },
+    async () => {
+      const { page, limit } = query
+      const where = buildCatalogWhereInput({ isHit: true })
+      const orderBy = mapSortToOrderBy('newest')
+      const { items, total } = await findProducts({ where, orderBy, page, limit })
 
-  return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'HIT')
+      return toProductListDtoWithMarketplaceFlags(items, page, limit, total, 'HIT')
+    },
+  )
 }
 
 const getHomepageProductSectionsCached = unstable_cache(
@@ -619,8 +644,86 @@ const getHomepageProductSectionsCached = unstable_cache(
 )
 
 export const getHomepageProductSections = cache(async (limit = 4): Promise<HomepageProductSectionsDto> =>
-  getHomepageProductSectionsCached(limit),
+  measureServerOperation(
+    'getHomepageProductSections',
+    {
+      service: 'features/products/product.service',
+      route: '/',
+      cache: 'unstable_cache:homepage-product-sections',
+      limit,
+    },
+    () => getHomepageProductSectionsCached(limit),
+  ),
 )
+
+async function getInitialProductFeedPage(
+  kind: 'new' | 'hit',
+  limit: number,
+): Promise<ProductFeedPageDto> {
+  const where = buildCatalogWhereInput(kind === 'new' ? { isNew: true } : { isHit: true })
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] =
+    kind === 'new'
+      ? [
+          { publishedAt: 'desc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ]
+      : mapSortToOrderBy('newest')
+
+  const result = await findProductCardsPage({
+    where,
+    orderBy,
+    page: 1,
+    limit,
+  })
+
+  const badgeContext: ProductBadgeContext = kind === 'new' ? 'NEW' : 'HIT'
+  const badgesByProductId = await resolveMarketplaceBadgesForProducts(
+    result.items.map((item) => ({
+      id: item.id,
+      status: item.status,
+      publishedAt: item.publishedAt,
+      isActive: item.isActive,
+    })),
+  )
+
+  return {
+    items: result.items.map((item) =>
+      toProductSummaryDto(
+        item,
+        item.variants,
+        badgesByProductId.get(item.id) ?? [],
+        badgeContext,
+      ),
+    ),
+    page: 1,
+    hasNextPage: result.hasNextPage,
+  }
+}
+
+export async function getInitialNewProductsPage(limit = 12): Promise<ProductFeedPageDto> {
+  return measureServerOperation(
+    'getInitialNewProductsPage',
+    {
+      service: 'features/products/product.service',
+      route: '/products/new',
+      limit,
+    },
+    () => getInitialProductFeedPage('new', limit),
+  )
+}
+
+export async function getInitialHitProductsPage(limit = 12): Promise<ProductFeedPageDto> {
+  return measureServerOperation(
+    'getInitialHitProductsPage',
+    {
+      service: 'features/products/product.service',
+      route: '/products/hit',
+      limit,
+    },
+    () => getInitialProductFeedPage('hit', limit),
+  )
+}
 
 export async function listProductsByCategorySlug(
   slug: string,

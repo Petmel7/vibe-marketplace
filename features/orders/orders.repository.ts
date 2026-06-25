@@ -6,27 +6,8 @@ import type { OrderFilterInput } from './orders.dto'
 // Types
 // ---------------------------------------------------------------------------
 
-const ORDER_ITEMS_INCLUDE: Prisma.OrderInclude = {
+const ORDER_SUMMARY_INCLUDE = {
   items: true,
-  shipments: {
-    orderBy: [{ createdAt: 'asc' }],
-    select: {
-      id: true,
-      provider: true,
-      deliveryType: true,
-      status: true,
-      recipientCityRef: true,
-      recipientCityName: true,
-      recipientStreet: true,
-      recipientBuilding: true,
-      recipientApartment: true,
-      recipientWarehouseRef: true,
-      recipientWarehouseName: true,
-      trackingNumber: true,
-      isReturnShipment: true,
-      originalShipmentId: true,
-    },
-  },
   orderPromotion: {
     select: {
       promotionId: true,
@@ -52,6 +33,29 @@ const ORDER_ITEMS_INCLUDE: Prisma.OrderInclude = {
       createdAt: true,
     },
   },
+} satisfies Prisma.OrderInclude
+
+const ORDER_DETAIL_INCLUDE: Prisma.OrderInclude = {
+  ...ORDER_SUMMARY_INCLUDE,
+  shipments: {
+    orderBy: [{ createdAt: 'asc' }],
+    select: {
+      id: true,
+      provider: true,
+      deliveryType: true,
+      status: true,
+      recipientCityRef: true,
+      recipientCityName: true,
+      recipientStreet: true,
+      recipientBuilding: true,
+      recipientApartment: true,
+      recipientWarehouseRef: true,
+      recipientWarehouseName: true,
+      trackingNumber: true,
+      isReturnShipment: true,
+      originalShipmentId: true,
+    },
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +69,7 @@ export async function findOrdersByUserId(userId: string, filters: OrderFilterInp
       userId,
       ...(status ? { status: status as OrderStatus } : {}),
     },
-    include: ORDER_ITEMS_INCLUDE,
+    include: ORDER_SUMMARY_INCLUDE,
     orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
@@ -75,7 +79,7 @@ export async function findOrdersByUserId(userId: string, filters: OrderFilterInp
 export async function findOrderById(id: string) {
   return prisma.order.findUnique({
     where: { id },
-    include: ORDER_ITEMS_INCLUDE,
+    include: ORDER_DETAIL_INCLUDE,
   })
 }
 
@@ -113,7 +117,7 @@ export async function findAllOrders(filters: OrderFilterInput) {
     where: {
       ...(status ? { status: status as OrderStatus } : {}),
     },
-    include: ORDER_ITEMS_INCLUDE,
+    include: ORDER_SUMMARY_INCLUDE,
     orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
@@ -131,6 +135,6 @@ export async function updateOrderStatus(id: string, status: string) {
       status: status as OrderStatus,
       updatedAt: new Date(),
     },
-    include: ORDER_ITEMS_INCLUDE,
+    include: ORDER_DETAIL_INCLUDE,
   })
 }

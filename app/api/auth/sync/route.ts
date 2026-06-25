@@ -5,6 +5,7 @@ import { mergeGuestCartIntoUserCart } from '@/features/cart/cart.service'
 import { UnauthorizedError, ForbiddenError } from '@/lib/errors/auth'
 import { assertRateLimit, rateLimitProfiles } from '@/lib/security/rate-limit'
 import { logError } from '@/utils/logger'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,14 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.slice(7)
     const adminClient = createAdminClient()
-    const { data, error } = await adminClient.auth.getUser(token)
+    const { data, error } = await measureServerOperation(
+      'authSync.getUser',
+      {
+        route: '/api/auth/sync',
+        externalApi: 'supabase.auth.getUser',
+      },
+      () => adminClient.auth.getUser(token),
+    )
 
     if (error || !data.user) {
       return Response.json(
@@ -29,12 +37,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const sessionUser = await syncUser(data.user)
+    const sessionUser = await measureServerOperation(
+      'authSync.syncUser',
+      {
+        route: '/api/auth/sync',
+        auth: 'syncUser',
+        userId: data.user.id,
+      },
+      () => syncUser(data.user),
+    )
     const guestSessionId = request.headers.get('x-session-id')
 
     if (guestSessionId) {
       try {
-        await mergeGuestCartIntoUserCart(sessionUser.id, guestSessionId)
+        await measureServerOperation(
+          'authSync.mergeGuestCart',
+          {
+            route: '/api/auth/sync',
+            auth: 'mergeGuestCart',
+            userId: sessionUser.id,
+          },
+          () => mergeGuestCartIntoUserCart(sessionUser.id, guestSessionId),
+        )
       } catch (mergeError) {
         logError('POST /api/auth/sync merge guest cart', mergeError, {
           domain: 'auth',

@@ -7,6 +7,7 @@ import {
 import { prisma } from '@/lib/prisma'
 import type { AnalyticsInterval } from '@/features/analytics/analytics.helpers'
 import type { TopProductEntry } from './seller-analytics.dto'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 export type AnalyticsBucketValueRow = {
   bucket: Date
@@ -100,44 +101,80 @@ function storeIdsFilterSql(storeIds: string[]) {
 }
 
 export async function getTotalRevenue(storeIds: string[]): Promise<Decimal> {
-  const [row] = await prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
-    SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
-    FROM order_items oi
-    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
-  `)
+  const [row] = await measureServerOperation(
+    'sellerAnalytics.getTotalRevenue',
+    {
+      repository: 'features/seller/analytics/seller-analytics.repository',
+      sql: 'sum order_items.unit_price_snapshot * quantity by store ids',
+      storeCount: storeIds.length,
+    },
+    () =>
+      prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
+        SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
+        FROM order_items oi
+        WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
+      `),
+  )
 
   return toDecimal(row?.value)
 }
 
 export async function getOrderCount(storeIds: string[]): Promise<number> {
-  const [row] = await prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
-    SELECT COUNT(DISTINCT oi.order_id)::int AS value
-    FROM order_items oi
-    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
-  `)
+  const [row] = await measureServerOperation(
+    'sellerAnalytics.getOrderCount',
+    {
+      repository: 'features/seller/analytics/seller-analytics.repository',
+      sql: 'count distinct order_items.order_id by store ids',
+      storeCount: storeIds.length,
+    },
+    () =>
+      prisma.$queryRaw<Array<{ value: NumberLike }>>(Prisma.sql`
+        SELECT COUNT(DISTINCT oi.order_id)::int AS value
+        FROM order_items oi
+        WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
+      `),
+  )
 
   return toInteger(row?.value)
 }
 
 export async function getTotalProductsSold(storeIds: string[]): Promise<number> {
-  const result = await prisma.orderItem.aggregate({
-    where: { storeId: { in: storeIds } },
-    _sum: { quantity: true },
-  })
+  const result = await measureServerOperation(
+    'sellerAnalytics.getTotalProductsSold',
+    {
+      repository: 'features/seller/analytics/seller-analytics.repository',
+      sql: 'prisma.orderItem.aggregate(sum quantity by store ids)',
+      storeCount: storeIds.length,
+    },
+    () =>
+      prisma.orderItem.aggregate({
+        where: { storeId: { in: storeIds } },
+        _sum: { quantity: true },
+      }),
+  )
   return result._sum.quantity ?? 0
 }
 
 export async function getRevenueLast30Days(storeIds: string[]): Promise<Decimal> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [row] = await prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
-    SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
-      AND oi.created_at >= ${since}
-      AND o.status ${revenueStatusFilterSql()}
-  `)
+  const [row] = await measureServerOperation(
+    'sellerAnalytics.getRevenueLast30Days',
+    {
+      repository: 'features/seller/analytics/seller-analytics.repository',
+      sql: 'sum seller revenue for last 30 days with order status filter',
+      storeCount: storeIds.length,
+    },
+    () =>
+      prisma.$queryRaw<Array<{ value: DecimalLike }>>(Prisma.sql`
+        SELECT COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS value
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
+          AND oi.created_at >= ${since}
+          AND o.status ${revenueStatusFilterSql()}
+      `),
+  )
 
   return toDecimal(row?.value)
 }
@@ -252,22 +289,32 @@ export async function getSellerTopProductsForRange(
   to: Date,
   limit: number,
 ): Promise<TopProductEntry[]> {
-  const rows = await prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
-    SELECT
-      oi.variant_id::text AS "productId",
-      oi.product_name_snapshot AS name,
-      COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
-      COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
-      AND oi.created_at >= ${from}
-      AND oi.created_at <= ${to}
-      AND o.status ${revenueStatusFilterSql()}
-    GROUP BY oi.variant_id, oi.product_name_snapshot
-    ORDER BY "totalSold" DESC, revenue DESC, name ASC
-    LIMIT ${limit}
-  `)
+  const rows = await measureServerOperation(
+    'sellerAnalytics.getSellerTopProductsForRange',
+    {
+      repository: 'features/seller/analytics/seller-analytics.repository',
+      sql: 'top seller products grouped by variant_id and product_name_snapshot',
+      storeCount: storeIds.length,
+      limit,
+    },
+    () =>
+      prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
+        SELECT
+          oi.variant_id::text AS "productId",
+          oi.product_name_snapshot AS name,
+          COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
+          COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE oi.store_id ${storeIdsFilterSql(storeIds)}
+          AND oi.created_at >= ${from}
+          AND oi.created_at <= ${to}
+          AND o.status ${revenueStatusFilterSql()}
+        GROUP BY oi.variant_id, oi.product_name_snapshot
+        ORDER BY "totalSold" DESC, revenue DESC, name ASC
+        LIMIT ${limit}
+      `),
+  )
 
   return rows.map((row) => ({
     productId: row.productId,

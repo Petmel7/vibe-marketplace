@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { UnauthorizedError } from '@/lib/errors/auth'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { getSessionUser } from '@/features/auth/auth.service'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 /**
  * Returns the currently authenticated user from the session cookie, or null
@@ -10,12 +11,21 @@ import { getSessionUser } from '@/features/auth/auth.service'
  * Read-only only: provisioning must happen through the auth lifecycle, not page rendering.
  */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-  return getSessionUser(user)
+  return measureServerOperation(
+    'getCurrentUser',
+    {
+      component: 'lib/session/getSession',
+      auth: 'supabase-session',
+    },
+    async () => {
+      const supabase = await createServerClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return null
+      return getSessionUser(user)
+    },
+  )
 })
 
 /**

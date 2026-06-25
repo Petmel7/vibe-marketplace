@@ -14,6 +14,7 @@ import {
 } from '@/features/analytics/analytics.helpers'
 import type { SellerAnalyticsQuery } from '@/features/analytics/analytics.schema'
 import { AnalyticsAccessDeniedError, AnalyticsAggregationError } from '@/lib/errors/analytics'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 import {
   getOrderCount,
   getRevenueLast30Days,
@@ -116,41 +117,53 @@ export async function getMyAnalytics(
       orderSeriesRows,
       fulfillmentSeriesRows,
       topProducts,
-    ] = await Promise.all([
-      getTotalRevenue(storeIds),
-      getOrderCount(storeIds),
-      getTotalProductsSold(storeIds),
-      getRevenueLast30Days(storeIds),
-      getSellerRangeMetrics(storeIds, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerRangeMetrics(storeIds, resolvedRange.previous.from, resolvedRange.previous.to),
-      getSellerRefundMetricsForRange(storeIds, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerDisputeCountForRange(storeIds, resolvedRange.current.from, resolvedRange.current.to),
-      getSellerBalanceSnapshot(storeIds),
-      getSellerRevenueSeriesForRange(
-        storeIds,
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getSellerOrderSeriesForRange(
-        storeIds,
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getSellerFulfillmentSeriesForRange(
-        storeIds,
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getSellerTopProductsForRange(
-        storeIds,
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        TOP_PRODUCTS_LIMIT,
-      ),
-    ])
+    ] = await measureServerOperation(
+      'getMyAnalytics',
+      {
+        service: 'features/seller/analytics/seller-analytics.service',
+        route: '/seller/analytics',
+        analytics: 'seller-full',
+        sellerId: user.id,
+        storeScope: query.storeId ?? 'all-owned-stores',
+        interval: resolvedRange.interval,
+      },
+      () =>
+        Promise.all([
+          getTotalRevenue(storeIds),
+          getOrderCount(storeIds),
+          getTotalProductsSold(storeIds),
+          getRevenueLast30Days(storeIds),
+          getSellerRangeMetrics(storeIds, resolvedRange.current.from, resolvedRange.current.to),
+          getSellerRangeMetrics(storeIds, resolvedRange.previous.from, resolvedRange.previous.to),
+          getSellerRefundMetricsForRange(storeIds, resolvedRange.current.from, resolvedRange.current.to),
+          getSellerDisputeCountForRange(storeIds, resolvedRange.current.from, resolvedRange.current.to),
+          getSellerBalanceSnapshot(storeIds),
+          getSellerRevenueSeriesForRange(
+            storeIds,
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getSellerOrderSeriesForRange(
+            storeIds,
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getSellerFulfillmentSeriesForRange(
+            storeIds,
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getSellerTopProductsForRange(
+            storeIds,
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            TOP_PRODUCTS_LIMIT,
+          ),
+        ]),
+    )
 
     const buckets = buildDateBuckets(
       resolvedRange.current.from,
@@ -217,6 +230,63 @@ export async function getMyAnalytics(
       throw error
     }
 
+    throw new AnalyticsAggregationError(error instanceof Error ? error.message : undefined)
+  }
+}
+
+export async function getMyOverviewAnalytics(
+  user: SessionUser,
+): Promise<
+  Pick<
+    SellerAnalyticsDto,
+    'totalRevenue' | 'totalOrders' | 'totalProductsSold' | 'revenueLast30Days' | 'topProducts'
+  >
+> {
+  requireSeller(user)
+
+  const storeIds = (await listStoresByOwnerId(user.id)).map((store) => store.id)
+
+  if (storeIds.length === 0) {
+    return {
+      totalRevenue: '0.00',
+      totalOrders: 0,
+      totalProductsSold: 0,
+      revenueLast30Days: '0.00',
+      topProducts: [],
+    }
+  }
+
+  const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const to = new Date()
+
+  try {
+    const [totalRevenue, totalOrders, totalProductsSold, revenueLast30Days, topProducts] =
+      await measureServerOperation(
+        'getMyOverviewAnalytics',
+        {
+          service: 'features/seller/analytics/seller-analytics.service',
+          route: '/seller',
+          analytics: 'seller-overview',
+          sellerId: user.id,
+        },
+        () =>
+          Promise.all([
+            getTotalRevenue(storeIds),
+            getOrderCount(storeIds),
+            getTotalProductsSold(storeIds),
+            getRevenueLast30Days(storeIds),
+            getSellerTopProductsForRange(storeIds, from, to, TOP_PRODUCTS_LIMIT),
+          ]),
+      )
+
+    return {
+      totalRevenue: totalRevenue.toFixed(2),
+      totalOrders,
+      totalProductsSold,
+      revenueLast30Days: revenueLast30Days.toFixed(2),
+      topProducts,
+    }
+  } catch (error) {
     throw new AnalyticsAggregationError(error instanceof Error ? error.message : undefined)
   }
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import InfiniteProductList from '@/components/product/InfiniteProductList'
-import { listHitProducts } from '@/features/products/product.service'
+import { getInitialHitProductsPage } from '@/features/products/product.service'
 import { getCachedPageSeo } from '@/app/_lib/seo.data'
 import { buildStaticPageMetadata } from '@/lib/seo/metadata'
 
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HitProductsPage() {
-  const result = await listHitProducts({ page: 1, limit: 12 })
+  const result = await getInitialHitProductsPage(12)
 
   return (
     <main className="pt-4 pb-24 md:pb-12">
@@ -23,9 +23,9 @@ export default async function HitProductsPage() {
         <h1 className="ui-heading-page">Хіти</h1>
         <InfiniteProductList
           type="hit"
-          initialProducts={result.data}
-          initialPage={result.meta.page}
-          initialHasNextPage={result.meta.hasNextPage}
+          initialProducts={result.items}
+          initialPage={result.page}
+          initialHasNextPage={result.hasNextPage}
           emptyMessage="Хіти поки що відсутні."
         />
       </section>

@@ -9,7 +9,9 @@ export { productExists } from '@/lib/db/productExists'
 // Types
 // ---------------------------------------------------------------------------
 
-export type ViewedProductWithProduct = ViewedProduct & { product: Product }
+type ViewedProductPreview = Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'>
+
+export type ViewedProductWithProduct = ViewedProduct & { product: ViewedProductPreview }
 
 /** Maximum number of recently viewed products retained per identifier. */
 const MAX_VIEWED = 20
@@ -40,7 +42,16 @@ export async function findRecentlyViewed(
 
   return prisma.viewedProduct.findMany({
     where,
-    include: { product: true },
+    include: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          imageUrl: true,
+        },
+      },
+    },
     orderBy: { viewedAt: 'desc' },
     take: MAX_VIEWED,
   })

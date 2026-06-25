@@ -101,6 +101,12 @@ export interface HomepageProductSectionsDto {
   hitProducts: ProductSummaryDto[]
 }
 
+export interface ProductFeedPageDto {
+  items: ProductSummaryDto[]
+  page: number
+  hasNextPage: boolean
+}
+
 export interface ProductSearchItemDto extends ProductSummaryDto {
   storeName: string
   storeSlug: string

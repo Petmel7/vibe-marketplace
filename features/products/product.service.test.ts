@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Prisma, type Product, type ProductVariant } from '@/app/generated/prisma/client'
 import {
   ProductNotFoundError,
+  getInitialHitProductsPage,
+  getInitialNewProductsPage,
   getProduct,
   getHomepageProductSections,
   listHitProducts,
@@ -20,6 +22,7 @@ vi.mock('next/cache', () => ({
 vi.mock('./product.repository', () => ({
   findProducts: vi.fn(),
   findProductCards: vi.fn(),
+  findProductCardsPage: vi.fn(),
   findCategoryBySlug: vi.fn(),
   findCategoriesByParentIds: vi.fn(),
   findProductById: vi.fn(),
@@ -697,6 +700,78 @@ describe('filtered product listings', () => {
         totalCount: 0,
       },
     })
+  })
+
+  it('builds the initial New Products page via limit+1 card query without count', async () => {
+    mockedRepository.findProductCardsPage.mockResolvedValue({
+      items: [makeListProduct({ id: 'prod-new' }, [makeVariant({ productId: 'prod-new' })])],
+      hasNextPage: true,
+    })
+
+    const result = await getInitialNewProductsPage(12)
+
+    expect(mockedRepository.findProductCardsPage).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
+        AND: [
+          { OR: [{ categoryId: null }, { category: { isActive: true } }] },
+          {
+            publishedAt: {
+              gte: expect.any(Date),
+            },
+          },
+        ],
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      page: 1,
+      limit: 12,
+    })
+    expect(mockedRepository.findProducts).not.toHaveBeenCalled()
+    expect(result.page).toBe(1)
+    expect(result.hasNextPage).toBe(true)
+    expect(result.items).toHaveLength(1)
+  })
+
+  it('builds the initial Hit Products page via limit+1 card query without count', async () => {
+    mockedRepository.findProductCardsPage.mockResolvedValue({
+      items: [makeListProduct({ id: 'prod-hit', isHit: true }, [makeVariant({ productId: 'prod-hit' })])],
+      hasNextPage: false,
+    })
+
+    const result = await getInitialHitProductsPage(12)
+
+    expect(mockedRepository.findProductCardsPage).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
+        AND: [
+          { OR: [{ categoryId: null }, { category: { isActive: true } }] },
+          {
+            badges: {
+              some: {
+                type: 'HIT',
+                OR: [{ startsAt: null }, { startsAt: { lte: expect.any(Date) } }],
+                AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: expect.any(Date) } }] }],
+              },
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      page: 1,
+      limit: 12,
+    })
+    expect(mockedRepository.findProducts).not.toHaveBeenCalled()
+    expect(result.page).toBe(1)
+    expect(result.hasNextPage).toBe(false)
+    expect(result.items).toHaveLength(1)
   })
 
   it('returns only the HIT badge in the Hit Products context even when NEW also exists internally', async () => {

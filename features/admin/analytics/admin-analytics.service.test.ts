@@ -7,7 +7,10 @@ vi.mock('@/lib/auth/adminGuards')
 
 import * as repo from '@/features/admin/analytics/admin-analytics.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
-import { getMarketplaceAnalytics } from '@/features/admin/analytics/admin-analytics.service'
+import {
+  getMarketplaceAnalytics,
+  getMarketplaceOverviewAnalytics,
+} from '@/features/admin/analytics/admin-analytics.service'
 import { AdminAccessError } from '@/lib/errors/admin'
 import type { SessionUser } from '@/features/auth/auth.dto'
 
@@ -244,5 +247,25 @@ describe('getMarketplaceAnalytics', () => {
     )
 
     expect(mockRepo.getGMV).not.toHaveBeenCalled()
+  })
+})
+
+describe('getMarketplaceOverviewAnalytics', () => {
+  it('returns lightweight admin overview analytics without series-heavy calls', async () => {
+    setupRepoMocks()
+
+    const result = await getMarketplaceOverviewAnalytics(mockAdmin)
+
+    expect(result.gmv).toBe('125000')
+    expect(result.totalOrders).toBe(450)
+    expect(result.topSellers).toHaveLength(2)
+    expect(result.topProducts).toHaveLength(2)
+    expect(mockRepo.getAdminRevenueSeriesForRange).not.toHaveBeenCalled()
+    expect(mockRepo.getAdminOrderSeriesForRange).not.toHaveBeenCalled()
+    expect(mockRepo.getAdminRefundSeriesForRange).not.toHaveBeenCalled()
+    expect(mockRepo.getAdminDisputeSeriesForRange).not.toHaveBeenCalled()
+    expect(mockRepo.getAdminCommissionSeriesForRange).not.toHaveBeenCalled()
+    expect(mockRepo.getAdminTopCategoriesForRange).not.toHaveBeenCalled()
+    expect(mockRepo.getRiskSummary).not.toHaveBeenCalled()
   })
 })

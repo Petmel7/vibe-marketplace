@@ -6,6 +6,7 @@ import { getMyProfile } from '@/features/profile/profile.service'
 import { getMyBuyerProfile } from '@/features/buyer/buyer.service'
 import { ProfileNotFoundError } from '@/lib/errors/profile'
 import type { SessionUser } from '@/types/auth'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 export async function getProfileDashboardLayoutData(user: SessionUser) {
   try {
@@ -33,15 +34,22 @@ export async function getProfileDashboardLayoutData(user: SessionUser) {
 }
 
 export async function getProfileOverviewData(user: SessionUser) {
-  const [layout, orders, addresses, wishlist, viewed] = await Promise.all([
-    getProfileDashboardLayoutData(user),
-    getMyOrders(user, { limit: 4, page: 1 }),
-    getMyAddresses(user),
-    getWishlist(user.id),
-    getRecentlyViewed({ userId: user.id }),
-  ])
-
-  console.log("VIEWED:", viewed)
+  const [layout, orders, addresses, wishlist, viewed] = await measureServerOperation(
+    'getProfileOverviewData',
+    {
+      route: '/profile',
+      component: 'app/(protected)/profile/_lib/profile-dashboard.data',
+      userId: user.id,
+    },
+    () =>
+      Promise.all([
+        getProfileDashboardLayoutData(user),
+        getMyOrders(user, { limit: 4, page: 1 }),
+        getMyAddresses(user),
+        getWishlist(user.id),
+        getRecentlyViewed({ userId: user.id }),
+      ]),
+  )
 
   const defaultAddress =
     addresses.find((address) => address.isDefault) ??

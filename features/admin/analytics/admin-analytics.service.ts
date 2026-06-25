@@ -11,6 +11,7 @@ import {
   resolveAnalyticsDateRange,
 } from '@/features/analytics/analytics.helpers'
 import { AnalyticsAggregationError } from '@/lib/errors/analytics'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 import {
   getActiveSellerCount,
   getAdminCommissionMetricsForRange,
@@ -94,71 +95,83 @@ export async function getMarketplaceAnalytics(
       refundSeriesRows,
       disputeSeriesRows,
       commissionSeriesRows,
-    ] = await Promise.all([
-      getGMV(),
-      getTotalOrderCount(),
-      getTotalSellerCount(),
-      getTotalBuyerCount(),
-      getTotalProductCount(),
-      getSellerGrowthLast30Days(),
-      getOrderGrowthLast30Days(),
-      getModerationStats(),
-      getAdminOrderMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
-      getAdminOrderMetricsForRange(resolvedRange.previous.from, resolvedRange.previous.to),
-      getAdminCommissionMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
-      getAdminRefundMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
-      getAdminDisputeCountForRange(resolvedRange.current.from, resolvedRange.current.to),
-      getSellerGrowthCountForRange(resolvedRange.current.from, resolvedRange.current.to),
-      getSellerGrowthCountForRange(resolvedRange.previous.from, resolvedRange.previous.to),
-      getActiveSellerCount(),
-      getPublishedProductCount(),
-      getRiskSummary(),
-      getAdminTopSellersForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        TOP_LIMIT,
-      ),
-      getAdminTopProductsForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        TOP_LIMIT,
-      ),
-      getAdminTopCategoriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        TOP_LIMIT,
-      ),
-      getAdminRevenueSeriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getAdminOrderSeriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getAdminSellerGrowthSeriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getAdminRefundSeriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getAdminDisputeSeriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-      getAdminCommissionSeriesForRange(
-        resolvedRange.current.from,
-        resolvedRange.current.to,
-        resolvedRange.interval,
-      ),
-    ])
+    ] = await measureServerOperation(
+      'getMarketplaceAnalytics',
+      {
+        service: 'features/admin/analytics/admin-analytics.service',
+        route: '/admin/analytics',
+        analytics: 'marketplace-full',
+        adminId: admin.id,
+        range: query.range,
+        interval: resolvedRange.interval,
+      },
+      () =>
+        Promise.all([
+          getGMV(),
+          getTotalOrderCount(),
+          getTotalSellerCount(),
+          getTotalBuyerCount(),
+          getTotalProductCount(),
+          getSellerGrowthLast30Days(),
+          getOrderGrowthLast30Days(),
+          getModerationStats(),
+          getAdminOrderMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
+          getAdminOrderMetricsForRange(resolvedRange.previous.from, resolvedRange.previous.to),
+          getAdminCommissionMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
+          getAdminRefundMetricsForRange(resolvedRange.current.from, resolvedRange.current.to),
+          getAdminDisputeCountForRange(resolvedRange.current.from, resolvedRange.current.to),
+          getSellerGrowthCountForRange(resolvedRange.current.from, resolvedRange.current.to),
+          getSellerGrowthCountForRange(resolvedRange.previous.from, resolvedRange.previous.to),
+          getActiveSellerCount(),
+          getPublishedProductCount(),
+          getRiskSummary(),
+          getAdminTopSellersForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            TOP_LIMIT,
+          ),
+          getAdminTopProductsForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            TOP_LIMIT,
+          ),
+          getAdminTopCategoriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            TOP_LIMIT,
+          ),
+          getAdminRevenueSeriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getAdminOrderSeriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getAdminSellerGrowthSeriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getAdminRefundSeriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getAdminDisputeSeriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+          getAdminCommissionSeriesForRange(
+            resolvedRange.current.from,
+            resolvedRange.current.to,
+            resolvedRange.interval,
+          ),
+        ]),
+    )
 
     const buckets = buildDateBuckets(
       resolvedRange.current.from,
@@ -243,6 +256,85 @@ export async function getMarketplaceAnalytics(
       refundSeries,
       disputeSeries,
       commissionSeries,
+    }
+  } catch (error) {
+    throw new AnalyticsAggregationError(error instanceof Error ? error.message : undefined)
+  }
+}
+
+export async function getMarketplaceOverviewAnalytics(
+  admin: SessionUser,
+): Promise<
+  Pick<
+    AdminAnalyticsDto,
+    | 'gmv'
+    | 'totalOrders'
+    | 'totalSellers'
+    | 'totalBuyers'
+    | 'totalProducts'
+    | 'sellerGrowthLast30Days'
+    | 'orderGrowthLast30Days'
+    | 'moderationStats'
+    | 'topSellers'
+    | 'topProducts'
+  >
+> {
+  assertAdminAccess(admin)
+
+  try {
+    const [
+      gmv,
+      totalOrders,
+      totalSellers,
+      totalBuyers,
+      totalProducts,
+      sellerGrowthLast30Days,
+      orderGrowthLast30Days,
+      moderationStats,
+      topSellers,
+      topProducts,
+    ] = await measureServerOperation(
+      'getMarketplaceOverviewAnalytics',
+      {
+        service: 'features/admin/analytics/admin-analytics.service',
+        route: '/admin',
+        analytics: 'marketplace-overview',
+        adminId: admin.id,
+      },
+      () =>
+        Promise.all([
+          getGMV(),
+          getTotalOrderCount(),
+          getTotalSellerCount(),
+          getTotalBuyerCount(),
+          getTotalProductCount(),
+          getSellerGrowthLast30Days(),
+          getOrderGrowthLast30Days(),
+          getModerationStats(),
+          getAdminTopSellersForRange(
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            new Date(),
+            TOP_LIMIT,
+          ),
+          getAdminTopProductsForRange(
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            new Date(),
+            TOP_LIMIT,
+          ),
+        ]),
+    )
+
+    return {
+      gmv: gmv.toString(),
+      totalOrders,
+      totalSellers,
+      totalBuyers,
+      totalProducts,
+      sellerGrowthLast30Days,
+      orderGrowthLast30Days,
+      moderationStats,
+      topSellers,
+      topProducts,
     }
   } catch (error) {
     throw new AnalyticsAggregationError(error instanceof Error ? error.message : undefined)

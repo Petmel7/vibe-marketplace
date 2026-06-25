@@ -11,7 +11,10 @@ import * as analyticsRepo from '@/features/seller/analytics/seller-analytics.rep
 import * as storeRepo from '@/features/store/store.repository'
 import * as storeService from '@/features/store/store.service'
 import * as guards from '@/lib/auth/guards'
-import { getMyAnalytics } from '@/features/seller/analytics/seller-analytics.service'
+import {
+  getMyAnalytics,
+  getMyOverviewAnalytics,
+} from '@/features/seller/analytics/seller-analytics.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { AnalyticsAccessDeniedError } from '@/lib/errors/analytics'
 
@@ -223,5 +226,24 @@ describe('getMyAnalytics', () => {
       { date: '2026-06-01', label: '2026-06-01', value: '0.00' },
       { date: '2026-06-02', label: '2026-06-02', value: '0.00' },
     ])
+  })
+})
+
+describe('getMyOverviewAnalytics', () => {
+  it('returns lightweight seller overview analytics without series-heavy calls', async () => {
+    const result = await getMyOverviewAnalytics(mockUser)
+
+    expect(result.totalRevenue).toBe('1500.00')
+    expect(result.totalOrders).toBe(42)
+    expect(result.totalProductsSold).toBe(150)
+    expect(result.revenueLast30Days).toBe('500.00')
+    expect(result.topProducts).toHaveLength(2)
+    expect(mockAnalyticsRepo.getSellerRangeMetrics).not.toHaveBeenCalled()
+    expect(mockAnalyticsRepo.getSellerRevenueSeriesForRange).not.toHaveBeenCalled()
+    expect(mockAnalyticsRepo.getSellerOrderSeriesForRange).not.toHaveBeenCalled()
+    expect(mockAnalyticsRepo.getSellerFulfillmentSeriesForRange).not.toHaveBeenCalled()
+    expect(mockAnalyticsRepo.getSellerRefundMetricsForRange).not.toHaveBeenCalled()
+    expect(mockAnalyticsRepo.getSellerDisputeCountForRange).not.toHaveBeenCalled()
+    expect(mockAnalyticsRepo.getSellerBalanceSnapshot).not.toHaveBeenCalled()
   })
 })
