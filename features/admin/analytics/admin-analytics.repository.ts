@@ -420,7 +420,7 @@ export async function getAdminTopSellersForRange(
     SELECT
       s.owner_id::text AS "sellerId",
       oi.store_id::text AS "storeId",
-      MIN(s.name)::text AS "storeName",
+      s.name::text AS "storeName",
       COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue,
       COUNT(DISTINCT oi.order_id)::int AS "orderCount"
     FROM order_items oi
@@ -429,7 +429,7 @@ export async function getAdminTopSellersForRange(
     WHERE oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${gmvStatusFilterSql()}
-    GROUP BY oi.store_id, s.owner_id
+    GROUP BY oi.store_id, s.owner_id, s.name
     ORDER BY revenue DESC, "orderCount" DESC, "storeName" ASC
     LIMIT ${limit}
   `)
@@ -450,7 +450,7 @@ export async function getAdminTopProductsForRange(
 ): Promise<AnalyticsTopProductDto[]> {
   const rows = await prisma.$queryRaw<TopProductRow[]>(Prisma.sql`
     SELECT
-      MIN(oi.variant_id)::text AS "productId",
+      oi.variant_id::text AS "productId",
       oi.product_name_snapshot AS name,
       COALESCE(SUM(oi.quantity), 0)::int AS "totalSold",
       COALESCE(SUM(oi.unit_price_snapshot * oi.quantity), 0) AS revenue
@@ -459,7 +459,7 @@ export async function getAdminTopProductsForRange(
     WHERE oi.created_at >= ${from}
       AND oi.created_at <= ${to}
       AND o.status ${gmvStatusFilterSql()}
-    GROUP BY oi.product_name_snapshot
+    GROUP BY oi.variant_id, oi.product_name_snapshot
     ORDER BY "totalSold" DESC, revenue DESC, name ASC
     LIMIT ${limit}
   `)

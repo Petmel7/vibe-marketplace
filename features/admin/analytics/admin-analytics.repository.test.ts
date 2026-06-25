@@ -40,6 +40,7 @@ vi.mock('@/lib/prisma', () => ({
 
 import {
   getAdminOrderMetricsForRange,
+  getAdminTopProductsForRange,
   getAdminTopSellersForRange,
 } from './admin-analytics.repository'
 
@@ -95,5 +96,46 @@ describe('admin analytics repository', () => {
         orderCount: 5,
       },
     ])
+
+    const sqlText = queryRawMock.mock.calls[0]?.[0]?.strings.join(' ')
+
+    expect(sqlText).toContain('oi.store_id::text AS "storeId"')
+    expect(sqlText).toContain('s.name::text AS "storeName"')
+    expect(sqlText).toContain('GROUP BY oi.store_id, s.owner_id, s.name')
+    expect(sqlText).not.toContain('MIN(oi.store_id)')
+    expect(sqlText).not.toContain('MAX(oi.store_id)')
+  })
+
+  it('maps top products from grouped DB rows', async () => {
+    queryRawMock.mockResolvedValueOnce([
+      {
+        productId: 'variant-1',
+        name: 'Oversized Hoodie',
+        totalSold: 7,
+        revenue: { toString: () => '2100.00' },
+      },
+    ])
+
+    const result = await getAdminTopProductsForRange(
+      new Date('2026-06-01T00:00:00.000Z'),
+      new Date('2026-06-03T23:59:59.999Z'),
+      10,
+    )
+
+    expect(result).toEqual([
+      {
+        productId: 'variant-1',
+        name: 'Oversized Hoodie',
+        totalSold: 7,
+        revenue: '2100.00',
+      },
+    ])
+
+    const sqlText = queryRawMock.mock.calls[0]?.[0]?.strings.join(' ')
+
+    expect(sqlText).toContain('oi.variant_id::text AS "productId"')
+    expect(sqlText).toContain('GROUP BY oi.variant_id, oi.product_name_snapshot')
+    expect(sqlText).not.toContain('MIN(oi.variant_id)')
+    expect(sqlText).not.toContain('MAX(oi.variant_id)')
   })
 })
