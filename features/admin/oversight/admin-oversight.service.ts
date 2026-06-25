@@ -19,6 +19,7 @@ import {
   findAllProductsOversight,
   findAdminStoreOptions,
 } from './admin-oversight.repository'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 
 // ---------------------------------------------------------------------------
 // DTO mappers
@@ -147,7 +148,18 @@ export async function getAllUsers(
   filters: UserOversightFilters,
 ): Promise<{ items: AdminUserDto[]; total: number; page: number; limit: number }> {
   assertAdminAccess(admin)
-  const { items, total } = await findAllUsers(filters)
+  const { items, total } = await measureServerOperation(
+    'getAllUsers',
+    {
+      service: 'features/admin/oversight/admin-oversight.service',
+      route: '/admin/users',
+      page: filters.page,
+      limit: filters.limit,
+      role: filters.role ?? null,
+      hasSearch: Boolean(filters.search?.trim()),
+    },
+    () => findAllUsers(filters),
+  )
   return {
     items: items.map(toAdminUserDto),
     total,

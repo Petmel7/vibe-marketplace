@@ -15,7 +15,7 @@ vi.mock('@/lib/auth/adminGuards', () => ({
 import type { SessionUser } from '@/features/auth/auth.dto'
 import * as repo from '@/features/admin/oversight/admin-oversight.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
-import { getAdminStoreOptions } from '@/features/admin/oversight/admin-oversight.service'
+import { getAdminStoreOptions, getAllUsers } from '@/features/admin/oversight/admin-oversight.service'
 import { AdminAccessError } from '@/lib/errors/admin'
 
 const mockRepo = vi.mocked(repo)
@@ -108,5 +108,51 @@ describe('getAdminStoreOptions', () => {
     expect(mockRepo.findAdminStoreOptions).toHaveBeenCalledWith({ page: 2, limit: 5, q: 'bravo' })
     expect(result.items).toHaveLength(1)
     expect(result.items[0].name).toBe('Bravo Boutique')
+  })
+})
+
+describe('getAllUsers', () => {
+  it('returns paginated admin user DTOs with mapped roles and profile name', async () => {
+    mockRepo.findAllUsers.mockResolvedValue({
+      items: [
+        {
+          id: 'user-1',
+          email: 'user@example.com',
+          createdAt: new Date('2026-06-25T00:00:00.000Z'),
+          roles: [{ role: 'BUYER' }, { role: 'SELLER' }],
+          profile: { displayName: 'Test User' },
+        },
+      ],
+      total: 1,
+    } as never)
+
+    const result = await getAllUsers(adminUser, {
+      page: 1,
+      limit: 20,
+      search: 'user',
+      role: 'SELLER',
+    })
+
+    expect(mockGuards.assertAdminAccess).toHaveBeenCalledWith(adminUser)
+    expect(mockRepo.findAllUsers).toHaveBeenCalledWith({
+      page: 1,
+      limit: 20,
+      search: 'user',
+      role: 'SELLER',
+    })
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'user-1',
+          email: 'user@example.com',
+          createdAt: new Date('2026-06-25T00:00:00.000Z'),
+          roles: ['BUYER', 'SELLER'],
+          profileName: 'Test User',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    })
   })
 })

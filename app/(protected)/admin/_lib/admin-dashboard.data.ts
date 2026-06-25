@@ -114,7 +114,19 @@ export async function getAdminModerationPageData(user: SessionUser) {
 
 export async function getAdminUsersPageData(user: SessionUser, searchParams: RawSearchParams) {
   const filters = parseWithSchema(userOversightFilterSchema, searchParams)
-  const data = await getAllUsers(user, filters)
+  const data = await measureServerOperation(
+    'getAdminUsersPageData',
+    {
+      route: '/admin/users',
+      component: 'app/(protected)/admin/_lib/admin-dashboard.data',
+      adminId: user.id,
+      page: filters.page,
+      limit: filters.limit,
+      role: filters.role ?? null,
+      hasSearch: Boolean(filters.search?.trim()),
+    },
+    () => getAllUsers(user, filters),
+  )
 
   return {
     filters,

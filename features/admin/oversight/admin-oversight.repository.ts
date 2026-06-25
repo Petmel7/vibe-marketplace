@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma/client'
 import type { OrderStatus, ProductStatus, UserRole } from '@/app/generated/prisma/client'
 import type {
   UserOversightFilters,
@@ -7,6 +8,23 @@ import type {
   ProductOversightFilters,
   StoreOptionFilters,
 } from './admin-oversight.dto'
+import { measureServerOperation } from '@/lib/observability/server-timing'
+
+type AdminUserBaseRow = {
+  id: string
+  email: string
+  createdAt: Date
+}
+
+type AdminUserRoleRow = {
+  userId: string
+  role: string
+}
+
+type AdminUserProfileRow = {
+  userId: string
+  displayName: string | null
+}
 
 // ---------------------------------------------------------------------------
 // Users
@@ -14,13 +32,14 @@ import type {
 
 export async function findAllUsers(filters: UserOversightFilters) {
   const { page, limit, search, role } = filters
+  const normalizedSearch = search?.trim()
 
-  const where = {
-    ...(search
+  const where: Prisma.UserWhereInput = {
+    ...(normalizedSearch
       ? {
           OR: [
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { name: { contains: search, mode: 'insensitive' as const } },
+            { email: { contains: normalizedSearch, mode: 'insensitive' } },
+            { name: { contains: normalizedSearch, mode: 'insensitive' } },
           ],
         }
       : {}),
@@ -33,19 +52,114 @@ export async function findAllUsers(filters: UserOversightFilters) {
       : {}),
   }
 
-  const [items, total] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      include: {
-        roles: { select: { role: true } },
-        profile: { select: { displayName: true } },
+  const skip = (page - 1) * limit
+
+  const [baseUsers, total] = await Promise.all([
+    measureServerOperation(
+      'adminUsers.findBaseUsers',
+      {
+        repository: 'features/admin/oversight/admin-oversight.repository',
+        route: '/admin/users',
+        sql: 'prisma.user.findMany(select id,email,createdAt)',
+        page,
+        limit,
+        role: role ?? null,
+        hasSearch: Boolean(normalizedSearch),
       },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.user.count({ where }),
+      () =>
+        prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip,
+          take: limit,
+        }),
+    ),
+    measureServerOperation(
+      'adminUsers.countUsers',
+      {
+        repository: 'features/admin/oversight/admin-oversight.repository',
+        route: '/admin/users',
+        sql: 'prisma.user.count',
+        role: role ?? null,
+        hasSearch: Boolean(normalizedSearch),
+      },
+      () => prisma.user.count({ where }),
+    ),
   ])
+
+  if (baseUsers.length === 0) {
+    return { items: [], total }
+  }
+
+  const userIds = baseUsers.map((user) => user.id)
+
+  const [roleRows, profileRows] = await Promise.all([
+    measureServerOperation(
+      'adminUsers.findUserRoles',
+      {
+        repository: 'features/admin/oversight/admin-oversight.repository',
+        route: '/admin/users',
+        sql: 'prisma.userRoleAssignment.findMany(by user ids)',
+        page,
+        limit,
+      },
+      () =>
+        prisma.userRoleAssignment.findMany({
+          where: {
+            userId: { in: userIds },
+          },
+          select: {
+            userId: true,
+            role: true,
+          },
+        }),
+    ),
+    measureServerOperation(
+      'adminUsers.findUserProfiles',
+      {
+        repository: 'features/admin/oversight/admin-oversight.repository',
+        route: '/admin/users',
+        sql: 'prisma.userProfile.findMany(by user ids)',
+        page,
+        limit,
+      },
+      () =>
+        prisma.userProfile.findMany({
+          where: {
+            userId: { in: userIds },
+          },
+          select: {
+            userId: true,
+            displayName: true,
+          },
+        }),
+    ),
+  ])
+
+  const rolesByUserId = new Map<string, Array<{ role: string }>>()
+  for (const roleRow of roleRows as AdminUserRoleRow[]) {
+    const bucket = rolesByUserId.get(roleRow.userId) ?? []
+    bucket.push({ role: roleRow.role })
+    rolesByUserId.set(roleRow.userId, bucket)
+  }
+
+  const profileByUserId = new Map(
+    (profileRows as AdminUserProfileRow[]).map((profile) => [
+      profile.userId,
+      { displayName: profile.displayName },
+    ]),
+  )
+
+  const items = (baseUsers as AdminUserBaseRow[]).map((user) => ({
+    ...user,
+    roles: rolesByUserId.get(user.id) ?? [],
+    profile: profileByUserId.get(user.id) ?? null,
+  }))
 
   return { items, total }
 }
