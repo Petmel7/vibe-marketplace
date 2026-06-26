@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import EvidenceFileCard from '@/components/abuse-reports/EvidenceFileCard'
 import {
   getDisputeEvidenceAcceptValue,
+  isDisputeImageEvidence,
   MAX_DISPUTE_EVIDENCE_FILES,
 } from './dispute-evidence.shared'
 
@@ -24,6 +26,35 @@ export default function DisputeEvidenceUpload({
   disabled?: boolean
   errorMessage?: string | null
 }) {
+  const [brokenPreviewIds, setBrokenPreviewIds] = useState<string[]>([])
+  const previewEntries = useMemo(
+    () =>
+      selectedFiles
+        .filter((item) => isDisputeImageEvidence(item.file.type))
+        .map((item) => ({
+          id: item.id,
+          url: URL.createObjectURL(item.file),
+        })),
+    [selectedFiles],
+  )
+  const previewUrlById = useMemo(
+    () => new Map(previewEntries.map((entry) => [entry.id, entry.url])),
+    [previewEntries],
+  )
+
+  useEffect(() => {
+    return () => {
+      for (const entry of previewEntries) {
+        URL.revokeObjectURL(entry.url)
+      }
+    }
+  }, [previewEntries])
+
+  useEffect(() => {
+    const activeIds = new Set(selectedFiles.map((item) => item.id))
+    setBrokenPreviewIds((current) => current.filter((id) => activeIds.has(id)))
+  }, [selectedFiles])
+
   return (
     <div className="space-y-3">
       <label className="block space-y-2">
@@ -65,6 +96,14 @@ export default function DisputeEvidenceUpload({
               fileName={item.file.name}
               fileType={item.file.type}
               fileSize={item.file.size}
+              previewUrl={
+                brokenPreviewIds.includes(item.id) ? null : (previewUrlById.get(item.id) ?? null)
+              }
+              onPreviewError={() => {
+                setBrokenPreviewIds((current) =>
+                  current.includes(item.id) ? current : [...current, item.id],
+                )
+              }}
               statusLabel="Буде завантажено після відправлення"
               action={{
                 label: 'Прибрати',
