@@ -184,7 +184,7 @@ describe('disputes.service', () => {
     mockStorage.createSignedDisputeEvidenceUrl.mockResolvedValue('https://signed.example/evidence')
   })
 
-  it('lets a buyer open a dispute for their own order item and enqueues admin notifications', async () => {
+  it('lets a buyer open a dispute for their own order item and enqueues admin and seller notifications', async () => {
     mockRepository.findOrderDisputeAccessContext.mockResolvedValue({
       orderId: 'order-1',
       orderItemId: 'order-item-1',
@@ -216,9 +216,24 @@ describe('disputes.service', () => {
     )
     expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith(
       expect.objectContaining({
+        actionUrl: expect.stringContaining('/admin/disputes/dispute-1'),
         metadata: expect.objectContaining({
           disputeId: 'dispute-1',
           orderId: 'order-1',
+          roleTarget: 'admin',
+          actorRole: 'BUYER',
+        }),
+      }),
+    )
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: sellerUser.id,
+        actionUrl: expect.stringContaining('/seller/disputes/dispute-1'),
+        metadata: expect.objectContaining({
+          disputeId: 'dispute-1',
+          orderId: 'order-1',
+          roleTarget: 'seller',
+          actorRole: 'BUYER',
         }),
       }),
     )
@@ -295,7 +310,26 @@ describe('disputes.service', () => {
         status: DisputeStatus.UNDER_REVIEW,
       }),
     )
-    expect(mockNotifications.notifyUser).toHaveBeenCalled()
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: buyerUser.id,
+        actionUrl: expect.stringContaining('/profile/disputes/dispute-1'),
+        metadata: expect.objectContaining({
+          roleTarget: 'buyer',
+          actorRole: 'ADMIN',
+        }),
+      }),
+    )
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: sellerUser.id,
+        actionUrl: expect.stringContaining('/seller/disputes/dispute-1'),
+        metadata: expect.objectContaining({
+          roleTarget: 'seller',
+          actorRole: 'ADMIN',
+        }),
+      }),
+    )
     expect(result.status).toBe(DisputeStatus.UNDER_REVIEW)
   })
 
@@ -376,7 +410,7 @@ describe('disputes.service', () => {
     })
   })
 
-  it('enqueues visible message notifications without exposing internal notes', async () => {
+  it('enqueues seller message notifications for buyer and admins without exposing internal notes', async () => {
     mockRepository.findDisputeById.mockResolvedValue(makeDisputeRecord() as never)
     mockRepository.createDisputeMessageRecord.mockResolvedValue({
       id: 'message-new',
@@ -402,6 +436,68 @@ describe('disputes.service', () => {
       expect.objectContaining({
         userId: buyerUser.id,
         type: 'ADMIN_ALERT',
+        actionUrl: expect.stringContaining('/profile/disputes/dispute-1'),
+        metadata: expect.objectContaining({
+          roleTarget: 'buyer',
+          actorRole: 'SELLER',
+        }),
+      }),
+    )
+    expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionUrl: expect.stringContaining('/admin/disputes/dispute-1'),
+        metadata: expect.objectContaining({
+          disputeId: 'dispute-1',
+          orderId: 'order-1',
+          roleTarget: 'admin',
+          actorRole: 'SELLER',
+        }),
+      }),
+    )
+    expect(mockNotifications.notifyUser).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: sellerUser.id,
+      }),
+    )
+  })
+
+  it('enqueues admin message notifications for buyer and seller only', async () => {
+    mockRepository.findDisputeById.mockResolvedValue(makeDisputeRecord() as never)
+    mockRepository.createDisputeMessageRecord.mockResolvedValue({
+      id: 'message-admin',
+      senderId: adminUser.id,
+      message: 'Please provide more evidence.',
+      isInternal: false,
+      createdAt: new Date('2026-06-02T11:15:00.000Z'),
+      sender: {
+        id: adminUser.id,
+        email: adminUser.email,
+        name: 'Admin Name',
+        profile: { displayName: 'Admin Display' },
+      },
+    } as never)
+
+    await addDisputeMessage(adminUser, 'dispute-1', {
+      message: 'Please provide more evidence.',
+      isInternal: false,
+    })
+
+    expect(mockNotifications.createAdminNotification).not.toHaveBeenCalled()
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: buyerUser.id,
+        actionUrl: expect.stringContaining('/profile/disputes/dispute-1'),
+      }),
+    )
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: sellerUser.id,
+        actionUrl: expect.stringContaining('/seller/disputes/dispute-1'),
+      }),
+    )
+    expect(mockNotifications.notifyUser).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: adminUser.id,
       }),
     )
   })

@@ -352,18 +352,32 @@ function getParticipantNotificationTarget(record: DisputeRecord) {
 }
 
 function getBuyerActionUrl(record: DisputeRecord): string {
-  return buildAppUrl(`/profile/orders/${record.orderId}`)
+  return buildAppUrl(`/profile/disputes/${record.id}`)
 }
 
-function getSellerActionUrl(): string {
-  return buildAppUrl('/seller/orders')
+function getSellerActionUrl(record: DisputeRecord): string {
+  return buildAppUrl(`/seller/disputes/${record.id}`)
 }
 
 function getAdminActionUrl(record: DisputeRecord): string {
   return buildAppUrl(`/admin/disputes/${record.id}`)
 }
 
+function resolveDisputeActorRole(senderId: string, record: DisputeRecord): 'BUYER' | 'SELLER' | 'ADMIN' {
+  if (senderId === record.openedById) {
+    return 'BUYER'
+  }
+
+  if (getSellerParticipantIds(record).includes(senderId)) {
+    return 'SELLER'
+  }
+
+  return 'ADMIN'
+}
+
 function sendDisputeOpenedNotifications(record: DisputeRecord) {
+  const { sellerIds } = getParticipantNotificationTarget(record)
+
   runNonBlocking(
     'disputes:create:admin-notification',
     createAdminNotification({
@@ -378,9 +392,35 @@ function sendDisputeOpenedNotifications(record: DisputeRecord) {
         status: record.status,
         priority: record.priority,
         reason: record.reason,
+        roleTarget: 'admin',
+        actorRole: 'BUYER',
       },
     }),
   )
+
+  for (const sellerId of sellerIds) {
+    runNonBlocking(
+      'disputes:create:seller-notification',
+      notifyUser({
+        userId: sellerId,
+        type: NotificationType.ADMIN_ALERT,
+        title: 'РќРѕРІР° СЃСѓРїРµСЂРµС‡РєР° РїРѕ Р·Р°РјРѕРІР»РµРЅРЅСЋ',
+        message: `РџРѕ Р·Р°РјРѕРІР»РµРЅРЅСЋ #${record.orderId.slice(0, 8)} РІС–РґРєСЂРёС‚Рѕ РЅРѕРІСѓ СЃСѓРїРµСЂРµС‡РєСѓ.`,
+        actionUrl: getSellerActionUrl(record),
+        metadata: {
+          disputeId: record.id,
+          orderId: record.orderId,
+          orderItemId: record.orderItemId,
+          storeId: record.storeId,
+          status: record.status,
+          priority: record.priority,
+          reason: record.reason,
+          roleTarget: 'seller',
+          actorRole: 'BUYER',
+        },
+      }),
+    )
+  }
 }
 
 function sendDisputeStatusChangedNotifications(record: DisputeRecord) {
@@ -400,6 +440,8 @@ function sendDisputeStatusChangedNotifications(record: DisputeRecord) {
         orderId: record.orderId,
         status: record.status,
         resolutionNote: record.resolutionNote,
+        roleTarget: 'buyer',
+        actorRole: 'ADMIN',
       },
     }),
   )
@@ -412,13 +454,15 @@ function sendDisputeStatusChangedNotifications(record: DisputeRecord) {
         type: NotificationType.ADMIN_ALERT,
         title: 'Оновлення суперечки',
         message,
-        actionUrl: getSellerActionUrl(),
+        actionUrl: getSellerActionUrl(record),
         metadata: {
           disputeId: record.id,
           orderId: record.orderId,
           storeId: record.storeId,
           status: record.status,
           resolutionNote: record.resolutionNote,
+          roleTarget: 'seller',
+          actorRole: 'ADMIN',
         },
       }),
     )
@@ -427,6 +471,7 @@ function sendDisputeStatusChangedNotifications(record: DisputeRecord) {
 
 function sendVisibleMessageNotifications(record: DisputeRecord, senderId: string) {
   const { buyerId, sellerIds } = getParticipantNotificationTarget(record)
+  const actorRole = resolveDisputeActorRole(senderId, record)
   const visibleRecipients = new Set<string>()
 
   if (senderId !== buyerId) {
@@ -439,6 +484,26 @@ function sendVisibleMessageNotifications(record: DisputeRecord, senderId: string
     }
   }
 
+  if (actorRole !== 'ADMIN') {
+    runNonBlocking(
+      'disputes:message:admin-notification',
+      createAdminNotification({
+        title: 'РќРѕРІРµ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ Сѓ СЃСѓРїРµСЂРµС‡С†С–',
+        message: `РЈ СЃСѓРїРµСЂРµС‡С†С– РїРѕ Р·Р°РјРѕРІР»РµРЅРЅСЋ #${record.orderId.slice(0, 8)} Р·вЂ™СЏРІРёР»РѕСЃСЏ РЅРѕРІРµ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ.`,
+        actionUrl: getAdminActionUrl(record),
+        metadata: {
+          disputeId: record.id,
+          orderId: record.orderId,
+          storeId: record.storeId,
+          status: record.status,
+          senderId,
+          roleTarget: 'admin',
+          actorRole,
+        },
+      }),
+    )
+  }
+
   for (const recipientId of visibleRecipients) {
     const isBuyerRecipient = recipientId === buyerId
     runNonBlocking(
@@ -448,12 +513,14 @@ function sendVisibleMessageNotifications(record: DisputeRecord, senderId: string
         type: NotificationType.ADMIN_ALERT,
         title: 'Нове повідомлення у суперечці',
         message: `У суперечці по замовленню #${record.orderId.slice(0, 8)} з’явилося нове повідомлення.`,
-        actionUrl: isBuyerRecipient ? getBuyerActionUrl(record) : getSellerActionUrl(),
+        actionUrl: isBuyerRecipient ? getBuyerActionUrl(record) : getSellerActionUrl(record),
         metadata: {
           disputeId: record.id,
           orderId: record.orderId,
           status: record.status,
           senderId,
+          roleTarget: isBuyerRecipient ? 'buyer' : 'seller',
+          actorRole,
         },
       }),
     )
