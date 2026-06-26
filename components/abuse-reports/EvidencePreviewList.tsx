@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { AbuseReportEvidence } from '@/types/abuse-reports'
+import { useLocalFilePreviewUrls } from '@/components/shared/useLocalFilePreviewUrls'
 import EvidenceFileCard from './EvidenceFileCard'
-import { buildEvidenceCountLabel } from './evidence.shared'
+import { buildEvidenceCountLabel, isImageEvidenceType } from './evidence.shared'
 
 type LocalEvidenceFile = {
   id: string
@@ -14,7 +15,7 @@ export default function EvidencePreviewList({
   files,
   evidence,
   isLoading = false,
-  emptyMessage = 'Доказів поки що немає.',
+  emptyMessage = 'Р”РѕРєР°Р·С–РІ РїРѕРєРё С‰Рѕ РЅРµРјР°С”.',
   onRemoveFile,
   onDeleteEvidence,
 }: {
@@ -31,6 +32,12 @@ export default function EvidencePreviewList({
     () => buildEvidenceCountLabel(evidence ?? null, isLoading),
     [evidence, isLoading],
   )
+  const localFiles = files ?? []
+  const isPreviewable = useCallback((file: File) => isImageEvidenceType(file.type), [])
+  const { getPreviewUrl, markPreviewBroken } = useLocalFilePreviewUrls({
+    files: localFiles,
+    isPreviewable,
+  })
 
   if (!hasLocalFiles && !hasSavedEvidence && !isLoading) {
     return <p className="text-sm text-copy-muted">{emptyMessage}</p>
@@ -44,7 +51,7 @@ export default function EvidencePreviewList({
 
       {isLoading ? (
         <div className="rounded-3xl border border-panelBorder bg-panelAlt px-4 py-4 text-sm text-copy-muted">
-          Завантажуємо докази...
+          Р—Р°РІР°РЅС‚Р°Р¶СѓС”РјРѕ РґРѕРєР°Р·Рё...
         </div>
       ) : null}
 
@@ -54,8 +61,10 @@ export default function EvidencePreviewList({
           fileName={item.file.name}
           fileType={item.file.type}
           fileSize={item.file.size}
-          statusLabel="Буде завантажено після створення скарги"
-          action={onRemoveFile ? { label: 'Прибрати', onClick: () => onRemoveFile(item.id), tone: 'danger' } : undefined}
+          previewUrl={getPreviewUrl(item.id)}
+          onPreviewError={() => markPreviewBroken(item.id)}
+          statusLabel="Р‘СѓРґРµ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРѕ РїС–СЃР»СЏ СЃС‚РІРѕСЂРµРЅРЅСЏ СЃРєР°СЂРіРё"
+          action={onRemoveFile ? { label: 'РџСЂРёР±СЂР°С‚Рё', onClick: () => onRemoveFile(item.id), tone: 'danger' } : undefined}
         />
       ))}
 
@@ -70,7 +79,7 @@ export default function EvidencePreviewList({
           createdAt={item.createdAt}
           action={
             onDeleteEvidence
-              ? { label: 'Видалити', onClick: () => onDeleteEvidence(item.id), tone: 'danger' }
+              ? { label: 'Р’РёРґР°Р»РёС‚Рё', onClick: () => onDeleteEvidence(item.id), tone: 'danger' }
               : undefined
           }
         />

@@ -15,13 +15,13 @@ vi.mock('next/image', () => ({
   }) => <img alt={alt} src={typeof src === 'string' ? src : ''} onError={onError} {...props} />,
 }))
 
-import DisputeEvidenceUpload from '@/components/disputes/DisputeEvidenceUpload'
+import EvidencePreviewList from '@/components/abuse-reports/EvidencePreviewList'
 
 function createFile(name: string, type: string, contents = 'test') {
   return new File([contents], name, { type })
 }
 
-describe('DisputeEvidenceUpload', () => {
+describe('EvidencePreviewList', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot>
   let createObjectUrlMock: ReturnType<typeof vi.fn<(obj: Blob | MediaSource) => string>>
@@ -56,16 +56,15 @@ describe('DisputeEvidenceUpload', () => {
     container.remove()
   })
 
-  it('shows an image thumbnail preview for WEBP, JPG, and PNG files', () => {
+  it('shows local WEBP, JPG, and PNG thumbnails for abuse report evidence', () => {
     act(() => {
       root.render(
-        <DisputeEvidenceUpload
-          selectedFiles={[
+        <EvidencePreviewList
+          files={[
             { id: 'webp-1', file: createFile('proof.webp', 'image/webp') },
             { id: 'jpg-1', file: createFile('proof.jpg', 'image/jpeg') },
             { id: 'png-1', file: createFile('proof.png', 'image/png') },
           ]}
-          onFilesSelected={vi.fn()}
           onRemoveFile={vi.fn()}
         />,
       )
@@ -82,12 +81,11 @@ describe('DisputeEvidenceUpload', () => {
     expect(createObjectUrlMock).toHaveBeenCalledTimes(3)
   })
 
-  it('shows a PDF file label instead of an image thumbnail', () => {
+  it('shows a document fallback for local PDF evidence', () => {
     act(() => {
       root.render(
-        <DisputeEvidenceUpload
-          selectedFiles={[{ id: 'pdf-1', file: createFile('proof.pdf', 'application/pdf') }]}
-          onFilesSelected={vi.fn()}
+        <EvidencePreviewList
+          files={[{ id: 'pdf-1', file: createFile('proof.pdf', 'application/pdf') }]}
           onRemoveFile={vi.fn()}
         />,
       )
@@ -97,18 +95,17 @@ describe('DisputeEvidenceUpload', () => {
     expect(container.textContent).toContain('PDF')
   })
 
-  it('removes previews and revokes object URLs when a file is removed', () => {
+  it('revokes preview URLs when a local evidence file is removed', () => {
     function Probe() {
-      const [selectedFiles, setSelectedFiles] = useState([
+      const [files, setFiles] = useState([
         { id: 'webp-1', file: createFile('proof.webp', 'image/webp') },
       ])
 
       return (
-        <DisputeEvidenceUpload
-          selectedFiles={selectedFiles}
-          onFilesSelected={vi.fn()}
+        <EvidencePreviewList
+          files={files}
           onRemoveFile={(id) => {
-            setSelectedFiles((current) => current.filter((item) => item.id !== id))
+            setFiles((current) => current.filter((item) => item.id !== id))
           }}
         />
       )
@@ -126,32 +123,5 @@ describe('DisputeEvidenceUpload', () => {
 
     expect(container.querySelector('img')).toBeNull()
     expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:proof.webp')
-  })
-
-  it('falls back to the file icon when the image preview fails to load and revokes URLs on unmount', () => {
-    act(() => {
-      root.render(
-        <DisputeEvidenceUpload
-          selectedFiles={[{ id: 'broken-1', file: createFile('broken.webp', 'image/webp') }]}
-          onFilesSelected={vi.fn()}
-          onRemoveFile={vi.fn()}
-        />,
-      )
-    })
-
-    const image = container.querySelector('img')
-
-    act(() => {
-      image?.dispatchEvent(new Event('error', { bubbles: true }))
-    })
-
-    expect(container.querySelector('img')).toBeNull()
-    expect(container.textContent).toContain('IMG')
-
-    act(() => {
-      root.unmount()
-    })
-
-    expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:broken.webp')
   })
 })

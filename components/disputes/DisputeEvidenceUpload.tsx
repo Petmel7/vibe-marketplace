@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback } from 'react'
 import EvidenceFileCard from '@/components/abuse-reports/EvidenceFileCard'
+import { useLocalFilePreviewUrls } from '@/components/shared/useLocalFilePreviewUrls'
 import {
   getDisputeEvidenceAcceptValue,
   isDisputeImageEvidence,
@@ -26,39 +27,16 @@ export default function DisputeEvidenceUpload({
   disabled?: boolean
   errorMessage?: string | null
 }) {
-  const [brokenPreviewIds, setBrokenPreviewIds] = useState<string[]>([])
-  const previewEntries = useMemo(
-    () =>
-      selectedFiles
-        .filter((item) => isDisputeImageEvidence(item.file.type))
-        .map((item) => ({
-          id: item.id,
-          url: URL.createObjectURL(item.file),
-        })),
-    [selectedFiles],
-  )
-  const previewUrlById = useMemo(
-    () => new Map(previewEntries.map((entry) => [entry.id, entry.url])),
-    [previewEntries],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const entry of previewEntries) {
-        URL.revokeObjectURL(entry.url)
-      }
-    }
-  }, [previewEntries])
-
-  useEffect(() => {
-    const activeIds = new Set(selectedFiles.map((item) => item.id))
-    setBrokenPreviewIds((current) => current.filter((id) => activeIds.has(id)))
-  }, [selectedFiles])
+  const isPreviewable = useCallback((file: File) => isDisputeImageEvidence(file.type), [])
+  const { getPreviewUrl, markPreviewBroken } = useLocalFilePreviewUrls({
+    files: selectedFiles,
+    isPreviewable,
+  })
 
   return (
     <div className="space-y-3">
       <label className="block space-y-2">
-        <span className="block text-sm font-medium text-copy-strong">Докази</span>
+        <span className="block text-sm font-medium text-copy-strong">Р”РѕРєР°Р·Рё</span>
         <input
           type="file"
           accept={getDisputeEvidenceAcceptValue()}
@@ -75,7 +53,7 @@ export default function DisputeEvidenceUpload({
       </label>
 
       <p id="dispute-evidence-help" className="text-xs text-copy-muted">
-        До {MAX_DISPUTE_EVIDENCE_FILES} файлів: JPG, PNG, WEBP або PDF, до 10MB кожен.
+        Р”Рѕ {MAX_DISPUTE_EVIDENCE_FILES} С„Р°Р№Р»С–РІ: JPG, PNG, WEBP Р°Р±Рѕ PDF, РґРѕ 10MB РєРѕР¶РµРЅ.
       </p>
 
       {errorMessage ? (
@@ -96,17 +74,11 @@ export default function DisputeEvidenceUpload({
               fileName={item.file.name}
               fileType={item.file.type}
               fileSize={item.file.size}
-              previewUrl={
-                brokenPreviewIds.includes(item.id) ? null : (previewUrlById.get(item.id) ?? null)
-              }
-              onPreviewError={() => {
-                setBrokenPreviewIds((current) =>
-                  current.includes(item.id) ? current : [...current, item.id],
-                )
-              }}
-              statusLabel="Буде завантажено після відправлення"
+              previewUrl={getPreviewUrl(item.id)}
+              onPreviewError={() => markPreviewBroken(item.id)}
+              statusLabel="Р‘СѓРґРµ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРѕ РїС–СЃР»СЏ РІС–РґРїСЂР°РІР»РµРЅРЅСЏ"
               action={{
-                label: 'Прибрати',
+                label: 'РџСЂРёР±СЂР°С‚Рё',
                 onClick: () => onRemoveFile(item.id),
                 tone: 'danger',
               }}
