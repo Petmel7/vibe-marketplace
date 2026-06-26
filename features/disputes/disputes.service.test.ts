@@ -446,6 +446,8 @@ describe('disputes.service', () => {
     expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         actionUrl: expect.stringContaining('/admin/disputes/dispute-1'),
+        title: 'Нове повідомлення у суперечці',
+        message: expect.stringContaining('з’явилося нове повідомлення'),
         metadata: expect.objectContaining({
           disputeId: 'dispute-1',
           orderId: 'order-1',
@@ -454,6 +456,13 @@ describe('disputes.service', () => {
         }),
       }),
     )
+    const adminNotificationCall = mockNotifications.createAdminNotification.mock.calls.find(
+      ([input]) => input.metadata?.roleTarget === 'admin',
+    )?.[0]
+    expect(adminNotificationCall?.title).toBe('Нове повідомлення у суперечці')
+    expect(adminNotificationCall?.message).toContain('з’явилося нове повідомлення')
+    expect(adminNotificationCall?.title).not.toContain('Р')
+    expect(adminNotificationCall?.message).not.toContain('вЂ')
     expect(mockNotifications.notifyUser).not.toHaveBeenCalledWith(
       expect.objectContaining({
         userId: sellerUser.id,

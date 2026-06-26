@@ -404,8 +404,8 @@ function sendDisputeOpenedNotifications(record: DisputeRecord) {
       notifyUser({
         userId: sellerId,
         type: NotificationType.ADMIN_ALERT,
-        title: 'РќРѕРІР° СЃСѓРїРµСЂРµС‡РєР° РїРѕ Р·Р°РјРѕРІР»РµРЅРЅСЋ',
-        message: `РџРѕ Р·Р°РјРѕРІР»РµРЅРЅСЋ #${record.orderId.slice(0, 8)} РІС–РґРєСЂРёС‚Рѕ РЅРѕРІСѓ СЃСѓРїРµСЂРµС‡РєСѓ.`,
+        title: 'Нова суперечка по замовленню',
+        message: `По замовленню #${record.orderId.slice(0, 8)} відкрито нову суперечку.`,
         actionUrl: getSellerActionUrl(record),
         metadata: {
           disputeId: record.id,
@@ -488,8 +488,8 @@ function sendVisibleMessageNotifications(record: DisputeRecord, senderId: string
     runNonBlocking(
       'disputes:message:admin-notification',
       createAdminNotification({
-        title: 'РќРѕРІРµ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ Сѓ СЃСѓРїРµСЂРµС‡С†С–',
-        message: `РЈ СЃСѓРїРµСЂРµС‡С†С– РїРѕ Р·Р°РјРѕРІР»РµРЅРЅСЋ #${record.orderId.slice(0, 8)} Р·вЂ™СЏРІРёР»РѕСЃСЏ РЅРѕРІРµ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ.`,
+        title: 'Нове повідомлення у суперечці',
+        message: `У суперечці по замовленню #${record.orderId.slice(0, 8)} з’явилося нове повідомлення.`,
         actionUrl: getAdminActionUrl(record),
         metadata: {
           disputeId: record.id,
