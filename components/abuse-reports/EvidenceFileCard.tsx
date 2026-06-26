@@ -37,9 +37,10 @@ export default function EvidenceFileCard({
   const isImage = isImageEvidenceType(fileType)
   const isPdf = isPdfEvidenceType(fileType)
   const [hasPreviewError, setHasPreviewError] = useState(false)
-  const actionClassName = action?.tone === 'danger'
-    ? 'rounded-full border border-brand-danger/30 bg-brand-danger/10 px-3 py-1.5 text-xs font-medium text-brand-danger transition hover:bg-brand-danger/15'
-    : 'rounded-full border border-panelBorder bg-panelAlt px-3 py-1.5 text-xs font-medium text-copy-secondary transition hover:border-brand-accent hover:text-copy-strong'
+  const actionClassName =
+    action?.tone === 'danger'
+      ? 'rounded-full border border-brand-danger/30 bg-brand-danger/10 px-3 py-1.5 text-xs font-medium text-brand-danger transition hover:bg-brand-danger/15'
+      : 'rounded-full border border-panelBorder bg-panelAlt px-3 py-1.5 text-xs font-medium text-copy-secondary transition hover:border-brand-accent hover:text-copy-strong'
   const showPreview = isImage && previewUrl && !hasPreviewError
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function EvidenceFileCard({
             <p className="truncate text-sm font-medium text-copy-strong">{fileName}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-copy-muted">
               <span>{formatEvidenceSize(fileSize)}</span>
-              <span>{isPdf ? 'PDF' : isImage ? 'Зображення' : fileType}</span>
+              <span>{isPdf ? 'PDF-документ' : isImage ? 'Зображення' : fileType}</span>
               {createdAt ? <span>{new Date(createdAt).toLocaleDateString('uk-UA')}</span> : null}
             </div>
           </div>

@@ -36,7 +36,7 @@ export default function DisputeEvidenceUpload({
   return (
     <div className="space-y-3">
       <label className="block space-y-2">
-        <span className="block text-sm font-medium text-copy-strong">Р”РѕРєР°Р·Рё</span>
+        <span className="block text-sm font-medium text-copy-strong">Докази</span>
         <input
           type="file"
           accept={getDisputeEvidenceAcceptValue()}
@@ -53,7 +53,7 @@ export default function DisputeEvidenceUpload({
       </label>
 
       <p id="dispute-evidence-help" className="text-xs text-copy-muted">
-        Р”Рѕ {MAX_DISPUTE_EVIDENCE_FILES} С„Р°Р№Р»С–РІ: JPG, PNG, WEBP Р°Р±Рѕ PDF, РґРѕ 10MB РєРѕР¶РµРЅ.
+        До {MAX_DISPUTE_EVIDENCE_FILES} файлів: JPG, PNG, WEBP або PDF, до 10MB кожен.
       </p>
 
       {errorMessage ? (
@@ -76,9 +76,9 @@ export default function DisputeEvidenceUpload({
               fileSize={item.file.size}
               previewUrl={getPreviewUrl(item.id)}
               onPreviewError={() => markPreviewBroken(item.id)}
-              statusLabel="Р‘СѓРґРµ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРѕ РїС–СЃР»СЏ РІС–РґРїСЂР°РІР»РµРЅРЅСЏ"
+              statusLabel="Буде завантажено після відправлення"
               action={{
-                label: 'РџСЂРёР±СЂР°С‚Рё',
+                label: 'Прибрати',
                 onClick: () => onRemoveFile(item.id),
                 tone: 'danger',
               }}

@@ -15,7 +15,7 @@ export default function EvidencePreviewList({
   files,
   evidence,
   isLoading = false,
-  emptyMessage = 'Р”РѕРєР°Р·С–РІ РїРѕРєРё С‰Рѕ РЅРµРјР°С”.',
+  emptyMessage = 'Доказів поки що немає.',
   onRemoveFile,
   onDeleteEvidence,
 }: {
@@ -51,7 +51,7 @@ export default function EvidencePreviewList({
 
       {isLoading ? (
         <div className="rounded-3xl border border-panelBorder bg-panelAlt px-4 py-4 text-sm text-copy-muted">
-          Р—Р°РІР°РЅС‚Р°Р¶СѓС”РјРѕ РґРѕРєР°Р·Рё...
+          Завантажуємо докази...
         </div>
       ) : null}
 
@@ -63,8 +63,12 @@ export default function EvidencePreviewList({
           fileSize={item.file.size}
           previewUrl={getPreviewUrl(item.id)}
           onPreviewError={() => markPreviewBroken(item.id)}
-          statusLabel="Р‘СѓРґРµ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРѕ РїС–СЃР»СЏ СЃС‚РІРѕСЂРµРЅРЅСЏ СЃРєР°СЂРіРё"
-          action={onRemoveFile ? { label: 'РџСЂРёР±СЂР°С‚Рё', onClick: () => onRemoveFile(item.id), tone: 'danger' } : undefined}
+          statusLabel="Буде завантажено після створення скарги"
+          action={
+            onRemoveFile
+              ? { label: 'Прибрати', onClick: () => onRemoveFile(item.id), tone: 'danger' }
+              : undefined
+          }
         />
       ))}
 
@@ -79,7 +83,7 @@ export default function EvidencePreviewList({
           createdAt={item.createdAt}
           action={
             onDeleteEvidence
-              ? { label: 'Р’РёРґР°Р»РёС‚Рё', onClick: () => onDeleteEvidence(item.id), tone: 'danger' }
+              ? { label: 'Видалити', onClick: () => onDeleteEvidence(item.id), tone: 'danger' }
               : undefined
           }
         />

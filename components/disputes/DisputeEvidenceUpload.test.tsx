@@ -80,6 +80,10 @@ describe('DisputeEvidenceUpload', () => {
       'proof.png',
     ])
     expect(createObjectUrlMock).toHaveBeenCalledTimes(3)
+    expect(container.textContent).toContain('Докази')
+    expect(container.textContent).toContain('До 5 файлів: JPG, PNG, WEBP або PDF, до 10MB кожен.')
+    expect(container.textContent).toContain('Буде завантажено після відправлення')
+    expect(container.textContent).toContain('Прибрати')
   })
 
   it('shows a PDF file label instead of an image thumbnail', () => {

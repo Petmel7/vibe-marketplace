@@ -79,6 +79,8 @@ describe('EvidencePreviewList', () => {
       'proof.png',
     ])
     expect(createObjectUrlMock).toHaveBeenCalledTimes(3)
+    expect(container.textContent).toContain('Буде завантажено після створення скарги')
+    expect(container.textContent).toContain('Прибрати')
   })
 
   it('shows a document fallback for local PDF evidence', () => {
