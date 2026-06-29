@@ -50,6 +50,8 @@ describe('checkoutSchema', () => {
   it('preview accepts valid structured Nova Poshta recipient fields', () => {
     const result = checkoutPreviewSchema.safeParse({
       cartId: validBasePayload.cartId,
+      couponCode: 'STORE10',
+      paymentMethod: 'CASH_ON_DELIVERY',
       ...validNovaPoshtaRecipient,
     })
 

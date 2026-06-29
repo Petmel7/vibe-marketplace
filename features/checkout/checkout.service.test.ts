@@ -467,6 +467,85 @@ describe('checkout preview', () => {
     expect(preview.total).toBe('89.98')
     expect(preview.appliedPromotion?.code).toBe('AUTO10')
   })
+
+  it('keeps Nova Poshta shipping in the preview total when a coupon code is applied', async () => {
+    mockRepo.getCartWithItems.mockResolvedValue(
+      makeCart() as unknown as Awaited<ReturnType<typeof mockRepo.getCartWithItems>>,
+    )
+    mockPromotionsService.resolvePromotionForCheckout.mockResolvedValueOnce({
+      id: 'promo-1',
+      code: 'SAVE10',
+      name: 'Save 10',
+      ownerType: 'MARKETPLACE',
+      storeId: null,
+      type: 'COUPON_CODE',
+      discountType: 'FIXED_AMOUNT',
+      discountValue: '10.00',
+      discountAmount: '10.00',
+      eligibleSubtotal: '99.98',
+    })
+    mockShippingService.buildCheckoutDeliverySelectionDto.mockReturnValueOnce({
+      supportedDeliveryTypes: ['NOVA_POSHTA_WAREHOUSE', 'NOVA_POSHTA_COURIER'],
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientFirstName: 'John',
+      recipientLastName: 'Doe',
+      recipientMiddleName: null,
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+      estimatedCost: null,
+      currency: 'UAH',
+      isComplete: true,
+    })
+    mockShippingService.resolveCheckoutDeliverySelection.mockResolvedValueOnce({
+      provider: 'NOVA_POSHTA',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientFirstName: 'John',
+      recipientLastName: 'Doe',
+      recipientMiddleName: null,
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientStreet: null,
+      recipientBuilding: null,
+      recipientApartment: null,
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+      estimatedCost: '80.00',
+      currency: 'UAH',
+    } as never)
+    mockShippingService.estimateCheckoutDeliveryTotal.mockResolvedValueOnce({
+      estimatedCost: '80.00',
+      currency: 'UAH',
+    })
+
+    const preview = await getCheckoutPreview(mockUser, {
+      cartId: CART_ID,
+      couponCode: 'save10',
+      deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientName: 'John Doe',
+      recipientFirstName: 'John',
+      recipientLastName: 'Doe',
+      recipientMiddleName: null,
+      recipientPhone: '+380000000000',
+      recipientCityRef: 'city-ref',
+      recipientCityName: 'Kyiv',
+      recipientWarehouseRef: 'warehouse-ref',
+      recipientWarehouseName: 'Warehouse 1',
+    })
+
+    expect(preview.discountAmount).toBe('10.00')
+    expect(preview.shippingAmount).toBe('80.00')
+    expect(preview.total).toBe('169.98')
+    expect(preview.appliedPromotion?.code).toBe('SAVE10')
+  })
 })
 
 describe('checkout submit', () => {

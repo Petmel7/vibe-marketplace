@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildAutoRefreshDeliveryPayload,
   buildAutoRefreshKey,
+  buildCheckoutPreviewUrl,
   buildPreviewDeliverySyncKey,
   buildSubmitDeliveryPayload,
   CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY,
@@ -241,6 +242,38 @@ describe('useCheckout auto refresh helpers', () => {
         recipientWarehouseRef: 'warehouse-1',
       }),
     ).toBe('cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1:recipient-ready')
+  })
+
+  it('includes coupon code, payment method, and Nova Poshta delivery fields in the checkout preview request', () => {
+    const previewUrl = buildCheckoutPreviewUrl(
+      'cart-1',
+      {
+        deliveryType: 'NOVA_POSHTA_WAREHOUSE',
+        recipientName: 'Петренко Іван',
+        recipientFirstName: 'Іван',
+        recipientLastName: 'Петренко',
+        recipientMiddleName: null,
+        recipientPhone: '+380000000000',
+        recipientCityRef: 'city-1',
+        recipientCityName: 'Київ',
+        recipientStreet: null,
+        recipientBuilding: null,
+        recipientApartment: null,
+        recipientWarehouseRef: 'warehouse-1',
+        recipientWarehouseName: 'Відділення 1',
+      },
+      {
+        couponCode: 'STORE10',
+        paymentMethod: 'CASH_ON_DELIVERY',
+      },
+    )
+
+    expect(previewUrl).toContain('cartId=cart-1')
+    expect(previewUrl).toContain('couponCode=STORE10')
+    expect(previewUrl).toContain('paymentMethod=CASH_ON_DELIVERY')
+    expect(previewUrl).toContain('deliveryType=NOVA_POSHTA_WAREHOUSE')
+    expect(previewUrl).toContain('recipientCityRef=city-1')
+    expect(previewUrl).toContain('recipientWarehouseRef=warehouse-1')
   })
 
   it('hides generic address blocking issues when Nova Poshta delivery is selected', () => {

@@ -27,5 +27,7 @@ export const checkoutSchema = z
 export const checkoutPreviewSchema = z
   .object({
     cartId: z.string().uuid().optional(),
+    couponCode: z.string().trim().min(1).max(64).nullish(),
+    paymentMethod: checkoutPaymentMethodSchema.nullish(),
   })
   .merge(checkoutDeliverySelectionSchema)

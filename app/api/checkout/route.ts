@@ -24,6 +24,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     assertRateLimit(request, rateLimitProfiles.checkout, { userId: user.id })
     const parsed = checkoutPreviewSchema.safeParse({
       cartId: request.nextUrl.searchParams.get('cartId') ?? undefined,
+      couponCode: request.nextUrl.searchParams.get('couponCode') ?? undefined,
+      paymentMethod: request.nextUrl.searchParams.get('paymentMethod') ?? undefined,
       deliveryType: request.nextUrl.searchParams.get('deliveryType') ?? undefined,
       recipientName: request.nextUrl.searchParams.get('recipientName') ?? undefined,
       recipientFirstName:

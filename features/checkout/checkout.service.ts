@@ -385,6 +385,7 @@ export async function getCheckoutPreview(
     cartId: cart?.id ?? null,
     items: preparedItems,
     shippingAmount: new Decimal(deliveryEstimate?.estimatedCost ?? '0'),
+    couponCode: input.couponCode,
   })
 
   return {

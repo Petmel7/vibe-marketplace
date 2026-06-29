@@ -236,9 +236,13 @@ export function buildSubmitDeliveryPayload(
   return buildAutoRefreshDeliveryPayload(input)
 }
 
-function buildCheckoutPreviewUrl(
+export function buildCheckoutPreviewUrl(
   cartId?: string,
   deliveryPayload?: DeliveryPayload,
+  options?: {
+    couponCode?: string | null
+    paymentMethod?: CheckoutPaymentMethod | null
+  },
 ) {
   const params = new URLSearchParams()
 
@@ -248,6 +252,14 @@ function buildCheckoutPreviewUrl(
 
   if (deliveryPayload?.deliveryType) {
     params.set('deliveryType', deliveryPayload.deliveryType)
+  }
+
+  if (options?.couponCode?.trim()) {
+    params.set('couponCode', options.couponCode.trim())
+  }
+
+  if (options?.paymentMethod) {
+    params.set('paymentMethod', options.paymentMethod)
   }
 
   const pairs = [
@@ -311,19 +323,6 @@ function getFriendlyCouponError(error: unknown) {
   }
 
   return 'Unable to apply this coupon right now.'
-}
-
-function mergePromotionPreview(
-  preview: CheckoutPreview,
-  promotionPreview: CheckoutPromotionPreview,
-): CheckoutPreview {
-  return {
-    ...preview,
-    subtotal: promotionPreview.subtotal,
-    discountAmount: promotionPreview.discountAmount,
-    total: promotionPreview.total,
-    appliedPromotion: promotionPreview.appliedPromotion,
-  }
 }
 
 function shouldRefreshPreviewAfterError(error: unknown) {
@@ -653,10 +652,10 @@ export function useCheckout(initialCartId?: string) {
     async (
       code: string,
       nextCartId?: string | null,
-      options?: { silent?: boolean; basePreview?: CheckoutPreview | null },
+      options?: { silent?: boolean },
     ) => {
-      const normalizedCode = code.trim()
-      const targetCartId = nextCartId ?? options?.basePreview?.cartId ?? preview?.cartId ?? initialCartId
+      const normalizedCode = code.trim().toUpperCase()
+      const targetCartId = nextCartId ?? preview?.cartId ?? initialCartId
 
       if (!normalizedCode || !targetCartId) {
         return null
@@ -666,11 +665,6 @@ export function useCheckout(initialCartId?: string) {
         cartId: targetCartId,
         couponCode: normalizedCode,
       })
-
-      const previewToMerge = options?.basePreview ?? preview
-      if (previewToMerge) {
-        setPreview(mergePromotionPreview(previewToMerge, data))
-      }
 
       const coupon = data.appliedPromotion?.type === 'COUPON_CODE' ? data.appliedPromotion.code : null
       appliedCouponCodeRef.current = coupon
@@ -700,35 +694,33 @@ export function useCheckout(initialCartId?: string) {
 
       try {
         const data = await apiClient.get<CheckoutPreview>(
-          buildCheckoutPreviewUrl(nextCartId ?? initialCartId, deliveryPayloadOverride),
+          buildCheckoutPreviewUrl(nextCartId ?? initialCartId, deliveryPayloadOverride, {
+            couponCode: appliedCouponCodeRef.current,
+            paymentMethod: selectedPaymentMethod,
+          }),
         )
 
-        let nextPreview = data
+        const nextPreview = data
+        const previousAppliedCoupon = appliedCouponCodeRef.current
+        const nextAppliedCoupon =
+          nextPreview.appliedPromotion?.type === 'COUPON_CODE'
+            ? nextPreview.appliedPromotion.code
+            : null
 
-        if (appliedCouponCodeRef.current && data.cartId) {
-          try {
-            const promotionPreview = await apiClient.post<CheckoutPromotionPreview>(
-              API_ROUTES.checkoutPromotionApply,
-              {
-                cartId: data.cartId,
-                couponCode: appliedCouponCodeRef.current,
-              },
-            )
-            nextPreview = mergePromotionPreview(data, promotionPreview)
-          } catch (error) {
-            appliedCouponCodeRef.current = null
-            setAppliedCouponCode(null)
-            setCouponCode('')
-            setCouponError(getFriendlyCouponError(error))
-            setCouponSuccessMessage(null)
-          }
+        appliedCouponCodeRef.current = nextAppliedCoupon
+        setAppliedCouponCode(nextAppliedCoupon)
+        if (nextAppliedCoupon) {
+          setCouponCode(nextAppliedCoupon)
+          setCouponError(null)
+        } else if (previousAppliedCoupon) {
+          setCouponCode('')
         }
 
         setPreview(nextPreview)
         setHasLoadedPreviewOnce(true)
         previewCartIdRef.current = nextPreview.cartId ?? nextCartId ?? initialCartId
         setCartItemCount(nextPreview.itemCount)
-        if (nextPreview.appliedPromotion?.type === 'AUTOMATIC_DISCOUNT' && !appliedCouponCodeRef.current) {
+        if (nextPreview.appliedPromotion?.type === 'AUTOMATIC_DISCOUNT' && !nextAppliedCoupon) {
           setCouponCode('')
         }
 
@@ -794,7 +786,7 @@ export function useCheckout(initialCartId?: string) {
         setIsLoading(false)
       }
     },
-    [initialCartId, setCartItemCount],
+    [initialCartId, selectedPaymentMethod, setCartItemCount],
   )
 
   const isCheckoutPreviewBlocked =
@@ -1200,7 +1192,7 @@ export function useCheckout(initialCartId?: string) {
       if (isCheckoutPriceChanged) {
         setSubmitError(null)
         setPreviewSyncMessage(
-          'Checkout total was updated to match the latest shipping estimate. Please review the summary and submit again.',
+          'Сума замовлення оновилася. Перевірте підсумок і підтвердьте ще раз.',
         )
         return null
       }
@@ -1315,7 +1307,7 @@ export function useCheckout(initialCartId?: string) {
     isAuthLoading || !hasCompletedInitialSync || !isHydrated || isRefreshing || isSyncingUser
   const isAuthCartSyncPending =
     isAuthenticated && (isSessionHydrating || isCartSyncPending)
-  const isPreviewPending = isPreviewRecalculating || isDeliveryPreviewStale
+  const isPreviewPending = isPreviewRecalculating || isDeliveryPreviewStale || isApplyingCoupon
   const canSubmit =
     Boolean(preview?.cartId) &&
     !isEmpty &&

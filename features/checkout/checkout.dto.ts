@@ -36,6 +36,8 @@ export type CheckoutInput = {
 
 export type CheckoutPreviewInput = {
   cartId?: string
+  couponCode?: string | null
+  paymentMethod?: CheckoutPaymentMethod | null
   deliveryType?: CheckoutDeliverySelectionDto['selectedDeliveryType']
   recipientName?: string | null
   recipientFirstName?: string | null

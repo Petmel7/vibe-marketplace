@@ -355,7 +355,7 @@ describe('CheckoutClient', () => {
     useCheckoutMock.mockReturnValue({
       ...makeCheckoutState(),
       previewSyncMessage:
-        'Checkout total was updated to match the latest shipping estimate. Please review the summary and submit again.',
+        'Сума замовлення оновилася. Перевірте підсумок і підтвердьте ще раз.',
     })
 
     act(() => {
@@ -363,7 +363,7 @@ describe('CheckoutClient', () => {
     })
 
     expect(container.textContent).toContain(
-      'Checkout total was updated to match the latest shipping estimate. Please review the summary and submit again.',
+      'Сума замовлення оновилася. Перевірте підсумок і підтвердьте ще раз.',
     )
   })
 
