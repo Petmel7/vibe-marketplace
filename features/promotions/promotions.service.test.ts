@@ -575,11 +575,72 @@ describe('getVisibleProductPromotions', () => {
       targetType: 'PRODUCT',
       targetId: 'product-1',
     })
+      expect(mockRepo.listActiveVisiblePromotionsForProductDisplay).toHaveBeenCalledWith({
+        now: new Date('2026-06-03T10:00:00.000Z'),
+        productIds: ['product-1'],
+        storeIds: ['store-1'],
+        categoryIds: [],
+      })
+  })
+
+  it('omits invalid non-uuid category ids from the batched promotion lookup', async () => {
+    mockRepo.listActiveVisiblePromotionsForProductDisplay.mockResolvedValue([] as never)
+
+    await getVisibleProductPromotions({
+      products: [
+        {
+          id: 'product-1',
+          storeId: 'store-1',
+          categoryId: 'cat-leaf-mens-hoodies-sweatshirts',
+        },
+      ],
+      now: new Date('2026-06-03T10:00:00.000Z'),
+    })
+
     expect(mockRepo.listActiveVisiblePromotionsForProductDisplay).toHaveBeenCalledWith({
       now: new Date('2026-06-03T10:00:00.000Z'),
       productIds: ['product-1'],
       storeIds: ['store-1'],
-      categoryIds: ['category-1'],
+      categoryIds: [],
     })
+  })
+
+  it('keeps valid uuid category ids for category-scoped promotion matching', async () => {
+    const categoryId = '11111111-1111-4111-8111-111111111111'
+    mockRepo.listActiveVisiblePromotionsForProductDisplay.mockResolvedValue([
+      makePromotion({
+        id: 'promo-category',
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        targets: [
+          {
+            id: 'target-category',
+            targetType: 'CATEGORY',
+            targetId: categoryId,
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }),
+    ] as never)
+
+    const result = await getVisibleProductPromotions({
+      products: [
+        {
+          id: 'product-1',
+          storeId: 'store-1',
+          categoryId,
+        },
+      ],
+      now: new Date('2026-06-03T10:00:00.000Z'),
+    })
+
+    expect(mockRepo.listActiveVisiblePromotionsForProductDisplay).toHaveBeenCalledWith({
+      now: new Date('2026-06-03T10:00:00.000Z'),
+      productIds: ['product-1'],
+      storeIds: ['store-1'],
+      categoryIds: [categoryId],
+    })
+    expect(result.get('product-1')?.targetType).toBe('CATEGORY')
+    expect(result.get('product-1')?.targetId).toBe(categoryId)
   })
 })

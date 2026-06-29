@@ -75,6 +75,12 @@ type VisiblePromotionProductContext = {
   categoryId: string | null
 }
 
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+}
+
 function normalizePromotionCode(code: string) {
   return code.trim().toUpperCase()
 }
@@ -773,17 +779,19 @@ export async function getVisibleProductPromotions(input: {
   }
 
   const now = input.now ?? new Date()
+  const validCategoryIds = [
+    ...new Set(
+      input.products
+        .map((product) => product.categoryId)
+        .filter((categoryId): categoryId is string => Boolean(categoryId))
+        .filter(isUuidLike),
+    ),
+  ]
   const promotions = await listActiveVisiblePromotionsForProductDisplay({
     now,
     productIds: [...new Set(input.products.map((product) => product.id))],
     storeIds: [...new Set(input.products.map((product) => product.storeId))],
-    categoryIds: [
-      ...new Set(
-        input.products
-          .map((product) => product.categoryId)
-          .filter((categoryId): categoryId is string => Boolean(categoryId)),
-      ),
-    ],
+    categoryIds: validCategoryIds,
   })
 
   for (const product of input.products) {
