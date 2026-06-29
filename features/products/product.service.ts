@@ -42,6 +42,7 @@ import type {
   ProductSearchQuery,
 } from '@/features/products/product.schema'
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
+import { getVisibleProductPromotions } from '@/features/promotions/promotions.service'
 import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 import {
@@ -125,6 +126,7 @@ function toProductSummaryDto(
   variants: ProductSummaryVariantLike[] = [],
   marketplaceBadges: ProductBadgeDto[] = [],
   badgeContext: ProductBadgeContext = 'DEFAULT',
+  promotionSummary: ProductSummaryDto['promotionSummary'] = null,
 ): ProductSummaryDto {
   const allBadgeTypes = new Set(marketplaceBadges.map((badge) => badge.type))
   const contextualBadges = selectContextualBadges(marketplaceBadges, badgeContext)
@@ -148,6 +150,7 @@ function toProductSummaryDto(
     badgeContext,
     badges: contextualBadges.map(toProductMarketplaceBadgeDto),
     ratingSummary: toRatingSummaryDto('ratingSummary' in product ? product.ratingSummary : null),
+    promotionSummary,
     createdAt: product.createdAt.toISOString(),
     variants: variants.map(toProductVariantDto),
   }
@@ -300,6 +303,13 @@ async function mapProductSummaryItems(
       isActive: item.isActive,
     })),
   )
+  const promotionsByProductId = await getVisibleProductPromotions({
+    products: items.map((item) => ({
+      id: item.id,
+      storeId: item.storeId,
+      categoryId: item.categoryId ?? null,
+    })),
+  })
 
   return items.map((item) =>
     toProductSummaryDto(
@@ -307,6 +317,7 @@ async function mapProductSummaryItems(
       'variants' in item ? item.variants : [],
       badgesByProductId.get(item.id) ?? [],
       badgeContext,
+      promotionsByProductId.get(item.id) ?? null,
     ),
   )
 }
@@ -620,6 +631,13 @@ const getHomepageProductSectionsCached = unstable_cache(
         isActive: item.isActive,
       })),
     )
+    const promotionsByProductId = await getVisibleProductPromotions({
+      products: [...badgeCandidates.values()].map((item) => ({
+        id: item.id,
+        storeId: item.storeId,
+        categoryId: item.categoryId ?? null,
+      })),
+    })
 
     const mapWithContext = (items: ProductListProduct[], badgeContext: ProductBadgeContext) =>
       items.map((item) =>
@@ -628,6 +646,7 @@ const getHomepageProductSectionsCached = unstable_cache(
           item.variants,
           badgesByProductId.get(item.id) ?? [],
           badgeContext,
+          promotionsByProductId.get(item.id) ?? null,
         ),
       )
 
@@ -686,6 +705,13 @@ async function getInitialProductFeedPage(
       isActive: item.isActive,
     })),
   )
+  const promotionsByProductId = await getVisibleProductPromotions({
+    products: result.items.map((item) => ({
+      id: item.id,
+      storeId: item.storeId,
+      categoryId: item.categoryId ?? null,
+    })),
+  })
 
   return {
     items: result.items.map((item) =>
@@ -694,6 +720,7 @@ async function getInitialProductFeedPage(
         item.variants,
         badgesByProductId.get(item.id) ?? [],
         badgeContext,
+        promotionsByProductId.get(item.id) ?? null,
       ),
     ),
     page: 1,
@@ -797,9 +824,19 @@ export async function searchProducts(
         isActive: item.isActive,
       })),
     )
+    const promotionsByProductId = await getVisibleProductPromotions({
+      products: result.items.map((item) => ({
+        id: item.id,
+        storeId: item.storeId,
+        categoryId: item.categoryId ?? null,
+      })),
+    })
 
     return {
-      items: result.items.map((item) => toSearchProductItemDto(item, badgesByProductId.get(item.id) ?? [])),
+      items: result.items.map((item) => ({
+        ...toSearchProductItemDto(item, badgesByProductId.get(item.id) ?? []),
+        promotionSummary: promotionsByProductId.get(item.id) ?? null,
+      })),
       pagination: {
         page: result.page,
         limit: result.limit,
@@ -837,9 +874,24 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     publishedAt: product.publishedAt,
     isActive: product.isActive,
   }])
+  const promotionsByProductId = await getVisibleProductPromotions({
+    products: [
+      {
+        id: product.id,
+        storeId: product.storeId,
+        categoryId: product.categoryId ?? null,
+      },
+    ],
+  })
 
   return {
-    ...toProductSummaryDto(product, product.variants, badgesByProductId.get(product.id) ?? [], 'DEFAULT'),
+    ...toProductSummaryDto(
+      product,
+      product.variants,
+      badgesByProductId.get(product.id) ?? [],
+      'DEFAULT',
+      promotionsByProductId.get(product.id) ?? null,
+    ),
     images: toProductImageDto(product),
     storeName: product.store.name,
     storeSlug: product.store.slug,

@@ -68,7 +68,6 @@ export default function CheckoutClient({
     couponCode,
     couponError,
     couponSuccessMessage,
-    appliedCouponCode,
     blockingIssues,
     isEmpty,
     isSessionHydrating,
@@ -137,7 +136,7 @@ export default function CheckoutClient({
   }
 
   if (
-    isLoading ||
+    (isLoading && !preview) ||
     (!hasLoadedPreviewOnce && !loadError) ||
     (isSessionHydrating && (!preview || isEmpty))
   ) {
@@ -312,6 +311,10 @@ export default function CheckoutClient({
 
             {previewSyncMessage ? (
               <p className="text-sm text-copy-muted">{previewSyncMessage}</p>
+            ) : isPreviewRecalculating ? (
+              <p className="text-sm text-copy-muted">
+                Updating checkout total with the latest shipping estimate...
+              </p>
             ) : null}
 
             {submitError ? (

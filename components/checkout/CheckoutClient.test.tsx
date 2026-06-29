@@ -279,7 +279,7 @@ describe('CheckoutClient', () => {
     expect(submitCheckoutMock).not.toHaveBeenCalled()
     expect(checkbox?.getAttribute('aria-invalid')).toBe('true')
     expect(document.activeElement).toBe(checkbox)
-    expect(container.textContent).toContain('Підтвердьте згоду на обробку персональних даних.')
+    expect(container.textContent).toContain('Підтвердіть згоду на обробку персональних даних.')
   })
 
   it('submits checkout when privacy consent is explicitly accepted and exposes the privacy link', () => {

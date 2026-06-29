@@ -1274,14 +1274,25 @@ export function useCheckout(initialCartId?: string) {
     setCouponSuccessMessage(null)
 
     try {
-      return await applyCouponToCart(couponCode, preview.cartId)
+      const result = await applyCouponToCart(couponCode, preview.cartId)
+      setSubmitError(null)
+      setPreviewSyncMessage(null)
+      await loadPreview(preview.cartId, true, getDeliveryPayload())
+      return result
     } catch (error) {
       setCouponError(getFriendlyCouponError(error))
       return null
     } finally {
       setIsApplyingCoupon(false)
     }
-  }, [applyCouponToCart, couponCode, isApplyingCoupon, preview?.cartId])
+  }, [
+    applyCouponToCart,
+    couponCode,
+    getDeliveryPayload,
+    isApplyingCoupon,
+    loadPreview,
+    preview?.cartId,
+  ])
 
   const removeCoupon = useCallback(async () => {
     appliedCouponCodeRef.current = null
@@ -1289,6 +1300,8 @@ export function useCheckout(initialCartId?: string) {
     setCouponCode('')
     setCouponError(null)
     setCouponSuccessMessage(null)
+    setSubmitError(null)
+    setPreviewSyncMessage(null)
     await loadPreview(preview?.cartId ?? undefined, true, getDeliveryPayload())
   }, [getDeliveryPayload, loadPreview, preview?.cartId])
 

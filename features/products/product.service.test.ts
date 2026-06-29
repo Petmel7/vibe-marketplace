@@ -14,6 +14,7 @@ import {
 } from './product.service'
 import * as repository from './product.repository'
 import * as productBadgeService from './product-badge.service'
+import * as promotionsService from '@/features/promotions/promotions.service'
 
 vi.mock('next/cache', () => ({
   unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
@@ -31,9 +32,13 @@ vi.mock('./product.repository', () => ({
 vi.mock('./product-badge.service', () => ({
   resolveMarketplaceBadgesForProducts: vi.fn(),
 }))
+vi.mock('@/features/promotions/promotions.service', () => ({
+  getVisibleProductPromotions: vi.fn(),
+}))
 
 const mockedRepository = vi.mocked(repository)
 const mockedBadgeService = vi.mocked(productBadgeService)
+const mockedPromotionsService = vi.mocked(promotionsService)
 
 function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product {
   return {
@@ -146,6 +151,7 @@ describe('searchProducts', () => {
         ]),
       ),
     )
+    mockedPromotionsService.getVisibleProductPromotions.mockResolvedValue(new Map())
   })
 
   it('returns mapped product list with pagination metadata', async () => {
@@ -303,6 +309,7 @@ describe('listProducts', () => {
             rating4Count: 0,
             rating5Count: 0,
           },
+          promotionSummary: null,
           createdAt: '2026-01-01T00:00:00.000Z',
           variants: [
             {
@@ -355,6 +362,7 @@ describe('listProducts', () => {
             rating4Count: 0,
             rating5Count: 0,
           },
+          promotionSummary: null,
           createdAt: '2026-01-01T00:00:00.000Z',
           variants: [
             {
@@ -928,6 +936,7 @@ describe('getProduct', () => {
       rating4Count: 0,
       rating5Count: 0,
     })
+    expect(result.promotionSummary).toBeNull()
   })
 
   it('throws ProductNotFoundError when product does not exist', async () => {
@@ -1026,6 +1035,55 @@ describe('getProduct', () => {
       rating4Count: 1,
       rating5Count: 3,
     })
+  })
+
+  it('maps the highest-priority visible seller promotion into list and detail DTOs', async () => {
+    mockedRepository.findProducts.mockResolvedValue({
+      items: [makeListProduct({}, [makeVariant()])],
+      total: 1,
+    })
+    mockedRepository.findProductById.mockResolvedValue(makeDetailProduct({}, [makeVariant()]))
+    mockedPromotionsService.getVisibleProductPromotions.mockResolvedValue(
+      new Map([
+        [
+          'prod-1',
+          {
+            id: 'promo-1',
+            name: 'Store 10%',
+            code: 'STORE10',
+            ownerType: 'SELLER',
+            storeId: 'store-1',
+            type: 'COUPON_CODE',
+            discountType: 'PERCENTAGE',
+            discountValue: '10.00',
+            endsAt: '2026-07-31T00:00:00.000Z',
+            targetType: 'PRODUCT',
+            targetId: 'prod-1',
+          },
+        ],
+      ]),
+    )
+
+    const [listResult, detailResult] = await Promise.all([
+      listProducts({ page: 1, limit: 12, sort: 'newest' }),
+      getProduct('prod-1'),
+    ])
+
+    expect(listResult.items[0]?.promotionSummary).toEqual({
+      id: 'promo-1',
+      name: 'Store 10%',
+      code: 'STORE10',
+      ownerType: 'SELLER',
+      storeId: 'store-1',
+      type: 'COUPON_CODE',
+      discountType: 'PERCENTAGE',
+      discountValue: '10.00',
+      endsAt: '2026-07-31T00:00:00.000Z',
+      targetType: 'PRODUCT',
+      targetId: 'prod-1',
+    })
+    expect(detailResult.promotionSummary?.code).toBe('STORE10')
+    expect(detailResult.promotionSummary?.discountValue).toBe('10.00')
   })
 
   it('returns a single prioritized badge in DEFAULT context when multiple badges exist internally', async () => {

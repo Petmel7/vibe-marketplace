@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import type { VisibleProductPromotionDto } from '@/features/promotions/promotions.dto'
 import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 
 vi.mock('next/image', () => ({
@@ -61,7 +62,24 @@ const baseProduct = {
   ],
 }
 
-function renderProductCard(ratingSummary?: ReviewRatingSummaryDto) {
+const basePromotion: VisibleProductPromotionDto = {
+  id: 'promo-1',
+  name: 'Store 10%',
+  code: 'STORE10',
+  ownerType: 'SELLER',
+  storeId: 'store-1',
+  type: 'COUPON_CODE',
+  discountType: 'PERCENTAGE',
+  discountValue: '10.00',
+  endsAt: '2026-07-31T00:00:00.000Z',
+  targetType: 'PRODUCT',
+  targetId: 'prod-1',
+}
+
+function renderProductCard(
+  ratingSummary?: ReviewRatingSummaryDto,
+  promotionSummary?: VisibleProductPromotionDto | null,
+) {
   return renderToStaticMarkup(
     <ProductCard
       id="prod-1"
@@ -70,14 +88,18 @@ function renderProductCard(ratingSummary?: ReviewRatingSummaryDto) {
       storeName="Test Store"
       stockStatus="IN_STOCK"
       ratingSummary={ratingSummary}
+      promotionSummary={promotionSummary}
       product={baseProduct}
     />,
   )
 }
 
-function renderProductCardDom(ratingSummary?: ReviewRatingSummaryDto) {
+function renderProductCardDom(
+  ratingSummary?: ReviewRatingSummaryDto,
+  promotionSummary?: VisibleProductPromotionDto | null,
+) {
   const container = document.createElement('div')
-  container.innerHTML = renderProductCard(ratingSummary)
+  container.innerHTML = renderProductCard(ratingSummary, promotionSummary)
   return container
 }
 
@@ -144,5 +166,24 @@ describe('ProductCard', () => {
     expect(productLinks).toHaveLength(2)
     expect(wishlistButton?.closest('a')).toBeNull()
     expect(addToCartButton?.closest('a')).toBeNull()
+  })
+
+  it('renders an active promotion badge, discount, and code when provided', () => {
+    const markup = renderProductCard(
+      {
+        averageRating: 4.2,
+        totalCount: 5,
+        rating1Count: 0,
+        rating2Count: 0,
+        rating3Count: 1,
+        rating4Count: 2,
+        rating5Count: 2,
+      },
+      basePromotion,
+    )
+
+    expect(markup).toContain('Акція')
+    expect(markup).toContain('10.00%')
+    expect(markup).toContain('STORE10')
   })
 })

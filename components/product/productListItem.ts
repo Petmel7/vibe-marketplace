@@ -27,6 +27,7 @@ export function toProductCardProps(product: ProductListItem) {
     stockStatus: product.stockStatus,
     storeName: product.storeName ?? null,
     ratingSummary: product.ratingSummary,
+    promotionSummary: product.promotionSummary,
     badgeContext: product.badgeContext ?? 'DEFAULT',
     badges: product.badges,
     product: {

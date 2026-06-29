@@ -13,6 +13,7 @@ import {
 } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import type { ProductStockStatus } from '@/features/products/product.dto'
+import type { VisibleProductPromotionDto } from '@/features/promotions/promotions.dto'
 import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 import { formatPrice } from '@/utils/formatters/price'
 import type {
@@ -32,7 +33,16 @@ interface ProductCardProps {
   badges?: MarketplaceProductBadge[]
   storeName?: string | null
   ratingSummary?: ReviewRatingSummaryDto
+  promotionSummary?: VisibleProductPromotionDto | null
   product: ProductCardProductLike
+}
+
+function getPromotionDiscountLabel(promotion: VisibleProductPromotionDto) {
+  if (promotion.discountType === 'PERCENTAGE') {
+    return `${promotion.discountValue}%`
+  }
+
+  return formatPrice(promotion.discountValue)
 }
 
 export default function ProductCard({
@@ -45,6 +55,7 @@ export default function ProductCard({
   badges,
   storeName,
   ratingSummary,
+  promotionSummary,
   product,
 }: ProductCardProps) {
   const [imageFailed, setImageFailed] = useState(false)
@@ -118,6 +129,22 @@ export default function ProductCard({
             {stockStatus ? <ProductStockBadge status={stockStatus} /> : null}
             {sku ? <span className="ui-meta-text">Арт.: {sku}</span> : null}
           </div>
+
+          {promotionSummary ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+              <span className="rounded-full bg-amber-300/20 px-2.5 py-1 text-amber-200">
+                Акція
+              </span>
+              <span className="rounded-full border border-amber-300/30 px-2.5 py-1 text-copy-secondary">
+                {getPromotionDiscountLabel(promotionSummary)}
+              </span>
+              {promotionSummary.code ? (
+                <span className="rounded-full border border-brand-accent/30 px-2.5 py-1 text-copy-secondary">
+                  {promotionSummary.code}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="flex min-h-5 items-center gap-2 text-sm text-copy-muted">
             {ratingSummary && ratingSummary.totalCount > 0 ? (

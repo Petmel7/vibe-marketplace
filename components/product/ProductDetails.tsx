@@ -32,6 +32,18 @@ interface Props {
   currentUser: SessionUser | null
 }
 
+function getPromotionDiscountLabel(product: ProductDetailDto) {
+  if (!product.promotionSummary) {
+    return null
+  }
+
+  if (product.promotionSummary.discountType === 'PERCENTAGE') {
+    return `${product.promotionSummary.discountValue}%`
+  }
+
+  return formatPrice(product.promotionSummary.discountValue)
+}
+
 export default function ProductDetails({ product, currentUser }: Props) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
     getDefaultProductVariantId(product),
@@ -122,6 +134,33 @@ export default function ProductDetails({ product, currentUser }: Props) {
                   {badge.label}
                 </span>
               ))}
+            </div>
+          ) : null}
+
+          {product.promotionSummary ? (
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-copy-primary">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-amber-300/20 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">
+                  Акція
+                </span>
+                <span className="font-semibold text-copy-strong">
+                  {product.promotionSummary.name}
+                </span>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-copy-secondary">
+                {getPromotionDiscountLabel(product) ? (
+                  <span>Знижка: {getPromotionDiscountLabel(product)}</span>
+                ) : null}
+                {product.promotionSummary.code ? (
+                  <span>Промокод: {product.promotionSummary.code}</span>
+                ) : null}
+                {product.promotionSummary.endsAt ? (
+                  <span>
+                    Діє до {new Date(product.promotionSummary.endsAt).toLocaleDateString('uk-UA')}
+                  </span>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

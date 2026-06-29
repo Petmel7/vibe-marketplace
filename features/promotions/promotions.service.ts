@@ -30,6 +30,7 @@ import type {
   PromotionTargetDto,
   PromotionTargetInputDto,
   ResolvedPromotionForCheckoutDto,
+  VisibleProductPromotionDto,
   UpdatePromotionInputDto,
   UpdatePromotionStatusInputDto,
   UpdateSellerPromotionInputDto,
@@ -47,6 +48,7 @@ import {
   findPromotionById,
   findSellerPromotionById,
   findStoreProductCategoryIds,
+  listActiveVisiblePromotionsForProductDisplay,
   listAutomaticPromotions,
   listPromotions,
   listSellerPromotions,
@@ -61,6 +63,16 @@ type PromotionEligibleItemInput = {
   productId: string
   categoryId: string | null
   lineTotal: Decimal
+}
+
+type VisiblePromotionRecord = Awaited<
+  ReturnType<typeof listActiveVisiblePromotionsForProductDisplay>
+>[number]
+
+type VisiblePromotionProductContext = {
+  id: string
+  storeId: string
+  categoryId: string | null
 }
 
 function normalizePromotionCode(code: string) {
@@ -127,6 +139,93 @@ function toAppliedPromotionDto(input: ResolvedPromotionForCheckoutDto): AppliedP
     discountValue: input.discountValue,
     discountAmount: input.discountAmount,
   }
+}
+
+function toVisibleProductPromotionDto(
+  promotion: VisiblePromotionRecord,
+  matchedTarget: VisiblePromotionRecord['targets'][number] | null,
+): VisibleProductPromotionDto {
+  return {
+    id: promotion.id,
+    name: promotion.name,
+    code: promotion.type === 'COUPON_CODE' ? promotion.code : null,
+    ownerType: promotion.ownerType,
+    storeId: promotion.storeId ?? null,
+    type: promotion.type,
+    discountType: promotion.discountType,
+    discountValue: promotion.discountValue.toString(),
+    endsAt: promotion.endsAt?.toISOString() ?? null,
+    targetType: matchedTarget?.targetType ?? null,
+    targetId: matchedTarget?.targetId ?? null,
+  }
+}
+
+function resolveVisiblePromotionMatch(
+  product: VisiblePromotionProductContext,
+  promotion: VisiblePromotionRecord,
+): {
+  score: number
+  matchedTarget: VisiblePromotionRecord['targets'][number] | null
+} | null {
+  if (
+    promotion.ownerType === PromotionOwnerType.MARKETPLACE &&
+    promotion.type === 'AUTOMATIC_DISCOUNT'
+  ) {
+    return {
+      score: 10,
+      matchedTarget: null,
+    }
+  }
+
+  if (!promotion.storeId || promotion.storeId !== product.storeId) {
+    return null
+  }
+
+  const matchedProductTarget =
+    promotion.targets.find(
+      (target) =>
+        target.targetType === PromotionTargetType.PRODUCT &&
+        target.targetId === product.id,
+    ) ?? null
+
+  if (matchedProductTarget) {
+    return {
+      score: promotion.type === 'COUPON_CODE' ? 45 : 40,
+      matchedTarget: matchedProductTarget,
+    }
+  }
+
+  if (product.categoryId) {
+    const matchedCategoryTarget =
+      promotion.targets.find(
+        (target) =>
+          target.targetType === PromotionTargetType.CATEGORY &&
+          target.targetId === product.categoryId,
+      ) ?? null
+
+    if (matchedCategoryTarget) {
+      return {
+        score: promotion.type === 'COUPON_CODE' ? 35 : 30,
+        matchedTarget: matchedCategoryTarget,
+      }
+    }
+  }
+
+  const matchedStoreTarget =
+    promotion.targets.find(
+      (target) =>
+        target.targetType === PromotionTargetType.STORE &&
+        target.targetId === product.storeId,
+    ) ?? null
+
+  if (matchedStoreTarget) {
+    return {
+      score: promotion.type === 'COUPON_CODE' ? 25 : 20,
+      matchedTarget: matchedStoreTarget,
+    }
+  }
+
+  return null
 }
 
 function calculateDiscountAmount(promotion: PromotionRecord, eligibleSubtotal: Decimal): Decimal {
@@ -661,6 +760,59 @@ export async function resolvePromotionForCheckout(input: {
   }
 
   return bestPromotion
+}
+
+export async function getVisibleProductPromotions(input: {
+  products: VisiblePromotionProductContext[]
+  now?: Date
+}): Promise<Map<string, VisibleProductPromotionDto | null>> {
+  const result = new Map<string, VisibleProductPromotionDto | null>()
+
+  if (input.products.length === 0) {
+    return result
+  }
+
+  const now = input.now ?? new Date()
+  const promotions = await listActiveVisiblePromotionsForProductDisplay({
+    now,
+    productIds: [...new Set(input.products.map((product) => product.id))],
+    storeIds: [...new Set(input.products.map((product) => product.storeId))],
+    categoryIds: [
+      ...new Set(
+        input.products
+          .map((product) => product.categoryId)
+          .filter((categoryId): categoryId is string => Boolean(categoryId)),
+      ),
+    ],
+  })
+
+  for (const product of input.products) {
+    let bestMatch:
+      | {
+          score: number
+          dto: VisibleProductPromotionDto
+        }
+      | null = null
+
+    for (const promotion of promotions) {
+      const match = resolveVisiblePromotionMatch(product, promotion)
+      if (!match) {
+        continue
+      }
+
+      const dto = toVisibleProductPromotionDto(promotion, match.matchedTarget)
+      if (!bestMatch || match.score > bestMatch.score) {
+        bestMatch = {
+          score: match.score,
+          dto,
+        }
+      }
+    }
+
+    result.set(product.id, bestMatch?.dto ?? null)
+  }
+
+  return result
 }
 
 export function buildCheckoutPromotionPreview(input: {

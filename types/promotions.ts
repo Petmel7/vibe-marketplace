@@ -29,6 +29,20 @@ export type AppliedPromotion = {
   discountAmount: string
 }
 
+export type VisibleProductPromotion = {
+  id: string
+  name: string
+  code: string | null
+  ownerType: PromotionOwnerType
+  storeId: string | null
+  type: PromotionType
+  discountType: PromotionDiscountType
+  discountValue: string
+  endsAt: string | null
+  targetType: PromotionTargetType | null
+  targetId: string | null
+}
+
 export type CheckoutPromotionPreview = {
   cartId: string | null
   subtotal: string

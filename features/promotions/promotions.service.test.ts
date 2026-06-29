@@ -14,6 +14,7 @@ vi.mock('@/features/promotions/promotions.repository', () => ({
   findSellerPromotionById: vi.fn(),
   findStoreProductCategoryIds: vi.fn(),
   listAutomaticPromotions: vi.fn(),
+  listActiveVisiblePromotionsForProductDisplay: vi.fn(),
   listPromotions: vi.fn(),
   listSellerPromotions: vi.fn(),
   replacePromotionTargets: vi.fn(),
@@ -32,6 +33,7 @@ import {
   createSellerPromotion,
   deleteAdminPromotion,
   getSellerPromotionById,
+  getVisibleProductPromotions,
   resolvePromotionForCheckout,
 } from '@/features/promotions/promotions.service'
 import {
@@ -513,6 +515,71 @@ describe('buildCheckoutPromotionPreview', () => {
         discountValue: '10.00',
         discountAmount: '12.00',
       },
+    })
+  })
+})
+
+describe('getVisibleProductPromotions', () => {
+  it('prefers a product-scoped seller coupon over broader promotions for the same product', async () => {
+    mockRepo.listActiveVisiblePromotionsForProductDisplay.mockResolvedValue([
+      makePromotion({
+        id: 'promo-store',
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        targets: [
+          {
+            id: 'target-store',
+            targetType: 'STORE',
+            targetId: 'store-1',
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }),
+      makePromotion({
+        id: 'promo-product',
+        code: 'STORE10',
+        ownerType: 'SELLER',
+        storeId: 'store-1',
+        targets: [
+          {
+            id: 'target-product',
+            targetType: 'PRODUCT',
+            targetId: 'product-1',
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      }),
+    ] as never)
+
+    const result = await getVisibleProductPromotions({
+      products: [
+        {
+          id: 'product-1',
+          storeId: 'store-1',
+          categoryId: 'category-1',
+        },
+      ],
+      now: new Date('2026-06-03T10:00:00.000Z'),
+    })
+
+    expect(result.get('product-1')).toEqual({
+      id: 'promo-product',
+      name: 'Save 10',
+      code: 'STORE10',
+      ownerType: 'SELLER',
+      storeId: 'store-1',
+      type: 'COUPON_CODE',
+      discountType: 'PERCENTAGE',
+      discountValue: '10.00',
+      endsAt: '2026-06-30T23:59:59.000Z',
+      targetType: 'PRODUCT',
+      targetId: 'product-1',
+    })
+    expect(mockRepo.listActiveVisiblePromotionsForProductDisplay).toHaveBeenCalledWith({
+      now: new Date('2026-06-03T10:00:00.000Z'),
+      productIds: ['product-1'],
+      storeIds: ['store-1'],
+      categoryIds: ['category-1'],
     })
   })
 })

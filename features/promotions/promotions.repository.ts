@@ -125,6 +125,74 @@ export async function listAutomaticPromotions(now: Date) {
   })
 }
 
+export async function listActiveVisiblePromotionsForProductDisplay(input: {
+  now: Date
+  productIds: string[]
+  storeIds: string[]
+  categoryIds: string[]
+}) {
+  const sellerTargetFilters: Prisma.PromotionTargetWhereInput[] = [
+    {
+      targetType: 'STORE',
+      targetId: {
+        in: input.storeIds,
+      },
+    },
+    {
+      targetType: 'PRODUCT',
+      targetId: {
+        in: input.productIds,
+      },
+    },
+  ]
+
+  if (input.categoryIds.length > 0) {
+    sellerTargetFilters.push({
+      targetType: 'CATEGORY',
+      targetId: {
+        in: input.categoryIds,
+      },
+    })
+  }
+
+  return prisma.promotion.findMany({
+    where: {
+      isActive: true,
+      startsAt: {
+        lte: input.now,
+      },
+      OR: [{ endsAt: null }, { endsAt: { gte: input.now } }],
+      AND: [
+        {
+          OR: [
+            {
+              ownerType: PromotionOwnerType.MARKETPLACE,
+              type: PromotionType.AUTOMATIC_DISCOUNT,
+            },
+            {
+              ownerType: PromotionOwnerType.SELLER,
+              storeId: {
+                in: input.storeIds,
+              },
+              targets: {
+                some: {
+                  OR: sellerTargetFilters,
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    include: {
+      targets: {
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      },
+    },
+    orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+  })
+}
+
 export async function createPromotion(
   data: Prisma.PromotionUncheckedCreateInput & {
     targets?: PromotionTargetInputDto[]
