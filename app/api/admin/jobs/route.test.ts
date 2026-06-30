@@ -32,7 +32,6 @@ describe('GET /api/admin/jobs', () => {
         {
           id: 'job-1',
           type: 'SEND_EMAIL',
-          payload: { emailEventId: 'event-1' },
           status: 'PENDING',
           attempts: 0,
           maxAttempts: 5,

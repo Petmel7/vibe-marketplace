@@ -12,6 +12,7 @@ import { logError, logInfo, logWarn } from '@/utils/logger'
 import type {
   EnqueueJobInputDto,
   JobDto,
+  JobListItemDto,
   JobListDto,
   JobListQueryDto,
   JobPayload,
@@ -31,6 +32,7 @@ import {
   extendJobLockRecord,
   findJobByDedupeKey,
   findJobById,
+  type JobListRecord,
   listJobs,
   listRunnableJobs,
   listStaleProcessingJobs,
@@ -48,6 +50,28 @@ function toJobDto(job: Job): JobDto {
     id: job.id,
     type: job.type,
     payload: job.payload as JobPayload,
+    status: job.status,
+    attempts: job.attempts,
+    maxAttempts: job.maxAttempts,
+    runAt: job.runAt.toISOString(),
+    lockedAt: job.lockedAt?.toISOString() ?? null,
+    lockExpiresAt: lockExpiresAt?.toISOString() ?? null,
+    stale: isJobLockStale(job),
+    processedAt: job.processedAt?.toISOString() ?? null,
+    failedAt: job.failedAt?.toISOString() ?? null,
+    errorMessage: job.errorMessage ? job.errorMessage.slice(0, 500) : null,
+    dedupeKey: job.dedupeKey ?? null,
+    createdAt: job.createdAt.toISOString(),
+    updatedAt: job.updatedAt.toISOString(),
+  }
+}
+
+function toJobListItemDto(job: JobListRecord): JobListItemDto {
+  const lockExpiresAt = getJobLockExpiresAt(job.lockedAt)
+
+  return {
+    id: job.id,
+    type: job.type,
     status: job.status,
     attempts: job.attempts,
     maxAttempts: job.maxAttempts,
@@ -141,6 +165,41 @@ function assertAdmin(user: SessionUser) {
 function assertCanTransitionJob(job: Job, allowedStatuses: Array<Job['status']>, message: string) {
   if (!allowedStatuses.includes(job.status)) {
     throw new JobInvalidStateError(message)
+  }
+}
+
+function normalizeAdminJobListQuery(query: JobListQueryDto): JobListQueryDto {
+  return {
+    ...query,
+    page: Math.max(1, query.page),
+    limit: Math.min(Math.max(query.limit, 1), 100),
+  }
+}
+
+function getDurationMs(startedAt: number) {
+  return Date.now() - startedAt
+}
+
+function logJobsListTiming(
+  stage: string,
+  startedAt: number,
+  context: Record<string, unknown>,
+) {
+  const durationMs = getDurationMs(startedAt)
+  const payload = {
+    domain: 'jobs',
+    stage,
+    durationMs,
+    ...context,
+  }
+
+  if (durationMs >= 1000) {
+    logWarn('jobs:admin-list-slow', payload)
+    return
+  }
+
+  if (durationMs >= 100) {
+    logInfo('jobs:admin-list-timing', payload)
   }
 }
 
@@ -386,16 +445,48 @@ export async function getAdminJobs(
   query: JobListQueryDto,
 ): Promise<JobListDto> {
   assertAdmin(user)
+  const normalizedQuery = normalizeAdminJobListQuery(query)
+  const listStartedAt = Date.now()
+  const items = await listJobs(normalizedQuery)
+  logJobsListTiming('list', listStartedAt, {
+    status: normalizedQuery.status ?? null,
+    type: normalizedQuery.type ?? null,
+    page: normalizedQuery.page,
+    limit: normalizedQuery.limit,
+    itemCount: items.length,
+  })
 
-  const [items, total] = await Promise.all([
-    listJobs(query),
-    countJobs(query),
-  ])
+  const offset = (normalizedQuery.page - 1) * normalizedQuery.limit
+  let total: number
+
+  if (items.length < normalizedQuery.limit) {
+    total = offset + items.length
+  } else {
+    const countStartedAt = Date.now()
+    total = await countJobs(normalizedQuery)
+    logJobsListTiming('count', countStartedAt, {
+      status: normalizedQuery.status ?? null,
+      type: normalizedQuery.type ?? null,
+      page: normalizedQuery.page,
+      limit: normalizedQuery.limit,
+      total,
+    })
+  }
+
+  const mappingStartedAt = Date.now()
+  const mappedItems = items.map(toJobListItemDto)
+  logJobsListTiming('map', mappingStartedAt, {
+    status: normalizedQuery.status ?? null,
+    type: normalizedQuery.type ?? null,
+    page: normalizedQuery.page,
+    limit: normalizedQuery.limit,
+    itemCount: mappedItems.length,
+  })
 
   return {
-    items: items.map(toJobDto),
-    page: query.page,
-    limit: query.limit,
+    items: mappedItems,
+    page: normalizedQuery.page,
+    limit: normalizedQuery.limit,
     total,
   }
 }

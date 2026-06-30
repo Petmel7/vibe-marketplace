@@ -546,6 +546,24 @@ describe('jobs.service', () => {
     })
   })
 
+  it('skips the count query when the current page is already terminal', async () => {
+    mockRepo.listJobs.mockResolvedValue([makeJob()] as never)
+
+    const result = await getAdminJobs(adminUser as never, {
+      page: 1,
+      limit: 5,
+      status: 'FAILED',
+    })
+
+    expect(result.total).toBe(1)
+    expect(mockRepo.countJobs).not.toHaveBeenCalled()
+    expect(mockRepo.listJobs).toHaveBeenCalledWith({
+      page: 1,
+      limit: 5,
+      status: 'FAILED',
+    })
+  })
+
   it('blocks non-admin job diagnostics access', async () => {
     mockGuards.requireAdmin.mockImplementation(() => {
       throw new AdminAccessError()

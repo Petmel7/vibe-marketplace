@@ -29,6 +29,7 @@ import type {
 } from './admin-operations.dto'
 import { InvalidJobTransitionError, OperationsAccessDeniedError } from '@/lib/errors/operations'
 import { JobInvalidStateError } from '@/lib/errors/job'
+import type { JobListItemDto } from '@/features/jobs/jobs.dto'
 
 function assertOperationsAdmin(user: SessionUser) {
   try {
@@ -38,7 +39,26 @@ function assertOperationsAdmin(user: SessionUser) {
   }
 }
 
-function toOperationsJobDto(job: Awaited<ReturnType<typeof getAdminJobById>>): AdminOperationsJobDto {
+function toOperationsJobDto(
+  job: Pick<
+    Awaited<ReturnType<typeof getAdminJobById>> | JobListItemDto,
+    | 'id'
+    | 'type'
+    | 'status'
+    | 'attempts'
+    | 'maxAttempts'
+    | 'runAt'
+    | 'lockedAt'
+    | 'lockExpiresAt'
+    | 'stale'
+    | 'processedAt'
+    | 'failedAt'
+    | 'errorMessage'
+    | 'dedupeKey'
+    | 'createdAt'
+    | 'updatedAt'
+  >,
+): AdminOperationsJobDto {
   return {
     id: job.id,
     type: job.type,

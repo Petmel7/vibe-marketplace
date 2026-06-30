@@ -92,6 +92,8 @@ export type JobDto = {
   updatedAt: string
 }
 
+export type JobListItemDto = Omit<JobDto, 'payload'>
+
 export type JobProcessResultDto = {
   job: JobDto
   handled: boolean
@@ -126,7 +128,7 @@ export type JobListQueryDto = {
 }
 
 export type JobListDto = {
-  items: JobDto[]
+  items: JobListItemDto[]
   page: number
   limit: number
   total: number

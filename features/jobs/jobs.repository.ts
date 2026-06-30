@@ -2,6 +2,26 @@ import { Prisma, type Job, type JobStatus, type JobType } from '@/app/generated/
 import { prisma } from '@/lib/prisma'
 import type { JobListQueryDto } from './jobs.dto'
 
+const jobListSelect = {
+  id: true,
+  type: true,
+  status: true,
+  attempts: true,
+  maxAttempts: true,
+  runAt: true,
+  lockedAt: true,
+  processedAt: true,
+  failedAt: true,
+  errorMessage: true,
+  dedupeKey: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.JobSelect
+
+export type JobListRecord = Prisma.JobGetPayload<{
+  select: typeof jobListSelect
+}>
+
 function buildDateRangeFilter(dateFrom?: string, dateTo?: string): Prisma.DateTimeFilter | undefined {
   if (!dateFrom && !dateTo) {
     return undefined
@@ -15,6 +35,18 @@ function buildDateRangeFilter(dateFrom?: string, dateTo?: string): Prisma.DateTi
 
 function isPrismaUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+}
+
+function buildJobListWhere(
+  query: Pick<JobListQueryDto, 'status' | 'type' | 'dateFrom' | 'dateTo'>,
+): Prisma.JobWhereInput {
+  const createdAt = buildDateRangeFilter(query.dateFrom, query.dateTo)
+
+  return {
+    ...(query.status ? { status: query.status as JobStatus } : {}),
+    ...(query.type ? { type: query.type as JobType } : {}),
+    ...(createdAt ? { createdAt } : {}),
+  }
 }
 
 export async function findJobById(id: string) {
@@ -222,17 +254,12 @@ export async function extendJobLockRecord(input: {
 }
 
 export async function listJobs(query: JobListQueryDto) {
-  const createdAt = buildDateRangeFilter(query.dateFrom, query.dateTo)
-
   return prisma.job.findMany({
-    where: {
-      ...(query.status ? { status: query.status as JobStatus } : {}),
-      ...(query.type ? { type: query.type as JobType } : {}),
-      ...(createdAt ? { createdAt } : {}),
-    },
+    select: jobListSelect,
+    where: buildJobListWhere(query),
     orderBy: [
-      { createdAt: 'desc' },
       { runAt: 'desc' },
+      { createdAt: 'desc' },
     ],
     skip: (query.page - 1) * query.limit,
     take: query.limit,
@@ -240,14 +267,8 @@ export async function listJobs(query: JobListQueryDto) {
 }
 
 export async function countJobs(query: Pick<JobListQueryDto, 'status' | 'type' | 'dateFrom' | 'dateTo'>) {
-  const createdAt = buildDateRangeFilter(query.dateFrom, query.dateTo)
-
   return prisma.job.count({
-    where: {
-      ...(query.status ? { status: query.status as JobStatus } : {}),
-      ...(query.type ? { type: query.type as JobType } : {}),
-      ...(createdAt ? { createdAt } : {}),
-    },
+    where: buildJobListWhere(query),
   })
 }
 
