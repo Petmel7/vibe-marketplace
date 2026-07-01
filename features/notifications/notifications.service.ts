@@ -28,6 +28,7 @@ import {
   type NotificationOwnershipRecord,
   listNotificationsByUserId,
 } from './notifications.repository'
+import { logInfo, logWarn } from '@/utils/logger'
 
 function toMetadata(metadata: unknown): Record<string, unknown> | null {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
@@ -78,6 +79,41 @@ function assertNotificationOwnership(
 
   if (notification.userId !== userId) {
     throw new NotificationOwnershipError()
+  }
+}
+
+async function measureNotificationsServiceCall<T>(
+  operation: string,
+  context: Record<string, unknown>,
+  run: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now()
+  logInfo('notifications:service:before', {
+    domain: 'notifications',
+    operation,
+    ...context,
+  })
+
+  const warningTimer = setTimeout(() => {
+    logWarn('notifications:service:slow-await', {
+      domain: 'notifications',
+      operation,
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+  }, 5000)
+
+  try {
+    const result = await run()
+    logInfo('notifications:service:after', {
+      domain: 'notifications',
+      operation,
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+    return result
+  } finally {
+    clearTimeout(warningTimer)
   }
 }
 
@@ -172,7 +208,22 @@ export async function getMyNotifications(
 export async function getMyUnreadNotificationCount(
   user: SessionUser,
 ): Promise<NotificationUnreadCountDto> {
-  const count = await countUnreadNotificationsByUserId(user.id)
+  const count = await measureNotificationsServiceCall(
+    'countUnreadNotificationsByUserId',
+    { userId: user.id },
+    () => countUnreadNotificationsByUserId(user.id),
+  )
+  return { count }
+}
+
+export async function getUnreadNotificationCountByUserId(
+  userId: string,
+): Promise<NotificationUnreadCountDto> {
+  const count = await measureNotificationsServiceCall(
+    'countUnreadNotificationsByUserId',
+    { userId },
+    () => countUnreadNotificationsByUserId(userId),
+  )
   return { count }
 }
 

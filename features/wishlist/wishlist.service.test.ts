@@ -80,7 +80,7 @@ describe('getWishlist', () => {
   beforeEach(() => vi.resetAllMocks())
 
   it('returns wishlist DTO for the user', async () => {
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist() as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist() as never)
 
     const result = await getWishlist(USER_ID)
 
@@ -92,11 +92,30 @@ describe('getWishlist', () => {
   })
 
   it('returns an empty wishlist when no items exist', async () => {
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist([]) as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
 
     const result = await getWishlist(USER_ID)
 
     expect(result.items).toHaveLength(0)
+  })
+
+  it('creates an empty wishlist lazily when the user has none yet', async () => {
+    mockRepo.findWishlistByUserId.mockResolvedValue(null)
+    mockRepo.createWishlist.mockResolvedValue({
+      id: WISHLIST_ID,
+      userId: USER_ID,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never)
+
+    const result = await getWishlist(USER_ID)
+
+    expect(mockRepo.createWishlist).toHaveBeenCalledWith(USER_ID)
+    expect(result).toEqual({
+      id: WISHLIST_ID,
+      userId: USER_ID,
+      items: [],
+    })
   })
 })
 
@@ -109,7 +128,7 @@ describe('addToWishlist', () => {
 
   it('adds a product and returns the updated wishlist', async () => {
     mockProductExists.mockResolvedValue(true)
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist([]) as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
     mockRepo.findWishlistItem.mockResolvedValue(null)
     mockRepo.addWishlistItem.mockResolvedValue(makeWishlist() as never)
 
@@ -134,7 +153,7 @@ describe('addToWishlist', () => {
     mockProductExists.mockResolvedValue(true)
     const existingWishlist = makeWishlist()
 
-    mockRepo.findOrCreateWishlist.mockResolvedValue(existingWishlist as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(existingWishlist as never)
     mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
 
     const result = await addToWishlist(USER_ID, PRODUCT_ID)
@@ -145,7 +164,7 @@ describe('addToWishlist', () => {
 
   it('does not call addWishlistItem when product is already present', async () => {
     mockProductExists.mockResolvedValue(true)
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist() as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist() as never)
     mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
 
     await expect(addToWishlist(USER_ID, PRODUCT_ID)).resolves.toMatchObject({
@@ -164,7 +183,7 @@ describe('removeFromWishlist', () => {
   beforeEach(() => vi.resetAllMocks())
 
   it('removes a product and returns the updated wishlist', async () => {
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist() as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist() as never)
     mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
     mockRepo.removeWishlistItem.mockResolvedValue(makeWishlist([]) as never)
 
@@ -179,7 +198,7 @@ describe('removeFromWishlist', () => {
   })
 
   it('returns the current wishlist when product is not in wishlist', async () => {
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist([]) as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
     mockRepo.findWishlistItem.mockResolvedValue(null)
 
     const result = await removeFromWishlist(USER_ID, PRODUCT_ID)
@@ -188,7 +207,7 @@ describe('removeFromWishlist', () => {
   })
 
   it('does not call removeWishlistItem when item is not present', async () => {
-    mockRepo.findOrCreateWishlist.mockResolvedValue(makeWishlist([]) as never)
+    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
     mockRepo.findWishlistItem.mockResolvedValue(null)
 
     await expect(removeFromWishlist(USER_ID, PRODUCT_ID)).resolves.toMatchObject({

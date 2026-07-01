@@ -1,6 +1,7 @@
 import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { CreateNotificationInput, NotificationQueryDto } from './notifications.dto'
+import { logInfo, logWarn } from '@/utils/logger'
 
 const notificationSelect = {
   id: true,
@@ -13,6 +14,37 @@ const notificationSelect = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.NotificationSelect
+
+async function measureNotificationsRepositoryCall<T>(
+  operation: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now()
+  logInfo('notifications:repository:before', {
+    domain: 'notifications',
+    operation,
+  })
+
+  const warningTimer = setTimeout(() => {
+    logWarn('notifications:repository:slow-await', {
+      domain: 'notifications',
+      operation,
+      durationMs: Date.now() - startedAt,
+    })
+  }, 5000)
+
+  try {
+    const result = await run()
+    logInfo('notifications:repository:after', {
+      domain: 'notifications',
+      operation,
+      durationMs: Date.now() - startedAt,
+    })
+    return result
+  } finally {
+    clearTimeout(warningTimer)
+  }
+}
 
 function toNotificationMetadataInput(
   metadata: Record<string, unknown> | null | undefined,
@@ -75,12 +107,14 @@ export async function countNotificationsByUserId(userId: string, query: Notifica
 }
 
 export async function countUnreadNotificationsByUserId(userId: string) {
-  return prisma.notification.count({
-    where: {
-      userId,
-      readAt: null,
-    },
-  })
+  return measureNotificationsRepositoryCall('countUnreadNotificationsByUserId', () =>
+    prisma.notification.count({
+      where: {
+        userId,
+        readAt: null,
+      },
+    }),
+  )
 }
 
 export async function findNotificationById(id: string) {

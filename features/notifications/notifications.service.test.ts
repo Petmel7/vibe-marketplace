@@ -23,6 +23,7 @@ import {
   getNotificationRealtimeChannel,
   getMyNotifications,
   getMyUnreadNotificationCount,
+  getUnreadNotificationCountByUserId,
   markMyNotificationRead,
   markMyNotificationsReadAll,
   notifyUser,
@@ -127,6 +128,15 @@ describe('notifications.service', () => {
     const result = await getMyUnreadNotificationCount(user)
 
     expect(result.count).toBe(3)
+  })
+
+  it('returns unread notification count directly by userId for lightweight API routes', async () => {
+    mockRepo.countUnreadNotificationsByUserId.mockResolvedValue(4)
+
+    const result = await getUnreadNotificationCountByUserId(user.id)
+
+    expect(mockRepo.countUnreadNotificationsByUserId).toHaveBeenCalledWith(user.id)
+    expect(result.count).toBe(4)
   })
 
   it('marks one notification as read', async () => {

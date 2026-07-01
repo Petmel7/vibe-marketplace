@@ -1,5 +1,6 @@
 import {
-  findOrCreateWishlist,
+  findWishlistByUserId,
+  createWishlist,
   findWishlistItem,
   addWishlistItem,
   removeWishlistItem,
@@ -8,6 +9,7 @@ import {
 import type { WishlistDto, WishlistItemDto } from '@/features/wishlist/wishlist.dto'
 import type { WishlistWithItems, WishlistItemWithProduct } from '@/features/wishlist/wishlist.repository'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
+import { logInfo, logWarn } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
 // Typed application errors
@@ -63,6 +65,59 @@ function toWishlistDto(wishlist: WishlistWithItems): WishlistDto {
   }
 }
 
+function toEmptyWishlistDto(input: { id: string; userId: string }): WishlistDto {
+  return {
+    id: input.id,
+    userId: input.userId,
+    items: [],
+  }
+}
+
+function toWishlistDtoFromExistingOrCreated(
+  wishlist: WishlistWithItems | { id: string; userId: string },
+): WishlistDto {
+  if ('items' in wishlist) {
+    return toWishlistDto(wishlist)
+  }
+
+  return toEmptyWishlistDto(wishlist)
+}
+
+async function measureWishlistServiceCall<T>(
+  operation: string,
+  context: Record<string, unknown>,
+  run: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now()
+  logInfo('wishlist:service:before', {
+    domain: 'wishlist',
+    operation,
+    ...context,
+  })
+
+  const warningTimer = setTimeout(() => {
+    logWarn('wishlist:service:slow-await', {
+      domain: 'wishlist',
+      operation,
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+  }, 5000)
+
+  try {
+    const result = await run()
+    logInfo('wishlist:service:after', {
+      domain: 'wishlist',
+      operation,
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+    return result
+  } finally {
+    clearTimeout(warningTimer)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -72,8 +127,17 @@ function toWishlistDto(wishlist: WishlistWithItems): WishlistDto {
  * Creates an empty wishlist on first access (lazy initialisation).
  */
 export async function getWishlist(userId: string): Promise<WishlistDto> {
-  const wishlist = await findOrCreateWishlist(userId)
-  return toWishlistDto(wishlist)
+  const wishlist = await measureWishlistServiceCall('findWishlistByUserId', { userId }, () =>
+    findWishlistByUserId(userId),
+  )
+  if (wishlist) {
+    return toWishlistDto(wishlist)
+  }
+
+  const created = await measureWishlistServiceCall('createWishlist', { userId }, () =>
+    createWishlist(userId),
+  )
+  return toEmptyWishlistDto(created)
 }
 
 /**
@@ -91,14 +155,25 @@ export async function addToWishlist(
     throw new ProductNotFoundError(productId)
   }
 
-  const wishlist = await findOrCreateWishlist(userId)
-  const existing = await findWishlistItem(wishlist.id, productId)
+  const wishlist = await measureWishlistServiceCall('getWishlistForAdd', { userId }, async () => {
+    const existingWishlist = await findWishlistByUserId(userId)
+    return existingWishlist ?? createWishlist(userId)
+  })
+  const existing = await measureWishlistServiceCall(
+    'findWishlistItemForAdd',
+    { userId, wishlistId: wishlist.id, productId },
+    () => findWishlistItem(wishlist.id, productId),
+  )
 
   if (existing) {
-    return toWishlistDto(wishlist)
+    return toWishlistDtoFromExistingOrCreated(wishlist)
   }
 
-  const updated = await addWishlistItem(wishlist.id, productId)
+  const updated = await measureWishlistServiceCall(
+    'addWishlistItem',
+    { userId, wishlistId: wishlist.id, productId },
+    () => addWishlistItem(wishlist.id, productId),
+  )
   const addedItem = updated.items.find((item) => item.productId === productId)
   if (addedItem) {
     scheduleProductMetricsRecalculation({
@@ -120,14 +195,25 @@ export async function removeFromWishlist(
   userId: string,
   productId: string,
 ): Promise<WishlistDto> {
-  const wishlist = await findOrCreateWishlist(userId)
-  const existing = await findWishlistItem(wishlist.id, productId)
+  const wishlist = await measureWishlistServiceCall('getWishlistForRemove', { userId }, async () => {
+    const existingWishlist = await findWishlistByUserId(userId)
+    return existingWishlist ?? createWishlist(userId)
+  })
+  const existing = await measureWishlistServiceCall(
+    'findWishlistItemForRemove',
+    { userId, wishlistId: wishlist.id, productId },
+    () => findWishlistItem(wishlist.id, productId),
+  )
 
   if (!existing) {
-    return toWishlistDto(wishlist)
+    return toWishlistDtoFromExistingOrCreated(wishlist)
   }
 
-  const updated = await removeWishlistItem(wishlist.id, productId)
+  const updated = await measureWishlistServiceCall(
+    'removeWishlistItem',
+    { userId, wishlistId: wishlist.id, productId },
+    () => removeWishlistItem(wishlist.id, productId),
+  )
   scheduleProductMetricsRecalculation({
     reason: 'wishlist-removed',
     dedupeKey: `product-metrics:wishlist-removed:${existing.id}`,

@@ -1,13 +1,48 @@
 import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
 import { verifyBearerToken } from '@/lib/auth'
-import { logError } from '@/utils/logger'
+import { logError, logInfo, logWarn } from '@/utils/logger'
 import { wishlistAddSchema } from '@/features/wishlist/wishlist.schema'
 import {
   getWishlist,
   addToWishlist,
   ProductNotFoundError,
 } from '@/features/wishlist/wishlist.service'
+
+async function measureRouteAwait<T>(
+  operation: string,
+  context: Record<string, unknown>,
+  run: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now()
+  logInfo('wishlist:route:before', {
+    domain: 'wishlist',
+    operation,
+    ...context,
+  })
+
+  const warningTimer = setTimeout(() => {
+    logWarn('wishlist:route:slow-await', {
+      domain: 'wishlist',
+      operation,
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+  }, 5000)
+
+  try {
+    const result = await run()
+    logInfo('wishlist:route:after', {
+      domain: 'wishlist',
+      operation,
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+    return result
+  } finally {
+    clearTimeout(warningTimer)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // GET /api/wishlist
@@ -28,10 +63,12 @@ import {
  */
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    const auth = await verifyBearerToken(request)
+    const auth = await measureRouteAwait('verifyBearerToken', {}, () => verifyBearerToken(request))
     if (!auth.ok) return auth.response
 
-    const data = await getWishlist(auth.userId)
+    const data = await measureRouteAwait('getWishlist', { userId: auth.userId }, () =>
+      getWishlist(auth.userId),
+    )
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
     logError('GET /api/wishlist', error)
@@ -65,13 +102,15 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const auth = await verifyBearerToken(request)
+    const auth = await measureRouteAwait('verifyBearerToken', {}, () => verifyBearerToken(request))
     if (!auth.ok) return auth.response
 
-    const body = await request.json()
+    const body = await measureRouteAwait('request.json', {}, () => request.json())
     const { productId } = wishlistAddSchema.parse(body)
 
-    const data = await addToWishlist(auth.userId, productId)
+    const data = await measureRouteAwait('addToWishlist', { userId: auth.userId, productId }, () =>
+      addToWishlist(auth.userId, productId),
+    )
     return Response.json({ success: true, data }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
