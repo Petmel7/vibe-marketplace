@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { logInfo, logWarn } from '@/utils/logger'
-import type { Wishlist, WishlistItem, Product } from '@/app/generated/prisma/client'
+import type { Prisma, Wishlist, WishlistItem, Product } from '@/app/generated/prisma/client'
 export { productExists } from '@/lib/db/productExists'
 
 type WishlistProductPreview = Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'>
@@ -8,22 +8,26 @@ type WishlistProductPreview = Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'
 export type WishlistItemWithProduct = WishlistItem & { product: WishlistProductPreview }
 export type WishlistWithItems = Wishlist & { items: WishlistItemWithProduct[] }
 
-// Reused include shape — items newest-first so the UI shows recent additions at top.
-const wishlistInclude = {
-  items: {
-    include: {
-      product: {
-        select: {
-          id: true,
-          name: true,
-          price: true,
-          imageUrl: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' as const },
-  },
-} as const
+const wishlistBaseSelect = {
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.WishlistSelect
+
+const wishlistItemSelect = {
+  id: true,
+  wishlistId: true,
+  productId: true,
+  createdAt: true,
+} satisfies Prisma.WishlistItemSelect
+
+const wishlistProductSelect = {
+  id: true,
+  name: true,
+  price: true,
+  imageUrl: true,
+} satisfies Prisma.ProductSelect
 
 async function measureWishlistRepositoryCall<T>(
   operation: string,
@@ -56,21 +60,24 @@ async function measureWishlistRepositoryCall<T>(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Wishlist CRUD
-// ---------------------------------------------------------------------------
-
 /**
  * Return the wishlist for a user, creating it if it does not yet exist.
- * Uses upsert so concurrent first-requests do not race into two INSERTs.
+ * Uses an explicit item/product hydration path so an empty wishlist does not
+ * trigger a follow-up `WHERE id IN (NULL)` product query from nested includes.
  */
 export async function findWishlistByUserId(userId: string): Promise<WishlistWithItems | null> {
-  return measureWishlistRepositoryCall('findWishlistByUserId', () =>
-    prisma.wishlist.findUnique({
+  return measureWishlistRepositoryCall('findWishlistByUserId', async () => {
+    const wishlist = await prisma.wishlist.findUnique({
       where: { userId },
-      include: wishlistInclude,
-    }),
-  )
+      select: wishlistBaseSelect,
+    })
+
+    if (!wishlist) {
+      return null
+    }
+
+    return attachWishlistItems(wishlist)
+  })
 }
 
 export async function createWishlist(userId: string): Promise<Wishlist> {
@@ -81,14 +88,6 @@ export async function createWishlist(userId: string): Promise<Wishlist> {
   )
 }
 
-// ---------------------------------------------------------------------------
-// WishlistItem CRUD
-// ---------------------------------------------------------------------------
-
-/**
- * Find a single item by wishlist + product composite key.
- * Returns null when the product is not in the wishlist.
- */
 export async function findWishlistItem(
   wishlistId: string,
   productId: string,
@@ -100,10 +99,6 @@ export async function findWishlistItem(
   )
 }
 
-/**
- * Insert a new wishlist item and return the updated wishlist with all items.
- * Caller is responsible for verifying the item does not already exist.
- */
 export async function addWishlistItem(
   wishlistId: string,
   productId: string,
@@ -114,10 +109,6 @@ export async function addWishlistItem(
   return fetchWishlistWithItems(wishlistId)
 }
 
-/**
- * Delete a wishlist item and return the updated wishlist with remaining items.
- * Caller is responsible for verifying the item exists before calling this.
- */
 export async function removeWishlistItem(
   wishlistId: string,
   productId: string,
@@ -130,15 +121,55 @@ export async function removeWishlistItem(
   return fetchWishlistWithItems(wishlistId)
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 async function fetchWishlistWithItems(wishlistId: string): Promise<WishlistWithItems> {
-  return measureWishlistRepositoryCall('fetchWishlistWithItems', () =>
-    prisma.wishlist.findUniqueOrThrow({
+  return measureWishlistRepositoryCall('fetchWishlistWithItems', async () => {
+    const wishlist = await prisma.wishlist.findUniqueOrThrow({
       where: { id: wishlistId },
-      include: wishlistInclude,
+      select: wishlistBaseSelect,
+    })
+
+    return attachWishlistItems(wishlist)
+  })
+}
+
+async function attachWishlistItems(
+  wishlist: Pick<Wishlist, 'id' | 'userId' | 'createdAt' | 'updatedAt'>,
+): Promise<WishlistWithItems> {
+  const items = await prisma.wishlistItem.findMany({
+    where: { wishlistId: wishlist.id },
+    select: wishlistItemSelect,
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const productIds = [...new Set(items.map((item) => item.productId))]
+
+  if (productIds.length === 0) {
+    return {
+      ...wishlist,
+      items: [],
+    }
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: wishlistProductSelect,
+  })
+  const productsById = new Map(products.map((product) => [product.id, product]))
+
+  return {
+    ...wishlist,
+    items: items.flatMap((item) => {
+      const product = productsById.get(item.productId)
+      if (!product) {
+        return []
+      }
+
+      return [
+        {
+          ...item,
+          product,
+        },
+      ]
     }),
-  )
+  }
 }

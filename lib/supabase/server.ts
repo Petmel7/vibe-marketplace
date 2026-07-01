@@ -16,6 +16,10 @@ export async function createServerClient() {
     publicEnv.supabaseUrl,
     publicEnv.supabaseAnonKey,
     {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll()
@@ -50,6 +54,10 @@ export function createMiddlewareClient(
     publicEnv.supabaseUrl,
     publicEnv.supabaseAnonKey,
     {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll()
