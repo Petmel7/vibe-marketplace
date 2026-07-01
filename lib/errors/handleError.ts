@@ -198,6 +198,7 @@ import {
   InvalidAnalyticsRangeError,
 } from './analytics'
 import { RateLimitExceededError } from './security'
+import { DatabaseUnavailableError } from './database'
 import {
   JobDefinitionNotFoundError,
   JobInvalidStateError,
@@ -241,6 +242,11 @@ export function toErrorResponse(label: string, err: unknown): Response {
           'Retry-After': String(err.retryAfterSeconds),
         },
       },
+    )
+  if (err instanceof DatabaseUnavailableError)
+    return Response.json(
+      { success: false, error: { message: err.message, code: err.code } },
+      { status: 503 },
     )
   if (
     err instanceof ForbiddenError ||

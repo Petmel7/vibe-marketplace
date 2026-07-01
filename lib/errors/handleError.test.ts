@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { RateLimitExceededError } from '@/lib/errors/security'
+import { DatabaseUnavailableError } from '@/lib/errors/database'
 import { toErrorResponse } from '@/lib/errors/handleError'
 
 describe('toErrorResponse', () => {
@@ -28,6 +29,20 @@ describe('toErrorResponse', () => {
       error: {
         message: 'Too many requests',
         code: 'RATE_LIMIT_EXCEEDED',
+      },
+    })
+  })
+
+  it('maps database availability failures to a safe 503 response', async () => {
+    const response = toErrorResponse('test', new DatabaseUnavailableError())
+    const body = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(body).toEqual({
+      success: false,
+      error: {
+        message: 'Database temporarily unavailable. Please try again.',
+        code: 'DATABASE_UNAVAILABLE',
       },
     })
   })

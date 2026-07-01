@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server'
 import { ZodError } from 'zod'
 import { verifyBearerToken } from '@/lib/auth'
 import { logError, logInfo, logWarn } from '@/utils/logger'
+import { toErrorResponse } from '@/lib/errors/handleError'
 import { wishlistAddSchema } from '@/features/wishlist/wishlist.schema'
 import {
   getWishlist,
@@ -71,11 +72,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     )
     return Response.json({ success: true, data }, { status: 200 })
   } catch (error) {
-    logError('GET /api/wishlist', error)
-    return Response.json(
-      { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
-      { status: 500 },
-    )
+    return toErrorResponse('GET /api/wishlist', error)
   }
 }
 
@@ -133,10 +130,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       )
     }
 
-    logError('POST /api/wishlist', error)
-    return Response.json(
-      { success: false, error: { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' } },
-      { status: 500 },
-    )
+    return toErrorResponse('POST /api/wishlist', error)
   }
 }
