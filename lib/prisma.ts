@@ -247,9 +247,63 @@ type IsolationLevel =
   | 'SNAPSHOT'
   | 'SERIALIZABLE'
 
+function normalizeTransactionControlSql(sql: string) {
+  return sql.trim().replace(/;+$/, '').toUpperCase()
+}
+
 function buildTransactionObject(reserved: postgres.ReservedSql) {
   const transactionContext = {
     transaction: true,
+  }
+
+  let finalized: 'commit' | 'rollback' | null = null
+  let released = false
+
+  const releaseReserved = () => {
+    if (released) {
+      return
+    }
+
+    reserved.release()
+    released = true
+    logInfo('prisma:transaction:release', {
+      domain: 'database',
+      ...transactionContext,
+      finalized,
+    })
+  }
+
+  const finalizeTransaction = async (
+    action: 'commit' | 'rollback',
+    source: 'executeRaw' | 'queryRaw' | 'hook',
+  ) => {
+    if (finalized) {
+      logInfo('prisma:transaction:finalize-skip', {
+        domain: 'database',
+        action,
+        source,
+        finalized,
+        ...transactionContext,
+      })
+      releaseReserved()
+      return
+    }
+
+    finalized = action
+
+    try {
+      await withDatabaseTimeout(
+        `transaction.${action}`,
+        {
+          ...transactionContext,
+          source,
+        },
+        () =>
+          reserved.unsafe(action === 'commit' ? 'COMMIT' : 'ROLLBACK') as Promise<unknown>
+      )
+    } finally {
+      releaseReserved()
+    }
   }
 
   return {
@@ -258,35 +312,51 @@ function buildTransactionObject(reserved: postgres.ReservedSql) {
     options: { usePhantomQuery: false },
 
     async queryRaw(query: { sql: string; args: unknown[] }) {
+      const normalizedSql = normalizeTransactionControlSql(query.sql)
+
+      if (normalizedSql === 'COMMIT') {
+        await finalizeTransaction('commit', 'queryRaw')
+        return {
+          columnNames: [],
+          columnTypes: [],
+          rows: [],
+        }
+      }
+
+      if (normalizedSql === 'ROLLBACK') {
+        await finalizeTransaction('rollback', 'queryRaw')
+        return {
+          columnNames: [],
+          columnTypes: [],
+          rows: [],
+        }
+      }
+
       return execQueryRaw(reserved, query, transactionContext)
     },
 
     async executeRaw(query: { sql: string; args: unknown[] }) {
+      const normalizedSql = normalizeTransactionControlSql(query.sql)
+
+      if (normalizedSql === 'COMMIT') {
+        await finalizeTransaction('commit', 'executeRaw')
+        return 0
+      }
+
+      if (normalizedSql === 'ROLLBACK') {
+        await finalizeTransaction('rollback', 'executeRaw')
+        return 0
+      }
+
       return execExecuteRaw(reserved, query, transactionContext)
     },
 
     async commit(): Promise<void> {
-      try {
-        await withDatabaseTimeout(
-          'transaction.commit',
-          transactionContext,
-          () => reserved.unsafe('COMMIT') as Promise<unknown>
-        )
-      } finally {
-        reserved.release()
-      }
+      await finalizeTransaction('commit', 'hook')
     },
 
     async rollback(): Promise<void> {
-      try {
-        await withDatabaseTimeout(
-          'transaction.rollback',
-          transactionContext,
-          () => reserved.unsafe('ROLLBACK') as Promise<unknown>
-        )
-      } finally {
-        reserved.release()
-      }
+      await finalizeTransaction('rollback', 'hook')
     },
   }
 }
