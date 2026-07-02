@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import type { ProductSearchItemDto } from '@/features/products/product.dto'
-import { isRenderablePublicProduct } from '@/components/product/productListItem'
 import { API_ROUTES } from '@/lib/constants/apiRoutes'
 import SearchResultItem from './SearchResultItem'
 
@@ -95,7 +94,7 @@ export default function SearchOverlay({
 
       setSearchState({
         status: 'success',
-        items: payload.data.items.filter(isRenderablePublicProduct),
+        items: payload.data.items,
       })
     } catch {
       setSearchState({ status: 'error', message: 'Помилка мережі' })

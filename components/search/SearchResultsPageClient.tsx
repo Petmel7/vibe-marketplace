@@ -4,10 +4,7 @@ import Link from 'next/link'
 import { Filter } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import ProductCardGrid from '@/components/product/ProductCardGrid'
-import {
-  isRenderablePublicProduct,
-  type ProductListItem,
-} from '@/components/product/productListItem'
+import { type ProductListItem } from '@/components/product/productListItem'
 import { useSearchFilters } from '@/hooks/useSearchFilters'
 import type { SearchPageViewModel, SearchSortOption } from '@/types/search'
 import ActiveFilters from './ActiveFilters'
@@ -55,7 +52,7 @@ export default function SearchResultsPageClient({
   } = useSearchFilters()
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
 
-  const visibleProducts = results.items.filter(isRenderablePublicProduct) as ProductListItem[]
+  const visibleProducts = results.items as ProductListItem[]
 
   const activeFilters = useMemo(() => {
     const filters: Array<{ key: string; label: string }> = []

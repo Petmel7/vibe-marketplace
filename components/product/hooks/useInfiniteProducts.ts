@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { isRenderablePublicProduct, type ProductListItem } from '@/components/product/productListItem'
+import type { ProductListItem } from '@/components/product/productListItem'
 
 interface Meta {
   page: number
@@ -69,7 +69,7 @@ export function useInfiniteProducts({
 
       setProducts((current) => [
         ...current,
-        ...json.data.data.filter(isRenderablePublicProduct),
+        ...json.data.data,
       ])
       setPage(json.data.meta.page)
       setHasNextPage(json.data.meta.hasNextPage)

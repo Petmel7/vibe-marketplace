@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { ArrowDownRight } from 'lucide-react'
 import ProductCardGrid from '@/components/product/ProductCardGrid'
-import { isRenderablePublicProduct } from '@/components/product/productListItem'
 import { getHomepageProductSections } from '@/features/products/product.service'
 
 interface Props {
@@ -11,9 +10,7 @@ interface Props {
 
 export default async function HomeProductSection({ type, title }: Props) {
   const sections = await getHomepageProductSections()
-  const visibleProducts = (
-    type === 'new' ? sections.newProducts : sections.hitProducts
-  ).filter(isRenderablePublicProduct)
+  const visibleProducts = type === 'new' ? sections.newProducts : sections.hitProducts
 
   return (
     <section className="space-y-4">
