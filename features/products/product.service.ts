@@ -430,6 +430,20 @@ function buildCatalogWhereInput(params: {
   }
 }
 
+function buildHomepageFallbackWhereInput(params?: { excludeIds?: string[] }): Prisma.ProductWhereInput {
+  const excludeIds = params?.excludeIds?.filter(Boolean) ?? []
+
+  return {
+    isActive: true,
+    status: ProductStatus.PUBLISHED,
+    store: {
+      isActive: true,
+    },
+    AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
+    ...(excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {}),
+  }
+}
+
 function mapSortToOrderBy(
   sort: 'price_asc' | 'price_desc' | 'newest',
 ): Prisma.ProductOrderByWithRelationInput[] {
@@ -599,6 +613,11 @@ const getHomepageProductSectionsCached = unstable_cache(
   async (limit: number): Promise<HomepageProductSectionsDto> => {
     const newWhere = buildCatalogWhereInput({ isNew: true })
     const hitWhere = buildCatalogWhereInput({ isHit: true })
+    const fallbackOrderBy: Prisma.ProductOrderByWithRelationInput[] = [
+      { publishedAt: 'desc' },
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ]
     const newOrderBy: Prisma.ProductOrderByWithRelationInput[] = [
       { publishedAt: 'desc' },
       { createdAt: 'desc' },
@@ -607,16 +626,35 @@ const getHomepageProductSectionsCached = unstable_cache(
     const hitOrderBy = mapSortToOrderBy('newest')
 
     // Keep homepage reads bounded and sequential to avoid unnecessary pool pressure.
-    const newItems = await findProductCards({
+    const strictNewItems = await findProductCards({
       where: newWhere,
       orderBy: newOrderBy,
       limit,
     })
-    const hitItems = await findProductCards({
+    const newItems =
+      strictNewItems.length > 0
+        ? strictNewItems
+        : await findProductCards({
+            where: buildHomepageFallbackWhereInput(),
+            orderBy: fallbackOrderBy,
+            limit,
+          })
+
+    const strictHitItems = await findProductCards({
       where: hitWhere,
       orderBy: hitOrderBy,
       limit,
     })
+    const hitItems =
+      strictHitItems.length > 0
+        ? strictHitItems
+        : await findProductCards({
+            where: buildHomepageFallbackWhereInput({
+              excludeIds: newItems.map((item) => item.id),
+            }),
+            orderBy: fallbackOrderBy,
+            limit,
+          })
 
     const badgeCandidates = new Map<string, Product | ProductListProduct>()
     for (const item of [...newItems, ...hitItems]) {

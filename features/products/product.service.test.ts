@@ -710,6 +710,104 @@ describe('filtered product listings', () => {
     })
   })
 
+  it('falls back to latest published products when strict new homepage query is empty', async () => {
+    mockedRepository.findProductCards
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        makeListProduct(
+          { id: 'prod-new-fallback', publishedAt: null, createdAt: new Date('2026-06-01T00:00:00.000Z') },
+          [makeVariant({ productId: 'prod-new-fallback' })],
+        ),
+      ])
+      .mockResolvedValueOnce([
+        makeListProduct(
+          { id: 'prod-hit', isNew: false, isHit: true },
+          [makeVariant({ productId: 'prod-hit' })],
+        ),
+      ])
+
+    const result = await getHomepageProductSections()
+
+    expect(mockedRepository.findProductCards).toHaveBeenNthCalledWith(2, {
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
+        AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      limit: 4,
+    })
+    expect(result.newProducts[0]).toMatchObject({
+      id: 'prod-new-fallback',
+    })
+    expect(result.hitProducts[0]).toMatchObject({
+      id: 'prod-hit',
+    })
+  })
+
+  it('falls back to latest published products when strict hit homepage query is empty', async () => {
+    mockedRepository.findProductCards
+      .mockResolvedValueOnce([
+        makeListProduct(
+          { id: 'prod-new', isNew: true, isHit: false },
+          [makeVariant({ productId: 'prod-new' })],
+        ),
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        makeListProduct(
+          { id: 'prod-hit-fallback', createdAt: new Date('2026-06-02T00:00:00.000Z') },
+          [makeVariant({ productId: 'prod-hit-fallback' })],
+        ),
+      ])
+
+    const result = await getHomepageProductSections()
+
+    expect(mockedRepository.findProductCards).toHaveBeenNthCalledWith(3, {
+      where: {
+        isActive: true,
+        status: 'PUBLISHED',
+        store: {
+          isActive: true,
+        },
+        AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
+        id: {
+          notIn: ['prod-new'],
+        },
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      limit: 4,
+    })
+    expect(result.newProducts[0]).toMatchObject({
+      id: 'prod-new',
+    })
+    expect(result.hitProducts[0]).toMatchObject({
+      id: 'prod-hit-fallback',
+    })
+  })
+
+  it('falls back for both homepage sections when published products exist but strict sections are empty', async () => {
+    mockedRepository.findProductCards
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        makeListProduct({ id: 'prod-published-a', publishedAt: null }, [makeVariant({ productId: 'prod-published-a' })]),
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        makeListProduct({ id: 'prod-published-b', publishedAt: null }, [makeVariant({ productId: 'prod-published-b' })]),
+      ])
+
+    const result = await getHomepageProductSections()
+
+    expect(result.newProducts).toHaveLength(1)
+    expect(result.hitProducts).toHaveLength(1)
+    expect(result.newProducts[0]?.id).toBe('prod-published-a')
+    expect(result.hitProducts[0]?.id).toBe('prod-published-b')
+  })
+
   it('builds the initial New Products page via limit+1 card query without count', async () => {
     mockedRepository.findProductCardsPage.mockResolvedValue({
       items: [makeListProduct({ id: 'prod-new' }, [makeVariant({ productId: 'prod-new' })])],
