@@ -7,6 +7,8 @@ const {
   queryRawMock,
   categoryFindFirstMock,
   categoryFindManyMock,
+  storeFindManyMock,
+  ratingSummaryFindManyMock,
   productImageFindManyMock,
   variantFindManyMock,
 } = vi.hoisted(() => ({
@@ -15,6 +17,8 @@ const {
   queryRawMock: vi.fn(),
   categoryFindFirstMock: vi.fn(),
   categoryFindManyMock: vi.fn(),
+  storeFindManyMock: vi.fn(),
+  ratingSummaryFindManyMock: vi.fn(),
   productImageFindManyMock: vi.fn(),
   variantFindManyMock: vi.fn(),
 }))
@@ -29,8 +33,14 @@ vi.mock('@/lib/prisma', () => ({
     productVariant: {
       findMany: variantFindManyMock,
     },
+    productRatingSummary: {
+      findMany: ratingSummaryFindManyMock,
+    },
     productImage: {
       findMany: productImageFindManyMock,
+    },
+    store: {
+      findMany: storeFindManyMock,
     },
     category: {
       findFirst: categoryFindFirstMock,
@@ -72,11 +82,30 @@ describe('findProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     productImageFindManyMock.mockResolvedValue([])
+    variantFindManyMock.mockResolvedValue([])
+    storeFindManyMock.mockResolvedValue([])
+    ratingSummaryFindManyMock.mockResolvedValue([])
   })
 
   it('uses page-based pagination with service-provided filters and sorting', async () => {
-    findManyMock.mockResolvedValue([{ ...makeProduct(), variants: [] }])
+    findManyMock.mockResolvedValue([{ ...makeProduct() }])
     countMock.mockResolvedValue(25)
+    variantFindManyMock.mockResolvedValue([
+      {
+        id: 'var-1',
+        productId: 'prod-1',
+        sku: 'SKU-001',
+        price: null,
+        stock: 10,
+      },
+    ])
+    storeFindManyMock.mockResolvedValue([
+      {
+        id: 'store-1',
+        name: 'Test Store',
+        slug: 'test-store',
+      },
+    ])
 
     const where = { isActive: true, categoryId: { in: ['cat-1', 'cat-2'] } }
     const orderBy = [
@@ -108,47 +137,10 @@ describe('findProducts', () => {
         publishedAt: true,
         createdAt: true,
         updatedAt: true,
-        variants: {
-          select: {
-            id: true,
-            sku: true,
-            price: true,
-            stock: true,
-          },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        },
-        images: {
-          select: {
-            id: true,
-            url: true,
-            isPrimary: true,
-            position: true,
-            createdAt: true,
-          },
-          orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
-        },
-        store: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        ratingSummary: {
-          select: {
-            productId: true,
-            ratingAvg: true,
-            ratingCount: true,
-            rating1Count: true,
-            rating2Count: true,
-            rating3Count: true,
-            rating4Count: true,
-            rating5Count: true,
-            updatedAt: true,
-          },
-        },
       },
     })
+    expect(variantFindManyMock).toHaveBeenCalled()
+    expect(storeFindManyMock).toHaveBeenCalled()
     expect(countMock).toHaveBeenCalledWith({ where })
     expect(result.total).toBe(25)
   })
@@ -182,10 +174,28 @@ describe('findProducts', () => {
 describe('findProductCards', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    variantFindManyMock.mockResolvedValue([
+      {
+        id: 'var-1',
+        productId: 'prod-1',
+        sku: 'SKU-001',
+        price: null,
+        stock: 10,
+      },
+    ])
+    storeFindManyMock.mockResolvedValue([
+      {
+        id: 'store-1',
+        name: 'Test Store',
+        slug: 'test-store',
+      },
+    ])
+    ratingSummaryFindManyMock.mockResolvedValue([])
+    productImageFindManyMock.mockResolvedValue([])
   })
 
   it('returns a lightweight limited product-card query without a count call', async () => {
-    findManyMock.mockResolvedValue([{ ...makeProduct(), variants: [] }])
+    findManyMock.mockResolvedValue([{ ...makeProduct() }])
 
     const where = { isActive: true }
     const orderBy = [{ createdAt: 'desc' as const }, { id: 'desc' as const }]
@@ -202,20 +212,37 @@ describe('findProductCards', () => {
       orderBy,
       select: expect.objectContaining({
         id: true,
-        store: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        ratingSummary: {
-          select: expect.objectContaining({
-            ratingAvg: true,
-            ratingCount: true,
-          }),
-        },
+        storeId: true,
+        imageUrl: true,
+        status: true,
       }),
+    })
+    expect(variantFindManyMock).toHaveBeenCalledWith({
+      where: {
+        productId: {
+          in: ['prod-1'],
+        },
+      },
+      select: {
+        id: true,
+        productId: true,
+        sku: true,
+        price: true,
+        stock: true,
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    })
+    expect(storeFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: ['store-1'],
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
     })
     expect(countMock).not.toHaveBeenCalled()
     expect(result).toHaveLength(1)
@@ -225,6 +252,24 @@ describe('findProductCards', () => {
 describe('searchProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    variantFindManyMock.mockResolvedValue([
+      {
+        id: 'var-1',
+        productId: 'prod-1',
+        sku: 'SKU-001',
+        price: null,
+        stock: 10,
+      },
+    ])
+    storeFindManyMock.mockResolvedValue([
+      {
+        id: 'store-1',
+        name: 'Test Store',
+        slug: 'test-store',
+      },
+    ])
+    ratingSummaryFindManyMock.mockResolvedValue([])
+    productImageFindManyMock.mockResolvedValue([])
     queryRawMock
       .mockResolvedValueOnce([{ id: 'prod-1' }])
       .mockResolvedValueOnce([{
@@ -245,14 +290,6 @@ describe('searchProducts', () => {
     findManyMock.mockResolvedValue([
       {
         ...makeProduct(),
-        variants: [],
-        images: [],
-        store: {
-          id: 'store-1',
-          name: 'Test Store',
-          slug: 'test-store',
-        },
-        ratingSummary: null,
       },
     ])
   })
@@ -274,24 +311,14 @@ describe('searchProducts', () => {
         },
       },
       select: expect.objectContaining({
-        variants: {
-          select: {
-            id: true,
-            sku: true,
-            price: true,
-            stock: true,
-          },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        },
-        store: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
+        id: true,
+        storeId: true,
+        imageUrl: true,
       }),
     })
+    expect(variantFindManyMock).toHaveBeenCalled()
+    expect(storeFindManyMock).toHaveBeenCalled()
+    expect(ratingSummaryFindManyMock).toHaveBeenCalled()
     expect(result.total).toBe(1)
     expect(result.items).toHaveLength(1)
     expect(result.facets.categories[0]).toEqual({
@@ -331,6 +358,47 @@ describe('searchProducts', () => {
     })
 
     expect(queryRawMock).toHaveBeenCalledTimes(5)
+  })
+
+  it('returns immediately without secondary loaders when product ids are empty', async () => {
+    vi.clearAllMocks()
+    findManyMock.mockReset()
+    queryRawMock.mockReset()
+    variantFindManyMock.mockReset()
+    storeFindManyMock.mockReset()
+    ratingSummaryFindManyMock.mockReset()
+    productImageFindManyMock.mockReset()
+    findManyMock.mockResolvedValue([])
+    queryRawMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        total: BigInt(0),
+        inStock: BigInt(0),
+        outOfStock: BigInt(0),
+        min: null,
+        max: null,
+        rating5: BigInt(0),
+        rating4: BigInt(0),
+        rating3: BigInt(0),
+        rating2: BigInt(0),
+        rating1: BigInt(0),
+      }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+
+    const result = await searchProducts({
+      page: 1,
+      limit: 12,
+      sort: 'newest',
+    })
+
+    expect(result.items).toEqual([])
+    expect(findManyMock).not.toHaveBeenCalled()
+    expect(variantFindManyMock).not.toHaveBeenCalled()
+    expect(storeFindManyMock).not.toHaveBeenCalled()
+    expect(ratingSummaryFindManyMock).not.toHaveBeenCalled()
+    expect(productImageFindManyMock).not.toHaveBeenCalled()
   })
 })
 

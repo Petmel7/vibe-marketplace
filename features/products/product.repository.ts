@@ -41,6 +41,24 @@ type ProductRatingSummaryPreview = Pick<
 >
 type ProductListStorePreview = Pick<Store, 'id' | 'name' | 'slug'>
 type ProductListVariantPreview = Pick<ProductVariant, 'id' | 'sku' | 'price' | 'stock'>
+type ProductListBaseRecord = Pick<
+  Product,
+  | 'id'
+  | 'storeId'
+  | 'categoryId'
+  | 'name'
+  | 'description'
+  | 'price'
+  | 'imageUrl'
+  | 'isActive'
+  | 'sku'
+  | 'isHit'
+  | 'isNew'
+  | 'status'
+  | 'publishedAt'
+  | 'createdAt'
+  | 'updatedAt'
+>
 
 export type ProductWithVariants = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
 export type CategoryNode = Pick<Category, 'id' | 'parentId'>
@@ -52,7 +70,7 @@ export type ProductDetailProduct = Product & {
   category: Pick<Prisma.CategoryGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'> | null
 }
 
-const PRODUCT_LIST_SELECT = {
+const PRODUCT_CARD_BASE_SELECT = {
   id: true,
   storeId: true,
   categoryId: true,
@@ -68,50 +86,20 @@ const PRODUCT_LIST_SELECT = {
   publishedAt: true,
   createdAt: true,
   updatedAt: true,
-  variants: {
-    select: {
-      id: true,
-      sku: true,
-      price: true,
-      stock: true,
-    },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  },
-  images: {
-    select: {
-      id: true,
-      url: true,
-      isPrimary: true,
-      position: true,
-      createdAt: true,
-    },
-    orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
-  },
-  store: {
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-    },
-  },
-  ratingSummary: {
-    select: {
-      productId: true,
-      ratingAvg: true,
-      ratingCount: true,
-      rating1Count: true,
-      rating2Count: true,
-      rating3Count: true,
-      rating4Count: true,
-      rating5Count: true,
-      updatedAt: true,
-    },
-  },
 } satisfies Prisma.ProductSelect
 
-export type ProductListProduct = Prisma.ProductGetPayload<{
-  select: typeof PRODUCT_LIST_SELECT
+const PRODUCT_LIST_SELECT = PRODUCT_CARD_BASE_SELECT
+
+type ProductCardBaseProduct = Prisma.ProductGetPayload<{
+  select: typeof PRODUCT_CARD_BASE_SELECT
 }>
+
+export type ProductListProduct = ProductListBaseRecord & {
+  variants: ProductListVariantPreview[]
+  images: ProductImagePreview[]
+  store: ProductListStorePreview
+  ratingSummary: ProductRatingSummaryPreview | null
+}
 
 interface FindProductsParams {
   where: Prisma.ProductWhereInput
@@ -138,6 +126,173 @@ interface FindProductCardsPageParams extends FindProductCardsParams {
 interface FindProductCardsPageResult {
   items: ProductListProduct[]
   hasNextPage: boolean
+}
+
+function mapById<T extends { id: string }>(items: T[]) {
+  return new Map(items.map((item) => [item.id, item]))
+}
+
+async function loadProductCardStores(storeIds: string[]): Promise<Map<string, ProductListStorePreview>> {
+  if (storeIds.length === 0) {
+    return new Map()
+  }
+
+  const stores = await prisma.store.findMany({
+    where: {
+      id: {
+        in: storeIds,
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  })
+
+  return mapById(stores)
+}
+
+async function loadProductCardRatings(
+  productIds: string[],
+): Promise<Map<string, ProductRatingSummaryPreview>> {
+  if (productIds.length === 0) {
+    return new Map()
+  }
+
+  const rows = await prisma.productRatingSummary.findMany({
+    where: {
+      productId: {
+        in: productIds,
+      },
+    },
+    select: {
+      productId: true,
+      ratingAvg: true,
+      ratingCount: true,
+      rating1Count: true,
+      rating2Count: true,
+      rating3Count: true,
+      rating4Count: true,
+      rating5Count: true,
+      updatedAt: true,
+    },
+  })
+
+  return new Map(rows.map((row) => [row.productId, row]))
+}
+
+async function loadProductCardVariants(
+  productIds: string[],
+): Promise<Map<string, ProductListVariantPreview[]>> {
+  if (productIds.length === 0) {
+    return new Map()
+  }
+
+  const variants = await prisma.productVariant.findMany({
+    where: {
+      productId: {
+        in: productIds,
+      },
+    },
+    select: {
+      id: true,
+      productId: true,
+      sku: true,
+      price: true,
+      stock: true,
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  })
+
+  const grouped = new Map<string, ProductListVariantPreview[]>()
+  for (const variant of variants) {
+    const existing = grouped.get(variant.productId) ?? []
+    existing.push({
+      id: variant.id,
+      sku: variant.sku,
+      price: variant.price,
+      stock: variant.stock,
+    })
+    grouped.set(variant.productId, existing)
+  }
+
+  return grouped
+}
+
+async function loadProductCardPrimaryImages(
+  productIds: string[],
+): Promise<Map<string, ProductImagePreview[]>> {
+  if (productIds.length === 0) {
+    return new Map()
+  }
+
+  const images = await prisma.productImage.findMany({
+    where: {
+      productId: {
+        in: productIds,
+      },
+      isPrimary: true,
+    },
+    select: {
+      id: true,
+      productId: true,
+      url: true,
+      isPrimary: true,
+      position: true,
+      createdAt: true,
+    },
+    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+  })
+
+  const grouped = new Map<string, ProductImagePreview[]>()
+  for (const image of images) {
+    if (grouped.has(image.productId)) {
+      continue
+    }
+
+    grouped.set(image.productId, [
+      {
+        id: image.id,
+        url: image.url,
+        isPrimary: image.isPrimary,
+        position: image.position,
+        createdAt: image.createdAt,
+      },
+    ])
+  }
+
+  return grouped
+}
+
+async function hydrateProductCardRecords(
+  products: ProductCardBaseProduct[],
+): Promise<ProductListProduct[]> {
+  if (products.length === 0) {
+    return []
+  }
+
+  const productIds = products.map((product) => product.id)
+  const storeIds = [...new Set(products.map((product) => product.storeId))]
+
+  const [storesById, ratingsByProductId, variantsByProductId, imagesByProductId] = await Promise.all([
+    loadProductCardStores(storeIds),
+    loadProductCardRatings(productIds),
+    loadProductCardVariants(productIds),
+    loadProductCardPrimaryImages(productIds),
+  ])
+
+  return products.map((product) => ({
+    ...product,
+    store: storesById.get(product.storeId) ?? {
+      id: product.storeId,
+      name: '',
+      slug: '',
+    },
+    ratingSummary: ratingsByProductId.get(product.id) ?? null,
+    variants: variantsByProductId.get(product.id) ?? [],
+    images: imagesByProductId.get(product.id) ?? [],
+  }))
 }
 
 export interface ProductSearchRepositoryParams {
@@ -232,13 +387,13 @@ export async function findProducts(
           skip,
           take: limit,
           orderBy,
-          select: PRODUCT_LIST_SELECT,
+          select: PRODUCT_CARD_BASE_SELECT,
         }),
         prisma.product.count({ where }),
       ]),
   )
 
-  return { items, total }
+  return { items: await hydrateProductCardRecords(items), total }
 }
 
 export async function findProductCards(
@@ -246,11 +401,11 @@ export async function findProductCards(
 ): Promise<ProductListProduct[]> {
   const { where, orderBy, limit } = params
 
-  return measureServerOperation(
+  const products = await measureServerOperation(
     'findProductCards',
     {
       repository: 'features/products/product.repository',
-      sql: 'prisma.product.findMany(card select)',
+      sql: 'prisma.product.findMany(card base select)',
       limit,
     },
     () =>
@@ -258,9 +413,11 @@ export async function findProductCards(
         where,
         take: limit,
         orderBy,
-        select: PRODUCT_LIST_SELECT,
+        select: PRODUCT_CARD_BASE_SELECT,
       }),
   )
+
+  return hydrateProductCardRecords(products)
 }
 
 export async function findProductCardsPage(
@@ -273,7 +430,7 @@ export async function findProductCardsPage(
     'findProductCardsPage',
     {
       repository: 'features/products/product.repository',
-      sql: 'prisma.product.findMany(card select, limit + 1)',
+      sql: 'prisma.product.findMany(card base select, limit + 1)',
       page,
       limit,
     },
@@ -283,12 +440,14 @@ export async function findProductCardsPage(
         skip,
         take: limit + 1,
         orderBy,
-        select: PRODUCT_LIST_SELECT,
+        select: PRODUCT_CARD_BASE_SELECT,
       }),
   )
 
+  const items = await hydrateProductCardRecords(rows.slice(0, limit))
+
   return {
-    items: rows.slice(0, limit),
+    items,
     hasNextPage: rows.length > limit,
   }
 }
@@ -502,10 +661,11 @@ async function findProductsByIdsInOrder(ids: string[]): Promise<ProductListProdu
         in: ids,
       },
     },
-    select: PRODUCT_LIST_SELECT,
+    select: PRODUCT_CARD_BASE_SELECT,
   })
 
-  const itemsById = new Map(items.map((item) => [item.id, item]))
+  const hydratedItems = await hydrateProductCardRecords(items)
+  const itemsById = new Map(hydratedItems.map((item) => [item.id, item]))
   return ids.map((id) => itemsById.get(id)).filter((item): item is ProductListProduct => Boolean(item))
 }
 
