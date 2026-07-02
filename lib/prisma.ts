@@ -2,7 +2,6 @@ import { PrismaClient } from '@/app/generated/prisma/client'
 import postgres from 'postgres'
 import type { SqlDriverAdapterFactory } from '@prisma/client/runtime/client'
 import { getServerEnv } from '@/config/env'
-import { DatabaseUnavailableError } from '@/lib/errors/database'
 import { logError, logInfo, logWarn } from '@/utils/logger'
 
 // ---------------------------------------------------------------------------
@@ -123,6 +122,10 @@ async function withDatabaseTimeout<T>(
 
   let settled = false
   const slowTimer = setTimeout(() => {
+    if (settled) {
+      return
+    }
+
     logWarn('prisma:slow', {
       domain: 'database',
       operation,
@@ -131,38 +134,8 @@ async function withDatabaseTimeout<T>(
     })
   }, PRISMA_SLOW_QUERY_MS)
 
-  let timeoutReject: ((reason?: unknown) => void) | null = null
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutReject = reject
-  })
-
-  const timeoutTimer = setTimeout(() => {
-    if (settled) {
-      return
-    }
-
-    logError(
-      'prisma:timeout',
-      new DatabaseUnavailableError(),
-      {
-        domain: 'database',
-        operation,
-        timeoutMs: PRISMA_QUERY_TIMEOUT_MS,
-        durationMs: Number(getDurationMs(startedAt).toFixed(1)),
-        ...context,
-      }
-    )
-
-    settled = true
-    timeoutReject?.(
-      new DatabaseUnavailableError(
-        'Database query timed out. Please try again.'
-      )
-    )
-  }, PRISMA_QUERY_TIMEOUT_MS)
-
   try {
-    const result = await Promise.race([run(), timeoutPromise])
+    const result = await run()
     settled = true
     logInfo('prisma:after', {
       domain: 'database',
@@ -182,7 +155,6 @@ async function withDatabaseTimeout<T>(
     throw error
   } finally {
     clearTimeout(slowTimer)
-    clearTimeout(timeoutTimer)
   }
 }
 
