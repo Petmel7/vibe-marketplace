@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-export default function AuthGroupLayout({
+export default function ProtectedGroupLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
