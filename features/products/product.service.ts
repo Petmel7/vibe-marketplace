@@ -45,6 +45,7 @@ import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
 import { getVisibleProductPromotions } from '@/features/promotions/promotions.service'
 import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 import {
   resolveMarketplaceBadgesForProducts,
 } from './product-badge.service'
@@ -311,7 +312,12 @@ async function mapProductSummaryItems(
     })),
   })
 
-  return items.map((item) =>
+  logInfo('products:map-summary-items:before-dto-mapping', {
+    domain: 'products',
+    itemCount: items.length,
+    badgeContext,
+  })
+  const dtoItems = items.map((item) =>
     toProductSummaryDto(
       item,
       'variants' in item ? item.variants : [],
@@ -320,6 +326,12 @@ async function mapProductSummaryItems(
       promotionsByProductId.get(item.id) ?? null,
     ),
   )
+  logInfo('products:map-summary-items:after-dto-mapping', {
+    domain: 'products',
+    itemCount: dtoItems.length,
+    badgeContext,
+  })
+  return dtoItems
 }
 
 function emptyProductListDto(
@@ -611,6 +623,11 @@ export async function listHitProducts(
 
 const getHomepageProductSectionsCached = unstable_cache(
   async (limit: number): Promise<HomepageProductSectionsDto> => {
+    logInfo('homepage-sections:cache-callback:start', {
+      domain: 'products',
+      route: '/',
+      limit,
+    })
     const newWhere = buildCatalogWhereInput({ isNew: true })
     const hitWhere = buildCatalogWhereInput({ isHit: true })
     const fallbackOrderBy: Prisma.ProductOrderByWithRelationInput[] = [
@@ -626,10 +643,20 @@ const getHomepageProductSectionsCached = unstable_cache(
     const hitOrderBy = mapSortToOrderBy('newest')
 
     // Keep homepage reads bounded and sequential to avoid unnecessary pool pressure.
+    logInfo('homepage-sections:before-strict-new-query', {
+      domain: 'products',
+      route: '/',
+      limit,
+    })
     const strictNewItems = await findProductCards({
       where: newWhere,
       orderBy: newOrderBy,
       limit,
+    })
+    logInfo('homepage-sections:after-strict-new-query', {
+      domain: 'products',
+      route: '/',
+      count: strictNewItems.length,
     })
     const newItems =
       strictNewItems.length > 0
@@ -640,10 +667,20 @@ const getHomepageProductSectionsCached = unstable_cache(
             limit,
           })
 
+    logInfo('homepage-sections:before-strict-hit-query', {
+      domain: 'products',
+      route: '/',
+      limit,
+    })
     const strictHitItems = await findProductCards({
       where: hitWhere,
       orderBy: hitOrderBy,
       limit,
+    })
+    logInfo('homepage-sections:after-strict-hit-query', {
+      domain: 'products',
+      route: '/',
+      count: strictHitItems.length,
     })
     const hitItems =
       strictHitItems.length > 0
@@ -661,6 +698,11 @@ const getHomepageProductSectionsCached = unstable_cache(
       badgeCandidates.set(item.id, item)
     }
 
+    logInfo('homepage-sections:before-badge-resolution', {
+      domain: 'products',
+      route: '/',
+      candidateCount: badgeCandidates.size,
+    })
     const badgesByProductId = await resolveMarketplaceBadgesForProducts(
       [...badgeCandidates.values()].map((item) => ({
         id: item.id,
@@ -669,12 +711,27 @@ const getHomepageProductSectionsCached = unstable_cache(
         isActive: item.isActive,
       })),
     )
+    logInfo('homepage-sections:after-badge-resolution', {
+      domain: 'products',
+      route: '/',
+      candidateCount: badgeCandidates.size,
+    })
+    logInfo('homepage-sections:before-promotion-resolution', {
+      domain: 'products',
+      route: '/',
+      candidateCount: badgeCandidates.size,
+    })
     const promotionsByProductId = await getVisibleProductPromotions({
       products: [...badgeCandidates.values()].map((item) => ({
         id: item.id,
         storeId: item.storeId,
         categoryId: item.categoryId ?? null,
       })),
+    })
+    logInfo('homepage-sections:after-promotion-resolution', {
+      domain: 'products',
+      route: '/',
+      candidateCount: badgeCandidates.size,
     })
 
     const mapWithContext = (items: ProductListProduct[], badgeContext: ProductBadgeContext) =>
@@ -688,6 +745,12 @@ const getHomepageProductSectionsCached = unstable_cache(
         ),
       )
 
+    logInfo('homepage-sections:before-cache-return', {
+      domain: 'products',
+      route: '/',
+      newCount: newItems.length,
+      hitCount: hitItems.length,
+    })
     return {
       newProducts: mapWithContext(newItems, 'NEW'),
       hitProducts: mapWithContext(hitItems, 'HIT'),
@@ -709,7 +772,22 @@ export const getHomepageProductSections = cache(async (limit = 4): Promise<Homep
       cache: 'unstable_cache:homepage-product-sections',
       limit,
     },
-    () => getHomepageProductSectionsCached(limit),
+    async () => {
+      logInfo('homepage-sections:before-unstable-cache', {
+        domain: 'products',
+        route: '/',
+        limit,
+      })
+      const sections = await getHomepageProductSectionsCached(limit)
+      logInfo('homepage-sections:after-unstable-cache', {
+        domain: 'products',
+        route: '/',
+        limit,
+        newCount: sections.newProducts.length,
+        hitCount: sections.hitProducts.length,
+      })
+      return sections
+    },
   ),
 )
 
@@ -727,14 +805,33 @@ async function getInitialProductFeedPage(
         ]
       : mapSortToOrderBy('newest')
 
+  logInfo('product-feed-page:before-repository', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+    limit,
+  })
   const result = await findProductCardsPage({
     where,
     orderBy,
     page: 1,
     limit,
   })
+  logInfo('product-feed-page:after-repository', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+    itemCount: result.items.length,
+    hasNextPage: result.hasNextPage,
+  })
 
   const badgeContext: ProductBadgeContext = kind === 'new' ? 'NEW' : 'HIT'
+  logInfo('product-feed-page:before-badge-resolution', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+    itemCount: result.items.length,
+  })
   const badgesByProductId = await resolveMarketplaceBadgesForProducts(
     result.items.map((item) => ({
       id: item.id,
@@ -743,6 +840,16 @@ async function getInitialProductFeedPage(
       isActive: item.isActive,
     })),
   )
+  logInfo('product-feed-page:after-badge-resolution', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+  })
+  logInfo('product-feed-page:before-promotion-resolution', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+  })
   const promotionsByProductId = await getVisibleProductPromotions({
     products: result.items.map((item) => ({
       id: item.id,
@@ -751,7 +858,18 @@ async function getInitialProductFeedPage(
     })),
   })
 
-  return {
+  logInfo('product-feed-page:after-promotion-resolution', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+  })
+  logInfo('product-feed-page:before-dto-mapping', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+    itemCount: result.items.length,
+  })
+  const dto = {
     items: result.items.map((item) =>
       toProductSummaryDto(
         item,
@@ -764,6 +882,14 @@ async function getInitialProductFeedPage(
     page: 1,
     hasNextPage: result.hasNextPage,
   }
+  logInfo('product-feed-page:after-dto-mapping', {
+    domain: 'products',
+    route: kind === 'new' ? '/products/new' : '/products/hit',
+    kind,
+    itemCount: dto.items.length,
+    hasNextPage: dto.hasNextPage,
+  })
+  return dto
 }
 
 export async function getInitialNewProductsPage(limit = 12): Promise<ProductFeedPageDto> {

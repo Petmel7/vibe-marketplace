@@ -12,12 +12,27 @@ import {
   getAdminSellerStatusTone,
 } from '@/types/admin'
 import { getAdminOverviewData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
+import { logInfo } from '@/utils/logger'
 
 export default async function AdminOverviewPage() {
+  logInfo('admin-page:start', {
+    domain: 'admin',
+    route: '/admin',
+  })
   const user = await getCurrentUser()
   if (!user) return null
 
+  logInfo('admin-page:before-data', {
+    domain: 'admin',
+    route: '/admin',
+    adminId: user.id,
+  })
   const data = await getAdminOverviewData(user)
+  logInfo('admin-page:after-data', {
+    domain: 'admin',
+    route: '/admin',
+    adminId: user.id,
+  })
 
   return (
     <AdminSection

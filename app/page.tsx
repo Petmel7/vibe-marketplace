@@ -4,6 +4,7 @@ import HomeProductSection from '@/components/product/HomeProductSection'
 import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
 import { getCachedGlobalSeo } from '@/app/_lib/seo.data'
 import { buildHomeMetadata } from '@/lib/seo/metadata'
+import { logInfo } from '@/utils/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,15 @@ function HomeSectionSkeleton({ title }: { title: string }) {
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
+    logInfo('home:generateMetadata:before', {
+      domain: 'seo',
+      route: '/',
+    })
     const seo = await getCachedGlobalSeo()
+    logInfo('home:generateMetadata:after', {
+      domain: 'seo',
+      route: '/',
+    })
     return buildHomeMetadata(seo)
   } catch {
     return {
@@ -29,6 +38,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
+  logInfo('home:page:start', {
+    domain: 'products',
+    route: '/',
+  })
   return (
     <main>
       <div className="space-y-10">

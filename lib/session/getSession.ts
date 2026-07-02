@@ -4,6 +4,7 @@ import { UnauthorizedError } from '@/lib/errors/auth'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { getSessionUser } from '@/features/auth/auth.service'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 
 /**
  * Returns the currently authenticated user from the session cookie, or null
@@ -18,12 +19,31 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       auth: 'supabase-session',
     },
     async () => {
+      logInfo('session:getCurrentUser:before-create-server-client', {
+        domain: 'auth',
+      })
       const supabase = await createServerClient()
+      logInfo('session:getCurrentUser:after-create-server-client', {
+        domain: 'auth',
+      })
       const {
         data: { user },
       } = await supabase.auth.getUser()
+      logInfo('session:getCurrentUser:after-supabase-getUser', {
+        domain: 'auth',
+        hasUser: Boolean(user),
+      })
       if (!user) return null
-      return getSessionUser(user)
+      logInfo('session:getCurrentUser:before-getSessionUser', {
+        domain: 'auth',
+        userId: user.id,
+      })
+      const sessionUser = await getSessionUser(user)
+      logInfo('session:getCurrentUser:after-getSessionUser', {
+        domain: 'auth',
+        userId: sessionUser.id,
+      })
+      return sessionUser
     },
   )
 })

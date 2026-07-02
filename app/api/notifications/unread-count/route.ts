@@ -37,6 +37,10 @@ async function measureRouteAwait<T>(
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {
+    logInfo('notifications:unread-count:start', {
+      domain: 'notifications',
+      method: 'GET',
+    })
     const auth = await measureRouteAwait('verifyBearerToken', () => verifyBearerToken(request))
     if (!auth.ok) {
       return auth.response
@@ -50,7 +54,12 @@ export async function GET(request: NextRequest): Promise<Response> {
       domain: 'notifications',
       count: data.count,
     })
-    return Response.json({ success: true, data }, { status: 200 })
+    const response = Response.json({ success: true, data }, { status: 200 })
+    logInfo('notifications:unread-count:response-built', {
+      domain: 'notifications',
+      count: data.count,
+    })
+    return response
   } catch (error) {
     return toErrorResponse('GET /api/notifications/unread-count', error)
   }

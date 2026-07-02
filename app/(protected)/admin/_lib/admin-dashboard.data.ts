@@ -23,6 +23,7 @@ import { getAdminReviews } from '@/features/review/review.service'
 import { adminReviewListQuerySchema } from '@/features/review/review.schema'
 import type { SessionUser } from '@/types/auth'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 
 const moderationPaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -66,6 +67,11 @@ export async function getAdminLayoutData(user: SessionUser) {
 }
 
 export async function getAdminOverviewData(user: SessionUser) {
+  logInfo('admin-overview:before-promise-all', {
+    domain: 'admin',
+    route: '/admin',
+    adminId: user.id,
+  })
   const [analytics, pendingSellerQueue, pendingProductQueue, suspendedSellerQueue, rejectedProductQueue] =
     await measureServerOperation(
       'getAdminOverviewData',
@@ -83,6 +89,15 @@ export async function getAdminOverviewData(user: SessionUser) {
           getRejectedProducts(user, { page: 1, limit: 5 }),
         ]),
     )
+  logInfo('admin-overview:after-promise-all', {
+    domain: 'admin',
+    route: '/admin',
+    adminId: user.id,
+    pendingSellerCount: pendingSellerQueue.items.length,
+    pendingProductCount: pendingProductQueue.items.length,
+    suspendedSellerCount: suspendedSellerQueue.items.length,
+    rejectedProductCount: rejectedProductQueue.items.length,
+  })
 
   return {
     analytics,
@@ -114,6 +129,13 @@ export async function getAdminModerationPageData(user: SessionUser) {
 
 export async function getAdminUsersPageData(user: SessionUser, searchParams: RawSearchParams) {
   const filters = parseWithSchema(userOversightFilterSchema, searchParams)
+  logInfo('admin-users:data:before-service', {
+    domain: 'admin-users',
+    route: '/admin/users',
+    adminId: user.id,
+    page: filters.page,
+    limit: filters.limit,
+  })
   const data = await measureServerOperation(
     'getAdminUsersPageData',
     {
@@ -127,6 +149,13 @@ export async function getAdminUsersPageData(user: SessionUser, searchParams: Raw
     },
     () => getAllUsers(user, filters),
   )
+  logInfo('admin-users:data:after-service', {
+    domain: 'admin-users',
+    route: '/admin/users',
+    adminId: user.id,
+    itemCount: data.items.length,
+    total: data.total,
+  })
 
   return {
     filters,

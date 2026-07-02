@@ -64,13 +64,28 @@ async function measureRouteAwait<T>(
  */
 export async function GET(request: NextRequest): Promise<Response> {
   try {
+    logInfo('wishlist:route:start', {
+      domain: 'wishlist',
+      method: 'GET',
+    })
     const auth = await measureRouteAwait('verifyBearerToken', {}, () => verifyBearerToken(request))
     if (!auth.ok) return auth.response
 
     const data = await measureRouteAwait('getWishlist', { userId: auth.userId }, () =>
       getWishlist(auth.userId),
     )
-    return Response.json({ success: true, data }, { status: 200 })
+    logInfo('wishlist:route:before-response', {
+      domain: 'wishlist',
+      userId: auth.userId,
+      itemCount: data.items.length,
+    })
+    const response = Response.json({ success: true, data }, { status: 200 })
+    logInfo('wishlist:route:response-built', {
+      domain: 'wishlist',
+      userId: auth.userId,
+      itemCount: data.items.length,
+    })
+    return response
   } catch (error) {
     return toErrorResponse('GET /api/wishlist', error)
   }

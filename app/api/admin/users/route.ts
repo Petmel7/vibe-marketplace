@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/session/getSession'
 import { userOversightFilterSchema } from '@/features/admin/oversight/admin-oversight.schema'
 import { getAllUsers } from '@/features/admin/oversight/admin-oversight.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { logInfo } from '@/utils/logger'
 
 /**
  * GET /api/admin/users
@@ -18,6 +19,10 @@ import { toErrorResponse } from '@/lib/errors/handleError'
  */
 export async function GET(request: NextRequest): Promise<Response> {
   try {
+    logInfo('admin-users:route:start', {
+      domain: 'admin-users',
+      method: 'GET',
+    })
     const user = await requireAuth()
     const { searchParams } = new URL(request.url)
     const parsed = userOversightFilterSchema.safeParse(Object.fromEntries(searchParams.entries()))
@@ -30,8 +35,29 @@ export async function GET(request: NextRequest): Promise<Response> {
         { status: 400 },
       )
     }
+    logInfo('admin-users:route:before-service', {
+      domain: 'admin-users',
+      adminId: user.id,
+      page: parsed.data.page,
+      limit: parsed.data.limit,
+      role: parsed.data.role ?? null,
+      hasSearch: Boolean(parsed.data.search?.trim()),
+    })
     const data = await getAllUsers(user, parsed.data)
-    return Response.json({ success: true, data })
+    logInfo('admin-users:route:after-service', {
+      domain: 'admin-users',
+      adminId: user.id,
+      itemCount: data.items.length,
+      total: data.total,
+    })
+    const response = Response.json({ success: true, data })
+    logInfo('admin-users:route:response-built', {
+      domain: 'admin-users',
+      adminId: user.id,
+      itemCount: data.items.length,
+      total: data.total,
+    })
+    return response
   } catch (err) {
     return toErrorResponse('GET /api/admin/users', err)
   }

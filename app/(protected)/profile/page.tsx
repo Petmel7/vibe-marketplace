@@ -7,12 +7,27 @@ import StatusBadge from '@/components/profile/StatusBadge'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
 import { getProfileOverviewData } from '@/app/(protected)/profile/_lib/profile-dashboard.data'
+import { logInfo } from '@/utils/logger'
 
 export default async function ProfileOverviewPage() {
+  logInfo('profile-page:start', {
+    domain: 'profile',
+    route: '/profile',
+  })
   const user = await getCurrentUser()
   if (!user) return null
 
+  logInfo('profile-page:before-data', {
+    domain: 'profile',
+    route: '/profile',
+    userId: user.id,
+  })
   const data = await getProfileOverviewData(user)
+  logInfo('profile-page:after-data', {
+    domain: 'profile',
+    route: '/profile',
+    userId: user.id,
+  })
 
   return (
     <ProfileSection

@@ -7,6 +7,7 @@ import { getMyBuyerProfile } from '@/features/buyer/buyer.service'
 import { ProfileNotFoundError } from '@/lib/errors/profile'
 import type { SessionUser } from '@/types/auth'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 
 export async function getProfileDashboardLayoutData(user: SessionUser) {
   try {
@@ -34,6 +35,11 @@ export async function getProfileDashboardLayoutData(user: SessionUser) {
 }
 
 export async function getProfileOverviewData(user: SessionUser) {
+  logInfo('profile-overview:before-promise-all', {
+    domain: 'profile',
+    route: '/profile',
+    userId: user.id,
+  })
   const [layout, orders, addresses, wishlist, viewed] = await measureServerOperation(
     'getProfileOverviewData',
     {
@@ -50,6 +56,15 @@ export async function getProfileOverviewData(user: SessionUser) {
         getRecentlyViewed({ userId: user.id }),
       ]),
   )
+  logInfo('profile-overview:after-promise-all', {
+    domain: 'profile',
+    route: '/profile',
+    userId: user.id,
+    orderCount: orders.length,
+    addressCount: addresses.length,
+    wishlistCount: wishlist.items.length,
+    viewedCount: viewed.items.length,
+  })
 
   const defaultAddress =
     addresses.find((address) => address.isDefault) ??

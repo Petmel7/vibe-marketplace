@@ -131,7 +131,20 @@ export async function getWishlist(userId: string): Promise<WishlistDto> {
     findWishlistByUserId(userId),
   )
   if (wishlist) {
-    return toWishlistDto(wishlist)
+    logInfo('wishlist:service:before-dto-mapping', {
+      domain: 'wishlist',
+      operation: 'toWishlistDto',
+      userId,
+      itemCount: wishlist.items.length,
+    })
+    const dto = toWishlistDto(wishlist)
+    logInfo('wishlist:service:after-dto-mapping', {
+      domain: 'wishlist',
+      operation: 'toWishlistDto',
+      userId,
+      itemCount: dto.items.length,
+    })
+    return dto
   }
 
   const created = await measureWishlistServiceCall('createWishlist', { userId }, () =>
@@ -182,7 +195,20 @@ export async function addToWishlist(
     })
   }
 
-  return toWishlistDto(updated)
+  logInfo('wishlist:service:before-dto-mapping', {
+    domain: 'wishlist',
+    operation: 'toWishlistDto',
+    userId,
+    itemCount: updated.items.length,
+  })
+  const dto = toWishlistDto(updated)
+  logInfo('wishlist:service:after-dto-mapping', {
+    domain: 'wishlist',
+    operation: 'toWishlistDto',
+    userId,
+    itemCount: dto.items.length,
+  })
+  return dto
 }
 
 /**
@@ -219,5 +245,18 @@ export async function removeFromWishlist(
     dedupeKey: `product-metrics:wishlist-removed:${existing.id}`,
   })
 
-  return toWishlistDto(updated)
+  logInfo('wishlist:service:before-dto-mapping', {
+    domain: 'wishlist',
+    operation: 'toWishlistDto',
+    userId,
+    itemCount: updated.items.length,
+  })
+  const dto = toWishlistDto(updated)
+  logInfo('wishlist:service:after-dto-mapping', {
+    domain: 'wishlist',
+    operation: 'toWishlistDto',
+    userId,
+    itemCount: dto.items.length,
+  })
+  return dto
 }

@@ -13,11 +13,23 @@ import {
   SEO_CACHE_TAGS,
 } from '@/features/seo/seo.cache'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 
 export { getCachedRobotsConfig, getCachedSitemapEntries } from '@/features/seo/seo.cache'
 
 const getGlobalSeoCached = unstable_cache(
-  async () => getGlobalSeo(),
+  async () => {
+    logInfo('seo-global:cache-callback:before', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-global',
+    })
+    const seo = await getGlobalSeo()
+    logInfo('seo-global:cache-callback:after', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-global',
+    })
+    return seo
+  },
   ['seo-global'],
   {
     revalidate: 60 * 60,
@@ -26,7 +38,20 @@ const getGlobalSeoCached = unstable_cache(
 )
 
 const getPageSeoCached = unstable_cache(
-  async (pageKey: string) => getPageSeo(pageKey),
+  async (pageKey: string) => {
+    logInfo('seo-page:cache-callback:before', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-page',
+      pageKey,
+    })
+    const seo = await getPageSeo(pageKey)
+    logInfo('seo-page:cache-callback:after', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-page',
+      pageKey,
+    })
+    return seo
+  },
   ['seo-page'],
   {
     revalidate: 60 * 60,
@@ -35,7 +60,20 @@ const getPageSeoCached = unstable_cache(
 )
 
 const getProductSeoCached = unstable_cache(
-  async (id: string) => getProductSeo({ id }),
+  async (id: string) => {
+    logInfo('seo-product:cache-callback:before', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-product',
+      id,
+    })
+    const seo = await getProductSeo({ id })
+    logInfo('seo-product:cache-callback:after', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-product',
+      id,
+    })
+    return seo
+  },
   ['seo-product'],
   {
     revalidate: 60 * 60,
@@ -44,7 +82,20 @@ const getProductSeoCached = unstable_cache(
 )
 
 const getCategorySeoCached = unstable_cache(
-  async (slug: string) => getCategorySeo({ slug }),
+  async (slug: string) => {
+    logInfo('seo-category:cache-callback:before', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-category',
+      slug,
+    })
+    const seo = await getCategorySeo({ slug })
+    logInfo('seo-category:cache-callback:after', {
+      domain: 'seo',
+      cache: 'unstable_cache:seo-category',
+      slug,
+    })
+    return seo
+  },
   ['seo-category'],
   {
     revalidate: 60 * 60,

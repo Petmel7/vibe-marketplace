@@ -224,7 +224,20 @@ export async function getUnreadNotificationCountByUserId(
     { userId },
     () => countUnreadNotificationsByUserId(userId),
   )
-  return { count }
+  logInfo('notifications:service:before-dto-mapping', {
+    domain: 'notifications',
+    operation: 'toUnreadCountDto',
+    userId,
+    count,
+  })
+  const dto = { count }
+  logInfo('notifications:service:after-dto-mapping', {
+    domain: 'notifications',
+    operation: 'toUnreadCountDto',
+    userId,
+    count: dto.count,
+  })
+  return dto
 }
 
 export async function markMyNotificationRead(
