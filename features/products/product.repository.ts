@@ -298,9 +298,29 @@ type CountRow = { count: bigint }
 type CategoryFacetRow = { id: string; slug: string; name: string; count: bigint }
 type StoreFacetRow = { id: string; slug: string; name: string; count: bigint }
 type AvailabilityFacetRow = { inStock: bigint; outOfStock: bigint }
-type RatingFacetCountRow = { count: bigint }
+type SearchSummaryRow = {
+  total: bigint
+  inStock: bigint
+  outOfStock: bigint
+  min: Prisma.Decimal | null
+  max: Prisma.Decimal | null
+  rating5: bigint
+  rating4: bigint
+  rating3: bigint
+  rating2: bigint
+  rating1: bigint
+}
 type BadgeFacetRow = { type: ProductBadgeType; count: bigint }
-type PriceRangeRow = { min: Prisma.Decimal | null; max: Prisma.Decimal | null }
+type FilteredProductsCteOptions = {
+  includeCreatedAt?: boolean
+  includeCategoryId?: boolean
+  includeStoreId?: boolean
+  includePrice?: boolean
+  includeRating?: boolean
+  includeMetrics?: boolean
+  includeInStock?: boolean
+  includeRank?: boolean
+}
 
 function buildPublicSearchWhereSql(params: ProductSearchRepositoryParams): Prisma.Sql {
   const clauses: Prisma.Sql[] = [
@@ -401,39 +421,71 @@ function buildSearchOrderBySql(params: ProductSearchRepositoryParams): Prisma.Sq
   return Prisma.sql`fp."created_at" DESC, fp."id" DESC`
 }
 
-function buildFilteredProductsCte(params: ProductSearchRepositoryParams): Prisma.Sql {
+function buildFilteredProductsCte(
+  params: ProductSearchRepositoryParams,
+  options: FilteredProductsCteOptions,
+): Prisma.Sql {
   const query = params.q?.trim()
   const whereSql = buildPublicSearchWhereSql(params)
+  const needsRatingJoin = options.includeRating || params.rating !== undefined
+  const selectColumns: Prisma.Sql[] = [Prisma.sql`p."id"`]
+
+  if (options.includeCategoryId) {
+    selectColumns.push(Prisma.sql`p."category_id"`)
+  }
+
+  if (options.includeStoreId) {
+    selectColumns.push(Prisma.sql`p."store_id"`)
+  }
+
+  if (options.includePrice) {
+    selectColumns.push(Prisma.sql`p."price"`)
+  }
+
+  if (options.includeCreatedAt) {
+    selectColumns.push(Prisma.sql`p."created_at"`)
+  }
+
+  if (options.includeRating) {
+    selectColumns.push(Prisma.sql`COALESCE(prs."rating_avg", 0) AS "rating_avg"`)
+    selectColumns.push(Prisma.sql`COALESCE(prs."rating_count", 0) AS "rating_count"`)
+  }
+
+  if (options.includeMetrics) {
+    selectColumns.push(Prisma.sql`COALESCE(pm."hit_score", 0) AS "hit_score"`)
+    selectColumns.push(Prisma.sql`COALESCE(pm."sold_count", 0) AS "sold_count"`)
+    selectColumns.push(Prisma.sql`COALESCE(pm."wishlist_count", 0) AS "wishlist_count"`)
+    selectColumns.push(Prisma.sql`COALESCE(pm."view_count", 0) AS "view_count"`)
+  }
+
+  if (options.includeInStock) {
+    selectColumns.push(Prisma.sql`
+      EXISTS (
+        SELECT 1
+        FROM "public"."product_variants" pv
+        WHERE pv."product_id" = p."id"
+          AND pv."stock" > 0
+      ) AS "in_stock"
+    `)
+  }
+
+  if (options.includeRank) {
+    selectColumns.push(
+      query
+        ? Prisma.sql`ts_rank(p."search_vector", plainto_tsquery('english', ${query})) AS "rank"`
+        : Prisma.sql`NULL::real AS "rank"`,
+    )
+  }
 
   return Prisma.sql`
     WITH filtered_products AS (
       SELECT
-        p."id",
-        p."category_id",
-        p."store_id",
-        p."price",
-        p."created_at",
-        p."published_at",
-        COALESCE(prs."rating_avg", 0) AS "rating_avg",
-        COALESCE(prs."rating_count", 0) AS "rating_count",
-        COALESCE(pm."hit_score", 0) AS "hit_score",
-        COALESCE(pm."sold_count", 0) AS "sold_count",
-        COALESCE(pm."wishlist_count", 0) AS "wishlist_count",
-        COALESCE(pm."view_count", 0) AS "view_count",
-        EXISTS (
-          SELECT 1
-          FROM "public"."product_variants" pv
-          WHERE pv."product_id" = p."id"
-            AND pv."stock" > 0
-        ) AS "in_stock",
-        ${query
-          ? Prisma.sql`ts_rank(p."search_vector", plainto_tsquery('english', ${query}))`
-          : Prisma.sql`NULL::real`} AS "rank"
+        ${Prisma.join(selectColumns, ', ')}
       FROM "public"."products" p
       INNER JOIN "public"."stores" s ON s."id" = p."store_id"
       LEFT JOIN "public"."categories" c ON c."id" = p."category_id"
-      LEFT JOIN "public"."product_rating_summaries" prs ON prs."product_id" = p."id"
-      LEFT JOIN "public"."product_metrics" pm ON pm."product_id" = p."id"
+      ${needsRatingJoin ? Prisma.sql`LEFT JOIN "public"."product_rating_summaries" prs ON prs."product_id" = p."id"` : Prisma.empty}
+      ${options.includeMetrics ? Prisma.sql`LEFT JOIN "public"."product_metrics" pm ON pm."product_id" = p."id"` : Prisma.empty}
       WHERE ${whereSql}
     )
   `
@@ -464,37 +516,54 @@ export async function searchProducts(
   params: ProductSearchRepositoryParams
 ): Promise<ProductSearchRepositoryResult> {
   const skip = (params.page - 1) * params.limit
-  const cte = buildFilteredProductsCte(params)
+  const itemIdsCte = buildFilteredProductsCte(params, {
+    includeCreatedAt: true,
+    includePrice: params.sort === 'price_asc' || params.sort === 'price_desc',
+    includeRating: params.sort === 'rating',
+    includeMetrics: params.sort === 'popular',
+    includeRank: params.sort === 'relevance' && Boolean(params.q?.trim()),
+  })
+  const summaryCte = buildFilteredProductsCte(params, {
+    includeCategoryId: true,
+    includeStoreId: true,
+    includePrice: true,
+    includeRating: true,
+    includeInStock: true,
+  })
+  const badgeCte = buildFilteredProductsCte(params, {})
   const orderBySql = buildSearchOrderBySql(params)
 
   const [
     itemIdRows,
-    totalRows,
+    summaryRows,
     categoryRows,
     storeRows,
-    availabilityRows,
     badgeRows,
-    priceRows,
-    rating5Rows,
-    rating4Rows,
-    rating3Rows,
-    rating2Rows,
-    rating1Rows,
   ] = await Promise.all([
     prisma.$queryRaw<ProductIdRow[]>`
-      ${cte}
+      ${itemIdsCte}
       SELECT fp."id"
       FROM filtered_products fp
       ORDER BY ${orderBySql}
       LIMIT ${params.limit} OFFSET ${skip}
     `,
-    prisma.$queryRaw<CountRow[]>`
-      ${cte}
-      SELECT COUNT(*) AS count
-      FROM filtered_products
+    prisma.$queryRaw<SearchSummaryRow[]>`
+      ${summaryCte}
+      SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE fp."in_stock" = true) AS "inStock",
+        COUNT(*) FILTER (WHERE fp."in_stock" = false) AS "outOfStock",
+        MIN(fp."price") AS min,
+        MAX(fp."price") AS max,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 5) AS rating5,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 4) AS rating4,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 3) AS rating3,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 2) AS rating2,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 1) AS rating1
+      FROM filtered_products fp
     `,
     prisma.$queryRaw<CategoryFacetRow[]>`
-      ${cte}
+      ${summaryCte}
       SELECT
         c."id",
         c."slug",
@@ -506,7 +575,7 @@ export async function searchProducts(
       ORDER BY COUNT(*) DESC, c."name" ASC
     `,
     prisma.$queryRaw<StoreFacetRow[]>`
-      ${cte}
+      ${summaryCte}
       SELECT
         s."id",
         s."slug",
@@ -517,15 +586,8 @@ export async function searchProducts(
       GROUP BY s."id", s."slug", s."name"
       ORDER BY COUNT(*) DESC, s."name" ASC
     `,
-    prisma.$queryRaw<AvailabilityFacetRow[]>`
-      ${cte}
-      SELECT
-        COUNT(*) FILTER (WHERE fp."in_stock" = true) AS "inStock",
-        COUNT(*) FILTER (WHERE fp."in_stock" = false) AS "outOfStock"
-      FROM filtered_products fp
-    `,
     prisma.$queryRaw<BadgeFacetRow[]>`
-      ${cte}
+      ${badgeCte}
       SELECT
         pb."type",
         COUNT(DISTINCT pb."product_id") AS count
@@ -536,26 +598,15 @@ export async function searchProducts(
       GROUP BY pb."type"
       ORDER BY COUNT(DISTINCT pb."product_id") DESC, pb."type" ASC
     `,
-    prisma.$queryRaw<PriceRangeRow[]>`
-      ${cte}
-      SELECT
-        MIN(fp."price") AS min,
-        MAX(fp."price") AS max
-      FROM filtered_products fp
-    `,
-    prisma.$queryRaw<RatingFacetCountRow[]>`${cte} SELECT COUNT(*) AS count FROM filtered_products fp WHERE fp."rating_avg" >= 5`,
-    prisma.$queryRaw<RatingFacetCountRow[]>`${cte} SELECT COUNT(*) AS count FROM filtered_products fp WHERE fp."rating_avg" >= 4`,
-    prisma.$queryRaw<RatingFacetCountRow[]>`${cte} SELECT COUNT(*) AS count FROM filtered_products fp WHERE fp."rating_avg" >= 3`,
-    prisma.$queryRaw<RatingFacetCountRow[]>`${cte} SELECT COUNT(*) AS count FROM filtered_products fp WHERE fp."rating_avg" >= 2`,
-    prisma.$queryRaw<RatingFacetCountRow[]>`${cte} SELECT COUNT(*) AS count FROM filtered_products fp WHERE fp."rating_avg" >= 1`,
   ])
 
   const ids = itemIdRows.map((row) => row.id)
   const items = await findProductsByIdsInOrder(ids)
+  const summaryRow = summaryRows[0]
 
   return {
     items,
-    total: Number(totalRows[0]?.count ?? BigInt(0)),
+    total: Number(summaryRow?.total ?? BigInt(0)),
     page: params.page,
     limit: params.limit,
     facets: {
@@ -572,23 +623,23 @@ export async function searchProducts(
         count: Number(row.count),
       })),
       availability: {
-        inStock: Number(availabilityRows[0]?.inStock ?? BigInt(0)),
-        outOfStock: Number(availabilityRows[0]?.outOfStock ?? BigInt(0)),
+        inStock: Number(summaryRow?.inStock ?? BigInt(0)),
+        outOfStock: Number(summaryRow?.outOfStock ?? BigInt(0)),
       },
       ratings: [
-        { minRating: 5, count: Number(rating5Rows[0]?.count ?? BigInt(0)) },
-        { minRating: 4, count: Number(rating4Rows[0]?.count ?? BigInt(0)) },
-        { minRating: 3, count: Number(rating3Rows[0]?.count ?? BigInt(0)) },
-        { minRating: 2, count: Number(rating2Rows[0]?.count ?? BigInt(0)) },
-        { minRating: 1, count: Number(rating1Rows[0]?.count ?? BigInt(0)) },
+        { minRating: 5, count: Number(summaryRow?.rating5 ?? BigInt(0)) },
+        { minRating: 4, count: Number(summaryRow?.rating4 ?? BigInt(0)) },
+        { minRating: 3, count: Number(summaryRow?.rating3 ?? BigInt(0)) },
+        { minRating: 2, count: Number(summaryRow?.rating2 ?? BigInt(0)) },
+        { minRating: 1, count: Number(summaryRow?.rating1 ?? BigInt(0)) },
       ],
       badges: badgeRows.map((row) => ({
         type: row.type,
         count: Number(row.count),
       })),
       priceRange: {
-        min: priceRows[0]?.min ?? null,
-        max: priceRows[0]?.max ?? null,
+        min: summaryRow?.min ?? null,
+        max: summaryRow?.max ?? null,
       },
     },
   }

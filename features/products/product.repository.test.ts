@@ -227,17 +227,21 @@ describe('searchProducts', () => {
     vi.clearAllMocks()
     queryRawMock
       .mockResolvedValueOnce([{ id: 'prod-1' }])
-      .mockResolvedValueOnce([{ count: BigInt(1) }])
+      .mockResolvedValueOnce([{
+        total: BigInt(1),
+        inStock: BigInt(1),
+        outOfStock: BigInt(0),
+        min: { toString: () => '99.99' },
+        max: { toString: () => '99.99' },
+        rating5: BigInt(0),
+        rating4: BigInt(1),
+        rating3: BigInt(1),
+        rating2: BigInt(1),
+        rating1: BigInt(1),
+      }])
       .mockResolvedValueOnce([{ id: 'cat-1', slug: 'dresses', name: 'Dresses', count: BigInt(1) }])
       .mockResolvedValueOnce([{ id: 'store-1', slug: 'test-store', name: 'Test Store', count: BigInt(1) }])
-      .mockResolvedValueOnce([{ inStock: BigInt(1), outOfStock: BigInt(0) }])
       .mockResolvedValueOnce([{ type: 'NEW', count: BigInt(1) }])
-      .mockResolvedValueOnce([{ min: { toString: () => '99.99' }, max: { toString: () => '99.99' } }])
-      .mockResolvedValueOnce([{ count: BigInt(0) }])
-      .mockResolvedValueOnce([{ count: BigInt(1) }])
-      .mockResolvedValueOnce([{ count: BigInt(1) }])
-      .mockResolvedValueOnce([{ count: BigInt(1) }])
-      .mockResolvedValueOnce([{ count: BigInt(1) }])
     findManyMock.mockResolvedValue([
       {
         ...makeProduct(),
@@ -262,7 +266,7 @@ describe('searchProducts', () => {
       inStock: true,
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(12)
+    expect(queryRawMock).toHaveBeenCalledTimes(5)
     expect(findManyMock).toHaveBeenCalledWith({
       where: {
         id: {
@@ -300,6 +304,33 @@ describe('searchProducts', () => {
       inStock: 1,
       outOfStock: 0,
     })
+    expect(result.facets.ratings).toEqual([
+      { minRating: 5, count: 0 },
+      { minRating: 4, count: 1 },
+      { minRating: 3, count: 1 },
+      { minRating: 2, count: 1 },
+      { minRating: 1, count: 1 },
+    ])
+  })
+
+  it('reduces raw search query fan-out for newest catalog requests', async () => {
+    await searchProducts({
+      page: 1,
+      limit: 12,
+      sort: 'newest',
+    })
+
+    expect(queryRawMock).toHaveBeenCalledTimes(5)
+  })
+
+  it('keeps popular catalog requests bounded to the same raw query count', async () => {
+    await searchProducts({
+      page: 1,
+      limit: 12,
+      sort: 'popular',
+    })
+
+    expect(queryRawMock).toHaveBeenCalledTimes(5)
   })
 })
 
