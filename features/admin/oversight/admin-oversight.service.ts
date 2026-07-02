@@ -85,14 +85,18 @@ function toAdminSellerDto(seller: {
   businessName: string | null
   verificationStatus: string
   createdAt: Date
-  user: { stores: { id: string }[] }
+  user: { stores: { id: string; isActive: boolean }[] }
 }): AdminSellerDto {
+  const activeStoreCount = seller.user.stores.filter((store) => store.isActive).length
+
   return {
     id: seller.id,
     userId: seller.userId,
     businessName: seller.businessName,
     verificationStatus: seller.verificationStatus,
     storeCount: seller.user.stores.length,
+    activeStoreCount,
+    inactiveStoreCount: seller.user.stores.length - activeStoreCount,
     createdAt: seller.createdAt,
   }
 }

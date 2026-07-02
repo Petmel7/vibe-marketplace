@@ -217,7 +217,7 @@ export async function findAllSellersOversight(filters: SellerOversightFilters) {
       include: {
         user: {
           include: {
-            stores: { select: { id: true } },
+            stores: { select: { id: true, isActive: true } },
           },
         },
       },

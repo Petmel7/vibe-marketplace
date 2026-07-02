@@ -2,6 +2,11 @@ import { prisma } from '@/lib/prisma'
 import type { SellerProfile, SellerVerificationStatus } from '@/app/generated/prisma/client'
 import type { SellerModerationFilters } from './seller-moderation.dto'
 
+export type SellerStoreActivationSnapshot = {
+  id: string
+  isActive: boolean
+}
+
 export async function findPendingSellerApprovals(
   filters: SellerModerationFilters,
 ): Promise<{ items: SellerProfile[]; total: number }> {
@@ -80,6 +85,19 @@ export async function findSellerProfileById(id: string): Promise<SellerProfile |
   return prisma.sellerProfile.findUnique({ where: { id } })
 }
 
+export async function listSellerStoresByOwnerId(
+  sellerUserId: string,
+): Promise<SellerStoreActivationSnapshot[]> {
+  return prisma.store.findMany({
+    where: { ownerId: sellerUserId },
+    select: {
+      id: true,
+      isActive: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
 export async function updateSellerVerificationStatus(
   id: string,
   status: SellerVerificationStatus,
@@ -102,5 +120,12 @@ export async function deactivateSellerStores(sellerUserId: string): Promise<void
   await prisma.store.updateMany({
     where: { ownerId: sellerUserId },
     data: { isActive: false, updatedAt: new Date() },
+  })
+}
+
+export async function reactivateSellerStores(sellerUserId: string): Promise<void> {
+  await prisma.store.updateMany({
+    where: { ownerId: sellerUserId },
+    data: { isActive: true, updatedAt: new Date() },
   })
 }

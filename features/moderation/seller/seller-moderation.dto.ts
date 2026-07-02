@@ -7,6 +7,9 @@ export interface SellerModerationDto {
   moderatedAt: Date | null
   moderatedBy: string | null
   createdAt: Date
+  affectedStoreIds?: string[]
+  affectedStoreCount?: number
+  previousStoreActiveStates?: Record<string, boolean>
 }
 
 export interface SellerModerationQueueDto {

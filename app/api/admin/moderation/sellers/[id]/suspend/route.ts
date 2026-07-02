@@ -42,12 +42,17 @@ export async function POST(
     const data = await suspendSeller(user, id, parsed.data.reason)
     await recordAdminAudit({
       actorId: user.id,
+      actorEmail: user.email,
+      actorRole: user.roles[0] ?? null,
       action: 'suspend-seller',
       domain: 'moderation',
       targetId: id,
       targetType: 'seller',
       metadata: {
         reason: parsed.data.reason,
+        affectedStoreIds: data.affectedStoreIds ?? [],
+        affectedStoreCount: data.affectedStoreCount ?? 0,
+        previousStoreActiveStates: data.previousStoreActiveStates ?? {},
       },
       requestId: getRequestId(request),
     })

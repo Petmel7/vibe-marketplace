@@ -94,6 +94,9 @@ beforeEach(() => {
   mockEmitSellerApprovedNotificationEvent.mockResolvedValue({} as never)
   mockEmitSellerRejectedNotificationEvent.mockResolvedValue({} as never)
   mockRiskService.recordSellerSuspensionRiskSignals.mockResolvedValue([] as never)
+  mockRepo.listSellerStoresByOwnerId.mockResolvedValue([])
+  mockRepo.deactivateSellerStores.mockResolvedValue(undefined)
+  mockRepo.reactivateSellerStores.mockResolvedValue(undefined)
 })
 
 // ---------------------------------------------------------------------------
@@ -200,7 +203,10 @@ describe('suspendSeller', () => {
 
     mockRepo.findSellerProfileById.mockResolvedValue(seller)
     mockRepo.updateSellerVerificationStatus.mockResolvedValue(updated)
-    mockRepo.deactivateSellerStores.mockResolvedValue(undefined)
+    mockRepo.listSellerStoresByOwnerId.mockResolvedValue([
+      { id: 'store-1', isActive: true },
+      { id: 'store-2', isActive: false },
+    ])
 
     const result = await suspendSeller(mockAdmin, SELLER_ID, 'Policy violation')
 
@@ -217,6 +223,12 @@ describe('suspendSeller', () => {
       reason: 'Policy violation',
     })
     expect(result.verificationStatus).toBe('SUSPENDED')
+    expect(result.affectedStoreIds).toEqual(['store-1', 'store-2'])
+    expect(result.affectedStoreCount).toBe(2)
+    expect(result.previousStoreActiveStates).toEqual({
+      'store-1': true,
+      'store-2': false,
+    })
   })
 
   it('throws InvalidModerationTransitionError on non-VERIFIED seller', async () => {
@@ -242,6 +254,10 @@ describe('reactivateSeller', () => {
 
     mockRepo.findSellerProfileById.mockResolvedValue(seller)
     mockRepo.updateSellerVerificationStatus.mockResolvedValue(updated)
+    mockRepo.listSellerStoresByOwnerId.mockResolvedValue([
+      { id: 'store-1', isActive: false },
+      { id: 'store-2', isActive: false },
+    ])
 
     const result = await reactivateSeller(mockAdmin, SELLER_ID)
 
@@ -250,7 +266,14 @@ describe('reactivateSeller', () => {
       'VERIFIED',
       ADMIN_ID,
     )
+    expect(mockRepo.reactivateSellerStores).toHaveBeenCalledWith(SELLER_USER_ID)
     expect(result.verificationStatus).toBe('VERIFIED')
+    expect(result.affectedStoreIds).toEqual(['store-1', 'store-2'])
+    expect(result.affectedStoreCount).toBe(2)
+    expect(result.previousStoreActiveStates).toEqual({
+      'store-1': false,
+      'store-2': false,
+    })
   })
 })
 

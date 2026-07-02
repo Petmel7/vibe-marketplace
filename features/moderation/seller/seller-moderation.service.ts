@@ -13,7 +13,10 @@ import {
   findSellerProfileById,
   updateSellerVerificationStatus,
   deactivateSellerStores,
+  listSellerStoresByOwnerId,
+  reactivateSellerStores,
 } from './seller-moderation.repository'
+import type { SellerStoreActivationSnapshot } from './seller-moderation.repository'
 import type { SellerProfile } from '@/app/generated/prisma/client'
 import {
   emitSellerApprovedEmailEvent,
@@ -30,7 +33,10 @@ import { logError } from '@/utils/logger'
 // DTO mapper
 // ---------------------------------------------------------------------------
 
-function toSellerModerationDto(seller: SellerProfile): SellerModerationDto {
+function toSellerModerationDto(
+  seller: SellerProfile,
+  affectedStores?: SellerStoreActivationSnapshot[],
+): SellerModerationDto {
   return {
     id: seller.id,
     userId: seller.userId,
@@ -40,6 +46,15 @@ function toSellerModerationDto(seller: SellerProfile): SellerModerationDto {
     moderatedAt: seller.moderatedAt,
     moderatedBy: seller.moderatedBy,
     createdAt: seller.createdAt,
+    ...(affectedStores
+      ? {
+          affectedStoreIds: affectedStores.map((store) => store.id),
+          affectedStoreCount: affectedStores.length,
+          previousStoreActiveStates: Object.fromEntries(
+            affectedStores.map((store) => [store.id, store.isActive]),
+          ),
+        }
+      : {}),
   }
 }
 
@@ -54,7 +69,7 @@ export async function getPendingSellerQueue(
   assertAdminAccess(admin)
   const { items, total } = await findPendingSellerApprovals(filters)
   return {
-    items: items.map(toSellerModerationDto),
+    items: items.map((item) => toSellerModerationDto(item)),
     total,
     page: filters.page,
     limit: filters.limit,
@@ -68,7 +83,7 @@ export async function getSuspendedSellers(
   assertAdminAccess(admin)
   const { items, total } = await findSuspendedSellers(filters)
   return {
-    items: items.map(toSellerModerationDto),
+    items: items.map((item) => toSellerModerationDto(item)),
     total,
     page: filters.page,
     limit: filters.limit,
@@ -152,6 +167,7 @@ export async function suspendSeller(
     throw new InvalidModerationTransitionError(seller.verificationStatus, 'SUSPENDED')
   }
 
+  const affectedStores = await listSellerStoresByOwnerId(seller.userId)
   const updated = await updateSellerVerificationStatus(sellerId, 'SUSPENDED', admin.id, reason)
   // Deactivate all stores owned by this seller
   await deactivateSellerStores(seller.userId)
@@ -162,7 +178,7 @@ export async function suspendSeller(
   }).catch((error) => {
     logError('seller-moderation:suspend-risk-signal', error)
   })
-  return toSellerModerationDto(updated)
+  return toSellerModerationDto(updated, affectedStores)
 }
 
 export async function reactivateSeller(
@@ -178,6 +194,8 @@ export async function reactivateSeller(
     throw new InvalidModerationTransitionError(seller.verificationStatus, 'VERIFIED')
   }
 
+  const affectedStores = await listSellerStoresByOwnerId(seller.userId)
   const updated = await updateSellerVerificationStatus(sellerId, 'VERIFIED', admin.id)
-  return toSellerModerationDto(updated)
+  await reactivateSellerStores(seller.userId)
+  return toSellerModerationDto(updated, affectedStores)
 }

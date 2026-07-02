@@ -15,7 +15,11 @@ vi.mock('@/lib/auth/adminGuards', () => ({
 import type { SessionUser } from '@/features/auth/auth.dto'
 import * as repo from '@/features/admin/oversight/admin-oversight.repository'
 import * as adminGuards from '@/lib/auth/adminGuards'
-import { getAdminStoreOptions, getAllUsers } from '@/features/admin/oversight/admin-oversight.service'
+import {
+  getAdminStoreOptions,
+  getAllSellers,
+  getAllUsers,
+} from '@/features/admin/oversight/admin-oversight.service'
 import { AdminAccessError } from '@/lib/errors/admin'
 
 const mockRepo = vi.mocked(repo)
@@ -148,6 +152,59 @@ describe('getAllUsers', () => {
           createdAt: new Date('2026-06-25T00:00:00.000Z'),
           roles: ['BUYER', 'SELLER'],
           profileName: 'Test User',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    })
+  })
+})
+
+describe('getAllSellers', () => {
+  it('maps active and inactive store counts for verified seller warnings', async () => {
+    mockRepo.findAllSellersOversight.mockResolvedValue({
+      items: [
+        {
+          id: 'seller-profile-1',
+          userId: 'seller-user-1',
+          businessName: 'Atelier One',
+          verificationStatus: 'VERIFIED',
+          createdAt: new Date('2026-06-25T00:00:00.000Z'),
+          user: {
+            stores: [
+              { id: 'store-1', isActive: true },
+              { id: 'store-2', isActive: false },
+            ],
+          },
+        },
+      ],
+      total: 1,
+    } as never)
+
+    const result = await getAllSellers(adminUser, {
+      page: 1,
+      limit: 20,
+      status: 'VERIFIED',
+    })
+
+    expect(mockGuards.assertAdminAccess).toHaveBeenCalledWith(adminUser)
+    expect(mockRepo.findAllSellersOversight).toHaveBeenCalledWith({
+      page: 1,
+      limit: 20,
+      status: 'VERIFIED',
+    })
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'seller-profile-1',
+          userId: 'seller-user-1',
+          businessName: 'Atelier One',
+          verificationStatus: 'VERIFIED',
+          storeCount: 2,
+          activeStoreCount: 1,
+          inactiveStoreCount: 1,
+          createdAt: new Date('2026-06-25T00:00:00.000Z'),
         },
       ],
       total: 1,

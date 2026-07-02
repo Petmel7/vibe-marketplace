@@ -33,6 +33,8 @@ export interface AdminSellerDto {
   businessName: string | null
   verificationStatus: string
   storeCount: number
+  activeStoreCount: number
+  inactiveStoreCount: number
   createdAt: Date
 }
 

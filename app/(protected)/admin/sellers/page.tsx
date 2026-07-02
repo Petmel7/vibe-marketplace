@@ -103,6 +103,12 @@ export default async function AdminSellersPage({
                     <p className="mt-1 text-copy-muted">
                       {seller.storeCount > 0 ? 'Store network provisioned' : 'No stores provisioned yet'}
                     </p>
+                    {seller.verificationStatus === 'VERIFIED' && seller.inactiveStoreCount > 0 ? (
+                      <p className="mt-2 text-xs font-medium text-amber-700">
+                        Warning: {seller.inactiveStoreCount} connected store
+                        {seller.inactiveStoreCount === 1 ? '' : 's'} still inactive and hidden from the public catalog.
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-5 py-4 text-copy-secondary">{new Date(seller.createdAt).toLocaleDateString('uk-UA')}</td>
                   <td className="px-5 py-4">
