@@ -40,6 +40,9 @@ vi.mock('@/features/payouts/payouts.service', () => ({
 vi.mock('@/features/products/product-metrics.jobs', () => ({
   scheduleProductMetricsRecalculation: vi.fn(),
 }))
+vi.mock('@/features/admin/audit/admin-audit', () => ({
+  recordAdminAudit: vi.fn(),
+}))
 
 import * as repo from '@/features/payments/payment.repository'
 import * as authGuards from '@/lib/auth/guards'
@@ -48,6 +51,7 @@ import * as notificationEvents from '@/features/notifications/events/notificatio
 import * as riskService from '@/features/risk/risk.service'
 import * as payoutService from '@/features/payouts/payouts.service'
 import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import {
   getAdminPayments,
   markManualPaymentPaid,
@@ -70,6 +74,7 @@ const mockNotificationEvents = vi.mocked(notificationEvents)
 const mockRiskService = vi.mocked(riskService)
 const mockPayoutService = vi.mocked(payoutService)
 const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
+const mockRecordAdminAudit = vi.mocked(recordAdminAudit)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -259,6 +264,22 @@ describe('processPaymentWebhook', () => {
       reason: 'order-paid-webhook',
       dedupeKey: 'product-metrics:order-paid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     })
+    expect(mockRecordAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: 'buyer-1',
+        actorRole: 'BUYER',
+        domain: 'payments',
+        action: 'succeeded',
+        targetType: 'payment',
+        targetId: '99999999-9999-4999-8999-999999999999',
+        metadata: {
+          orderId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          provider: 'LIQPAY',
+          amount: '99.98',
+          currency: 'UAH',
+        },
+      }),
+    )
     expect(mockRepo.markWebhookProcessed).toHaveBeenCalledWith('webhook-1', expect.any(Date))
     expect(result.status).toBe('SUCCEEDED')
     expect(result.duplicate).toBe(false)

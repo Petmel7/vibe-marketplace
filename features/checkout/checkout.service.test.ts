@@ -29,6 +29,9 @@ vi.mock('@/features/shipping/shipping.service', () => ({
   estimateCheckoutDeliveryTotal: vi.fn(),
   resolveCheckoutDeliverySelection: vi.fn(),
 }))
+vi.mock('@/features/admin/audit/admin-audit', () => ({
+  recordAdminAudit: vi.fn(),
+}))
 
 import * as repo from '@/features/checkout/checkout.repository'
 import * as guards from '@/lib/auth/guards'
@@ -41,6 +44,7 @@ import * as paymentService from '@/features/payments/payment.service'
 import * as payoutService from '@/features/payouts/payouts.service'
 import * as promotionsService from '@/features/promotions/promotions.service'
 import * as shippingService from '@/features/shipping/shipping.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { applyCheckoutPromotion, checkout, getCheckoutPreview } from '@/features/checkout/checkout.service'
 import {
   CartOwnershipError,
@@ -64,6 +68,7 @@ const mockPaymentService = vi.mocked(paymentService)
 const mockPayoutService = vi.mocked(payoutService)
 const mockPromotionsService = vi.mocked(promotionsService)
 const mockShippingService = vi.mocked(shippingService)
+const mockRecordAdminAudit = vi.mocked(recordAdminAudit)
 
 const USER_ID = 'user-0000-0000-0000-000000000001'
 const CART_ID = 'cart-0000-0000-0000-000000000002'
@@ -595,6 +600,24 @@ describe('checkout submit', () => {
     expect(mockEmitOrderCreatedNotificationEvent).toHaveBeenCalledWith({ orderId: ORDER_ID })
     expect(mockEmitSellerNewOrderNotificationEventsForOrder).toHaveBeenCalledWith({ orderId: ORDER_ID })
     expect(mockPayoutService.materializeSellerFinanceForOrderAction).toHaveBeenCalledWith(ORDER_ID)
+    expect(mockRecordAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: USER_ID,
+        actorEmail: 'buyer@example.com',
+        actorRole: 'BUYER',
+        domain: 'orders',
+        action: 'create',
+        targetType: 'order',
+        targetId: ORDER_ID,
+        metadata: expect.objectContaining({
+          paymentMethod: 'CASH_ON_DELIVERY',
+          totalAmount: '99.98',
+          currency: 'UAH',
+          itemCount: 2,
+          storeIds: [STORE_ID],
+        }),
+      }),
+    )
   })
 
   it('applies coupon discounts during checkout submit and persists promotion snapshot input', async () => {

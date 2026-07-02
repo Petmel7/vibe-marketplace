@@ -3,6 +3,7 @@ import Decimal from 'decimal.js'
 import { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
 import { requireAdmin } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import {
   emitPaymentFailedEmailEvent,
   emitPaymentSucceededEmailEvent,
@@ -480,6 +481,20 @@ export async function processPaymentWebhook(
       await applySuccessfulPayment({
         paymentId: payment.id,
         paidAt: new Date(),
+      })
+      await recordAdminAudit({
+        actorId: payment.order.userId,
+        actorRole: 'BUYER',
+        domain: 'payments',
+        action: 'succeeded',
+        targetType: 'payment',
+        targetId: payment.id,
+        metadata: {
+          orderId: payment.orderId,
+          provider: payment.provider,
+          amount: payment.amount.toString(),
+          currency: payment.currency,
+        },
       })
 
       void emitPaymentSucceededEmailEvent({ paymentId: payment.id }).catch((error) => {

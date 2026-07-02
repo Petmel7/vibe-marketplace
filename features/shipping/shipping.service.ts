@@ -6,6 +6,7 @@ import {
 } from '@/app/generated/prisma/client'
 import { getServerEnv } from '@/config/env'
 import Decimal from 'decimal.js'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
 import {
   assertStoreOwnership,
@@ -104,6 +105,10 @@ function runNonBlocking(label: string, task: Promise<unknown>) {
   void task.catch((error) => {
     logError(label, error)
   })
+}
+
+function resolveAuditActorRole(user: SessionUser) {
+  return user.roles[0] ?? null
 }
 
 function toStoreShippingSettingsDto(input: {
@@ -1120,6 +1125,21 @@ export async function createMyShipmentTtn(
     trackingNumber: providerResult.trackingNumber,
     providerShipmentId: providerResult.providerShipmentId,
     status: ShipmentStatus.LABEL_CREATED,
+  })
+  await recordAdminAudit({
+    actorId: user.id,
+    actorEmail: user.email ?? null,
+    actorRole: resolveAuditActorRole(user),
+    domain: 'shipping',
+    action: 'create-ttn',
+    targetType: 'shipment',
+    targetId: shipment.id,
+    metadata: {
+      orderId: shipment.orderId,
+      storeId: shipment.storeId,
+      provider: shipment.provider,
+      trackingNumber: updated.trackingNumber,
+    },
   })
 
   const notificationCopy = buildShipmentLifecycleNotificationCopy(updated, ShipmentStatus.LABEL_CREATED)

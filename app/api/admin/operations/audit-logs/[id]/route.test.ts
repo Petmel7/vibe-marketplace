@@ -27,6 +27,7 @@ describe('admin operations audit log detail route', () => {
       id: 'audit-1',
       actorId: 'admin-1',
       actorEmail: 'admin@example.com',
+      actorRole: 'ADMIN',
       domain: 'refunds',
       action: 'approve',
       resourceType: 'refund-request',

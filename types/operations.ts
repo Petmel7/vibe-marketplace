@@ -85,8 +85,9 @@ export type AdminOperationsRunDueResponse = {
 
 export type AdminAuditLog = {
   id: string
-  actorId: string
+  actorId: string | null
   actorEmail: string | null
+  actorRole: string | null
   domain: string
   action: string
   resourceType: string
@@ -100,6 +101,39 @@ export type AdminAuditLogListResponse = {
   page: number
   limit: number
   total: number
+}
+
+function formatAuditActorRole(actorRole: string | null) {
+  if (!actorRole) {
+    return 'User'
+  }
+
+  return actorRole
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function shortenActorId(actorId: string | null) {
+  if (!actorId) {
+    return null
+  }
+
+  return actorId.slice(0, 8)
+}
+
+export function getAdminAuditActorLabel(item: Pick<AdminAuditLog, 'actorEmail' | 'actorRole' | 'actorId'>) {
+  if (item.actorEmail) {
+    return item.actorEmail
+  }
+
+  if (item.actorId) {
+    return `${formatAuditActorRole(item.actorRole)} · ${shortenActorId(item.actorId)}`
+  }
+
+  return 'Unknown actor'
 }
 
 export type OperationsJobsFilters = {
@@ -242,4 +276,3 @@ export function getOperationsHealthTone(status: OperationsHealthSnapshot['deep']
       return 'danger' as const
   }
 }
-

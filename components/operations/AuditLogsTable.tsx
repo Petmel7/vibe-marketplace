@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import AuditLogDetailDrawer from '@/components/operations/AuditLogDetailDrawer'
-import type { AdminAuditLog } from '@/types/operations'
+import { getAdminAuditActorLabel, type AdminAuditLog } from '@/types/operations'
 
 function getMetadataPreview(metadata: AdminAuditLog['metadata']) {
   if (!metadata) {
@@ -37,8 +37,10 @@ export default function AuditLogsTable({ items }: { items: AdminAuditLog[] }) {
           {items.map((item) => (
             <tr key={item.id} className="border-t border-panelBorder align-top">
               <td className="px-5 py-4 text-copy-secondary">
-                <p className="font-medium text-copy-strong">{item.actorEmail ?? 'Unknown admin'}</p>
-                <p className="mt-1 break-all text-xs text-copy-muted">{item.actorId}</p>
+                <p className="font-medium text-copy-strong">{getAdminAuditActorLabel(item)}</p>
+                {item.actorId ? (
+                  <p className="mt-1 break-all text-xs text-copy-muted">{item.actorId}</p>
+                ) : null}
               </td>
               <td className="px-5 py-4 text-copy-secondary">
                 <p className="font-medium text-copy-strong">{item.action}</p>
@@ -64,4 +66,3 @@ export default function AuditLogsTable({ items }: { items: AdminAuditLog[] }) {
     </>
   )
 }
-

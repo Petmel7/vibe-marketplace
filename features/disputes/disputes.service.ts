@@ -4,6 +4,7 @@ import {
   UserRole,
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { createAdminNotification, notifyUser } from '@/features/notifications/notifications.service'
 import {
   recordDisputeLostRiskSignal,
@@ -104,6 +105,10 @@ function runNonBlocking(label: string, task: Promise<unknown>) {
   void task.catch((error) => {
     logError(label, error)
   })
+}
+
+function resolveAuditActorRole(user: SessionUser) {
+  return user.roles[0] ?? null
 }
 
 function resolvePersonName(person: {
@@ -568,6 +573,21 @@ export async function createDispute(
     priority: input.priority,
     description: input.description,
     status: DisputeStatus.OPEN,
+  })
+  await recordAdminAudit({
+    actorId: user.id,
+    actorEmail: user.email ?? null,
+    actorRole: resolveAuditActorRole(user),
+    domain: 'disputes',
+    action: 'create',
+    targetType: 'dispute',
+    targetId: created.id,
+    metadata: {
+      orderId: created.orderId,
+      storeId: created.storeId,
+      orderItemId: created.orderItemId,
+      reason: created.reason,
+    },
   })
 
   sendDisputeOpenedNotifications(created)

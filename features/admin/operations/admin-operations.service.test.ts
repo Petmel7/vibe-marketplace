@@ -143,6 +143,7 @@ describe('admin operations service', () => {
       id: 'audit-1',
       actorId: 'admin-1',
       actorEmail: 'admin@example.com',
+      actorRole: 'ADMIN',
       domain: 'refunds',
       action: 'approve',
       resourceType: 'refund-request',
@@ -176,6 +177,24 @@ describe('admin operations service', () => {
   })
 
   it('audits successful admin job cancellation without changing business result', async () => {
+    mockJobsService.getAdminJobById.mockResolvedValue({
+      id: 'job-1',
+      type: 'SEND_EMAIL',
+      payload: { emailEventId: 'event-1' },
+      status: 'PENDING',
+      attempts: 0,
+      maxAttempts: 5,
+      runAt: '2026-06-08T12:00:00.000Z',
+      lockedAt: null,
+      lockExpiresAt: null,
+      stale: false,
+      processedAt: null,
+      failedAt: null,
+      errorMessage: null,
+      dedupeKey: 'send-email:event-1',
+      createdAt: '2026-06-08T12:00:00.000Z',
+      updatedAt: '2026-06-08T12:00:00.000Z',
+    } as never)
     mockJobsService.cancelAdminJob.mockResolvedValue({
       id: 'job-1',
       type: 'SEND_EMAIL',
@@ -206,6 +225,71 @@ describe('admin operations service', () => {
         action: 'cancel',
         targetId: 'job-1',
         targetType: 'job',
+        metadata: expect.objectContaining({
+          previousStatus: 'PENDING',
+          jobType: 'SEND_EMAIL',
+          dedupeKey: 'send-email:event-1',
+        }),
+      }),
+    )
+  })
+
+  it('audits successful admin job retry with previous status metadata', async () => {
+    mockJobsService.getAdminJobById.mockResolvedValue({
+      id: 'job-1',
+      type: 'SEND_EMAIL',
+      payload: { emailEventId: 'event-1' },
+      status: 'FAILED',
+      attempts: 1,
+      maxAttempts: 5,
+      runAt: '2026-06-08T12:00:00.000Z',
+      lockedAt: null,
+      lockExpiresAt: null,
+      stale: false,
+      processedAt: null,
+      failedAt: '2026-06-08T12:05:00.000Z',
+      errorMessage: 'boom',
+      dedupeKey: 'send-email:event-1',
+      createdAt: '2026-06-08T12:00:00.000Z',
+      updatedAt: '2026-06-08T12:05:00.000Z',
+    } as never)
+    mockJobsService.retryAdminJob.mockResolvedValue({
+      job: {
+        id: 'job-1',
+        type: 'SEND_EMAIL',
+        payload: { emailEventId: 'event-1' },
+        status: 'PENDING',
+        attempts: 2,
+        maxAttempts: 5,
+        runAt: '2026-06-08T12:10:00.000Z',
+        lockedAt: null,
+        lockExpiresAt: null,
+        stale: false,
+        processedAt: null,
+        failedAt: null,
+        errorMessage: null,
+        dedupeKey: 'send-email:event-1',
+        createdAt: '2026-06-08T12:00:00.000Z',
+        updatedAt: '2026-06-08T12:10:00.000Z',
+      },
+      triggered: true,
+    } as never)
+
+    const result = await retryAdminOperationsJob(adminUser as never, 'job-1')
+
+    expect(result.job.status).toBe('PENDING')
+    expect(mockAdminAudit.recordAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: 'admin-1',
+        actorRole: 'ADMIN',
+        domain: 'jobs',
+        action: 'retry',
+        targetId: 'job-1',
+        metadata: expect.objectContaining({
+          previousStatus: 'FAILED',
+          jobType: 'SEND_EMAIL',
+          dedupeKey: 'send-email:event-1',
+        }),
       }),
     )
   })

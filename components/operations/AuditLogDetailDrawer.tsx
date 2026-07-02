@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import type { AdminAuditLog } from '@/types/operations'
+import { getAdminAuditActorLabel, type AdminAuditLog } from '@/types/operations'
 
 export default function AuditLogDetailDrawer({
   item,
@@ -38,7 +38,7 @@ export default function AuditLogDetailDrawer({
         <dl className="mt-6 grid gap-4 rounded-3xl border border-panelBorder bg-panel p-5 sm:grid-cols-2">
           <div>
             <dt className="text-xs uppercase tracking-[0.2em] text-copy-muted">Actor</dt>
-            <dd className="mt-1 text-sm text-copy-strong">{item.actorEmail ?? item.actorId}</dd>
+            <dd className="mt-1 text-sm text-copy-strong">{getAdminAuditActorLabel(item)}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-[0.2em] text-copy-muted">Resource id</dt>
@@ -56,4 +56,3 @@ export default function AuditLogDetailDrawer({
     </div>
   )
 }
-

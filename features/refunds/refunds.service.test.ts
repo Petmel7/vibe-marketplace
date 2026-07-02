@@ -34,6 +34,9 @@ vi.mock('@/lib/auth/guards', () => ({
   requireSeller: vi.fn(),
 }))
 vi.mock('@/utils/logger', () => ({ logError: vi.fn() }))
+vi.mock('@/features/admin/audit/admin-audit', () => ({
+  recordAdminAudit: vi.fn(),
+}))
 
 import * as refundRepository from './refunds.repository'
 import * as refundEmailEvents from '@/features/email/events/email.events'
@@ -41,6 +44,7 @@ import * as notificationsService from '@/features/notifications/notifications.se
 import * as paymentRepository from '@/features/payments/payment.repository'
 import * as payoutRepository from '@/features/payouts/payouts.repository'
 import * as riskService from '@/features/risk/risk.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import {
   approveAdminRefundRequest,
   createRefundRequest,
@@ -55,6 +59,7 @@ const mockNotificationsService = vi.mocked(notificationsService)
 const mockPaymentRepository = vi.mocked(paymentRepository)
 const mockPayoutRepository = vi.mocked(payoutRepository)
 const mockRiskService = vi.mocked(riskService)
+const mockRecordAdminAudit = vi.mocked(recordAdminAudit)
 
 const buyerUser: SessionUser = {
   id: 'buyer-1',
@@ -356,6 +361,22 @@ describe('refunds.service', () => {
     expect(mockRefundEmailEvents.emitRefundRequestedEmailEvents).toHaveBeenCalledWith({
       refundRequestId: 'refund-request-1',
     })
+    expect(mockRecordAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: buyerUser.id,
+        actorEmail: buyerUser.email,
+        actorRole: UserRole.BUYER,
+        domain: 'refunds',
+        action: 'request',
+        targetType: 'refund-request',
+        targetId: 'refund-request-1',
+        metadata: {
+          orderId: 'order-1',
+          amount: '90.00',
+          reason: RefundRequestReason.ITEM_NOT_AS_DESCRIBED,
+        },
+      }),
+    )
     expect(result.status).toBe(RefundRequestStatus.REQUESTED)
   })
 

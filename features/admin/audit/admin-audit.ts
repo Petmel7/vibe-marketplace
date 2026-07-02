@@ -9,6 +9,9 @@ import {
 } from './admin-audit.repository'
 
 export type AdminAuditDomain =
+  | 'orders'
+  | 'payments'
+  | 'shipping'
   | 'moderation'
   | 'payouts'
   | 'refunds'

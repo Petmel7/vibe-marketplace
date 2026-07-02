@@ -17,6 +17,7 @@ import {
   emitRefundRequestedEmailEvents,
   emitRefundSucceededEmailEvents,
 } from '@/features/email/events/email.events'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { createAdminNotification, notifyUser } from '@/features/notifications/notifications.service'
 import { applyRefundOutcome } from '@/features/payments/payment.repository'
 import {
@@ -128,6 +129,10 @@ function runNonBlocking(label: string, task: Promise<unknown>) {
   void task.catch((error) => {
     logError(label, error)
   })
+}
+
+function resolveAuditActorRole(user: SessionUser) {
+  return user.roles[0] ?? null
 }
 
 function assertBuyerScope(user: SessionUser) {
@@ -665,6 +670,20 @@ export async function createRefundRequest(
     amount: refundAmount,
     currency: context.payment!.currency,
     description: input.description ?? null,
+  })
+  await recordAdminAudit({
+    actorId: user.id,
+    actorEmail: user.email ?? null,
+    actorRole: resolveAuditActorRole(user),
+    domain: 'refunds',
+    action: 'request',
+    targetType: 'refund-request',
+    targetId: created.id,
+    metadata: {
+      orderId: created.orderId,
+      amount: created.amount.toString(),
+      reason: created.reason,
+    },
   })
 
   notifyAdminsAboutRefundRequest(created)

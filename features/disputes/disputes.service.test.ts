@@ -12,6 +12,7 @@ import {
 } from '@/lib/errors/dispute'
 import * as notificationsService from '@/features/notifications/notifications.service'
 import * as riskService from '@/features/risk/risk.service'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import * as disputeRepository from './disputes.repository'
 import * as disputeStorageRepository from './disputes.storage.repository'
 import {
@@ -29,11 +30,15 @@ vi.mock('./disputes.storage.repository')
 vi.mock('@/features/notifications/notifications.service')
 vi.mock('@/features/risk/risk.service')
 vi.mock('@/utils/logger', () => ({ logError: vi.fn() }))
+vi.mock('@/features/admin/audit/admin-audit', () => ({
+  recordAdminAudit: vi.fn(),
+}))
 
 const mockRepository = vi.mocked(disputeRepository)
 const mockStorage = vi.mocked(disputeStorageRepository)
 const mockNotifications = vi.mocked(notificationsService)
 const mockRiskService = vi.mocked(riskService)
+const mockRecordAdminAudit = vi.mocked(recordAdminAudit)
 
 const buyerUser: SessionUser = {
   id: 'buyer-1',
@@ -243,6 +248,23 @@ describe('disputes.service', () => {
         orderId: 'order-1',
         respondentId: sellerUser.id,
         storeId: 'store-1',
+      }),
+    )
+    expect(mockRecordAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: buyerUser.id,
+        actorEmail: buyerUser.email,
+        actorRole: UserRole.BUYER,
+        domain: 'disputes',
+        action: 'create',
+        targetType: 'dispute',
+        targetId: 'dispute-1',
+        metadata: {
+          orderId: 'order-1',
+          storeId: 'store-1',
+          orderItemId: 'order-item-1',
+          reason: DisputeReason.ITEM_NOT_AS_DESCRIBED,
+        },
       }),
     )
     expect(result.id).toBe('dispute-1')

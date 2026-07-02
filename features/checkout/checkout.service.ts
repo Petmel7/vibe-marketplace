@@ -50,6 +50,7 @@ import {
   emitOrderCreatedNotificationEvent,
   emitSellerNewOrderNotificationEventsForOrder,
 } from '@/features/notifications/events/notification.events'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import { logError } from '@/utils/logger'
 import {
   buildCheckoutDeliverySelectionDto,
@@ -199,6 +200,10 @@ function sumItemCount(items: PreparedCheckoutItem[]): number {
 
 function sumSubtotal(items: PreparedCheckoutItem[]): Decimal {
   return items.reduce((sum, item) => sum.plus(item.lineTotal), new Decimal(0))
+}
+
+function resolveAuditActorRole(user: SessionUser) {
+  return user.roles[0] ?? 'BUYER'
 }
 
 async function resolveCheckoutPricing(input: {
@@ -570,6 +575,25 @@ export async function checkout(
         providerPaymentId: preparedPayment.providerPaymentId,
         checkoutAction: preparedPayment.checkoutAction,
       },
+    },
+  })
+
+  await recordAdminAudit({
+    actorId: user.id,
+    actorEmail: user.email ?? null,
+    actorRole: resolveAuditActorRole(user),
+    domain: 'orders',
+    action: 'create',
+    targetType: 'order',
+    targetId: order.id,
+    metadata: {
+      orderId: order.id,
+      orderShortId: order.id.slice(0, 8),
+      paymentMethod: payment.method,
+      totalAmount: pricing.total.toFixed(2),
+      currency: payment.currency,
+      itemCount: sumItemCount(preparedItems),
+      storeIds: [...new Set(preparedItems.map((item) => item.storeId))],
     },
   })
 

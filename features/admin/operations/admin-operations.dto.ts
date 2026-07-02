@@ -65,6 +65,7 @@ export type AdminAuditLogDto = {
   id: string
   actorId: string | null
   actorEmail: string | null
+  actorRole: string | null
   domain: string
   action: string
   resourceType: string

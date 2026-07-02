@@ -28,6 +28,9 @@ vi.mock('@/config/env', () => ({
 vi.mock('@/features/shipping/providers/nova-poshta.provider', () => ({
   getNovaPoshtaProvider: vi.fn(),
 }))
+vi.mock('@/features/admin/audit/admin-audit', () => ({
+  recordAdminAudit: vi.fn(),
+}))
 
 import { getServerEnv } from '@/config/env'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
@@ -49,6 +52,7 @@ import {
   upsertStoreShippingSettings,
 } from '@/features/shipping/shipping.repository'
 import { getNovaPoshtaProvider } from '@/features/shipping/providers/nova-poshta.provider'
+import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
 import {
   buildShipmentDrafts,
   bulkCreateMyShipmentTtns,
@@ -93,6 +97,7 @@ const mockUpdateShipmentById = vi.mocked(updateShipmentById)
 const mockGetNovaPoshtaProvider = vi.mocked(getNovaPoshtaProvider)
 const mockGetServerEnv = vi.mocked(getServerEnv)
 const mockCreateOrderNotification = vi.mocked(createOrderNotification)
+const mockRecordAdminAudit = vi.mocked(recordAdminAudit)
 
 const user: SessionUser = {
   id: 'user-1',
@@ -534,6 +539,23 @@ describe('shipping service', () => {
       providerShipmentId: 'provider-shipment-1',
       status: 'LABEL_CREATED',
     })
+    expect(mockRecordAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: 'user-1',
+        actorEmail: 'seller@example.com',
+        actorRole: 'SELLER',
+        domain: 'shipping',
+        action: 'create-ttn',
+        targetType: 'shipment',
+        targetId: 'shipment-1',
+        metadata: {
+          orderId: 'order-1',
+          storeId: 'store-1',
+          provider: 'NOVA_POSHTA',
+          trackingNumber: '20451234567890',
+        },
+      }),
+    )
     expect(result.trackingNumber).toBe('20451234567890')
     expect(mockCreateOrderNotification).toHaveBeenCalled()
   })

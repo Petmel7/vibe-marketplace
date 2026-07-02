@@ -7,6 +7,7 @@ import OperationsShell from '@/components/operations/OperationsShell'
 import ProviderStatusBadge from '@/components/operations/ProviderStatusBadge'
 import { getAdminOperationsOverviewPageData } from '@/app/(protected)/admin/_lib/admin-operations.data'
 import { getCurrentUser } from '@/lib/session/getSession'
+import { getAdminAuditActorLabel } from '@/types/operations'
 
 export default async function AdminOperationsOverviewPage() {
   const user = await getCurrentUser()
@@ -87,7 +88,7 @@ export default async function AdminOperationsOverviewPage() {
                 <tbody>
                   {data.recentAuditLogs.items.map((item) => (
                     <tr key={item.id} className="border-t border-panelBorder align-top">
-                      <td className="px-5 py-4 text-copy-secondary">{item.actorEmail ?? item.actorId}</td>
+                      <td className="px-5 py-4 text-copy-secondary">{getAdminAuditActorLabel(item)}</td>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-copy-strong">{item.action}</p>
                         <p className="mt-1 text-xs text-copy-muted">{item.domain}</p>

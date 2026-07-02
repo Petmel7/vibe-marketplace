@@ -83,6 +83,7 @@ function toAuditLogDto(record: AdminAuditLogRecord): AdminAuditLogDto {
     id: record.id,
     actorId: record.actorId,
     actorEmail: record.actorEmail,
+    actorRole: record.actorRole,
     domain: record.domain,
     action: record.action,
     resourceType: record.resourceType,
@@ -145,11 +146,14 @@ export async function retryAdminOperationsJob(
   assertOperationsAdmin(user)
 
   try {
+    const previousJob = await getAdminJobById(user, jobId)
     const result = await retryAdminJob(user, jobId)
     await auditAdminJobAction(user, 'retry', 'job', jobId, {
+      previousStatus: previousJob.status,
       jobType: result.job.type,
       status: result.job.status,
       attempts: result.job.attempts,
+      dedupeKey: result.job.dedupeKey,
     })
     return result
   } catch (error) {
@@ -167,11 +171,14 @@ export async function cancelAdminOperationsJob(
   assertOperationsAdmin(user)
 
   try {
+    const previousJob = await getAdminJobById(user, jobId)
     const job = await cancelAdminJob(user, jobId)
     await auditAdminJobAction(user, 'cancel', 'job', jobId, {
+      previousStatus: previousJob.status,
       jobType: job.type,
       status: job.status,
       attempts: job.attempts,
+      dedupeKey: job.dedupeKey,
     })
     return toOperationsJobDto(job)
   } catch (error) {
@@ -189,11 +196,14 @@ export async function requeueStaleAdminOperationsJob(
   assertOperationsAdmin(user)
 
   try {
+    const previousJob = await getAdminJobById(user, jobId)
     const job = await requeueStaleAdminJob(user, jobId)
-    await auditAdminJobAction(user, 'requeue-stale', 'job', jobId, {
+    await auditAdminJobAction(user, 'requeue', 'job', jobId, {
+      previousStatus: previousJob.status,
       jobType: job.type,
       status: job.status,
       attempts: job.attempts,
+      dedupeKey: job.dedupeKey,
     })
     return toOperationsJobDto(job)
   } catch (error) {
