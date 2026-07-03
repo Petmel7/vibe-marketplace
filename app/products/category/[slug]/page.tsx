@@ -60,6 +60,8 @@ export default async function CategoryProductsPage({
   try {
     data = await getSearchPageData(resolvedSearchParams, {
       category: category.slug,
+    }, {
+      preloadedFlatCategories: categories,
     })
   } catch {
     return (

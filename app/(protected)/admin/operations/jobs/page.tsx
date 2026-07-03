@@ -19,7 +19,7 @@ export default async function AdminOperationsJobsPage({
   const user = await getCurrentUser()
   if (!user) return null
 
-  const data = await getAdminOperationsJobsPageData(await searchParams)
+  const data = await getAdminOperationsJobsPageData(user, await searchParams)
 
   return (
     <AdminSection

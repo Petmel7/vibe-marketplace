@@ -17,7 +17,7 @@ export default async function AdminOperationsAuditLogsPage({
   const user = await getCurrentUser()
   if (!user) return null
 
-  const data = await getAdminOperationsAuditLogsPageData(await searchParams)
+  const data = await getAdminOperationsAuditLogsPageData(user, await searchParams)
 
   return (
     <AdminSection

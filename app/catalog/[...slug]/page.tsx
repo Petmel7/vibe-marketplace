@@ -62,6 +62,8 @@ export default async function CatalogCategoryPage({
   try {
     data = await getSearchPageData(resolvedSearchParams, {
       category: category.slug,
+    }, {
+      preloadedCategoryTree: categories,
     })
   } catch {
     return (

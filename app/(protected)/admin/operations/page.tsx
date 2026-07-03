@@ -13,7 +13,7 @@ export default async function AdminOperationsOverviewPage() {
   const user = await getCurrentUser()
   if (!user) return null
 
-  const data = await getAdminOperationsOverviewPageData()
+  const data = await getAdminOperationsOverviewPageData(user)
 
   const healthTone =
     !data.health ? 'Unhealthy' : data.health.deep.status === 'ok' ? 'Healthy' : 'Degraded'

@@ -12,6 +12,7 @@ import type {
   CategoryListItem,
   CategoryTreeNode,
 } from '@/components/category/category.data'
+import { measureServerOperation } from '@/lib/observability/server-timing'
 import type { SearchPageUrlState } from '@/types/search'
 
 export type SearchPageSearchParams = Record<
@@ -24,6 +25,11 @@ export interface SearchPageData {
   categoryTree: CategoryTreeNode[]
   flatCategories: CategoryListItem[]
   state: SearchPageUrlState
+}
+
+type SearchPageDataOptions = {
+  preloadedCategoryTree?: CategoryTreeNode[]
+  preloadedFlatCategories?: CategoryListItem[]
 }
 
 const DEFAULT_LIMIT = 12
@@ -132,24 +138,60 @@ async function fetchSearchResults(
     limit: state.limit,
   })
 
-  return searchProducts(query)
+  return measureServerOperation(
+    'search-page-products',
+    {
+      route: '/catalog',
+      service: 'searchProducts',
+    },
+    () => searchProducts(query),
+  )
 }
 
 export async function getSearchPageData(
   searchParams: SearchPageSearchParams,
   overrides: Partial<SearchPageUrlState> = {},
+  options: SearchPageDataOptions = {},
 ): Promise<SearchPageData> {
   const state = normalizeSearchPageState(searchParams, overrides)
-  const [results, categoryTree, flatCategories] = await Promise.all([
-    fetchSearchResults(state),
-    fetchCategoryTree(),
-    fetchCategories(),
-  ])
 
-  return {
-    results,
-    categoryTree,
-    flatCategories,
-    state,
-  }
+  return measureServerOperation(
+    'search-page-data',
+    {
+      route: '/catalog',
+      component: 'app/search/_lib/search-page.data',
+    },
+    async () => {
+      const [results, categoryTree, flatCategories] = await Promise.all([
+        fetchSearchResults(state),
+        options.preloadedCategoryTree
+          ? Promise.resolve(options.preloadedCategoryTree)
+          : measureServerOperation(
+              'search-page-category-tree',
+              {
+                route: '/catalog',
+                categoryTree: 'fetchCategoryTree',
+              },
+              () => fetchCategoryTree(),
+            ),
+        options.preloadedFlatCategories
+          ? Promise.resolve(options.preloadedFlatCategories)
+          : measureServerOperation(
+              'search-page-flat-categories',
+              {
+                route: '/catalog',
+                categoryTree: 'fetchCategories',
+              },
+              () => fetchCategories(),
+            ),
+      ])
+
+      return {
+        results,
+        categoryTree,
+        flatCategories,
+        state,
+      }
+    },
+  )
 }

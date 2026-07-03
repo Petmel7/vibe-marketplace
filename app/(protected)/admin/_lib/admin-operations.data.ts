@@ -1,13 +1,18 @@
-import { headers } from 'next/headers'
-import { API_ROUTES } from '@/lib/constants/apiRoutes'
+import type { SessionUser } from '@/features/auth/auth.dto'
+import type {
+  AdminAuditLogQueryDto,
+  AdminOperationsJobQueryDto,
+} from '@/features/admin/operations/admin-operations.dto'
 import {
-  buildOperationsAuditSearchParams,
-  buildOperationsJobsSearchParams,
+  getAdminOperationsAuditLogs,
+  getAdminOperationsJobs,
+} from '@/features/admin/operations/admin-operations.service'
+import { getDeepHealthStatus, getHealthStatus } from '@/features/health/health.service'
+import { measureServerOperation } from '@/lib/observability/server-timing'
+import {
   normalizeOperationsAuditFilters,
   normalizeOperationsJobsFilters,
   type AdminAuditLog,
-  type AdminAuditLogListResponse,
-  type AdminOperationsJobListResponse,
   type DeepHealthStatus,
   type HealthStatus,
   type OperationsAuditFilters,
@@ -17,51 +22,24 @@ import {
 
 type RawSearchParams = Record<string, string | string[] | undefined>
 
-type ApiSuccess<T> = { success: true; data: T }
-type ApiFailure = { success: false; error?: { message?: string } }
-
-async function getRequestOrigin() {
-  const headerStore = await headers()
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host')
-
-  if (!host) {
-    return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  }
-
-  const protocol =
-    headerStore.get('x-forwarded-proto') ??
-    (host.includes('localhost') ? 'http' : 'https')
-
-  return `${protocol}://${host}`
-}
-
-async function fetchApiData<T>(path: string, message: string): Promise<T> {
-  const headerStore = await headers()
-  const origin = await getRequestOrigin()
-  const response = await fetch(`${origin}${path}`, {
-    cache: 'no-store',
-    headers: headerStore.get('cookie')
-      ? {
-          cookie: headerStore.get('cookie')!,
-        }
-      : undefined,
-  })
-
-  const payload = (await response.json()) as ApiSuccess<T> | ApiFailure
-
-  if (!response.ok || !payload.success) {
-    throw new Error(
-      payload.success === false ? payload.error?.message ?? message : message,
-    )
-  }
-
-  return payload.data
-}
-
 async function fetchHealthSnapshot(): Promise<OperationsHealthSnapshot> {
   const [basic, deep] = await Promise.all([
-    fetchApiData<HealthStatus>(API_ROUTES.health, 'Не вдалося отримати базовий health status.'),
-    fetchApiData<DeepHealthStatus>(API_ROUTES.healthDeep, 'Не вдалося отримати розширений health status.'),
+    measureServerOperation(
+      'admin-operations-health-basic',
+      {
+        route: '/admin/operations',
+        service: 'getHealthStatus',
+      },
+      () => getHealthStatus() as Promise<HealthStatus>,
+    ),
+    measureServerOperation(
+      'admin-operations-health-deep',
+      {
+        route: '/admin/operations',
+        service: 'getDeepHealthStatus',
+      },
+      () => getDeepHealthStatus() as Promise<DeepHealthStatus>,
+    ),
   ])
 
   return {
@@ -71,69 +49,113 @@ async function fetchHealthSnapshot(): Promise<OperationsHealthSnapshot> {
   }
 }
 
-async function fetchJobs(filters: OperationsJobsFilters) {
-  const params = buildOperationsJobsSearchParams(filters)
-  const path = `${API_ROUTES.adminOperationsJobs}${params.size > 0 ? `?${params.toString()}` : ''}`
+function toJobQueryDto(filters: OperationsJobsFilters): AdminOperationsJobQueryDto {
+  return {
+    page: filters.page,
+    limit: filters.limit,
+    status: filters.status
+      ? (filters.status as AdminOperationsJobQueryDto['status'])
+      : undefined,
+    type: filters.type
+      ? (filters.type as AdminOperationsJobQueryDto['type'])
+      : undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
+  }
+}
 
-  return fetchApiData<AdminOperationsJobListResponse>(
-    path,
-    'Не вдалося завантажити jobs diagnostics.',
+function toAuditLogQueryDto(
+  filters: OperationsAuditFilters,
+): AdminAuditLogQueryDto {
+  return {
+    page: filters.page,
+    limit: filters.limit,
+    actorId: filters.actorId || undefined,
+    domain: filters.domain || undefined,
+    action: filters.action || undefined,
+    resourceType: filters.resourceType || undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
+  }
+}
+
+async function fetchJobs(user: SessionUser, filters: OperationsJobsFilters) {
+  return measureServerOperation(
+    'admin-operations-jobs-list',
+    {
+      route: '/admin/operations/jobs',
+      service: 'getAdminOperationsJobs',
+    },
+    () => getAdminOperationsJobs(user, toJobQueryDto(filters)),
   )
 }
 
-async function fetchAuditLogs(filters: OperationsAuditFilters) {
-  const params = buildOperationsAuditSearchParams(filters)
-  const path = `${API_ROUTES.adminOperationsAuditLogs}${params.size > 0 ? `?${params.toString()}` : ''}`
-
-  return fetchApiData<AdminAuditLogListResponse>(
-    path,
-    'Не вдалося завантажити audit logs.',
+async function fetchAuditLogs(user: SessionUser, filters: OperationsAuditFilters) {
+  return measureServerOperation(
+    'admin-operations-audit-logs-list',
+    {
+      route: '/admin/operations/audit-logs',
+      service: 'getAdminOperationsAuditLogs',
+    },
+    () => getAdminOperationsAuditLogs(user, toAuditLogQueryDto(filters)),
   )
 }
 
-export async function getAdminOperationsOverviewPageData() {
-  const [healthResult, failedJobsResult, pendingJobsResult, auditResult] = await Promise.allSettled([
-    fetchHealthSnapshot(),
-    fetchJobs({
-      page: 1,
-      limit: 5,
-      status: 'FAILED',
-      type: '',
-      dateFrom: '',
-      dateTo: '',
-    }),
-    fetchJobs({
-      page: 1,
-      limit: 5,
-      status: 'PENDING',
-      type: '',
-      dateFrom: '',
-      dateTo: '',
-    }),
-    fetchAuditLogs({
-      page: 1,
-      limit: 5,
-      actorId: '',
-      domain: '',
-      action: '',
-      resourceType: '',
-      dateFrom: '',
-      dateTo: '',
-    }),
-  ])
+export async function getAdminOperationsOverviewPageData(user: SessionUser) {
+  const [healthResult, failedJobsResult, pendingJobsResult, auditResult] =
+    await Promise.allSettled([
+      fetchHealthSnapshot(),
+      fetchJobs(user, {
+        page: 1,
+        limit: 5,
+        status: 'FAILED',
+        type: '',
+        dateFrom: '',
+        dateTo: '',
+      }),
+      fetchJobs(user, {
+        page: 1,
+        limit: 5,
+        status: 'PENDING',
+        type: '',
+        dateFrom: '',
+        dateTo: '',
+      }),
+      fetchAuditLogs(user, {
+        page: 1,
+        limit: 5,
+        actorId: '',
+        domain: '',
+        action: '',
+        resourceType: '',
+        dateFrom: '',
+        dateTo: '',
+      }),
+    ])
 
   const health = healthResult.status === 'fulfilled' ? healthResult.value : null
-  const failedJobs = failedJobsResult.status === 'fulfilled' ? failedJobsResult.value : null
-  const pendingJobs = pendingJobsResult.status === 'fulfilled' ? pendingJobsResult.value : null
-  const recentAuditLogs = auditResult.status === 'fulfilled' ? auditResult.value : null
+  const failedJobs =
+    failedJobsResult.status === 'fulfilled' ? failedJobsResult.value : null
+  const pendingJobs =
+    pendingJobsResult.status === 'fulfilled' ? pendingJobsResult.value : null
+  const recentAuditLogs =
+    auditResult.status === 'fulfilled' ? auditResult.value : null
 
   const providerIssues = health
     ? [
         !health.deep.database.ok ? 'Database connectivity is degraded.' : null,
-        !health.deep.env.ok ? 'Environment validation is reporting issues.' : null,
-        !health.deep.providers.resendConfigured ? 'Resend is not configured.' : null,
-        !health.deep.providers.liqpayConfigured ? 'LiqPay is not configured.' : null,
-        !health.deep.providers.novaPoshtaConfigured ? 'Nova Poshta is not configured.' : null,
+        !health.deep.env.ok
+          ? 'Environment validation is reporting issues.'
+          : null,
+        !health.deep.providers.resendConfigured
+          ? 'Resend is not configured.'
+          : null,
+        !health.deep.providers.liqpayConfigured
+          ? 'LiqPay is not configured.'
+          : null,
+        !health.deep.providers.novaPoshtaConfigured
+          ? 'Nova Poshta is not configured.'
+          : null,
       ].filter((issue): issue is string => Boolean(issue))
     : []
 
@@ -143,7 +165,8 @@ export async function getAdminOperationsOverviewPageData() {
     failedJobs,
     pendingJobs,
     jobsError:
-      failedJobsResult.status === 'rejected' || pendingJobsResult.status === 'rejected'
+      failedJobsResult.status === 'rejected' ||
+      pendingJobsResult.status === 'rejected'
         ? failedJobsResult.status === 'rejected'
           ? failedJobsResult.reason
           : pendingJobsResult.status === 'rejected'
@@ -167,16 +190,22 @@ export async function getAdminOperationsHealthPageData() {
     return {
       status: 'error' as const,
       snapshot: null,
-      errorMessage: error instanceof Error ? error.message : 'Не вдалося завантажити health diagnostics.',
+      errorMessage:
+        error instanceof Error
+          ? error.message
+          : 'Не вдалося завантажити health diagnostics.',
     }
   }
 }
 
-export async function getAdminOperationsJobsPageData(searchParams: RawSearchParams) {
+export async function getAdminOperationsJobsPageData(
+  user: SessionUser,
+  searchParams: RawSearchParams,
+) {
   const filters = normalizeOperationsJobsFilters(searchParams)
 
   try {
-    const jobs = await fetchJobs(filters)
+    const jobs = await fetchJobs(user, filters)
 
     return {
       status: 'ready' as const,
@@ -189,16 +218,20 @@ export async function getAdminOperationsJobsPageData(searchParams: RawSearchPara
       status: 'error' as const,
       filters,
       jobs: null,
-      errorMessage: error instanceof Error ? error.message : 'Не вдалося завантажити jobs.',
+      errorMessage:
+        error instanceof Error ? error.message : 'Не вдалося завантажити jobs.',
     }
   }
 }
 
-export async function getAdminOperationsAuditLogsPageData(searchParams: RawSearchParams) {
+export async function getAdminOperationsAuditLogsPageData(
+  user: SessionUser,
+  searchParams: RawSearchParams,
+) {
   const filters = normalizeOperationsAuditFilters(searchParams)
 
   try {
-    const auditLogs = await fetchAuditLogs(filters)
+    const auditLogs = await fetchAuditLogs(user, filters)
 
     return {
       status: 'ready' as const,
@@ -211,7 +244,10 @@ export async function getAdminOperationsAuditLogsPageData(searchParams: RawSearc
       status: 'error' as const,
       filters,
       auditLogs: null,
-      errorMessage: error instanceof Error ? error.message : 'Не вдалося завантажити audit logs.',
+      errorMessage:
+        error instanceof Error
+          ? error.message
+          : 'Не вдалося завантажити audit logs.',
     }
   }
 }
@@ -226,16 +262,19 @@ export function getAuditMetadataPreview(metadata: AdminAuditLog['metadata']) {
     return 'Empty metadata'
   }
 
-  return keys.slice(0, 3).map((key) => {
-    const value = metadata[key]
-    if (typeof value === 'string') {
-      return `${key}: ${value}`
-    }
+  return keys
+    .slice(0, 3)
+    .map((key) => {
+      const value = metadata[key]
+      if (typeof value === 'string') {
+        return `${key}: ${value}`
+      }
 
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return `${key}: ${String(value)}`
-    }
+      if (typeof value === 'number' || typeof value === 'boolean') {
+        return `${key}: ${String(value)}`
+      }
 
-    return `${key}: [structured]`
-  }).join(' · ')
+      return `${key}: [structured]`
+    })
+    .join(' · ')
 }
