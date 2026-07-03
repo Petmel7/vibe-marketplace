@@ -14,6 +14,7 @@ import {
 } from './product.service'
 import * as repository from './product.repository'
 import * as productBadgeService from './product-badge.service'
+import * as categoryCache from '@/features/categories/category.cache'
 import * as promotionsService from '@/features/promotions/promotions.service'
 
 vi.mock('next/cache', () => ({
@@ -25,9 +26,11 @@ vi.mock('./product.repository', () => ({
   findProductCards: vi.fn(),
   findProductCardsPage: vi.fn(),
   findCategoryBySlug: vi.fn(),
-  findCategoriesByParentIds: vi.fn(),
   findProductById: vi.fn(),
   searchProducts: vi.fn(),
+}))
+vi.mock('@/features/categories/category.cache', () => ({
+  getActiveCategoryTraversalNodesCached: vi.fn(),
 }))
 vi.mock('./product-badge.service', () => ({
   resolveMarketplaceBadgesForProducts: vi.fn(),
@@ -38,6 +41,7 @@ vi.mock('@/features/promotions/promotions.service', () => ({
 
 const mockedRepository = vi.mocked(repository)
 const mockedBadgeService = vi.mocked(productBadgeService)
+const mockedCategoryCache = vi.mocked(categoryCache)
 const mockedPromotionsService = vi.mocked(promotionsService)
 
 function makeProduct(overrides: Partial<Record<string, unknown>> = {}): Product {
@@ -117,6 +121,7 @@ function makeDetailProduct(
 describe('searchProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([])
     mockedBadgeService.resolveMarketplaceBadgesForProducts.mockImplementation(async (products) =>
       new Map(
         products.map((product) => [
@@ -184,9 +189,10 @@ describe('searchProducts', () => {
 
   it('passes filters and relevance sort to the repository', async () => {
     mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
-    mockedRepository.findCategoriesByParentIds
-      .mockResolvedValueOnce([{ id: 'cat-child', parentId: 'cat-root' }])
-      .mockResolvedValueOnce([])
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([
+      { id: 'cat-root', parentId: null, slug: 'clothing-shoes', isActive: true },
+      { id: 'cat-child', parentId: 'cat-root', slug: 'hoodies', isActive: true },
+    ])
     vi.mocked(repository.searchProducts).mockResolvedValue({
       items: [],
       total: 0,
@@ -262,6 +268,7 @@ describe('searchProducts', () => {
 describe('listProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([])
   })
 
   it('returns mapped catalog products with requested pagination fields', async () => {
@@ -389,13 +396,12 @@ describe('listProducts', () => {
 
   it('resolves descendant categories before querying products', async () => {
     mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
-    mockedRepository.findCategoriesByParentIds
-      .mockResolvedValueOnce([
-        { id: 'cat-parent', parentId: 'cat-root' },
-        { id: 'cat-leaf-a', parentId: 'cat-root' },
-      ])
-      .mockResolvedValueOnce([{ id: 'cat-leaf-b', parentId: 'cat-parent' }])
-      .mockResolvedValueOnce([])
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([
+      { id: 'cat-root', parentId: null, slug: 'clothing-shoes', isActive: true },
+      { id: 'cat-parent', parentId: 'cat-root', slug: 'tops', isActive: true },
+      { id: 'cat-leaf-a', parentId: 'cat-root', slug: 'shirts', isActive: true },
+      { id: 'cat-leaf-b', parentId: 'cat-parent', slug: 'hoodies', isActive: true },
+    ])
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
 
     await listProducts({
@@ -409,9 +415,7 @@ describe('listProducts', () => {
     })
 
     expect(mockedRepository.findCategoryBySlug).toHaveBeenCalledWith('clothing-shoes')
-    expect(mockedRepository.findCategoriesByParentIds).toHaveBeenNthCalledWith(1, ['cat-root'])
-    expect(mockedRepository.findCategoriesByParentIds).toHaveBeenNthCalledWith(2, ['cat-parent', 'cat-leaf-a'])
-    expect(mockedRepository.findCategoriesByParentIds).toHaveBeenNthCalledWith(3, ['cat-leaf-b'])
+    expect(mockedCategoryCache.getActiveCategoryTraversalNodesCached).toHaveBeenCalledTimes(1)
     expect(mockedRepository.findProducts).toHaveBeenCalledWith({
       where: {
         isActive: true,
@@ -467,6 +471,59 @@ describe('listProducts', () => {
     })
   })
 
+  it('does not hang on cyclic category trees and skips already visited nodes', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: 'cat-loop' })
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([
+      { id: 'cat-root', parentId: 'cat-loop', slug: 'root', isActive: true },
+      { id: 'cat-child', parentId: 'cat-root', slug: 'child', isActive: true },
+      { id: 'cat-loop', parentId: 'cat-child', slug: 'loop', isActive: true },
+    ])
+    mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
+
+    await listProducts({
+      category: 'root',
+      page: 1,
+      limit: 12,
+      sort: 'newest',
+    })
+
+    expect(mockedRepository.findProducts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categoryId: {
+            in: ['cat-root', 'cat-child', 'cat-loop'],
+          },
+        }),
+      }),
+    )
+  })
+
+  it('excludes inactive descendants because traversal only uses active categories', async () => {
+    mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([
+      { id: 'cat-root', parentId: null, slug: 'root', isActive: true },
+      { id: 'cat-active-child', parentId: 'cat-root', slug: 'active-child', isActive: true },
+    ])
+    mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
+
+    await listProducts({
+      category: 'root',
+      page: 1,
+      limit: 12,
+      sort: 'newest',
+    })
+
+    expect(mockedRepository.findProducts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categoryId: {
+            in: ['cat-root', 'cat-active-child'],
+          },
+        }),
+      }),
+    )
+  })
+
   it('passes the default newest sort ordering to the repository', async () => {
     mockedRepository.findProducts.mockResolvedValue({ items: [], total: 0 })
 
@@ -492,6 +549,7 @@ describe('listProducts', () => {
 describe('filtered product listings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([])
   })
 
   it('passes isNew=true to the repository for new products', async () => {
@@ -948,13 +1006,15 @@ describe('filtered product listings', () => {
 describe('listProductsByCategorySlug', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([])
   })
 
   it('returns products for a valid category including descendants', async () => {
     mockedRepository.findCategoryBySlug.mockResolvedValue({ id: 'cat-root', parentId: null })
-    mockedRepository.findCategoriesByParentIds
-      .mockResolvedValueOnce([{ id: 'cat-leaf', parentId: 'cat-root' }])
-      .mockResolvedValueOnce([])
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([
+      { id: 'cat-root', parentId: null, slug: 'clothing-shoes', isActive: true },
+      { id: 'cat-leaf', parentId: 'cat-root', slug: 'hoodies', isActive: true },
+    ])
     mockedRepository.findProducts.mockResolvedValue({
       items: [makeListProduct({}, [makeVariant()])],
       total: 1,
@@ -994,6 +1054,7 @@ describe('listProductsByCategorySlug', () => {
 describe('getProduct', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedCategoryCache.getActiveCategoryTraversalNodesCached.mockResolvedValue([])
   })
 
   it('returns product detail DTO including mapped variants', async () => {

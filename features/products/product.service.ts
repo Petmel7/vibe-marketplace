@@ -21,7 +21,6 @@ import type {
 } from '@/features/products/product.dto'
 import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 import {
-  findCategoriesByParentIds,
   findCategoryBySlug,
   findProductCards,
   findProductCardsPage,
@@ -29,12 +28,7 @@ import {
   findProducts,
   searchProducts as repositorySearchProducts,
 } from '@/features/products/product.repository'
-import type {
-  CategoryNode,
-  ProductDetailProduct,
-  ProductListProduct,
-  ProductSearchRepositoryResult,
-} from '@/features/products/product.repository'
+import type { ProductDetailProduct, ProductListProduct, ProductSearchRepositoryResult } from '@/features/products/product.repository'
 import type {
   ProductCategoryPaginationQuery,
   ProductListQuery,
@@ -42,6 +36,7 @@ import type {
   ProductSearchQuery,
 } from '@/features/products/product.schema'
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
+import { getActiveCategoryTraversalNodesCached } from '@/features/categories/category.cache'
 import { getVisibleProductPromotions } from '@/features/promotions/promotions.service'
 import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
 import { measureServerOperation } from '@/lib/observability/server-timing'
@@ -52,6 +47,7 @@ import {
 import type { ProductBadgeDto } from './product-badge.dto'
 
 const LOW_STOCK_THRESHOLD = 3
+const MAX_CATEGORY_SUBTREE_DEPTH = 128
 
 function deriveInventoryState(variants: Array<Pick<ProductVariant, 'stock'>>): {
   inStock: boolean
@@ -510,24 +506,75 @@ function toSearchFacetsDto(result: ProductSearchRepositoryResult): ProductSearch
 }
 
 async function resolveCategoryTreeIds(rootCategoryId: string): Promise<string[]> {
+  logInfo('products:category-subtree:before-all-categories-fetch', {
+    domain: 'products',
+    rootCategoryId,
+  })
+  const categories = await getActiveCategoryTraversalNodesCached()
+  logInfo('products:category-subtree:after-all-categories-fetch', {
+    domain: 'products',
+    rootCategoryId,
+    categoryCount: categories.length,
+  })
+
+  const childrenByParentId = new Map<string, string[]>()
+  for (const category of categories) {
+    if (!category.parentId) {
+      continue
+    }
+
+    const childIds = childrenByParentId.get(category.parentId) ?? []
+    childIds.push(category.id)
+    childrenByParentId.set(category.parentId, childIds)
+  }
+
   const resolvedIds = new Set<string>([rootCategoryId])
+  const orderedIds = [rootCategoryId]
   let frontier = [rootCategoryId]
+  let depth = 0
 
   while (frontier.length > 0) {
-    const children: CategoryNode[] = await findCategoriesByParentIds(frontier)
-    frontier = []
+    if (depth >= MAX_CATEGORY_SUBTREE_DEPTH) {
+      logInfo('products:category-subtree:max-depth-reached', {
+        domain: 'products',
+        rootCategoryId,
+        depth,
+        frontierCount: frontier.length,
+      })
+      break
+    }
 
-    for (const child of children) {
-      if (resolvedIds.has(child.id)) {
+    const nextFrontier: string[] = []
+
+    for (const parentId of frontier) {
+      const childIds = childrenByParentId.get(parentId) ?? []
+      if (childIds.length === 0) {
         continue
       }
 
-      resolvedIds.add(child.id)
-      frontier.push(child.id)
+      for (const childId of childIds) {
+        if (resolvedIds.has(childId)) {
+          continue
+        }
+
+        resolvedIds.add(childId)
+        orderedIds.push(childId)
+        nextFrontier.push(childId)
+      }
     }
+
+    frontier = nextFrontier
+    depth += 1
   }
 
-  return [...resolvedIds]
+  logInfo('products:category-subtree:descendant-ids-count', {
+    domain: 'products',
+    rootCategoryId,
+    descendantIdsCount: orderedIds.length,
+    depth,
+  })
+
+  return orderedIds
 }
 
 // ---------------------------------------------------------------------------
@@ -551,7 +598,17 @@ export async function listProducts(
   let categoryIds: string[] | undefined
 
   if (category) {
+    logInfo('products:category-subtree:before-root-lookup', {
+      domain: 'products',
+      slug: category,
+    })
     const categoryNode = await findCategoryBySlug(category)
+    logInfo('products:category-subtree:after-root-lookup', {
+      domain: 'products',
+      slug: category,
+      found: Boolean(categoryNode),
+      categoryId: categoryNode?.id ?? null,
+    })
 
     if (!categoryNode) {
       return emptyProductListDto(page, limit)
@@ -921,7 +978,17 @@ export async function listProductsByCategorySlug(
   query: ProductCategoryPaginationQuery,
 ): Promise<ProductListDto> {
   const { page, limit } = query
+  logInfo('products:category-subtree:before-root-lookup', {
+    domain: 'products',
+    slug,
+  })
   const categoryNode = await findCategoryBySlug(slug)
+  logInfo('products:category-subtree:after-root-lookup', {
+    domain: 'products',
+    slug,
+    found: Boolean(categoryNode),
+    categoryId: categoryNode?.id ?? null,
+  })
 
   if (!categoryNode) {
     return emptyProductListDto(page, limit)
@@ -949,7 +1016,17 @@ export async function searchProducts(
 
   let categoryIds: string[] | undefined
   if (query.category) {
+    logInfo('products:category-subtree:before-root-lookup', {
+      domain: 'products',
+      slug: query.category,
+    })
     const categoryNode = await findCategoryBySlug(query.category)
+    logInfo('products:category-subtree:after-root-lookup', {
+      domain: 'products',
+      slug: query.category,
+      found: Boolean(categoryNode),
+      categoryId: categoryNode?.id ?? null,
+    })
 
     if (!categoryNode) {
       throw new InvalidFilterError('Category filter is invalid')

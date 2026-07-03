@@ -1,12 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type {
-  Category,
-  Product,
-  ProductBadgeType,
-  ProductImage,
-  ProductVariant,
-  Store,
-} from '@/app/generated/prisma/client'
+import type { Category, Product, ProductBadgeType, ProductImage, ProductVariant, Store } from '@/app/generated/prisma/client'
 import { Prisma } from '@/app/generated/prisma/client'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 
@@ -809,27 +802,6 @@ export async function findCategoryBySlug(slug: string): Promise<CategoryNode | n
   return prisma.category.findFirst({
     where: {
       slug,
-      isActive: true,
-    },
-    select: {
-      id: true,
-      parentId: true,
-    },
-  })
-}
-
-export async function findCategoriesByParentIds(
-  parentIds: string[],
-): Promise<CategoryNode[]> {
-  if (parentIds.length === 0) {
-    return []
-  }
-
-  return prisma.category.findMany({
-    where: {
-      parentId: {
-        in: parentIds,
-      },
       isActive: true,
     },
     select: {

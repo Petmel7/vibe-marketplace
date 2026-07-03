@@ -52,7 +52,6 @@ vi.mock('@/lib/prisma', () => ({
 
 import {
   findProductCards,
-  findCategoriesByParentIds,
   findCategoryBySlug,
   findProducts,
   searchProducts,
@@ -425,36 +424,4 @@ describe('category repository helpers', () => {
     expect(result).toEqual({ id: 'cat-root', parentId: null })
   })
 
-  it('findCategoriesByParentIds fetches all children in one query', async () => {
-    categoryFindManyMock.mockResolvedValue([
-      { id: 'cat-a', parentId: 'cat-root' },
-      { id: 'cat-b', parentId: 'cat-root' },
-    ])
-
-    const result = await findCategoriesByParentIds(['cat-root'])
-
-    expect(categoryFindManyMock).toHaveBeenCalledWith({
-      where: {
-        parentId: {
-          in: ['cat-root'],
-        },
-        isActive: true,
-      },
-      select: {
-        id: true,
-        parentId: true,
-      },
-    })
-    expect(result).toEqual([
-      { id: 'cat-a', parentId: 'cat-root' },
-      { id: 'cat-b', parentId: 'cat-root' },
-    ])
-  })
-
-  it('findCategoriesByParentIds returns an empty array when no parents are provided', async () => {
-    const result = await findCategoriesByParentIds([])
-
-    expect(categoryFindManyMock).not.toHaveBeenCalled()
-    expect(result).toEqual([])
-  })
 })

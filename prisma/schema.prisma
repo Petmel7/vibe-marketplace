@@ -120,6 +120,7 @@ model Category {
 
   @@index([parentId], map: "categories_parentId_idx")
   @@index([isActive], map: "categories_isActive_idx")
+  @@index([slug, isActive], map: "categories_slug_isActive_idx")
   @@index([position], map: "categories_position_idx")
   @@index([parentId, position], map: "categories_parentId_position_idx")
   @@index([parentId, isActive, position], map: "categories_parentId_isActive_position_idx")
