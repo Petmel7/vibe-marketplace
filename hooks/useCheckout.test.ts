@@ -173,15 +173,50 @@ describe('useCheckout auto refresh helpers', () => {
       recipientApartment: '',
     })
 
+    const renamedRecipientPayload = buildAutoRefreshDeliveryPayload({
+      deliveryMode: 'NOVA_POSHTA',
+      selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
+      recipientFirstName: 'Р†РІР°РЅ',
+      recipientLastName: 'РџРµС‚СЂРµРЅРєРѕ',
+      recipientMiddleName: '',
+      recipientPhone: '+380999999999',
+      selectedCity: {
+        ref: 'city-1',
+        name: 'РљРёС—РІ',
+        area: null,
+        settlementType: null,
+      },
+      selectedWarehouse: {
+        ref: 'warehouse-1',
+        name: 'Р’С–РґРґС–Р»РµРЅРЅСЏ 1',
+        cityRef: 'city-1',
+        cityName: 'РљРёС—РІ',
+      },
+      recipientStreet: '',
+      recipientBuilding: '',
+      recipientApartment: '',
+    })
+
     expect(buildAutoRefreshKey('cart-1', 'NOVA_POSHTA', payload)).toBe(
-      'cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1:recipient-ready',
+      'cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1',
     )
-    expect(buildAutoRefreshKey('cart-1', 'NOVA_POSHTA', payload)).toBe(
-      'cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1:recipient-ready',
+    expect(
+      buildAutoRefreshKey(
+        'cart-1',
+        'NOVA_POSHTA',
+        payload
+          ? {
+              ...payload,
+              recipientPhone: '+380999999999',
+            }
+          : undefined,
+      ),
+    ).toBe(
+      'cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1',
     )
   })
 
-  it('marks incomplete Nova Poshta selections with a pending sync key so submit stays blocked until preview catches up', () => {
+  it('marks incomplete Nova Poshta selections with a pending warehouse sync key so submit stays blocked until preview catches up', () => {
     const payload = buildAutoRefreshDeliveryPayload({
       deliveryMode: 'NOVA_POSHTA',
       selectedDeliveryType: 'NOVA_POSHTA_WAREHOUSE',
@@ -202,7 +237,7 @@ describe('useCheckout auto refresh helpers', () => {
     })
 
     expect(buildAutoRefreshKey('cart-1', 'NOVA_POSHTA', payload)).toBe(
-      'cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-pending:recipient-pending',
+      'cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-pending',
     )
   })
 
@@ -241,7 +276,7 @@ describe('useCheckout auto refresh helpers', () => {
         recipientBuilding: null,
         recipientWarehouseRef: 'warehouse-1',
       }),
-    ).toBe('cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1:recipient-ready')
+    ).toBe('cart-1:NOVA_POSHTA:NOVA_POSHTA_WAREHOUSE:city-1:warehouse-1')
   })
 
   it('includes coupon code, payment method, and Nova Poshta delivery fields in the checkout preview request', () => {
@@ -295,7 +330,7 @@ describe('useCheckout auto refresh helpers', () => {
 })
 
 describe('checkout delivery draft persistence', () => {
-  it('saves and restores delivery draft values including city and warehouse', () => {
+  it('saves and restores delivery draft values including city, warehouse, payment method, and coupon code', () => {
     const storage = {
       getItem: vi.fn(),
       setItem: vi.fn(),
@@ -324,6 +359,8 @@ describe('checkout delivery draft persistence', () => {
       recipientStreet: '',
       recipientBuilding: '',
       recipientApartment: '',
+      selectedPaymentMethod: 'CARD',
+      couponCode: 'STORE10',
     })
 
     expect(storage.setItem).toHaveBeenCalledTimes(1)
@@ -357,6 +394,8 @@ describe('checkout delivery draft persistence', () => {
       recipientStreet: '',
       recipientBuilding: '',
       recipientApartment: '',
+      selectedPaymentMethod: 'CARD',
+      couponCode: 'STORE10',
     })
   })
 

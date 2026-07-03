@@ -367,6 +367,24 @@ describe('CheckoutClient', () => {
     )
   })
 
+  it('keeps the mounted checkout form visible during transient auth hydration when preview data already exists', () => {
+    useCheckoutMock.mockReturnValue({
+      ...makeCheckoutState(),
+      isSessionHydrating: true,
+      hasLoadedPreviewOnce: true,
+    })
+
+    act(() => {
+      root.render(<CheckoutClient />)
+    })
+
+    expect(
+      container.querySelector('[data-testid="checkout-loading-state"]'),
+    ).toBeNull()
+    expect(container.textContent).toContain('delivery-section')
+    expect(container.textContent).toContain('summary')
+  })
+
   it('keeps checkout in loading state until the first preview load completes', () => {
     useCheckoutMock.mockReturnValue({
       ...makeCheckoutState(),

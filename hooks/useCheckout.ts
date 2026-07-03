@@ -66,10 +66,12 @@ type PersistedCheckoutDeliveryDraft = {
   recipientStreet: string
   recipientBuilding: string
   recipientApartment: string
+  selectedPaymentMethod: CheckoutPaymentMethod
+  couponCode: string
 }
 
 type PersistedCheckoutDeliveryDraftEnvelope = {
-  version: 1
+  version: 1 | 2
   draft: PersistedCheckoutDeliveryDraft
 }
 
@@ -135,7 +137,11 @@ export function loadCheckoutDeliveryDraft(
 
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedCheckoutDeliveryDraftEnvelope> | null
-    if (!parsed || parsed.version !== 1 || !parsed.draft) {
+    if (
+      !parsed ||
+      (parsed.version !== 1 && parsed.version !== 2) ||
+      !parsed.draft
+    ) {
       return null
     }
 
@@ -164,6 +170,9 @@ export function loadCheckoutDeliveryDraft(
         typeof draft.recipientBuilding === 'string' ? draft.recipientBuilding : '',
       recipientApartment:
         typeof draft.recipientApartment === 'string' ? draft.recipientApartment : '',
+      selectedPaymentMethod:
+        draft.selectedPaymentMethod === 'CARD' ? 'CARD' : 'CASH_ON_DELIVERY',
+      couponCode: typeof draft.couponCode === 'string' ? draft.couponCode : '',
     }
   } catch {
     return null
@@ -175,7 +184,7 @@ export function saveCheckoutDeliveryDraft(
   draft: PersistedCheckoutDeliveryDraft,
 ) {
   const payload: PersistedCheckoutDeliveryDraftEnvelope = {
-    version: 1,
+    version: 2,
     draft,
   }
 
@@ -416,13 +425,6 @@ export function buildAutoRefreshKey(
     return null
   }
 
-  const recipientState =
-    deliveryPayload.recipientFirstName?.trim() &&
-    deliveryPayload.recipientLastName?.trim() &&
-    deliveryPayload.recipientPhone?.trim()
-      ? 'recipient-ready'
-      : 'recipient-pending'
-
   if (deliveryPayload.deliveryType === 'NOVA_POSHTA_COURIER') {
     const addressState =
       deliveryPayload.recipientStreet?.trim() && deliveryPayload.recipientBuilding?.trim()
@@ -434,7 +436,6 @@ export function buildAutoRefreshKey(
       deliveryMode,
       deliveryPayload.deliveryType,
       deliveryPayload.recipientCityRef,
-      recipientState,
       addressState,
     ].join(':')
   }
@@ -445,7 +446,6 @@ export function buildAutoRefreshKey(
     deliveryPayload.deliveryType,
     deliveryPayload.recipientCityRef,
     deliveryPayload.recipientWarehouseRef ?? 'warehouse-pending',
-    recipientState,
   ].join(':')
 }
 
@@ -582,12 +582,18 @@ export function useCheckout(initialCartId?: string) {
   const hasLoadedInitialPreviewRef = useRef(false)
   const deliveryPayloadRef = useRef<DeliveryPayload | undefined>(undefined)
   const previewCartIdRef = useRef<string | undefined>(initialCartId)
+  const previewRef = useRef<CheckoutPreview | null>(null)
   const initialPersistedDraftRef = useRef<PersistedCheckoutDeliveryDraft | null>(null)
   const cartRefreshKeyRef = useRef(cartRefreshKey)
+  const lastPreviewPaymentMethodRef = useRef<CheckoutPaymentMethod | null>(null)
 
   useEffect(() => {
     appliedCouponCodeRef.current = appliedCouponCode
   }, [appliedCouponCode])
+
+  useEffect(() => {
+    previewRef.current = preview
+  }, [preview])
 
   useEffect(() => {
     cartRefreshKeyRef.current = cartRefreshKey
@@ -614,6 +620,8 @@ export function useCheckout(initialCartId?: string) {
       setRecipientStreet(draft.recipientStreet)
       setRecipientBuilding(draft.recipientBuilding)
       setRecipientApartment(draft.recipientApartment)
+      setSelectedPaymentMethod(draft.selectedPaymentMethod)
+      setCouponCode(draft.couponCode)
       deliveryPayloadRef.current = buildPersistedDeliveryDraft(draft)
     }
 
@@ -689,7 +697,12 @@ export function useCheckout(initialCartId?: string) {
       preserveSelection = true,
       deliveryPayloadOverride?: DeliveryPayload,
     ) => {
-      setIsLoading(true)
+      const shouldShowInitialLoading =
+        !hasLoadedInitialPreviewRef.current && previewRef.current === null
+
+      if (shouldShowInitialLoading) {
+        setIsLoading(true)
+      }
       setLoadError(null)
 
       try {
@@ -717,8 +730,10 @@ export function useCheckout(initialCartId?: string) {
         }
 
         setPreview(nextPreview)
+        previewRef.current = nextPreview
         setHasLoadedPreviewOnce(true)
         previewCartIdRef.current = nextPreview.cartId ?? nextCartId ?? initialCartId
+        lastPreviewPaymentMethodRef.current = selectedPaymentMethod
         setCartItemCount(nextPreview.itemCount)
         if (nextPreview.appliedPromotion?.type === 'AUTOMATIC_DISCOUNT' && !nextAppliedCoupon) {
           setCouponCode('')
@@ -783,7 +798,9 @@ export function useCheckout(initialCartId?: string) {
           getFriendlyCheckoutError(error, 'Unable to load checkout preview right now.'),
         )
       } finally {
-        setIsLoading(false)
+        if (shouldShowInitialLoading) {
+          setIsLoading(false)
+        }
       }
     },
     [initialCartId, selectedPaymentMethod, setCartItemCount],
@@ -802,14 +819,17 @@ export function useCheckout(initialCartId?: string) {
     }
 
     if (isCheckoutPreviewBlocked) {
-      setIsLoading(true)
-      setLoadError(null)
+      if (!hasLoadedInitialPreviewRef.current && previewRef.current === null) {
+        setIsLoading(true)
+        setLoadError(null)
+      }
       setIsCartSyncPending(false)
       return
     }
 
-    hasLoadedInitialPreviewRef.current = false
-    setHasLoadedPreviewOnce(false)
+    if (hasLoadedInitialPreviewRef.current) {
+      return
+    }
 
     const initialPersistedDraft = initialPersistedDraftRef.current
     const initialDeliveryPayload = initialPersistedDraft
@@ -883,8 +903,11 @@ export function useCheckout(initialCartId?: string) {
       recipientStreet,
       recipientBuilding,
       recipientApartment,
+      selectedPaymentMethod,
+      couponCode,
     })
   }, [
+    couponCode,
     deliveryMode,
     hasRestoredPersistedDraft,
     recipientApartment,
@@ -896,6 +919,7 @@ export function useCheckout(initialCartId?: string) {
     recipientStreet,
     selectedCity,
     selectedDeliveryType,
+    selectedPaymentMethod,
     selectedWarehouse,
   ])
 
@@ -1066,6 +1090,41 @@ export function useCheckout(initialCartId?: string) {
     deliveryMode,
     loadPreview,
     preview?.cartId,
+  ])
+
+  useEffect(() => {
+    if (!preview?.cartId || isCheckoutPreviewBlocked || !hasLoadedInitialPreviewRef.current) {
+      return
+    }
+
+    if (lastPreviewPaymentMethodRef.current === null) {
+      lastPreviewPaymentMethodRef.current = selectedPaymentMethod
+      return
+    }
+
+    if (lastPreviewPaymentMethodRef.current === selectedPaymentMethod) {
+      return
+    }
+
+    let cancelled = false
+    lastPreviewPaymentMethodRef.current = selectedPaymentMethod
+    setIsPreviewRecalculating(true)
+    setPreviewSyncMessage(null)
+
+    void loadPreview(preview.cartId, true, deliveryPayloadRef.current).finally(() => {
+      if (!cancelled) {
+        setIsPreviewRecalculating(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    isCheckoutPreviewBlocked,
+    loadPreview,
+    preview?.cartId,
+    selectedPaymentMethod,
   ])
 
   const submitCheckout = useCallback(async ({ acceptedPrivacy }: { acceptedPrivacy: true }) => {
