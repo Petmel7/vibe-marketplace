@@ -2,6 +2,8 @@ import { SeoEntityType } from '@/app/generated/prisma/enums'
 import { requireAdmin } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { InvalidSeoMetadataError, SeoEntityNotFoundError, SeoMetadataNotFoundError } from '@/lib/errors/seo'
+import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 import { revalidateSeoForMetadataEntity } from './seo.cache'
 import {
   buildBreadcrumbJsonLd,
@@ -99,13 +101,50 @@ function assertPublicIdentifier(input: { id?: string; slug?: string }) {
   }
 }
 
+async function loadSeoOverride(
+  entityType: SeoEntityType,
+  entityId: string | null,
+) {
+  return measureServerOperation(
+    'seo-load-override',
+    {
+      service: 'features/seo/seo.service',
+      repository: 'findSeoMetadataByEntity',
+      seo: entityType,
+      entityId,
+    },
+    () => findSeoMetadataByEntity(entityType, entityId),
+  )
+}
+
+function logSeoResolution(input: {
+  entityType: SeoEntityType
+  entityId: string | null
+  source: ResolvedSeoMetadataDto['source']
+}) {
+  if (process.env.NODE_ENV !== 'production') {
+    logInfo('seo-resolution', {
+      domain: 'seo',
+      entityType: input.entityType,
+      entityId: input.entityId,
+      source: input.source,
+      fallback: input.source !== 'override',
+    })
+  }
+}
+
 export async function getGlobalSeo(): Promise<PageSeoDto> {
-  const override = await findSeoMetadataByEntity(SeoEntityType.GLOBAL, null)
+  const override = await loadSeoOverride(SeoEntityType.GLOBAL, null)
   const title = override?.title ?? 'Marketplace'
   const description = override?.description ?? 'Marketplace одягу, взуття та аксесуарів з доставкою по Україні.'
   const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl('/')
   const source = inferSource({ override, usedEntityField: false })
   const robots = resolveRobotsFlags(override)
+  logSeoResolution({
+    entityType: SeoEntityType.GLOBAL,
+    entityId: null,
+    source,
+  })
 
   return {
     entityType: SeoEntityType.GLOBAL,
@@ -125,7 +164,7 @@ export async function getGlobalSeo(): Promise<PageSeoDto> {
 }
 
 export async function getPageSeo(pageKey: string): Promise<PageSeoDto> {
-  const override = await findSeoMetadataByEntity(SeoEntityType.PAGE, pageKey)
+  const override = await loadSeoOverride(SeoEntityType.PAGE, pageKey)
   const defaultTitle = pageKey === 'catalog' ? 'Каталог товарів | Marketplace' : 'Marketplace'
   const defaultDescription =
     pageKey === 'catalog'
@@ -134,6 +173,11 @@ export async function getPageSeo(pageKey: string): Promise<PageSeoDto> {
   const canonicalPath = pageKey === 'home' ? '/' : `/${pageKey}`
   const source = inferSource({ override, usedEntityField: false })
   const robots = resolveRobotsFlags(override)
+  logSeoResolution({
+    entityType: SeoEntityType.PAGE,
+    entityId: pageKey,
+    source,
+  })
 
   return {
     entityType: SeoEntityType.PAGE,
@@ -155,17 +199,32 @@ export async function getPageSeo(pageKey: string): Promise<PageSeoDto> {
 export async function getProductSeo(input: { id?: string; slug?: string }): Promise<ProductSeoDto> {
   assertPublicIdentifier(input)
 
-  const product = await findPublicProductByIdOrSlug(input)
+  const product = await measureServerOperation(
+    'seo-load-public-product',
+    {
+      service: 'features/seo/seo.service',
+      repository: 'findPublicProductByIdOrSlug',
+      seo: 'product',
+      id: input.id,
+      slug: input.slug,
+    },
+    () => findPublicProductByIdOrSlug(input),
+  )
   if (!product) {
     throw new SeoEntityNotFoundError('Public product SEO is unavailable for this entity')
   }
 
-  const override = await findSeoMetadataByEntity(SeoEntityType.PRODUCT, product.id)
+  const override = await loadSeoOverride(SeoEntityType.PRODUCT, product.id)
   const fallbackTitle = `${product.name} купити онлайн | ${product.store.name}`
   const fallbackDescription = `${product.name}. Ціна, відгуки та доставка по Україні.`
   const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl(`/products/${product.id}`)
   const source = inferSource({ override, usedEntityField: false })
   const robots = resolveRobotsFlags(override)
+  logSeoResolution({
+    entityType: SeoEntityType.PRODUCT,
+    entityId: product.id,
+    source,
+  })
 
   const breadcrumbItems: BreadcrumbJsonLdItemDto[] = [
     { name: 'Головна', item: buildCanonicalUrl('/') },
@@ -220,12 +279,22 @@ export async function getProductSeo(input: { id?: string; slug?: string }): Prom
 export async function getCategorySeo(input: { id?: string; slug?: string }): Promise<CategorySeoDto> {
   assertPublicIdentifier(input)
 
-  const category = await findPublicCategoryByIdOrSlug(input)
+  const category = await measureServerOperation(
+    'seo-load-public-category',
+    {
+      service: 'features/seo/seo.service',
+      repository: 'findPublicCategoryByIdOrSlug',
+      seo: 'category',
+      id: input.id,
+      slug: input.slug,
+    },
+    () => findPublicCategoryByIdOrSlug(input),
+  )
   if (!category) {
     throw new SeoEntityNotFoundError('Public category SEO is unavailable for this entity')
   }
 
-  const override = await findSeoMetadataByEntity(SeoEntityType.CATEGORY, category.id)
+  const override = await loadSeoOverride(SeoEntityType.CATEGORY, category.id)
   const fallbackTitle = `${category.name} купити онлайн | Marketplace`
   const fallbackDescription =
     category.seoText?.trim() || `${category.name}. Добірка товарів з доставкою по Україні.`
@@ -233,6 +302,11 @@ export async function getCategorySeo(input: { id?: string; slug?: string }): Pro
   const usedEntityField = Boolean(category.seoTitle || category.seoDescription || category.seoText)
   const source = inferSource({ override, usedEntityField })
   const robots = resolveRobotsFlags(override)
+  logSeoResolution({
+    entityType: SeoEntityType.CATEGORY,
+    entityId: category.id,
+    source,
+  })
 
   return {
     entityType: SeoEntityType.CATEGORY,
@@ -261,18 +335,33 @@ export async function getCategorySeo(input: { id?: string; slug?: string }): Pro
 export async function getStoreSeo(input: { id?: string; slug?: string }): Promise<StoreSeoDto> {
   assertPublicIdentifier(input)
 
-  const store = await findPublicStoreByIdOrSlug(input)
+  const store = await measureServerOperation(
+    'seo-load-public-store',
+    {
+      service: 'features/seo/seo.service',
+      repository: 'findPublicStoreByIdOrSlug',
+      seo: 'store',
+      id: input.id,
+      slug: input.slug,
+    },
+    () => findPublicStoreByIdOrSlug(input),
+  )
   if (!store) {
     throw new SeoEntityNotFoundError('Public store SEO is unavailable for this entity')
   }
 
-  const override = await findSeoMetadataByEntity(SeoEntityType.STORE, store.id)
+  const override = await loadSeoOverride(SeoEntityType.STORE, store.id)
   const fallbackTitle = `${store.name} | Marketplace`
   const fallbackDescription = store.description?.trim() || `${store.name}. Магазин маркетплейсу з доставкою по Україні.`
   const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl(`/stores/${store.slug}`)
   const usedEntityField = Boolean(store.seoTitle || store.seoDescription)
   const source = inferSource({ override, usedEntityField })
   const robots = resolveRobotsFlags(override)
+  logSeoResolution({
+    entityType: SeoEntityType.STORE,
+    entityId: store.id,
+    source,
+  })
 
   return {
     entityType: SeoEntityType.STORE,

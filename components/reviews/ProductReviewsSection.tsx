@@ -1,8 +1,10 @@
 'use client'
 
+import { useContext } from 'react'
 import type { SessionUser } from '@/types/auth'
 import type { ProductReviewList, ReviewRatingSummary } from '@/types/reviews'
 import ReportButton from '@/components/abuse-reports/ReportButton'
+import { AuthSessionContext } from '@/components/auth/AuthSessionProvider'
 import ReviewEmptyState from './ReviewEmptyState'
 import ReviewList from './ReviewList'
 import ReviewSummaryCard from './ReviewSummaryCard'
@@ -23,13 +25,15 @@ export default function ProductReviewsSection({
   productName: string
   ratingSummary: ReviewRatingSummary
   reviews: ProductReviewList
-  currentUser: SessionUser | null
+  currentUser?: SessionUser | null
 }) {
-  const ownPublishedReview = currentUser
-    ? reviews.items.find((review) => review.userId === currentUser.id) ?? null
+  const authSession = useContext(AuthSessionContext)
+  const resolvedCurrentUser = currentUser ?? authSession?.user ?? null
+  const ownPublishedReview = resolvedCurrentUser
+    ? reviews.items.find((review) => review.userId === resolvedCurrentUser.id) ?? null
     : null
 
-  const canShowForm = hasBuyerRole(currentUser)
+  const canShowForm = hasBuyerRole(resolvedCurrentUser)
 
   return (
     <section className="space-y-6">
@@ -43,7 +47,7 @@ export default function ProductReviewsSection({
 
       <ReviewSummaryCard summary={ratingSummary} />
 
-      {currentUser ? (
+      {resolvedCurrentUser ? (
         canShowForm ? (
           <ProductReviewForm
             productId={productId}
@@ -78,9 +82,9 @@ export default function ProductReviewsSection({
         <ReviewList
           reviews={reviews.items}
           renderAction={(review) =>
-            review.userId !== currentUser?.id ? (
+            review.userId !== resolvedCurrentUser?.id ? (
               <ReportButton
-                currentUser={currentUser}
+                currentUser={resolvedCurrentUser}
                 targetType="REVIEW"
                 targetId={review.id}
                 triggerLabel="Поскаржитися"

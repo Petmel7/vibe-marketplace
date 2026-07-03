@@ -186,7 +186,7 @@ export async function findPublicProductByIdOrSlug(input: { id?: string; slug?: s
   return prisma.product.findFirst({
     where: {
       ...(input.id ? { id: input.id } : {}),
-      ...(input.slug ? { id: input.slug } : {}),
+      ...(input.slug ? { slug: input.slug } : {}),
       status: ProductStatus.PUBLISHED,
       isActive: true,
       store: {

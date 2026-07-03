@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import { Share2 } from 'lucide-react'
 import ProductVariantSelector from './ProductVariantSelector'
 import WishlistToggleButton from '../wishlist/WishlistToggleButton'
@@ -19,6 +19,7 @@ import {
 } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
+import { AuthSessionContext } from '@/components/auth/AuthSessionProvider'
 import type { ProductDetailDto } from '@/features/products/product.dto'
 import type { SessionUser } from '@/types/auth'
 import type { MarketplaceBadgeContext, MarketplaceProductBadge } from '@/types/product-badges'
@@ -29,7 +30,7 @@ interface Props {
     badges?: MarketplaceProductBadge[]
     badgeContext?: MarketplaceBadgeContext
   }
-  currentUser: SessionUser | null
+  currentUser?: SessionUser | null
 }
 
 function getPromotionDiscountLabel(product: ProductDetailDto) {
@@ -45,6 +46,8 @@ function getPromotionDiscountLabel(product: ProductDetailDto) {
 }
 
 export default function ProductDetails({ product, currentUser }: Props) {
+  const authSession = useContext(AuthSessionContext)
+  const resolvedCurrentUser = currentUser ?? authSession?.user ?? null
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
     getDefaultProductVariantId(product),
   )
@@ -74,7 +77,7 @@ export default function ProductDetails({ product, currentUser }: Props) {
                 ) : null}
                 <span className="text-sm text-copy-muted">{product.storeName}</span>
                 <ReportButton
-                  currentUser={currentUser}
+                  currentUser={resolvedCurrentUser}
                   targetType="STORE"
                   targetId={product.storeId}
                   triggerLabel="Поскаржитися на магазин"
@@ -89,7 +92,7 @@ export default function ProductDetails({ product, currentUser }: Props) {
             <div className="shrink-0 pt-1">
               <div className="flex items-center gap-3">
                 <ReportButton
-                  currentUser={currentUser}
+                  currentUser={resolvedCurrentUser}
                   targetType="PRODUCT"
                   targetId={product.id}
                   triggerLabel="Поскаржитися"
