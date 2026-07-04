@@ -1,24 +1,26 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { getProduct, ProductNotFoundError } from '@/features/products/product.service'
-import type { ProductDetailDto } from '@/features/products/product.dto'
 import ProductDetails from '@/components/product/ProductDetails'
 import ProductDetailsShell from '@/components/product/ProductDetailsShell'
 import ProductImageGallery from '@/components/product/ProductImageGallery'
-import ProductReviewsSection from '@/components/reviews/ProductReviewsSection'
-import RecentlyViewed from '@/components/viewed/RecentlyViewed'
-import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
-import { listReviews } from '@/features/review/review.service'
-import { SeoEntityNotFoundError } from '@/lib/errors/seo'
-import { getCachedProductSeo } from '@/app/_lib/seo.data'
-import { buildProductMetadata } from '@/lib/seo/metadata'
-import ProductJsonLd from '@/components/seo/ProductJsonLd'
 import BreadcrumbJsonLd from '@/components/seo/BreadcrumbJsonLd'
+import ProductJsonLd from '@/components/seo/ProductJsonLd'
+import ProductReviewsSectionFallback from '@/components/reviews/ProductReviewsSectionFallback'
+import ProductReviewsServerSection from '@/components/reviews/ProductReviewsServerSection'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
+import RecentlyViewed from '@/components/viewed/RecentlyViewed'
+import { getCachedProductSeo } from '@/app/_lib/seo.data'
+import type { ProductDetailDto } from '@/features/products/product.dto'
+import { getProduct, ProductNotFoundError } from '@/features/products/product.service'
 import {
   buildBreadcrumbJsonLd,
   buildCanonicalUrl,
   buildProductJsonLd,
 } from '@/features/seo/seo.helpers'
+import { SeoEntityNotFoundError } from '@/lib/errors/seo'
+import { measureServerOperation } from '@/lib/observability/server-timing'
+import { buildProductMetadata } from '@/lib/seo/metadata'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -69,7 +71,16 @@ export default async function ProductPage({ params }: Props) {
   let product: ProductDetailDto
 
   try {
-    product = await getProduct(id)
+    product = await measureServerOperation(
+      'product-page-product-detail',
+      {
+        route: '/products/[id]',
+        component: 'app/products/[id]/page',
+        service: 'getProduct',
+        productId: id,
+      },
+      () => getProduct(id),
+    )
   } catch (error) {
     if (error instanceof ProductNotFoundError) {
       notFound()
@@ -78,52 +89,68 @@ export default async function ProductPage({ params }: Props) {
     throw error
   }
 
-  const reviews = await listReviews(id, { page: 1, limit: 10 })
-  const canonicalUrl = buildCanonicalUrl(`/products/${product.id}`)
-  const breadcrumbItems = buildProductBreadcrumbItems(product)
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
-    { name: 'Головна', item: buildCanonicalUrl('/') },
-    { name: 'Каталог', item: buildCanonicalUrl('/catalog') },
-    ...(product.categoryName && product.categorySlug
-      ? [
-          {
-            name: product.categoryName,
-            item: buildCanonicalUrl(`/products/category/${product.categorySlug}`),
-          },
-        ]
-      : []),
+  const {
+    breadcrumbItems,
+    breadcrumbJsonLd,
+    productJsonLd,
+  } = await measureServerOperation(
+    'product-page-structured-data',
     {
-      name: product.name,
-      item: canonicalUrl,
+      route: '/products/[id]',
+      component: 'app/products/[id]/page',
+      seo: 'jsonld-breadcrumb',
+      productId: product.id,
     },
-  ])
+    async () => {
+      const resolvedCanonicalUrl = buildCanonicalUrl(`/products/${product.id}`)
+      const resolvedBreadcrumbItems = buildProductBreadcrumbItems(product)
+      const resolvedBreadcrumbJsonLd = buildBreadcrumbJsonLd([
+        { name: 'Головна', item: buildCanonicalUrl('/') },
+        { name: 'Каталог', item: buildCanonicalUrl('/catalog') },
+        ...(product.categoryName && product.categorySlug
+          ? [
+              {
+                name: product.categoryName,
+                item: buildCanonicalUrl(`/products/category/${product.categorySlug}`),
+              },
+            ]
+          : []),
+        {
+          name: product.name,
+          item: resolvedCanonicalUrl,
+        },
+      ])
 
-  const productJsonLd = buildProductJsonLd({
-    name: product.name,
-    description:
-      product.description?.trim() ||
-      `${product.name}. Ціна, відгуки та доставка по Україні.`,
-    imageUrls:
-      product.images.length > 0
-        ? product.images.map((image) => image.url)
-        : product.imageUrl
-          ? [product.imageUrl]
-          : [],
-    sku: product.sku,
-    category: product.categoryName,
-    storeName: product.storeName,
-    url: canonicalUrl,
-    price: product.price,
-    inStock: product.inStock,
-  })
+      const resolvedProductJsonLd = buildProductJsonLd({
+        name: product.name,
+        description:
+          product.description?.trim() ||
+          `${product.name}. Ціна, відгуки та доставка по Україні.`,
+        imageUrls:
+          product.images.length > 0
+            ? product.images.map((image) => image.url)
+            : product.imageUrl
+              ? [product.imageUrl]
+              : [],
+        sku: product.sku,
+        category: product.categoryName,
+        storeName: product.storeName,
+        url: resolvedCanonicalUrl,
+        price: product.price,
+        inStock: product.inStock,
+      })
+
+        return {
+          breadcrumbItems: resolvedBreadcrumbItems,
+          breadcrumbJsonLd: resolvedBreadcrumbJsonLd,
+          productJsonLd: resolvedProductJsonLd,
+        }
+      },
+  )
 
   return (
     <>
-      <ProductJsonLd
-        data={productJsonLd}
-        ratingSummary={product.ratingSummary}
-        reviews={reviews.items}
-      />
+      <ProductJsonLd data={productJsonLd} ratingSummary={product.ratingSummary} />
       <BreadcrumbJsonLd data={breadcrumbJsonLd} />
       <div className="space-y-8 pb-8 md:space-y-10">
         <Breadcrumbs items={breadcrumbItems} />
@@ -133,12 +160,13 @@ export default async function ProductPage({ params }: Props) {
           purchasePanel={<ProductDetails product={product} />}
         />
 
-        <ProductReviewsSection
-          productId={product.id}
-          productName={product.name}
-          ratingSummary={product.ratingSummary}
-          reviews={reviews}
-        />
+        <Suspense fallback={<ProductReviewsSectionFallback summary={product.ratingSummary} />}>
+          <ProductReviewsServerSection
+            productId={product.id}
+            productName={product.name}
+            ratingSummary={product.ratingSummary}
+          />
+        </Suspense>
       </div>
 
       <RecentlyViewed currentProductId={id} />

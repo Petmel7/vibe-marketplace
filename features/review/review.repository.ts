@@ -46,6 +46,48 @@ const REVIEW_SELECT = {
   },
 } satisfies Prisma.ReviewSelect
 
+const PUBLISHED_REVIEW_SELECT = {
+  id: true,
+  productId: true,
+  userId: true,
+  orderItemId: true,
+  status: true,
+  rating: true,
+  title: true,
+  comment: true,
+  pros: true,
+  cons: true,
+  sellerReply: true,
+  sellerRepliedAt: true,
+  moderatedAt: true,
+  moderatedBy: true,
+  moderationReason: true,
+  isVerifiedPurchase: true,
+  createdAt: true,
+  updatedAt: true,
+  user: {
+    select: {
+      name: true,
+      profile: {
+        select: {
+          displayName: true,
+        },
+      },
+    },
+  },
+  product: {
+    select: {
+      name: true,
+      store: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ReviewSelect
+
 const PRODUCT_REVIEW_CONTEXT_SELECT = {
   id: true,
   name: true,
@@ -106,6 +148,10 @@ export type ReviewRecord = Prisma.ReviewGetPayload<{
   select: typeof REVIEW_SELECT
 }>
 
+export type PublishedReviewRecord = Prisma.ReviewGetPayload<{
+  select: typeof PUBLISHED_REVIEW_SELECT
+}>
+
 export type ProductReviewContext = Prisma.ProductGetPayload<{
   select: typeof PRODUCT_REVIEW_CONTEXT_SELECT
 }>
@@ -146,7 +192,7 @@ export async function findProductReviewContext(productId: string): Promise<Produ
 export async function findPublishedReviewsByProductId(
   productId: string,
   params: { page: number; limit: number },
-): Promise<{ items: ReviewRecord[]; total: number }> {
+): Promise<{ items: PublishedReviewRecord[]; total: number }> {
   const { page, limit } = params
   const skip = (page - 1) * limit
 
@@ -161,7 +207,7 @@ export async function findPublishedReviewsByProductId(
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip,
       take: limit,
-      select: REVIEW_SELECT,
+      select: PUBLISHED_REVIEW_SELECT,
     }),
     prisma.review.count({ where }),
   ])

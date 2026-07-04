@@ -46,13 +46,16 @@ import {
   updateReviewRecord,
   updateSellerReply,
   type MyReviewRecord,
+  type PublishedReviewRecord,
   type ReviewRecord,
 } from './review.repository'
 import { logError } from '@/utils/logger'
 
 const DEFAULT_CREATE_REVIEW_STATUS = ReviewStatus.PENDING
 
-function resolveUserDisplayName(review: ReviewRecord): string | null {
+function resolveUserDisplayName(
+  review: Pick<ReviewRecord, 'user'> | Pick<PublishedReviewRecord, 'user'>,
+): string | null {
   return review.user.profile?.displayName ?? review.user.name ?? null
 }
 
@@ -91,7 +94,7 @@ function toRatingSummaryDto(summary: {
   }
 }
 
-function toReviewDto(review: ReviewRecord): ReviewDto {
+function toReviewDto(review: ReviewRecord | PublishedReviewRecord): ReviewDto {
   return {
     id: review.id,
     productId: review.productId,

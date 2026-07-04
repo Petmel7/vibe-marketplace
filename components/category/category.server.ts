@@ -55,33 +55,27 @@ function buildCategoryTree(records: PublicCategoryTreeRecord[]): CategoryTreeNod
 }
 
 const fetchCategoriesCached = unstable_cache(
-  async (): Promise<CategoryListItem[]> => {
-    try {
-      return await measureServerOperation(
-        'fetchCategories',
-        {
-          component: 'components/category/category.server',
-          repository: 'fetchCategoriesCached',
-          sql: 'SELECT categories list ORDER BY created_at, id',
-          categoryTree: 'categories-list',
-          cache: 'unstable_cache:public-categories-list',
-        },
-        async () =>
-          prisma.$queryRaw<CategoryListItem[]>`
-            SELECT
-              id,
-              name,
-              slug,
-              image_url AS "imageUrl"
-            FROM categories
-            ORDER BY created_at ASC, id ASC
-          `,
-      )
-    } catch (error) {
-      console.error('[fetchCategories] Unexpected error:', error)
-      return []
-    }
-  },
+  async (): Promise<CategoryListItem[]> =>
+    measureServerOperation(
+      'fetchCategories',
+      {
+        component: 'components/category/category.server',
+        repository: 'fetchCategoriesCached',
+        sql: 'SELECT categories list ORDER BY created_at, id',
+        categoryTree: 'categories-list',
+        cache: 'unstable_cache:public-categories-list',
+      },
+      async () =>
+        prisma.$queryRaw<CategoryListItem[]>`
+          SELECT
+            id,
+            name,
+            slug,
+            image_url AS "imageUrl"
+          FROM categories
+          ORDER BY created_at ASC, id ASC
+        `,
+    ),
   ['public-categories-list'],
   {
     revalidate: 60 * 60,
@@ -91,39 +85,34 @@ const fetchCategoriesCached = unstable_cache(
 
 const fetchCategoryTreeCached = unstable_cache(
   async (): Promise<CategoryTreeNode[]> => {
-    try {
-      const data = await measureServerOperation(
-        'fetchCategoryTree',
-        {
-          component: 'components/category/category.server',
-          repository: 'fetchCategoryTreeCached',
-          sql: 'prisma.category.findMany(active visible tree)',
-          categoryTree: 'active-tree',
-          cache: 'unstable_cache:public-category-tree',
-        },
-        () =>
-          prisma.category.findMany({
-            where: {
-              isActive: true,
-              isVisible: true,
-            },
-            orderBy: [{ position: 'asc' }, { name: 'asc' }, { id: 'asc' }],
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              image: true,
-              parentId: true,
-              position: true,
-            },
-          }),
-      )
+    const data = await measureServerOperation(
+      'fetchCategoryTree',
+      {
+        component: 'components/category/category.server',
+        repository: 'fetchCategoryTreeCached',
+        sql: 'prisma.category.findMany(active visible tree)',
+        categoryTree: 'active-tree',
+        cache: 'unstable_cache:public-category-tree',
+      },
+      () =>
+        prisma.category.findMany({
+          where: {
+            isActive: true,
+            isVisible: true,
+          },
+          orderBy: [{ position: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            image: true,
+            parentId: true,
+            position: true,
+          },
+        }),
+    )
 
-      return buildCategoryTree(data)
-    } catch (error) {
-      console.error('[fetchCategoryTree] Unexpected error:', error)
-      return []
-    }
+    return buildCategoryTree(data)
   },
   ['public-category-tree'],
   {
@@ -133,9 +122,19 @@ const fetchCategoryTreeCached = unstable_cache(
 )
 
 export async function fetchCategories(): Promise<CategoryListItem[]> {
-  return fetchCategoriesCached()
+  try {
+    return await fetchCategoriesCached()
+  } catch (error) {
+    console.error('[fetchCategories] Unexpected error:', error)
+    return []
+  }
 }
 
 export async function fetchCategoryTree(): Promise<CategoryTreeNode[]> {
-  return fetchCategoryTreeCached()
+  try {
+    return await fetchCategoryTreeCached()
+  } catch (error) {
+    console.error('[fetchCategoryTree] Unexpected error:', error)
+    return []
+  }
 }

@@ -24,11 +24,7 @@ const AUTH_REQUIRED_MESSAGE =
 export function useWishlist() {
   const router = useRouter()
   const pathname = usePathname()
-  const {
-    isAuthenticated,
-    isHydrated,
-    refreshUser,
-  } = useCurrentUser()
+  const { isAuthenticated } = useCurrentUser()
 
   const {
     productIds,
@@ -51,23 +47,7 @@ export function useWishlist() {
         return
       }
 
-      let canMutateWishlist =
-        isAuthenticated
-
-      if (
-        !canMutateWishlist &&
-        !isHydrated
-      ) {
-        try {
-          canMutateWishlist = Boolean(
-            await refreshUser(),
-          )
-        } catch {
-          canMutateWishlist = false
-        }
-      }
-
-      if (!canMutateWishlist) {
+      if (!isAuthenticated) {
         toast.info(
           AUTH_REQUIRED_MESSAGE,
         )
@@ -158,9 +138,7 @@ export function useWishlist() {
     [
       add,
       isAuthenticated,
-      isHydrated,
       pathname,
-      refreshUser,
       remove,
       router,
     ],

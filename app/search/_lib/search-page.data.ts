@@ -162,34 +162,44 @@ export async function getSearchPageData(
       component: 'app/search/_lib/search-page.data',
     },
     async () => {
-      const [results, categoryTree, flatCategories] = await Promise.all([
-        fetchSearchResults(state),
-        options.preloadedCategoryTree
-          ? Promise.resolve(options.preloadedCategoryTree)
-          : measureServerOperation(
-              'search-page-category-tree',
-              {
-                route: '/catalog',
-                categoryTree: 'fetchCategoryTree',
-              },
-              () => fetchCategoryTree(),
-            ),
-        options.preloadedFlatCategories
-          ? Promise.resolve(options.preloadedFlatCategories)
-          : measureServerOperation(
-              'search-page-flat-categories',
-              {
-                route: '/catalog',
-                categoryTree: 'fetchCategories',
-              },
-              () => fetchCategories(),
-            ),
+      const resultsPromise = fetchSearchResults(state)
+      const categoryTreePromise = options.preloadedCategoryTree
+        ? Promise.resolve(options.preloadedCategoryTree)
+        : measureServerOperation(
+            'search-page-category-tree',
+            {
+              route: '/catalog',
+              categoryTree: 'fetchCategoryTree',
+            },
+            () => fetchCategoryTree(),
+          )
+      const flatCategoriesPromise = options.preloadedFlatCategories
+        ? Promise.resolve(options.preloadedFlatCategories)
+        : measureServerOperation(
+            'search-page-flat-categories',
+            {
+              route: '/catalog',
+              categoryTree: 'fetchCategories',
+            },
+            () => fetchCategories(),
+          )
+
+      const [results, categoryTreeResult, flatCategoriesResult] = await Promise.allSettled([
+        resultsPromise,
+        categoryTreePromise,
+        flatCategoriesPromise,
       ])
 
+      if (results.status !== 'fulfilled') {
+        throw results.reason
+      }
+
       return {
-        results,
-        categoryTree,
-        flatCategories,
+        results: results.value,
+        categoryTree:
+          categoryTreeResult.status === 'fulfilled' ? categoryTreeResult.value : [],
+        flatCategories:
+          flatCategoriesResult.status === 'fulfilled' ? flatCategoriesResult.value : [],
         state,
       }
     },
