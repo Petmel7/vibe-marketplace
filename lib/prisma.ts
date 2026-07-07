@@ -3,6 +3,7 @@ import postgres from 'postgres'
 import type { SqlDriverAdapterFactory } from '@prisma/client/runtime/client'
 import { getServerEnv } from '@/config/env'
 import { logError, logInfo, logWarn } from '@/utils/logger'
+import { getCurrentRequestTrace } from '@/lib/observability/request-trace'
 
 // ---------------------------------------------------------------------------
 // Postgres.js -> Prisma v7 driver adapter
@@ -113,10 +114,25 @@ async function withDatabaseTimeout<T>(
   run: () => Promise<T>
 ): Promise<T> {
   const startedAt = process.hrtime.bigint()
+  const trace = getCurrentRequestTrace()
+  const queryId = crypto.randomUUID()
+  const traceContext = {
+    requestId:
+      typeof context.requestId === 'string'
+        ? context.requestId
+        : trace?.requestId ?? null,
+    route:
+      typeof context.route === 'string'
+        ? context.route
+        : trace?.route ?? null,
+    requestOperation: trace?.operation ?? null,
+    queryId,
+  }
 
   logInfo('prisma:before', {
     domain: 'database',
     operation,
+    ...traceContext,
     ...context,
   })
 
@@ -130,6 +146,7 @@ async function withDatabaseTimeout<T>(
       domain: 'database',
       operation,
       durationMs: Number(getDurationMs(startedAt).toFixed(1)),
+      ...traceContext,
       ...context,
     })
   }, PRISMA_SLOW_QUERY_MS)
@@ -141,6 +158,7 @@ async function withDatabaseTimeout<T>(
       domain: 'database',
       operation,
       durationMs: Number(getDurationMs(startedAt).toFixed(1)),
+      ...traceContext,
       ...context,
     })
     return result
@@ -150,6 +168,7 @@ async function withDatabaseTimeout<T>(
       domain: 'database',
       operation,
       durationMs: Number(getDurationMs(startedAt).toFixed(1)),
+      ...traceContext,
       ...context,
     })
     throw error

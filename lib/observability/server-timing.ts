@@ -1,4 +1,5 @@
 import { logError, logInfo } from '@/utils/logger'
+import { getCurrentRequestTrace, runWithRequestTrace } from '@/lib/observability/request-trace'
 
 type TimingBand = '100ms' | '500ms' | '1s' | '5s'
 
@@ -36,32 +37,50 @@ export async function measureServerOperation<T>(
   context: ServerTimingContext,
   run: () => T | Promise<T>,
 ): Promise<T> {
-  const start = process.hrtime.bigint()
+  const currentTrace = getCurrentRequestTrace()
 
-  try {
-    const result = await run()
-    const durationMs = getDurationMs(start)
-    const band = getTimingBand(durationMs)
-
-    if (band) {
-      logInfo('server-operation-timing', {
-        operation,
-        durationMs: Number(durationMs.toFixed(1)),
-        threshold: band,
-        ...context,
-      })
-    }
-
-    return result
-  } catch (error) {
-    const durationMs = getDurationMs(start)
-
-    logError('server-operation-failed', error, {
+  return runWithRequestTrace(
+    {
+      requestId:
+        typeof context.requestId === 'string' ? context.requestId : currentTrace?.requestId,
+      route:
+        typeof context.route === 'string' ? context.route : currentTrace?.route,
       operation,
-      durationMs: Number(durationMs.toFixed(1)),
-      ...context,
-    })
+    },
+    async () => {
+      const start = process.hrtime.bigint()
+      const trace = getCurrentRequestTrace()
 
-    throw error
-  }
+      try {
+        const result = await run()
+        const durationMs = getDurationMs(start)
+        const band = getTimingBand(durationMs)
+
+        if (band) {
+          logInfo('server-operation-timing', {
+            operation,
+            durationMs: Number(durationMs.toFixed(1)),
+            threshold: band,
+            requestId: trace?.requestId ?? null,
+            route: trace?.route ?? context.route ?? null,
+            ...context,
+          })
+        }
+
+        return result
+      } catch (error) {
+        const durationMs = getDurationMs(start)
+
+        logError('server-operation-failed', error, {
+          operation,
+          durationMs: Number(durationMs.toFixed(1)),
+          requestId: trace?.requestId ?? null,
+          route: trace?.route ?? context.route ?? null,
+          ...context,
+        })
+
+        throw error
+      }
+    },
+  )
 }
