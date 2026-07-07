@@ -91,17 +91,37 @@ export async function createWishlist(userId: string): Promise<Wishlist> {
 export async function ensureWishlistIdentity(
   userId: string,
 ): Promise<Pick<Wishlist, 'id' | 'userId'>> {
-  return measureWishlistRepositoryCall('ensureWishlistIdentity', () =>
-    prisma.wishlist.upsert({
-      where: { userId },
-      update: {},
-      create: { userId },
-      select: {
-        id: true,
-        userId: true,
-      },
-    }),
-  )
+  return measureWishlistRepositoryCall('ensureWishlistIdentity', async () => {
+    const existing = await prisma.$queryRaw<Array<{ id: string; userId: string }>>`
+      SELECT id, user_id AS "userId"
+      FROM wishlists
+      WHERE user_id = ${userId}::uuid
+      LIMIT 1
+    `
+
+    if (existing[0]) {
+      return existing[0]
+    }
+
+    await prisma.$executeRaw`
+      INSERT INTO wishlists (id, user_id, created_at, updated_at)
+      VALUES (gen_random_uuid(), ${userId}::uuid, NOW(), NOW())
+      ON CONFLICT (user_id) DO NOTHING
+    `
+
+    const ensured = await prisma.$queryRaw<Array<{ id: string; userId: string }>>`
+      SELECT id, user_id AS "userId"
+      FROM wishlists
+      WHERE user_id = ${userId}::uuid
+      LIMIT 1
+    `
+
+    if (!ensured[0]) {
+      throw new Error(`Failed to ensure wishlist identity for user "${userId}"`)
+    }
+
+    return ensured[0]
+  })
 }
 
 export async function findWishlistItem(

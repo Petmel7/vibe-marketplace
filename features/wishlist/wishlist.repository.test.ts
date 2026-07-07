@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = {
+  $queryRaw: vi.fn(),
+  $executeRaw: vi.fn(),
   wishlist: {
     findUnique: vi.fn(),
     create: vi.fn(),
@@ -31,6 +33,7 @@ vi.mock('@/utils/logger', () => ({
 
 const {
   addWishlistItemIdempotent,
+  ensureWishlistIdentity,
   findWishlistByUserId,
   removeWishlistItemIdempotent,
 } = await import('./wishlist.repository')
@@ -61,6 +64,33 @@ describe('wishlist.repository', () => {
       updatedAt: new Date('2026-07-01T09:00:00.000Z'),
       items: [],
     })
+  })
+
+  it('returns existing wishlist identity after a single select when one already exists', async () => {
+    prismaMock.$queryRaw.mockResolvedValueOnce([{ id: 'wishlist-1', userId: 'user-1' }])
+
+    await expect(ensureWishlistIdentity('user-1')).resolves.toEqual({
+      id: 'wishlist-1',
+      userId: 'user-1',
+    })
+
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(1)
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled()
+  })
+
+  it('inserts on conflict and re-selects when wishlist identity is missing', async () => {
+    prismaMock.$queryRaw
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'wishlist-2', userId: 'user-2' }])
+    prismaMock.$executeRaw.mockResolvedValue(1)
+
+    await expect(ensureWishlistIdentity('user-2')).resolves.toEqual({
+      id: 'wishlist-2',
+      userId: 'user-2',
+    })
+
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(2)
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1)
   })
 
   it('returns true when createMany inserts a wishlist item', async () => {
