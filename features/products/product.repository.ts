@@ -56,13 +56,73 @@ type ProductListBaseRecord = Pick<
 
 export type ProductWithVariants = Product & { variants: ProductVariant[]; images: ProductImagePreview[] }
 export type CategoryNode = Pick<Category, 'id' | 'parentId'>
-export type ProductDetailProduct = Product & {
-  variants: ProductVariant[]
-  images: ProductImageDetailPreview[]
-  ratingSummary: ProductRatingSummaryPreview | null
-  store: Pick<Prisma.StoreGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'>
-  category: Pick<Prisma.CategoryGetPayload<{ select: { name: true; slug: true } }>, 'name' | 'slug'> | null
-}
+const PRODUCT_DETAIL_SELECT = {
+  id: true,
+  storeId: true,
+  categoryId: true,
+  name: true,
+  description: true,
+  price: true,
+  imageUrl: true,
+  isActive: true,
+  sku: true,
+  isHit: true,
+  isNew: true,
+  status: true,
+  publishedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  variants: {
+    select: {
+      id: true,
+      sku: true,
+      size: true,
+      color: true,
+      price: true,
+      stock: true,
+    },
+  },
+  store: {
+    select: {
+      name: true,
+      slug: true,
+    },
+  },
+  category: {
+    select: {
+      name: true,
+      slug: true,
+    },
+  },
+  images: {
+    select: {
+      id: true,
+      url: true,
+      altText: true,
+      isPrimary: true,
+      position: true,
+      createdAt: true,
+    },
+    orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+  },
+  ratingSummary: {
+    select: {
+      productId: true,
+      ratingAvg: true,
+      ratingCount: true,
+      rating1Count: true,
+      rating2Count: true,
+      rating3Count: true,
+      rating4Count: true,
+      rating5Count: true,
+      updatedAt: true,
+    },
+  },
+} satisfies Prisma.ProductSelect
+
+export type ProductDetailProduct = Prisma.ProductGetPayload<{
+  select: typeof PRODUCT_DETAIL_SELECT
+}>
 
 const PRODUCT_CARD_BASE_SELECT = {
   id: true,
@@ -991,50 +1051,7 @@ export async function findProductById(
             isActive: true,
           },
         },
-        include: {
-          variants: true,
-          store: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-          category: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-          images: {
-            select: {
-              id: true,
-              url: true,
-              altText: true,
-              isPrimary: true,
-              position: true,
-              createdAt: true,
-            },
-            orderBy: [
-              { isPrimary: 'desc' },
-              { position: 'asc' },
-              { createdAt: 'asc' },
-              { id: 'asc' },
-            ],
-          },
-          ratingSummary: {
-            select: {
-              productId: true,
-              ratingAvg: true,
-              ratingCount: true,
-              rating1Count: true,
-              rating2Count: true,
-              rating3Count: true,
-              rating4Count: true,
-              rating5Count: true,
-              updatedAt: true,
-            },
-          },
-        },
+        select: PRODUCT_DETAIL_SELECT,
       }),
   )
 }

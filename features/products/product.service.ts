@@ -28,7 +28,11 @@ import {
   findProducts,
   searchProducts as repositorySearchProducts,
 } from '@/features/products/product.repository'
-import type { ProductDetailProduct, ProductListProduct, ProductSearchRepositoryResult } from '@/features/products/product.repository'
+import type {
+  ProductDetailProduct,
+  ProductListProduct,
+  ProductSearchRepositoryResult,
+} from '@/features/products/product.repository'
 import type {
   ProductCategoryPaginationQuery,
   ProductListQuery,
@@ -141,7 +145,7 @@ export class ProductNotFoundError extends Error {
  * Decimal price is serialized to string to preserve precision in JSON.
  */
 function toProductSummaryDto(
-  product: Product | ProductListProduct,
+  product: Product | ProductListProduct | ProductDetailProduct,
   variants: ProductSummaryVariantLike[] = [],
   marketplaceBadges: ProductBadgeDto[] = [],
   badgeContext: ProductBadgeContext = 'DEFAULT',
@@ -175,7 +179,9 @@ function toProductSummaryDto(
   }
 }
 
-function resolveProductImageUrl(product: Product | ProductListProduct): string | null {
+function resolveProductImageUrl(
+  product: Product | ProductListProduct | ProductDetailProduct,
+): string | null {
   const primaryImage =
     'images' in product
       ? product.images.find((image) => image.isPrimary) ?? product.images[0]
@@ -1206,81 +1212,92 @@ export async function searchProducts(
  * exist or is not active. API routes catch this and respond with 404.
  */
 export async function getProduct(id: string): Promise<ProductDetailDto> {
-  const product = await measureServerOperation(
-    'getProductRepository',
-    {
-      service: 'features/products/product.service',
-      repository: 'features/products/product.repository',
-      query: 'findProductById',
-      productId: id,
-    },
-    () => findProductById(id),
-  )
+  return getProductCached(id)
+}
 
-  if (!product) {
-    throw new ProductNotFoundError(id)
-  }
-
-  const [badgesByProductId, promotionsByProductId] = await Promise.all([
-    measureServerOperation(
-      'getProductBadges',
+const getProductCached = unstable_cache(
+  async (id: string): Promise<ProductDetailDto> => {
+    const product = await measureServerOperation(
+      'getProductRepository',
       {
         service: 'features/products/product.service',
-        dependency: 'resolveMarketplaceBadgesForProducts',
-        productId: product.id,
+        repository: 'features/products/product.repository',
+        query: 'findProductById',
+        productId: id,
       },
-      () =>
-        resolveMarketplaceBadgesForProducts([
-          {
-            id: product.id,
-            status: product.status,
-            publishedAt: product.publishedAt,
-            isActive: product.isActive,
-          },
-        ]),
-    ),
-    measureServerOperation(
-      'getProductPromotions',
-      {
-        service: 'features/products/product.service',
-        dependency: 'getVisibleProductPromotions',
-        productId: product.id,
-      },
-      () =>
-        getVisibleProductPromotions({
-          products: [
+      () => findProductById(id),
+    )
+
+    if (!product) {
+      throw new ProductNotFoundError(id)
+    }
+
+    const [badgesByProductId, promotionsByProductId] = await Promise.all([
+      measureServerOperation(
+        'getProductBadges',
+        {
+          service: 'features/products/product.service',
+          dependency: 'resolveMarketplaceBadgesForProducts',
+          productId: product.id,
+        },
+        () =>
+          resolveMarketplaceBadgesForProducts([
             {
               id: product.id,
-              storeId: product.storeId,
-              categoryId: product.categoryId ?? null,
+              status: product.status,
+              publishedAt: product.publishedAt,
+              isActive: product.isActive,
             },
-          ],
-        }),
-    ),
-  ])
-
-  return measureServerOperation(
-    'getProductDtoMapping',
-    {
-      service: 'features/products/product.service',
-      step: 'dto-mapping',
-      productId: product.id,
-    },
-    async () => ({
-      ...toProductSummaryDto(
-        product,
-        product.variants,
-        badgesByProductId.get(product.id) ?? [],
-        'DEFAULT',
-        promotionsByProductId.get(product.id) ?? null,
+          ]),
       ),
-      images: toProductImageDto(product),
-      storeName: product.store.name,
-      storeSlug: product.store.slug,
-      categoryName: product.category?.name ?? null,
-      categorySlug: product.category?.slug ?? null,
-      ratingSummary: toRatingSummaryDto(product.ratingSummary),
-      variants: product.variants.map(toProductVariantDto),
-    }),
-  )
-}
+      measureServerOperation(
+        'getProductPromotions',
+        {
+          service: 'features/products/product.service',
+          dependency: 'getVisibleProductPromotions',
+          productId: product.id,
+        },
+        () =>
+          getVisibleProductPromotions({
+            products: [
+              {
+                id: product.id,
+                storeId: product.storeId,
+                categoryId: product.categoryId ?? null,
+              },
+            ],
+          }),
+      ),
+    ])
+
+    return measureServerOperation(
+      'getProductDtoMapping',
+      {
+        service: 'features/products/product.service',
+        step: 'dto-mapping',
+        productId: product.id,
+      },
+      async () => ({
+        ...toProductSummaryDto(
+          product,
+          product.variants,
+          badgesByProductId.get(product.id) ?? [],
+          'DEFAULT',
+          promotionsByProductId.get(product.id) ?? null,
+        ),
+        images: toProductImageDto(product),
+        storeName: product.store.name,
+        storeSlug: product.store.slug,
+        categoryName: product.category?.name ?? null,
+        categorySlug: product.category?.slug ?? null,
+        ratingSummary: toRatingSummaryDto(product.ratingSummary),
+        variants: product.variants.map(toProductVariantDto),
+      }),
+    )
+  },
+  ['product-detail'],
+  {
+    revalidate: 60,
+    tags: [SEO_CACHE_TAGS.products, SEO_CACHE_TAGS.categories, SEO_CACHE_TAGS.stores],
+  },
+)
