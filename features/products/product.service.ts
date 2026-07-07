@@ -1043,6 +1043,17 @@ export async function searchProducts(
     : undefined
 
   try {
+    logInfo('catalog-search:service:before-repository', {
+      domain: 'products',
+      route: '/catalog',
+      page: query.page,
+      limit: query.limit,
+      sort,
+      q: query.q?.trim() || null,
+      categoryIdsCount: categoryIds?.length ?? 0,
+      storeId: storeFilter?.id ?? null,
+      storeSlug: storeFilter?.slug ?? null,
+    })
     const result = await repositorySearchProducts({
       q: query.q?.trim() || undefined,
       categoryIds,
@@ -1055,6 +1066,12 @@ export async function searchProducts(
       sort,
       page: query.page,
       limit: query.limit,
+    })
+    logInfo('catalog-search:service:after-repository', {
+      domain: 'products',
+      route: '/catalog',
+      itemsCount: result.items.length,
+      total: result.total,
     })
 
     const badgesByProductId = await resolveMarketplaceBadgesForProducts(

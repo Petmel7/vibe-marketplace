@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import type { Category, Product, ProductBadgeType, ProductImage, ProductVariant, Store } from '@/app/generated/prisma/client'
 import { Prisma } from '@/app/generated/prisma/client'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logError, logInfo } from '@/utils/logger'
 
 type ProductImagePreview = Pick<ProductImage, 'id' | 'url' | 'isPrimary' | 'position' | 'createdAt'>
 type ProductImageDetailPreview = Pick<
@@ -463,6 +464,58 @@ type SearchSummaryRow = {
   rating1: bigint
 }
 type BadgeFacetRow = { type: ProductBadgeType; count: bigint }
+
+function logCatalogSearchQuery(label: string, query: Prisma.Sql, params: ProductSearchRepositoryParams) {
+  logInfo(`catalog-search:${label}`, {
+    domain: 'products',
+    route: '/catalog',
+    page: params.page,
+    limit: params.limit,
+    sort: params.sort,
+    q: params.q ?? null,
+    categoryIdsCount: params.categoryIds?.length ?? 0,
+    inStock: params.inStock ?? null,
+    rating: params.rating ?? null,
+    badge: params.badge ?? null,
+    storeId: params.store?.id ?? null,
+    storeSlug: params.store?.slug ?? null,
+    sql: query.text,
+    values: query.values,
+  })
+}
+
+async function executeCatalogSearchQuery<T>(
+  label: string,
+  query: Prisma.Sql,
+  params: ProductSearchRepositoryParams,
+): Promise<T> {
+  logInfo(`catalog-search:${label}:before-queryRaw`, {
+    domain: 'products',
+    route: '/catalog',
+  })
+  logCatalogSearchQuery(`${label}:compiled`, query, params)
+
+  try {
+    const result = await prisma.$queryRaw<T>(query)
+    logInfo(`catalog-search:${label}:after-queryRaw`, {
+      domain: 'products',
+      route: '/catalog',
+    })
+    return result
+  } catch (error) {
+    logError(`catalog-search:${label}:queryRaw-error`, error, {
+      domain: 'products',
+      route: '/catalog',
+    })
+    throw error
+  } finally {
+    logInfo(`catalog-search:${label}:finally`, {
+      domain: 'products',
+      route: '/catalog',
+    })
+  }
+}
+
 type FilteredProductsCteOptions = {
   includeCreatedAt?: boolean
   includeCategoryId?: boolean
@@ -668,6 +721,14 @@ async function findProductsByIdsInOrder(ids: string[]): Promise<ProductListProdu
 export async function searchProducts(
   params: ProductSearchRepositoryParams
 ): Promise<ProductSearchRepositoryResult> {
+  logInfo('catalog-search:repository:before', {
+    domain: 'products',
+    route: '/catalog',
+    page: params.page,
+    limit: params.limit,
+    sort: params.sort,
+    q: params.q ?? null,
+  })
   const skip = (params.page - 1) * params.limit
   const itemIdsCte = buildFilteredProductsCte(params, {
     includeCreatedAt: true,
@@ -685,116 +746,199 @@ export async function searchProducts(
   })
   const badgeCte = buildFilteredProductsCte(params, {})
   const orderBySql = buildSearchOrderBySql(params)
+  const itemIdsQuery = Prisma.sql`
+    ${itemIdsCte}
+    SELECT fp."id"
+    FROM filtered_products fp
+    ORDER BY ${orderBySql}
+    LIMIT ${params.limit} OFFSET ${skip}
+  `
+  const summaryQuery = Prisma.sql`
+    ${summaryCte}
+    SELECT
+      COUNT(*) AS total,
+      COUNT(*) FILTER (WHERE fp."in_stock" = true) AS "inStock",
+      COUNT(*) FILTER (WHERE fp."in_stock" = false) AS "outOfStock",
+      MIN(fp."price") AS min,
+      MAX(fp."price") AS max,
+      COUNT(*) FILTER (WHERE fp."rating_avg" >= 5) AS rating5,
+      COUNT(*) FILTER (WHERE fp."rating_avg" >= 4) AS rating4,
+      COUNT(*) FILTER (WHERE fp."rating_avg" >= 3) AS rating3,
+      COUNT(*) FILTER (WHERE fp."rating_avg" >= 2) AS rating2,
+      COUNT(*) FILTER (WHERE fp."rating_avg" >= 1) AS rating1
+    FROM filtered_products fp
+  `
+  const categoryFacetsQuery = Prisma.sql`
+    ${summaryCte}
+    SELECT
+      c."id",
+      c."slug",
+      c."name",
+      COUNT(*) AS count
+    FROM filtered_products fp
+    INNER JOIN "public"."categories" c ON c."id" = fp."category_id"
+    GROUP BY c."id", c."slug", c."name"
+    ORDER BY COUNT(*) DESC, c."name" ASC
+  `
+  const storeFacetsQuery = Prisma.sql`
+    ${summaryCte}
+    SELECT
+      s."id",
+      s."slug",
+      s."name",
+      COUNT(*) AS count
+    FROM filtered_products fp
+    INNER JOIN "public"."stores" s ON s."id" = fp."store_id"
+    GROUP BY s."id", s."slug", s."name"
+    ORDER BY COUNT(*) DESC, s."name" ASC
+  `
+  const badgeFacetsQuery = Prisma.sql`
+    ${badgeCte}
+    SELECT
+      pb."type",
+      COUNT(DISTINCT pb."product_id") AS count
+    FROM filtered_products fp
+    INNER JOIN "public"."product_badges" pb ON pb."product_id" = fp."id"
+    WHERE (pb."starts_at" IS NULL OR pb."starts_at" <= CURRENT_TIMESTAMP)
+      AND (pb."ends_at" IS NULL OR pb."ends_at" > CURRENT_TIMESTAMP)
+    GROUP BY pb."type"
+    ORDER BY COUNT(DISTINCT pb."product_id") DESC, pb."type" ASC
+  `
 
-  const [
-    itemIdRows,
-    summaryRows,
-    categoryRows,
-    storeRows,
-    badgeRows,
-  ] = await Promise.all([
-    prisma.$queryRaw<ProductIdRow[]>`
-      ${itemIdsCte}
-      SELECT fp."id"
-      FROM filtered_products fp
-      ORDER BY ${orderBySql}
-      LIMIT ${params.limit} OFFSET ${skip}
-    `,
-    prisma.$queryRaw<SearchSummaryRow[]>`
-      ${summaryCte}
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE fp."in_stock" = true) AS "inStock",
-        COUNT(*) FILTER (WHERE fp."in_stock" = false) AS "outOfStock",
-        MIN(fp."price") AS min,
-        MAX(fp."price") AS max,
-        COUNT(*) FILTER (WHERE fp."rating_avg" >= 5) AS rating5,
-        COUNT(*) FILTER (WHERE fp."rating_avg" >= 4) AS rating4,
-        COUNT(*) FILTER (WHERE fp."rating_avg" >= 3) AS rating3,
-        COUNT(*) FILTER (WHERE fp."rating_avg" >= 2) AS rating2,
-        COUNT(*) FILTER (WHERE fp."rating_avg" >= 1) AS rating1
-      FROM filtered_products fp
-    `,
-    prisma.$queryRaw<CategoryFacetRow[]>`
-      ${summaryCte}
-      SELECT
-        c."id",
-        c."slug",
-        c."name",
-        COUNT(*) AS count
-      FROM filtered_products fp
-      INNER JOIN "public"."categories" c ON c."id" = fp."category_id"
-      GROUP BY c."id", c."slug", c."name"
-      ORDER BY COUNT(*) DESC, c."name" ASC
-    `,
-    prisma.$queryRaw<StoreFacetRow[]>`
-      ${summaryCte}
-      SELECT
-        s."id",
-        s."slug",
-        s."name",
-        COUNT(*) AS count
-      FROM filtered_products fp
-      INNER JOIN "public"."stores" s ON s."id" = fp."store_id"
-      GROUP BY s."id", s."slug", s."name"
-      ORDER BY COUNT(*) DESC, s."name" ASC
-    `,
-    prisma.$queryRaw<BadgeFacetRow[]>`
-      ${badgeCte}
-      SELECT
-        pb."type",
-        COUNT(DISTINCT pb."product_id") AS count
-      FROM filtered_products fp
-      INNER JOIN "public"."product_badges" pb ON pb."product_id" = fp."id"
-      WHERE (pb."starts_at" IS NULL OR pb."starts_at" <= CURRENT_TIMESTAMP)
-        AND (pb."ends_at" IS NULL OR pb."ends_at" > CURRENT_TIMESTAMP)
-      GROUP BY pb."type"
-      ORDER BY COUNT(DISTINCT pb."product_id") DESC, pb."type" ASC
-    `,
-  ])
+  try {
+    const itemIdRows = await executeCatalogSearchQuery<ProductIdRow[]>(
+      'item-ids',
+      itemIdsQuery,
+      params,
+    )
+    const summaryRows = await executeCatalogSearchQuery<SearchSummaryRow[]>(
+      'summary',
+      summaryQuery,
+      params,
+    )
+    const summaryRow = summaryRows[0]
+    const total = Number(summaryRow?.total ?? BigInt(0))
+    const ids = itemIdRows.map((row) => row.id)
+    const items = await findProductsByIdsInOrder(ids)
 
-  const ids = itemIdRows.map((row) => row.id)
-  const items = await findProductsByIdsInOrder(ids)
-  const summaryRow = summaryRows[0]
+    if (total === 0) {
+      logInfo('catalog-search:repository:after', {
+        domain: 'products',
+        route: '/catalog',
+        total,
+        itemsCount: items.length,
+        categoryFacetCount: 0,
+        storeFacetCount: 0,
+        badgeFacetCount: 0,
+      })
 
-  return {
-    items,
-    total: Number(summaryRow?.total ?? BigInt(0)),
-    page: params.page,
-    limit: params.limit,
-    facets: {
-      categories: categoryRows.map((row) => ({
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
-        count: Number(row.count),
-      })),
-      stores: storeRows.map((row) => ({
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
-        count: Number(row.count),
-      })),
-      availability: {
-        inStock: Number(summaryRow?.inStock ?? BigInt(0)),
-        outOfStock: Number(summaryRow?.outOfStock ?? BigInt(0)),
+      return {
+        items,
+        total,
+        page: params.page,
+        limit: params.limit,
+        facets: {
+          categories: [],
+          stores: [],
+          availability: {
+            inStock: Number(summaryRow?.inStock ?? BigInt(0)),
+            outOfStock: Number(summaryRow?.outOfStock ?? BigInt(0)),
+          },
+          ratings: [
+            { minRating: 5, count: Number(summaryRow?.rating5 ?? BigInt(0)) },
+            { minRating: 4, count: Number(summaryRow?.rating4 ?? BigInt(0)) },
+            { minRating: 3, count: Number(summaryRow?.rating3 ?? BigInt(0)) },
+            { minRating: 2, count: Number(summaryRow?.rating2 ?? BigInt(0)) },
+            { minRating: 1, count: Number(summaryRow?.rating1 ?? BigInt(0)) },
+          ],
+          badges: [],
+          priceRange: {
+            min: summaryRow?.min ?? null,
+            max: summaryRow?.max ?? null,
+          },
+        },
+      }
+    }
+
+    const categoryRows = await executeCatalogSearchQuery<CategoryFacetRow[]>(
+      'category-facets',
+      categoryFacetsQuery,
+      params,
+    )
+    const storeRows = await executeCatalogSearchQuery<StoreFacetRow[]>(
+      'store-facets',
+      storeFacetsQuery,
+      params,
+    )
+    const badgeRows = await executeCatalogSearchQuery<BadgeFacetRow[]>(
+      'badge-facets',
+      badgeFacetsQuery,
+      params,
+    )
+
+    logInfo('catalog-search:repository:after', {
+      domain: 'products',
+      route: '/catalog',
+      total,
+      itemsCount: items.length,
+      categoryFacetCount: categoryRows.length,
+      storeFacetCount: storeRows.length,
+      badgeFacetCount: badgeRows.length,
+    })
+
+    return {
+      items,
+      total,
+      page: params.page,
+      limit: params.limit,
+      facets: {
+        categories: categoryRows.map((row) => ({
+          id: row.id,
+          slug: row.slug,
+          name: row.name,
+          count: Number(row.count),
+        })),
+        stores: storeRows.map((row) => ({
+          id: row.id,
+          slug: row.slug,
+          name: row.name,
+          count: Number(row.count),
+        })),
+        availability: {
+          inStock: Number(summaryRow?.inStock ?? BigInt(0)),
+          outOfStock: Number(summaryRow?.outOfStock ?? BigInt(0)),
+        },
+        ratings: [
+          { minRating: 5, count: Number(summaryRow?.rating5 ?? BigInt(0)) },
+          { minRating: 4, count: Number(summaryRow?.rating4 ?? BigInt(0)) },
+          { minRating: 3, count: Number(summaryRow?.rating3 ?? BigInt(0)) },
+          { minRating: 2, count: Number(summaryRow?.rating2 ?? BigInt(0)) },
+          { minRating: 1, count: Number(summaryRow?.rating1 ?? BigInt(0)) },
+        ],
+        badges: badgeRows.map((row) => ({
+          type: row.type,
+          count: Number(row.count),
+        })),
+        priceRange: {
+          min: summaryRow?.min ?? null,
+          max: summaryRow?.max ?? null,
+        },
       },
-      ratings: [
-        { minRating: 5, count: Number(summaryRow?.rating5 ?? BigInt(0)) },
-        { minRating: 4, count: Number(summaryRow?.rating4 ?? BigInt(0)) },
-        { minRating: 3, count: Number(summaryRow?.rating3 ?? BigInt(0)) },
-        { minRating: 2, count: Number(summaryRow?.rating2 ?? BigInt(0)) },
-        { minRating: 1, count: Number(summaryRow?.rating1 ?? BigInt(0)) },
-      ],
-      badges: badgeRows.map((row) => ({
-        type: row.type,
-        count: Number(row.count),
-      })),
-      priceRange: {
-        min: summaryRow?.min ?? null,
-        max: summaryRow?.max ?? null,
-      },
-    },
+    }
+  } catch (error) {
+    logError('catalog-search:repository:error', error, {
+      domain: 'products',
+      route: '/catalog',
+      page: params.page,
+      limit: params.limit,
+      sort: params.sort,
+    })
+    throw error
+  } finally {
+    logInfo('catalog-search:repository:finally', {
+      domain: 'products',
+      route: '/catalog',
+    })
   }
 }
 

@@ -393,6 +393,7 @@ describe('searchProducts', () => {
     })
 
     expect(result.items).toEqual([])
+    expect(queryRawMock).toHaveBeenCalledTimes(2)
     expect(findManyMock).not.toHaveBeenCalled()
     expect(variantFindManyMock).not.toHaveBeenCalled()
     expect(storeFindManyMock).not.toHaveBeenCalled()
