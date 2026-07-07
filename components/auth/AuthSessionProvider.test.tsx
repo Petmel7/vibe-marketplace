@@ -15,9 +15,13 @@ import {
 const {
   getSessionMock,
   onAuthStateChangeMock,
+  pathnameRef,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(),
+  pathnameRef: {
+    current: '/',
+  },
 }))
 
 const mockCartStoreState = {
@@ -36,7 +40,7 @@ const mockCartStoreState = {
 }
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/',
+  usePathname: () => pathnameRef.current,
 }))
 
 vi.mock('@/lib/supabase-browser', () => ({
@@ -113,6 +117,7 @@ describe('AuthSessionProvider', () => {
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     authStateCallback = null
+    pathnameRef.current = '/'
 
     mockCartStoreState.sessionId = 'guest-session-1'
     mockCartStoreState.itemCount = 0
@@ -294,5 +299,54 @@ describe('AuthSessionProvider', () => {
       'guest',
     )
     expect(useCartStore.getState().refreshKey).toBe(2)
+  })
+
+  it('does not refetch /api/auth/me on public pathname changes', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          id: 'user-1',
+          email: 'user@example.com',
+          roles: ['BUYER'],
+        },
+      }),
+    })
+
+    await act(async () => {
+      root.render(
+        <AuthSessionProvider initialUser={null}>
+          <SessionProbe />
+        </AuthSessionProvider>,
+      )
+
+      await flushAsyncWork()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/auth/sync',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    )
+
+    pathnameRef.current = '/catalog'
+
+    await act(async () => {
+      root.render(
+        <AuthSessionProvider initialUser={null}>
+          <SessionProbe />
+        </AuthSessionProvider>,
+      )
+
+      await flushAsyncWork()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(
+      fetchMock.mock.calls.some((call) => call[0] === '/api/auth/me'),
+    ).toBe(false)
   })
 })

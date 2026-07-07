@@ -13,6 +13,7 @@ type UseNotificationsOptions = {
   limit?: number
   liveListEnabled?: boolean
   unread?: boolean
+  refreshOnWindowFocus?: boolean
 }
 
 type NotificationSyncDetail =
@@ -29,6 +30,11 @@ type NotificationSyncDetail =
     }
 
 const NOTIFICATION_SYNC_EVENT = 'notifications:sync'
+const UNREAD_COUNT_CACHE_MS = 15_000
+
+let sharedUnreadCountPromise: Promise<number> | null = null
+let sharedUnreadCountValue = 0
+let sharedUnreadCountFetchedAt = 0
 
 function getErrorMessage(error: unknown) {
   if (error instanceof UnauthorizedError) {
@@ -62,6 +68,7 @@ export function useNotifications({
   limit = 20,
   liveListEnabled = autoLoadList,
   unread,
+  refreshOnWindowFocus = true,
 }: UseNotificationsOptions = {}) {
   const router = useRouter()
   const instanceIdRef = useRef(`notifications-${Math.random().toString(36).slice(2)}`)
@@ -104,8 +111,31 @@ export function useNotifications({
     setCountError(null)
 
     try {
-      const data = await notificationsApi.unreadCount()
-      setUnreadCount(data.count)
+      const now = Date.now()
+      if (
+        sharedUnreadCountFetchedAt > 0 &&
+        now - sharedUnreadCountFetchedAt < UNREAD_COUNT_CACHE_MS
+      ) {
+        setUnreadCount(sharedUnreadCountValue)
+        setIsUnauthorized(false)
+        return
+      }
+
+      if (!sharedUnreadCountPromise) {
+        sharedUnreadCountPromise = notificationsApi
+          .unreadCount()
+          .then((data) => {
+            sharedUnreadCountValue = data.count
+            sharedUnreadCountFetchedAt = Date.now()
+            return data.count
+          })
+          .finally(() => {
+            sharedUnreadCountPromise = null
+          })
+      }
+
+      const count = await sharedUnreadCountPromise
+      setUnreadCount(count)
       setIsUnauthorized(false)
     } catch (error) {
       setUnreadCount(0)
@@ -157,9 +187,11 @@ export function useNotifications({
         existing.map((item) => (item.id === id ? { ...item, readAt: optimisticReadAt } : item)),
       )
       setUnreadCount((existing) => Math.max(0, existing - 1))
+      sharedUnreadCountValue = Math.max(0, sharedUnreadCountValue - 1)
+      sharedUnreadCountFetchedAt = Date.now()
 
       try {
-        const updated = await notificationsApi.markRead(id)
+      const updated = await notificationsApi.markRead(id)
         setItems((existing) => existing.map((item) => (item.id === id ? updated : item)))
         dispatchNotificationSync({
           kind: 'read-one',
@@ -191,6 +223,8 @@ export function useNotifications({
     setIsMarkingAllRead(true)
     setItems((existing) => existing.map((item) => ({ ...item, readAt: item.readAt ?? optimisticReadAt })))
     setUnreadCount(0)
+    sharedUnreadCountValue = 0
+    sharedUnreadCountFetchedAt = Date.now()
 
     try {
       await notificationsApi.markAllRead()
@@ -247,6 +281,8 @@ export function useNotifications({
     if (!alreadyKnown) {
       if (!notification.readAt) {
         setUnreadCount((existing) => existing + 1)
+        sharedUnreadCountValue += 1
+        sharedUnreadCountFetchedAt = Date.now()
       }
 
       setTotal((existing) => existing + 1)
@@ -318,6 +354,7 @@ export function useNotifications({
     enabled: !isUnauthorized,
     onNotification: handleRealtimeNotification,
     onResync: refetchFromServer,
+    refreshOnWindowFocus,
   })
 
   const summary = useMemo(

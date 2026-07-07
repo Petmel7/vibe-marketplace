@@ -89,65 +89,21 @@ export default function AuthSessionProvider({
   children: ReactNode
 }) {
   const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
   const [user, setUser] = useState<SessionUser | null>(initialUser)
-  const [hydratedPathname, setHydratedPathname] = useState<string | null>(
-    initialUser ? pathname : null
-  )
   const [hasBootstrappedBrowserSession, setHasBootstrappedBrowserSession] = useState(
     Boolean(initialUser) || isAuthPagePath(pathname)
   )
   const [isSyncingUser, setIsSyncingUser] = useState(false)
   const [isRefreshing, startTransition] = useTransition()
-  const inFlightPathRef = useRef<string | null>(null)
+  const inFlightRefreshRef = useRef(false)
   const lastSyncedAccessTokenRef = useRef<string | null>(null)
   const syncingAccessTokenRef = useRef<string | null>(null)
-  const isHydrated = !shouldRefreshSessionForPathname(pathname) || hydratedPathname === pathname
+  const isHydrated = !shouldRefreshSessionForPathname(pathname) || hasBootstrappedBrowserSession
 
   useEffect(() => {
-    if (!hasBootstrappedBrowserSession) {
-      return
-    }
-
-    if (!shouldRefreshSessionForPathname(pathname)) {
-      return
-    }
-
-    if (hydratedPathname === pathname || inFlightPathRef.current === pathname) {
-      return
-    }
-
-    let isCancelled = false
-    inFlightPathRef.current = pathname
-
-    startTransition(() => {
-      fetchCurrentUser()
-        .then((nextUser) => {
-          if (isCancelled) return
-          setUser(nextUser)
-          setHydratedPathname(pathname)
-        })
-        .catch((error) => {
-          if (isCancelled) return
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn('[AuthSessionProvider] unable to refresh current user', {
-              pathname,
-              route: API_ROUTES.authMe,
-              error: error instanceof Error ? error.message : String(error),
-            })
-          }
-          setHydratedPathname(pathname)
-        })
-        .finally(() => {
-          if (!isCancelled && inFlightPathRef.current === pathname) {
-            inFlightPathRef.current = null
-          }
-        })
-    })
-
-    return () => {
-      isCancelled = true
-    }
-  }, [hasBootstrappedBrowserSession, hydratedPathname, pathname])
+    pathnameRef.current = pathname
+  }, [pathname])
 
   useEffect(() => {
     let cancelled = false
@@ -179,7 +135,6 @@ export default function AuthSessionProvider({
 
             lastSyncedAccessTokenRef.current = accessToken
             setUser(nextUser)
-            setHydratedPathname(pathname)
             setHasBootstrappedBrowserSession(true)
 
             if (options?.refreshCart) {
@@ -192,8 +147,8 @@ export default function AuthSessionProvider({
             }
 
             if (process.env.NODE_ENV !== 'production') {
-              console.warn('[AuthSessionProvider] auth sync failed', {
-                pathname,
+                  console.warn('[AuthSessionProvider] auth sync failed', {
+                pathname: pathnameRef.current,
                 route: API_ROUTES.authSync,
                 error: error instanceof Error ? error.message : String(error),
               })
@@ -206,7 +161,6 @@ export default function AuthSessionProvider({
                 }
 
                 setUser(nextUser)
-                setHydratedPathname(pathname)
                 setHasBootstrappedBrowserSession(true)
               })
               .catch((refreshError) => {
@@ -216,7 +170,7 @@ export default function AuthSessionProvider({
 
                 if (process.env.NODE_ENV !== 'production') {
                   console.warn('[AuthSessionProvider] fallback current-user refresh failed', {
-                    pathname,
+                    pathname: pathnameRef.current,
                     route: API_ROUTES.authMe,
                     error:
                       refreshError instanceof Error
@@ -256,7 +210,6 @@ export default function AuthSessionProvider({
         if (!session?.access_token) {
           setIsSyncingUser(false)
           setUser(null)
-          setHydratedPathname(pathname)
           setHasBootstrappedBrowserSession(true)
           return
         }
@@ -273,7 +226,7 @@ export default function AuthSessionProvider({
 
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[AuthSessionProvider] browser session bootstrap failed', {
-            pathname,
+            pathname: pathnameRef.current,
             error: error instanceof Error ? error.message : String(error),
           })
         }
@@ -287,7 +240,6 @@ export default function AuthSessionProvider({
         lastSyncedAccessTokenRef.current = null
         setIsSyncingUser(false)
         setUser(null)
-        setHydratedPathname(pathname)
         setHasBootstrappedBrowserSession(true)
         useCartStore.getState().bumpRefreshKey()
         return
@@ -308,7 +260,7 @@ export default function AuthSessionProvider({
       cancelled = true
       subscription?.unsubscribe()
     }
-  }, [initialUser, pathname])
+  }, [initialUser])
 
   const value = useMemo<AuthSessionContextValue>(
     () => ({
@@ -327,23 +279,22 @@ export default function AuthSessionProvider({
             return
           }
 
-          if (inFlightPathRef.current === pathname) {
+          if (inFlightRefreshRef.current) {
             resolve(user)
             return
           }
 
-          inFlightPathRef.current = pathname
+          inFlightRefreshRef.current = true
           startTransition(() => {
             fetchCurrentUser()
               .then((nextUser) => {
                 setUser(nextUser)
-                setHydratedPathname(pathname)
                 resolve(nextUser)
               })
               .catch((error) => {
                 if (process.env.NODE_ENV !== 'production') {
                   console.warn('[AuthSessionProvider] manual refresh failed', {
-                    pathname,
+                    pathname: pathnameRef.current,
                     route: API_ROUTES.authMe,
                     error: error instanceof Error ? error.message : String(error),
                   })
@@ -351,9 +302,7 @@ export default function AuthSessionProvider({
                 reject(error)
               })
               .finally(() => {
-                if (inFlightPathRef.current === pathname) {
-                  inFlightPathRef.current = null
-                }
+                inFlightRefreshRef.current = false
               })
           })
         }),

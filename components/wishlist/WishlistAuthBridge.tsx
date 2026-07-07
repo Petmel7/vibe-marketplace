@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { API_ROUTES, isAuthPagePath } from '@/lib/constants/apiRoutes'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useWishlistStore } from '@/store/wishlistStore'
 import type { WishlistDto } from '@/features/wishlist/wishlist.dto'
 
 let wishlistLoadPromise: Promise<void> | null = null
 let wishlistRetryTimeout: ReturnType<typeof setTimeout> | null = null
+let lastLoadedAccessToken: string | null = null
 
 /**
  * Mounted once at the root layout. Keeps the wishlist Zustand store in sync
@@ -22,13 +24,19 @@ let wishlistRetryTimeout: ReturnType<typeof setTimeout> | null = null
  */
 export default function WishlistAuthBridge() {
   const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
+  const isAuthPage = isAuthPagePath(pathname)
+  const { isAuthenticated, hasCompletedInitialSync } = useCurrentUser()
   const setProductIds = useWishlistStore((s) => s.setProductIds)
   const setLoading = useWishlistStore((s) => s.setLoading)
   const clear = useWishlistStore((s) => s.clear)
 
   useEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
+
+  useEffect(() => {
     let cancelled = false
-    let subscription: { unsubscribe: () => void } | null = null
     let supabase: ReturnType<typeof getSupabaseBrowser>
 
     try {
@@ -61,7 +69,7 @@ export default function WishlistAuthBridge() {
         if (res.status === 404) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn('[WishlistAuthBridge] wishlist route unavailable', {
-              pathname,
+              pathname: pathnameRef.current,
               route: API_ROUTES.wishlist,
               status: res.status,
             })
@@ -82,7 +90,7 @@ export default function WishlistAuthBridge() {
         if (!res.ok) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn('[WishlistAuthBridge] wishlist request failed', {
-              pathname,
+              pathname: pathnameRef.current,
               route: API_ROUTES.wishlist,
               status: res.status,
             })
@@ -103,7 +111,7 @@ export default function WishlistAuthBridge() {
 
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[WishlistAuthBridge] wishlist response error', {
-            pathname,
+            pathname: pathnameRef.current,
             route: API_ROUTES.wishlist,
             code: json.error.code,
             message: json.error.message,
@@ -112,7 +120,7 @@ export default function WishlistAuthBridge() {
       } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[WishlistAuthBridge] wishlist request threw', {
-            pathname,
+            pathname: pathnameRef.current,
             route: API_ROUTES.wishlist,
             error: error instanceof Error ? error.message : String(error),
           })
@@ -125,7 +133,13 @@ export default function WishlistAuthBridge() {
     }
 
     async function hydrate() {
-      if (isAuthPagePath(pathname)) {
+      if (isAuthPage || !hasCompletedInitialSync) {
+        return
+      }
+
+      if (!isAuthenticated) {
+        lastLoadedAccessToken = null
+        clear()
         return
       }
 
@@ -135,8 +149,13 @@ export default function WishlistAuthBridge() {
 
       if (cancelled) return
 
-      if (!session) {
+      if (!session?.access_token) {
+        lastLoadedAccessToken = null
         clear()
+        return
+      }
+
+      if (lastLoadedAccessToken === session.access_token) {
         return
       }
 
@@ -147,30 +166,22 @@ export default function WishlistAuthBridge() {
       }
 
       await wishlistLoadPromise
+      lastLoadedAccessToken = session.access_token
     }
 
     void hydrate()
 
-    subscription = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        clear()
-        return
-      }
-
-      if (event === 'SIGNED_IN') {
-        if (!wishlistLoadPromise) {
-          wishlistLoadPromise = loadWishlist(session.access_token).finally(() => {
-            wishlistLoadPromise = null
-          })
-        }
-      }
-    }).data.subscription
-
     return () => {
       cancelled = true
-      subscription?.unsubscribe()
     }
-  }, [clear, pathname, setLoading, setProductIds])
+  }, [
+    clear,
+    hasCompletedInitialSync,
+    isAuthenticated,
+    isAuthPage,
+    setLoading,
+    setProductIds,
+  ])
 
   return null
 }

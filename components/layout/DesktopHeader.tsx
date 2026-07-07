@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { usePathname } from 'next/navigation'
 import { Search } from 'lucide-react'
 import type { CategoryTreeNode } from '@/components/category/category.data'
 import type { SessionUser } from '@/types/auth'
@@ -23,6 +24,7 @@ export default function DesktopHeader({
   user: SessionUser | null
   onSearch: () => void
 }) {
+  const pathname = usePathname()
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
   const [activeRootSlug, setActiveRootSlug] = useState<string | null>(null)
@@ -75,6 +77,10 @@ export default function DesktopHeader({
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isCatalogOpen])
+
+  useEffect(() => {
+    setIsCatalogOpen(false)
+  }, [pathname])
 
   return (
     <div ref={menuRef} className="flex w-full items-center gap-6">

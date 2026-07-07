@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
 import type { CategoryTreeNode } from '@/components/category/category.data'
 import SearchOverlay from '@/components/search/SearchOverlay'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -11,7 +10,6 @@ import MobileHeader from './MobileHeader'
 
 export default function HeaderClient({ categories }: { categories: CategoryTreeNode[] }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const pathname = usePathname()
   const { user } = useCurrentUser()
 
   return (
@@ -22,7 +20,6 @@ export default function HeaderClient({ categories }: { categories: CategoryTreeN
 
       <HeaderBase className="relative hidden md:block">
         <DesktopHeader
-          key={pathname}
           categories={categories}
           user={user}
           onSearch={() => setIsSearchOpen(true)}

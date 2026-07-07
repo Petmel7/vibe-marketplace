@@ -11,6 +11,7 @@ type UseRealtimeNotificationsOptions = {
   onNotification: (notification: Notification) => void
   onResync: () => void | Promise<void>
   pollIntervalMs?: number
+  refreshOnWindowFocus?: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -61,6 +62,7 @@ export function useRealtimeNotifications({
   onNotification,
   onResync,
   pollIntervalMs = 60000,
+  refreshOnWindowFocus = true,
 }: UseRealtimeNotificationsOptions) {
   const onNotificationRef = useRef(onNotification)
   const onResyncRef = useRef(onResync)
@@ -302,9 +304,11 @@ export function useRealtimeNotifications({
       void refreshFromServer()
     }
 
-    window.addEventListener('focus', handleWindowRefresh)
+    if (refreshOnWindowFocus) {
+      window.addEventListener('focus', handleWindowRefresh)
+      document.addEventListener('visibilitychange', handleVisibilityRefresh)
+    }
     window.addEventListener('online', handleWindowRefresh)
-    document.addEventListener('visibilitychange', handleVisibilityRefresh)
 
     return () => {
       isDisposed = true
@@ -317,11 +321,13 @@ export function useRealtimeNotifications({
 
       void safelyRemoveChannel(activeChannel)
 
-      window.removeEventListener('focus', handleWindowRefresh)
+      if (refreshOnWindowFocus) {
+        window.removeEventListener('focus', handleWindowRefresh)
+        document.removeEventListener('visibilitychange', handleVisibilityRefresh)
+      }
       window.removeEventListener('online', handleWindowRefresh)
-      document.removeEventListener('visibilitychange', handleVisibilityRefresh)
     }
-  }, [enabled, pollIntervalMs])
+  }, [enabled, pollIntervalMs, refreshOnWindowFocus])
 
   return {
     isRealtimeConnected,

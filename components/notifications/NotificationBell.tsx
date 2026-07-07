@@ -26,6 +26,7 @@ export default function NotificationBell() {
     autoLoadList: false,
     limit: 8,
     liveListEnabled: isOpen,
+    refreshOnWindowFocus: false,
   })
 
   useEffect(() => {
