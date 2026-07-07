@@ -21,6 +21,11 @@ export async function syncUser(supabaseUser: SupabaseUser): Promise<SessionUser>
       supabaseUser.email ?? ''
     )
     created = provisioned.created
+    return buildSessionUser(
+      supabaseUser,
+      provisioned.roles,
+      created,
+    )
   } catch (error) {
     logError('syncUser:provisioning', error, {
       domain: 'auth',
@@ -28,18 +33,22 @@ export async function syncUser(supabaseUser: SupabaseUser): Promise<SessionUser>
     })
     throw error
   }
+}
 
-  if (created) {
-    if (supabaseUser.email) {
-      void emitWelcomeEmailEvent({
-        userId: supabaseUser.id,
-        email: supabaseUser.email,
-      }).catch((error) => {
-        logError('syncUser:welcome-email', error)
-      })
-    }
+function buildSessionUser(
+  supabaseUser: SupabaseUser,
+  roles: SessionUser['roles'],
+  created: boolean,
+): SessionUser {
+  if (created && supabaseUser.email) {
+    void emitWelcomeEmailEvent({
+      userId: supabaseUser.id,
+      email: supabaseUser.email,
+    }).catch((error) => {
+      logError('syncUser:welcome-email', error)
+    })
   }
-  const roles = await getUserRoles(supabaseUser.id)
+
   return {
     id: supabaseUser.id,
     email: supabaseUser.email ?? '',

@@ -39,64 +39,97 @@ export async function createUserWithProfile(id: string, email: string) {
 export async function ensureUserProvisioned(id: string, email: string) {
   const existingUser = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true },
-  })
-
-  await prisma.user.upsert({
-    where: { id },
-    update:
-      existingUser?.email !== email
-        ? {
-            email,
-            updatedAt: new Date(),
-          }
-        : {
-            updatedAt: new Date(),
-          },
-    create: {
-      id,
-      email,
-      updatedAt: new Date(),
-    },
-  })
-
-  await prisma.userProfile.upsert({
-    where: { userId: id },
-    update: {
-      updatedAt: new Date(),
-    },
-    create: {
-      userId: id,
-      updatedAt: new Date(),
-    },
-  })
-
-  await prisma.buyerProfile.upsert({
-    where: { userId: id },
-    update: {
-      updatedAt: new Date(),
-    },
-    create: {
-      userId: id,
-      updatedAt: new Date(),
-    },
-  })
-
-  await prisma.userRoleAssignment.upsert({
-    where: {
-      userId_role: {
-        userId: id,
-        role: UserRole.BUYER,
+    select: {
+      id: true,
+      email: true,
+      profile: {
+        select: {
+          userId: true,
+        },
+      },
+      buyer: {
+        select: {
+          userId: true,
+        },
+      },
+      roles: {
+        select: {
+          role: true,
+        },
       },
     },
-    update: {},
-    create: {
-      userId: id,
-      role: UserRole.BUYER,
-    },
   })
 
-  return { created: !existingUser }
+  const existingRoles = existingUser?.roles.map((assignment) => assignment.role) ?? []
+  const hasBuyerRole = existingRoles.includes(UserRole.BUYER)
+  const needsUserCreate = !existingUser
+  const needsEmailUpdate = Boolean(existingUser && existingUser.email !== email)
+  const needsProfileCreate = !existingUser?.profile
+  const needsBuyerProfileCreate = !existingUser?.buyer
+  const needsBuyerRoleCreate = !hasBuyerRole
+
+  const hasMutations =
+    needsUserCreate ||
+    needsEmailUpdate ||
+    needsProfileCreate ||
+    needsBuyerProfileCreate ||
+    needsBuyerRoleCreate
+
+  if (hasMutations) {
+    await prisma.$transaction(async (tx) => {
+      const now = new Date()
+
+      if (needsUserCreate) {
+        await tx.user.create({
+          data: {
+            id,
+            email,
+            updatedAt: now,
+          },
+        })
+      } else if (needsEmailUpdate) {
+        await tx.user.update({
+          where: { id },
+          data: {
+            email,
+            updatedAt: now,
+          },
+        })
+      }
+
+      if (needsProfileCreate) {
+        await tx.userProfile.create({
+          data: {
+            userId: id,
+            updatedAt: now,
+          },
+        })
+      }
+
+      if (needsBuyerProfileCreate) {
+        await tx.buyerProfile.create({
+          data: {
+            userId: id,
+            updatedAt: now,
+          },
+        })
+      }
+
+      if (needsBuyerRoleCreate) {
+        await tx.userRoleAssignment.create({
+          data: {
+            userId: id,
+            role: UserRole.BUYER,
+          },
+        })
+      }
+    })
+  }
+
+  return {
+    created: !existingUser,
+    roles: hasBuyerRole ? existingRoles : [...existingRoles, UserRole.BUYER],
+  }
 }
 
 export async function getUserRoles(userId: string): Promise<UserRole[]> {
