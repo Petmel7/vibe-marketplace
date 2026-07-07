@@ -25,10 +25,16 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const resolvedSearchParams = await searchParams
+  const requestId = crypto.randomUUID()
   let data = null
 
   try {
-    data = await getSearchPageData(resolvedSearchParams)
+    data = await getSearchPageData(resolvedSearchParams, {}, {
+      traceContext: {
+        requestId,
+        route: '/search',
+      },
+    })
   } catch {
     return (
       <SearchErrorState

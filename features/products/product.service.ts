@@ -49,6 +49,28 @@ import type { ProductBadgeDto } from './product-badge.dto'
 const LOW_STOCK_THRESHOLD = 3
 const MAX_CATEGORY_SUBTREE_DEPTH = 128
 
+type ProductSearchTraceContext = {
+  requestId?: string
+  route?: string
+}
+
+function isDefaultCatalogSearchQuery(
+  query: ProductSearchQuery,
+  sort: ProductSearchSort,
+) {
+  return (
+    !query.q?.trim() &&
+    !query.category &&
+    query.minPrice === undefined &&
+    query.maxPrice === undefined &&
+    query.inStock === undefined &&
+    query.rating === undefined &&
+    query.badge === undefined &&
+    !query.store?.trim() &&
+    sort === 'newest'
+  )
+}
+
 function deriveInventoryState(variants: Array<Pick<ProductVariant, 'stock'>>): {
   inStock: boolean
   totalStock: number
@@ -848,6 +870,41 @@ export const getHomepageProductSections = cache(async (limit = 4): Promise<Homep
   ),
 )
 
+const getDefaultCatalogSearchCached = unstable_cache(
+  async (page: number, limit: number): Promise<ProductSearchDto> => {
+    logInfo('catalog-search:default-cache-callback:start', {
+      domain: 'products',
+      route: '/catalog',
+      page,
+      limit,
+      cache: 'unstable_cache:default-catalog-search',
+    })
+    const result = await executeSearchProductsQuery(
+      {
+        page,
+        limit,
+        sort: 'newest',
+      },
+      undefined,
+    )
+    logInfo('catalog-search:default-cache-callback:after', {
+      domain: 'products',
+      route: '/catalog',
+      page,
+      limit,
+      total: result.pagination.total,
+      itemsCount: result.items.length,
+      cache: 'unstable_cache:default-catalog-search',
+    })
+    return result
+  },
+  ['default-catalog-search'],
+  {
+    revalidate: 120,
+    tags: [SEO_CACHE_TAGS.products, SEO_CACHE_TAGS.categories, SEO_CACHE_TAGS.stores],
+  },
+)
+
 async function getInitialProductFeedPage(
   kind: 'new' | 'hit',
   limit: number,
@@ -1008,8 +1065,9 @@ export async function listProductsByCategorySlug(
  * The `q` term is validated upstream by Zod before this runs.
  * Returns empty items (not an error) when nothing matches.
  */
-export async function searchProducts(
-  query: ProductSearchQuery
+async function executeSearchProductsQuery(
+  query: ProductSearchQuery,
+  traceContext?: ProductSearchTraceContext,
 ): Promise<ProductSearchDto> {
   const sort = resolveSearchSort(query)
   const appliedFilters = buildAppliedSearchFilters(query)
@@ -1045,7 +1103,8 @@ export async function searchProducts(
   try {
     logInfo('catalog-search:service:before-repository', {
       domain: 'products',
-      route: '/catalog',
+      route: traceContext?.route ?? '/catalog',
+      requestId: traceContext?.requestId,
       page: query.page,
       limit: query.limit,
       sort,
@@ -1066,10 +1125,13 @@ export async function searchProducts(
       sort,
       page: query.page,
       limit: query.limit,
+      requestId: traceContext?.requestId,
+      route: traceContext?.route,
     })
     logInfo('catalog-search:service:after-repository', {
       domain: 'products',
-      route: '/catalog',
+      route: traceContext?.route ?? '/catalog',
+      requestId: traceContext?.requestId,
       itemsCount: result.items.length,
       total: result.total,
     })
@@ -1111,6 +1173,30 @@ export async function searchProducts(
       error instanceof Error ? error.message : 'Search query could not be executed',
     )
   }
+}
+
+export async function searchProducts(
+  query: ProductSearchQuery,
+  traceContext?: ProductSearchTraceContext,
+): Promise<ProductSearchDto> {
+  const sort = resolveSearchSort(query)
+
+  if (isDefaultCatalogSearchQuery(query, sort)) {
+    return measureServerOperation(
+      'searchProductsDefaultCatalogCached',
+      {
+        service: 'features/products/product.service',
+        route: traceContext?.route ?? '/catalog',
+        requestId: traceContext?.requestId,
+        cache: 'unstable_cache:default-catalog-search',
+        page: query.page,
+        limit: query.limit,
+      },
+      () => getDefaultCatalogSearchCached(query.page, query.limit),
+    )
+  }
+
+  return executeSearchProductsQuery(query, traceContext)
 }
 
 /**

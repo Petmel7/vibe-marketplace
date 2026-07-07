@@ -13,6 +13,7 @@ import type {
   CategoryTreeNode,
 } from '@/components/category/category.data'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 import type { SearchPageUrlState } from '@/types/search'
 
 export type SearchPageSearchParams = Record<
@@ -30,6 +31,10 @@ export interface SearchPageData {
 type SearchPageDataOptions = {
   preloadedCategoryTree?: CategoryTreeNode[]
   preloadedFlatCategories?: CategoryListItem[]
+  traceContext?: {
+    requestId: string
+    route: string
+  }
 }
 
 const DEFAULT_LIMIT = 12
@@ -123,6 +128,7 @@ export function buildSearchParamsFromState(state: SearchPageUrlState) {
 
 async function fetchSearchResults(
   state: SearchPageUrlState,
+  traceContext?: SearchPageDataOptions['traceContext'],
 ): Promise<ProductSearchDto> {
   const query = productSearchQuerySchema.parse({
     q: state.q || undefined,
@@ -141,10 +147,11 @@ async function fetchSearchResults(
   return measureServerOperation(
     'search-page-products',
     {
-      route: '/catalog',
+      route: traceContext?.route ?? '/catalog',
       service: 'searchProducts',
+      requestId: traceContext?.requestId,
     },
-    () => searchProducts(query),
+    () => searchProducts(query, traceContext),
   )
 }
 
@@ -154,35 +161,54 @@ export async function getSearchPageData(
   options: SearchPageDataOptions = {},
 ): Promise<SearchPageData> {
   const state = normalizeSearchPageState(searchParams, overrides)
+  const traceContext = options.traceContext ?? {
+    requestId: crypto.randomUUID(),
+    route: '/catalog',
+  }
+  const shouldLoadFlatCategories = Boolean(options.preloadedFlatCategories || state.category)
 
   return measureServerOperation(
     'search-page-data',
     {
-      route: '/catalog',
+      route: traceContext.route,
       component: 'app/search/_lib/search-page.data',
+      requestId: traceContext.requestId,
     },
     async () => {
-      const resultsPromise = fetchSearchResults(state)
+      logInfo('search-page-data:before-results', {
+        domain: 'search',
+        route: traceContext.route,
+        requestId: traceContext.requestId,
+        page: state.page,
+        limit: state.limit,
+        hasQuery: Boolean(state.q),
+        hasCategory: Boolean(state.category),
+      })
+      const resultsPromise = fetchSearchResults(state, traceContext)
       const categoryTreePromise = options.preloadedCategoryTree
         ? Promise.resolve(options.preloadedCategoryTree)
         : measureServerOperation(
             'search-page-category-tree',
             {
-              route: '/catalog',
+              route: traceContext.route,
               categoryTree: 'fetchCategoryTree',
+              requestId: traceContext.requestId,
             },
             () => fetchCategoryTree(),
           )
       const flatCategoriesPromise = options.preloadedFlatCategories
         ? Promise.resolve(options.preloadedFlatCategories)
-        : measureServerOperation(
+        : shouldLoadFlatCategories
+          ? measureServerOperation(
             'search-page-flat-categories',
             {
-              route: '/catalog',
+              route: traceContext.route,
               categoryTree: 'fetchCategories',
+              requestId: traceContext.requestId,
             },
             () => fetchCategories(),
           )
+          : Promise.resolve([])
 
       const [results, categoryTreeResult, flatCategoriesResult] = await Promise.allSettled([
         resultsPromise,
@@ -193,6 +219,19 @@ export async function getSearchPageData(
       if (results.status !== 'fulfilled') {
         throw results.reason
       }
+
+      logInfo('search-page-data:before-return', {
+        domain: 'search',
+        route: traceContext.route,
+        requestId: traceContext.requestId,
+        itemsCount: results.value.items.length,
+        total: results.value.pagination.total,
+        categoryTreeCount:
+          categoryTreeResult.status === 'fulfilled' ? categoryTreeResult.value.length : 0,
+        flatCategoriesCount:
+          flatCategoriesResult.status === 'fulfilled' ? flatCategoriesResult.value.length : 0,
+        loadedFlatCategories: shouldLoadFlatCategories,
+      })
 
       return {
         results: results.value,

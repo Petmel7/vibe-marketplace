@@ -36,6 +36,7 @@ export default async function CategoryProductsPage({
   params,
   searchParams,
 }: Props) {
+  const requestId = crypto.randomUUID()
   const [{ slug }, resolvedSearchParams] = await Promise.all([params, searchParams])
   let seo: Awaited<ReturnType<typeof getCachedCategorySeo>>
 
@@ -62,6 +63,10 @@ export default async function CategoryProductsPage({
       category: category.slug,
     }, {
       preloadedFlatCategories: categories,
+      traceContext: {
+        requestId,
+        route: `/products/category/${slug}`,
+      },
     })
   } catch {
     return (

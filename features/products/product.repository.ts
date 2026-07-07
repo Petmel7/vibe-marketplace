@@ -304,6 +304,8 @@ export interface ProductSearchRepositoryParams {
   sort: 'relevance' | 'newest' | 'price_asc' | 'price_desc' | 'rating' | 'popular'
   page: number
   limit: number
+  requestId?: string
+  route?: string
 }
 
 export interface ProductSearchFacetCategoryRecord {
@@ -468,7 +470,8 @@ type BadgeFacetRow = { type: ProductBadgeType; count: bigint }
 function logCatalogSearchQuery(label: string, query: Prisma.Sql, params: ProductSearchRepositoryParams) {
   logInfo(`catalog-search:${label}`, {
     domain: 'products',
-    route: '/catalog',
+    route: params.route ?? '/catalog',
+    requestId: params.requestId,
     page: params.page,
     limit: params.limit,
     sort: params.sort,
@@ -491,7 +494,8 @@ async function executeCatalogSearchQuery<T>(
 ): Promise<T> {
   logInfo(`catalog-search:${label}:before-queryRaw`, {
     domain: 'products',
-    route: '/catalog',
+    route: params.route ?? '/catalog',
+    requestId: params.requestId,
   })
   logCatalogSearchQuery(`${label}:compiled`, query, params)
 
@@ -499,19 +503,22 @@ async function executeCatalogSearchQuery<T>(
     const result = await prisma.$queryRaw<T>(query)
     logInfo(`catalog-search:${label}:after-queryRaw`, {
       domain: 'products',
-      route: '/catalog',
+      route: params.route ?? '/catalog',
+      requestId: params.requestId,
     })
     return result
   } catch (error) {
     logError(`catalog-search:${label}:queryRaw-error`, error, {
       domain: 'products',
-      route: '/catalog',
+      route: params.route ?? '/catalog',
+      requestId: params.requestId,
     })
     throw error
   } finally {
     logInfo(`catalog-search:${label}:finally`, {
       domain: 'products',
-      route: '/catalog',
+      route: params.route ?? '/catalog',
+      requestId: params.requestId,
     })
   }
 }
@@ -723,7 +730,8 @@ export async function searchProducts(
 ): Promise<ProductSearchRepositoryResult> {
   logInfo('catalog-search:repository:before', {
     domain: 'products',
-    route: '/catalog',
+    route: params.route ?? '/catalog',
+    requestId: params.requestId,
     page: params.page,
     limit: params.limit,
     sort: params.sort,
@@ -824,7 +832,8 @@ export async function searchProducts(
     if (total === 0) {
       logInfo('catalog-search:repository:after', {
         domain: 'products',
-        route: '/catalog',
+        route: params.route ?? '/catalog',
+        requestId: params.requestId,
         total,
         itemsCount: items.length,
         categoryFacetCount: 0,
@@ -878,7 +887,8 @@ export async function searchProducts(
 
     logInfo('catalog-search:repository:after', {
       domain: 'products',
-      route: '/catalog',
+      route: params.route ?? '/catalog',
+      requestId: params.requestId,
       total,
       itemsCount: items.length,
       categoryFacetCount: categoryRows.length,
@@ -928,7 +938,8 @@ export async function searchProducts(
   } catch (error) {
     logError('catalog-search:repository:error', error, {
       domain: 'products',
-      route: '/catalog',
+      route: params.route ?? '/catalog',
+      requestId: params.requestId,
       page: params.page,
       limit: params.limit,
       sort: params.sort,
@@ -937,7 +948,8 @@ export async function searchProducts(
   } finally {
     logInfo('catalog-search:repository:finally', {
       domain: 'products',
-      route: '/catalog',
+      route: params.route ?? '/catalog',
+      requestId: params.requestId,
     })
   }
 }

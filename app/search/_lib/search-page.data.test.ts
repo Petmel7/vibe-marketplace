@@ -67,20 +67,49 @@ describe('getSearchPageData', () => {
       limit: '12',
     })
 
-    expect(mockProductService.searchProducts).toHaveBeenCalledWith({
-      q: 'jacket',
-      category: undefined,
-      minPrice: undefined,
-      maxPrice: undefined,
-      inStock: undefined,
-      rating: undefined,
-      badge: undefined,
-      store: undefined,
-      sort: 'relevance',
-      page: 1,
-      limit: 12,
-    })
+    expect(mockProductService.searchProducts).toHaveBeenCalledWith(
+      {
+        q: 'jacket',
+        category: undefined,
+        minPrice: undefined,
+        maxPrice: undefined,
+        inStock: undefined,
+        rating: undefined,
+        badge: undefined,
+        store: undefined,
+        sort: 'relevance',
+        page: 1,
+        limit: 12,
+      },
+      expect.objectContaining({
+        route: '/catalog',
+        requestId: expect.any(String),
+      }),
+    )
     expect(global.fetch).not.toHaveBeenCalled()
     expect(data.results.sort).toBe('relevance')
+  })
+
+  it('skips flat categories loading for the default catalog route without a category filter', async () => {
+    const data = await getSearchPageData({
+      sort: 'newest',
+      page: '1',
+      limit: '12',
+    })
+
+    expect(mockCategoryServer.fetchCategoryTree).toHaveBeenCalledTimes(1)
+    expect(mockCategoryServer.fetchCategories).not.toHaveBeenCalled()
+    expect(data.flatCategories).toEqual([])
+  })
+
+  it('loads flat categories when a category filter is active', async () => {
+    await getSearchPageData({
+      category: 'hoodies',
+      sort: 'newest',
+      page: '1',
+      limit: '12',
+    })
+
+    expect(mockCategoryServer.fetchCategories).toHaveBeenCalledTimes(1)
   })
 })

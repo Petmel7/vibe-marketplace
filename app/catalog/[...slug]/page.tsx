@@ -49,6 +49,7 @@ export default async function CatalogCategoryPage({
   params,
   searchParams,
 }: Props) {
+  const requestId = crypto.randomUUID()
   const [{ slug }, resolvedSearchParams] = await Promise.all([params, searchParams])
   const categories = await fetchCategoryTree()
   const category = findCategoryTreeNodeBySlugPath(categories, slug)
@@ -64,6 +65,10 @@ export default async function CatalogCategoryPage({
       category: category.slug,
     }, {
       preloadedCategoryTree: categories,
+      traceContext: {
+        requestId,
+        route: `/catalog/${slug.join('/')}`,
+      },
     })
   } catch {
     return (
