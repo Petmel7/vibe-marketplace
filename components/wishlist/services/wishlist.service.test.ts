@@ -52,7 +52,10 @@ describe(
             'prod-1',
             false,
           ),
-        ).resolves.toBeUndefined()
+        ).resolves.toEqual({
+          productId: 'prod-1',
+          wished: true,
+        })
       },
     )
 
@@ -72,7 +75,10 @@ describe(
             'prod-1',
             true,
           ),
-        ).resolves.toBeUndefined()
+        ).resolves.toEqual({
+          productId: 'prod-1',
+          wished: false,
+        })
       },
     )
 

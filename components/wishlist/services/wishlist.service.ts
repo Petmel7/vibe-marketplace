@@ -7,12 +7,13 @@ import {
   UnauthorizedError,
   WishlistApiError,
 } from '../errors/wishlist.errors'
+import type { WishlistToggleDto } from '@/features/wishlist/wishlist.dto'
 
 export const wishlistService = {
     async toggle(
         productId: string,
         alreadyExists: boolean,
-    ) {
+    ): Promise<WishlistToggleDto> {
         try {
             if (alreadyExists) {
                 return await wishlistApi.remove(productId)
@@ -33,7 +34,10 @@ export const wishlistService = {
                 error instanceof ApiError &&
                 error.status === 404
             ) {
-                return
+                return {
+                    productId,
+                    wished: false,
+                }
             }
 
             if (
@@ -41,7 +45,10 @@ export const wishlistService = {
                 error instanceof ApiError &&
                 error.status === 409
             ) {
-                return
+                return {
+                    productId,
+                    wished: true,
+                }
             }
 
             if (error instanceof ApiError) {

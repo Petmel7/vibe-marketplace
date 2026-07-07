@@ -88,6 +88,22 @@ export async function createWishlist(userId: string): Promise<Wishlist> {
   )
 }
 
+export async function ensureWishlistIdentity(
+  userId: string,
+): Promise<Pick<Wishlist, 'id' | 'userId'>> {
+  return measureWishlistRepositoryCall('ensureWishlistIdentity', () =>
+    prisma.wishlist.upsert({
+      where: { userId },
+      update: {},
+      create: { userId },
+      select: {
+        id: true,
+        userId: true,
+      },
+    }),
+  )
+}
+
 export async function findWishlistItem(
   wishlistId: string,
   productId: string,
@@ -119,6 +135,33 @@ export async function removeWishlistItem(
     }),
   )
   return fetchWishlistWithItems(wishlistId)
+}
+
+export async function addWishlistItemIdempotent(
+  wishlistId: string,
+  productId: string,
+): Promise<boolean> {
+  return measureWishlistRepositoryCall('addWishlistItemIdempotent', async () => {
+    const result = await prisma.wishlistItem.createMany({
+      data: [{ wishlistId, productId }],
+      skipDuplicates: true,
+    })
+
+    return result.count > 0
+  })
+}
+
+export async function removeWishlistItemIdempotent(
+  wishlistId: string,
+  productId: string,
+): Promise<boolean> {
+  return measureWishlistRepositoryCall('removeWishlistItemIdempotent', async () => {
+    const result = await prisma.wishlistItem.deleteMany({
+      where: { wishlistId, productId },
+    })
+
+    return result.count > 0
+  })
 }
 
 async function fetchWishlistWithItems(wishlistId: string): Promise<WishlistWithItems> {

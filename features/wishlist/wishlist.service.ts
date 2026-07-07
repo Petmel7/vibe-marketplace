@@ -1,12 +1,16 @@
 import {
   findWishlistByUserId,
   createWishlist,
-  findWishlistItem,
-  addWishlistItem,
-  removeWishlistItem,
+  ensureWishlistIdentity,
+  addWishlistItemIdempotent,
+  removeWishlistItemIdempotent,
   productExists,
 } from '@/features/wishlist/wishlist.repository'
-import type { WishlistDto, WishlistItemDto } from '@/features/wishlist/wishlist.dto'
+import type {
+  WishlistDto,
+  WishlistItemDto,
+  WishlistToggleDto,
+} from '@/features/wishlist/wishlist.dto'
 import type { WishlistWithItems, WishlistItemWithProduct } from '@/features/wishlist/wishlist.repository'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 import { logInfo, logWarn } from '@/utils/logger'
@@ -21,24 +25,6 @@ export class ProductNotFoundError extends Error {
   constructor(productId: string) {
     super(`Product "${productId}" was not found or is not active`)
     this.name = 'ProductNotFoundError'
-  }
-}
-
-export class ProductAlreadyInWishlistError extends Error {
-  readonly code = 'ALREADY_IN_WISHLIST' as const
-
-  constructor(productId: string) {
-    super(`Product "${productId}" is already in the wishlist`)
-    this.name = 'ProductAlreadyInWishlistError'
-  }
-}
-
-export class WishlistItemNotFoundError extends Error {
-  readonly code = 'NOT_FOUND' as const
-
-  constructor(productId: string) {
-    super(`Product "${productId}" is not in the wishlist`)
-    this.name = 'WishlistItemNotFoundError'
   }
 }
 
@@ -73,14 +59,11 @@ function toEmptyWishlistDto(input: { id: string; userId: string }): WishlistDto 
   }
 }
 
-function toWishlistDtoFromExistingOrCreated(
-  wishlist: WishlistWithItems | { id: string; userId: string },
-): WishlistDto {
-  if ('items' in wishlist) {
-    return toWishlistDto(wishlist)
+function toWishlistToggleDto(productId: string, wished: boolean): WishlistToggleDto {
+  return {
+    productId,
+    wished,
   }
-
-  return toEmptyWishlistDto(wishlist)
 }
 
 async function measureWishlistServiceCall<T>(
@@ -163,50 +146,39 @@ export async function getWishlist(userId: string): Promise<WishlistDto> {
 export async function addToWishlist(
   userId: string,
   productId: string,
-): Promise<WishlistDto> {
+): Promise<WishlistToggleDto> {
   if (!(await productExists(productId))) {
     throw new ProductNotFoundError(productId)
   }
 
-  const wishlist = await measureWishlistServiceCall('getWishlistForAdd', { userId }, async () => {
-    const existingWishlist = await findWishlistByUserId(userId)
-    return existingWishlist ?? createWishlist(userId)
-  })
-  const existing = await measureWishlistServiceCall(
-    'findWishlistItemForAdd',
-    { userId, wishlistId: wishlist.id, productId },
-    () => findWishlistItem(wishlist.id, productId),
+  const wishlist = await measureWishlistServiceCall(
+    'ensureWishlistIdentityForAdd',
+    { userId },
+    () => ensureWishlistIdentity(userId),
   )
 
-  if (existing) {
-    return toWishlistDtoFromExistingOrCreated(wishlist)
-  }
-
-  const updated = await measureWishlistServiceCall(
-    'addWishlistItem',
+  const inserted = await measureWishlistServiceCall(
+    'addWishlistItemIdempotent',
     { userId, wishlistId: wishlist.id, productId },
-    () => addWishlistItem(wishlist.id, productId),
+    () => addWishlistItemIdempotent(wishlist.id, productId),
   )
-  const addedItem = updated.items.find((item) => item.productId === productId)
-  if (addedItem) {
+
+  if (inserted) {
     scheduleProductMetricsRecalculation({
       reason: 'wishlist-added',
-      dedupeKey: `product-metrics:wishlist-added:${addedItem.id}`,
+      dedupeKey: `product-metrics:wishlist-added:${wishlist.id}:${productId}`,
     })
   }
 
-  logInfo('wishlist:service:before-dto-mapping', {
+  const dto = toWishlistToggleDto(productId, true)
+
+  logInfo('wishlist:service:toggle-result', {
     domain: 'wishlist',
-    operation: 'toWishlistDto',
+    operation: 'addToWishlist',
     userId,
-    itemCount: updated.items.length,
-  })
-  const dto = toWishlistDto(updated)
-  logInfo('wishlist:service:after-dto-mapping', {
-    domain: 'wishlist',
-    operation: 'toWishlistDto',
-    userId,
-    itemCount: dto.items.length,
+    productId,
+    inserted,
+    wished: dto.wished,
   })
   return dto
 }
@@ -220,43 +192,35 @@ export async function addToWishlist(
 export async function removeFromWishlist(
   userId: string,
   productId: string,
-): Promise<WishlistDto> {
-  const wishlist = await measureWishlistServiceCall('getWishlistForRemove', { userId }, async () => {
-    const existingWishlist = await findWishlistByUserId(userId)
-    return existingWishlist ?? createWishlist(userId)
-  })
-  const existing = await measureWishlistServiceCall(
-    'findWishlistItemForRemove',
-    { userId, wishlistId: wishlist.id, productId },
-    () => findWishlistItem(wishlist.id, productId),
+): Promise<WishlistToggleDto> {
+  const wishlist = await measureWishlistServiceCall(
+    'ensureWishlistIdentityForRemove',
+    { userId },
+    () => ensureWishlistIdentity(userId),
   )
 
-  if (!existing) {
-    return toWishlistDtoFromExistingOrCreated(wishlist)
+  const removed = await measureWishlistServiceCall(
+    'removeWishlistItemIdempotent',
+    { userId, wishlistId: wishlist.id, productId },
+    () => removeWishlistItemIdempotent(wishlist.id, productId),
+  )
+
+  if (removed) {
+    scheduleProductMetricsRecalculation({
+      reason: 'wishlist-removed',
+      dedupeKey: `product-metrics:wishlist-removed:${wishlist.id}:${productId}`,
+    })
   }
 
-  const updated = await measureWishlistServiceCall(
-    'removeWishlistItem',
-    { userId, wishlistId: wishlist.id, productId },
-    () => removeWishlistItem(wishlist.id, productId),
-  )
-  scheduleProductMetricsRecalculation({
-    reason: 'wishlist-removed',
-    dedupeKey: `product-metrics:wishlist-removed:${existing.id}`,
-  })
+  const dto = toWishlistToggleDto(productId, false)
 
-  logInfo('wishlist:service:before-dto-mapping', {
+  logInfo('wishlist:service:toggle-result', {
     domain: 'wishlist',
-    operation: 'toWishlistDto',
+    operation: 'removeFromWishlist',
     userId,
-    itemCount: updated.items.length,
-  })
-  const dto = toWishlistDto(updated)
-  logInfo('wishlist:service:after-dto-mapping', {
-    domain: 'wishlist',
-    operation: 'toWishlistDto',
-    userId,
-    itemCount: dto.items.length,
+    productId,
+    removed,
+    wished: dto.wished,
   })
   return dto
 }

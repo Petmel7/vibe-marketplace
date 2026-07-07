@@ -5,7 +5,10 @@ import {
     getWishlistItemRoute,
 } from '@/lib/constants/apiRoutes'
 
-import type { WishlistDto }
+import type {
+    WishlistDto,
+    WishlistToggleDto,
+}
     from '@/features/wishlist/wishlist.dto'
 
 interface WishlistItemsData {
@@ -14,7 +17,7 @@ interface WishlistItemsData {
 
 export const wishlistApi = {
     add(productId: string) {
-        return apiClient.post<void>(
+        return apiClient.post<WishlistToggleDto>(
             API_ROUTES.wishlist,
             {
                 productId,
@@ -26,7 +29,7 @@ export const wishlistApi = {
     },
 
     remove(productId: string) {
-        return apiClient.delete<void>(
+        return apiClient.delete<WishlistToggleDto>(
             getWishlistItemRoute(productId),
             {
                 auth: true,

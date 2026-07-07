@@ -45,6 +45,32 @@ async function measureRouteAwait<T>(
   }
 }
 
+async function measureWishlistToggleStep<T>(
+  step: 'auth' | 'repository' | 'response',
+  context: Record<string, unknown>,
+  run: () => Promise<T> | T,
+): Promise<T> {
+  const startedAt = Date.now()
+
+  try {
+    const result = await run()
+    logInfo(`wishlist:toggle:${step}`, {
+      domain: 'wishlist',
+      durationMs: Date.now() - startedAt,
+      ...context,
+    })
+    return result
+  } catch (error) {
+    logWarn(`wishlist:toggle:${step}:failed`, {
+      domain: 'wishlist',
+      durationMs: Date.now() - startedAt,
+      ...context,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/wishlist
 // ---------------------------------------------------------------------------
@@ -114,16 +140,24 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const auth = await measureRouteAwait('verifyBearerToken', {}, () => verifyBearerToken(request))
+    const auth = await measureWishlistToggleStep('auth', { method: 'POST' }, () =>
+      verifyBearerToken(request),
+    )
     if (!auth.ok) return auth.response
 
     const body = await measureRouteAwait('request.json', {}, () => request.json())
     const { productId } = wishlistAddSchema.parse(body)
 
-    const data = await measureRouteAwait('addToWishlist', { userId: auth.userId, productId }, () =>
-      addToWishlist(auth.userId, productId),
+    const data = await measureWishlistToggleStep(
+      'repository',
+      { method: 'POST', userId: auth.userId, productId },
+      () => addToWishlist(auth.userId, productId),
     )
-    return Response.json({ success: true, data }, { status: 201 })
+    return measureWishlistToggleStep(
+      'response',
+      { method: 'POST', userId: auth.userId, productId, wished: data.wished },
+      () => Promise.resolve(Response.json({ success: true, data }, { status: 201 })),
+    )
   } catch (error) {
     if (error instanceof ZodError) {
       return Response.json(

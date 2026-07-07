@@ -21,3 +21,8 @@ export interface WishlistDto {
   userId: string
   items: WishlistItemDto[]
 }
+
+export interface WishlistToggleDto {
+  productId: string
+  wished: boolean
+}

@@ -126,20 +126,19 @@ describe('getWishlist', () => {
 describe('addToWishlist', () => {
   beforeEach(() => vi.resetAllMocks())
 
-  it('adds a product and returns the updated wishlist', async () => {
+  it('adds a product and returns the wished toggle result', async () => {
     mockProductExists.mockResolvedValue(true)
-    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
-    mockRepo.findWishlistItem.mockResolvedValue(null)
-    mockRepo.addWishlistItem.mockResolvedValue(makeWishlist() as never)
+    mockRepo.ensureWishlistIdentity.mockResolvedValue({ id: WISHLIST_ID, userId: USER_ID } as never)
+    mockRepo.addWishlistItemIdempotent.mockResolvedValue(true)
 
     const result = await addToWishlist(USER_ID, PRODUCT_ID)
 
-    expect(mockRepo.addWishlistItem).toHaveBeenCalledWith(WISHLIST_ID, PRODUCT_ID)
+    expect(mockRepo.addWishlistItemIdempotent).toHaveBeenCalledWith(WISHLIST_ID, PRODUCT_ID)
     expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
       reason: 'wishlist-added',
-      dedupeKey: `product-metrics:wishlist-added:${ITEM_ID}`,
+      dedupeKey: `product-metrics:wishlist-added:${WISHLIST_ID}:${PRODUCT_ID}`,
     })
-    expect(result.items).toHaveLength(1)
+    expect(result).toEqual({ productId: PRODUCT_ID, wished: true })
   })
 
   it('throws ProductNotFoundError when product does not exist', async () => {
@@ -149,28 +148,25 @@ describe('addToWishlist', () => {
       .rejects.toThrow(ProductNotFoundError)
   })
 
-  it('returns the current wishlist when product is already in wishlist', async () => {
+  it('returns wished=true when product is already in wishlist', async () => {
     mockProductExists.mockResolvedValue(true)
-    const existingWishlist = makeWishlist()
-
-    mockRepo.findWishlistByUserId.mockResolvedValue(existingWishlist as never)
-    mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
+    mockRepo.ensureWishlistIdentity.mockResolvedValue({ id: WISHLIST_ID, userId: USER_ID } as never)
+    mockRepo.addWishlistItemIdempotent.mockResolvedValue(false)
 
     const result = await addToWishlist(USER_ID, PRODUCT_ID)
 
-    expect(result.items).toHaveLength(1)
-    expect(result.items[0].productId).toBe(PRODUCT_ID)
+    expect(result).toEqual({ productId: PRODUCT_ID, wished: true })
   })
 
-  it('does not call addWishlistItem when product is already present', async () => {
+  it('does not schedule metrics recalculation when product is already present', async () => {
     mockProductExists.mockResolvedValue(true)
-    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist() as never)
-    mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
+    mockRepo.ensureWishlistIdentity.mockResolvedValue({ id: WISHLIST_ID, userId: USER_ID } as never)
+    mockRepo.addWishlistItemIdempotent.mockResolvedValue(false)
 
     await expect(addToWishlist(USER_ID, PRODUCT_ID)).resolves.toMatchObject({
-      id: WISHLIST_ID,
+      productId: PRODUCT_ID,
+      wished: true,
     })
-    expect(mockRepo.addWishlistItem).not.toHaveBeenCalled()
     expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).not.toHaveBeenCalled()
   })
 })
@@ -182,38 +178,37 @@ describe('addToWishlist', () => {
 describe('removeFromWishlist', () => {
   beforeEach(() => vi.resetAllMocks())
 
-  it('removes a product and returns the updated wishlist', async () => {
-    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist() as never)
-    mockRepo.findWishlistItem.mockResolvedValue(makeWishlistItem() as never)
-    mockRepo.removeWishlistItem.mockResolvedValue(makeWishlist([]) as never)
+  it('removes a product and returns the wished=false toggle result', async () => {
+    mockRepo.ensureWishlistIdentity.mockResolvedValue({ id: WISHLIST_ID, userId: USER_ID } as never)
+    mockRepo.removeWishlistItemIdempotent.mockResolvedValue(true)
 
     const result = await removeFromWishlist(USER_ID, PRODUCT_ID)
 
-    expect(mockRepo.removeWishlistItem).toHaveBeenCalledWith(WISHLIST_ID, PRODUCT_ID)
+    expect(mockRepo.removeWishlistItemIdempotent).toHaveBeenCalledWith(WISHLIST_ID, PRODUCT_ID)
     expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
       reason: 'wishlist-removed',
-      dedupeKey: `product-metrics:wishlist-removed:${ITEM_ID}`,
+      dedupeKey: `product-metrics:wishlist-removed:${WISHLIST_ID}:${PRODUCT_ID}`,
     })
-    expect(result.items).toHaveLength(0)
+    expect(result).toEqual({ productId: PRODUCT_ID, wished: false })
   })
 
-  it('returns the current wishlist when product is not in wishlist', async () => {
-    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
-    mockRepo.findWishlistItem.mockResolvedValue(null)
+  it('returns wished=false when product is not in wishlist', async () => {
+    mockRepo.ensureWishlistIdentity.mockResolvedValue({ id: WISHLIST_ID, userId: USER_ID } as never)
+    mockRepo.removeWishlistItemIdempotent.mockResolvedValue(false)
 
     const result = await removeFromWishlist(USER_ID, PRODUCT_ID)
 
-    expect(result.items).toHaveLength(0)
+    expect(result).toEqual({ productId: PRODUCT_ID, wished: false })
   })
 
-  it('does not call removeWishlistItem when item is not present', async () => {
-    mockRepo.findWishlistByUserId.mockResolvedValue(makeWishlist([]) as never)
-    mockRepo.findWishlistItem.mockResolvedValue(null)
+  it('does not schedule metrics recalculation when item is not present', async () => {
+    mockRepo.ensureWishlistIdentity.mockResolvedValue({ id: WISHLIST_ID, userId: USER_ID } as never)
+    mockRepo.removeWishlistItemIdempotent.mockResolvedValue(false)
 
     await expect(removeFromWishlist(USER_ID, PRODUCT_ID)).resolves.toMatchObject({
-      id: WISHLIST_ID,
+      productId: PRODUCT_ID,
+      wished: false,
     })
-    expect(mockRepo.removeWishlistItem).not.toHaveBeenCalled()
     expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).not.toHaveBeenCalled()
   })
 })
