@@ -134,6 +134,11 @@ export type JobListDto = {
   total: number
 }
 
+export type JobsOverviewSummaryDto = {
+  failedTotal: number
+  pendingTotal: number
+}
+
 export type JobDefinition<TType extends KnownJobType = KnownJobType> = {
   type: TType
   maxAttempts?: number

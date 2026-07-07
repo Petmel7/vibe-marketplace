@@ -9,6 +9,7 @@ import {
 import {
   getAdminJobById,
   getAdminJobs,
+  getAdminJobsOverviewSummary,
   recoverStaleAdminJobs,
   retryAdminJob,
   requeueStaleAdminJob,
@@ -21,6 +22,7 @@ import type {
   AdminAuditLogQueryDto,
   AdminOperationsJobDto,
   AdminOperationsJobListDto,
+  AdminOperationsJobsOverviewDto,
   AdminOperationsJobQueryDto,
   AdminOperationsRecoverStaleRequestDto,
   AdminOperationsRecoverStaleResponseDto,
@@ -129,6 +131,13 @@ export async function getAdminOperationsJobs(
     limit: data.limit,
     total: data.total,
   }
+}
+
+export async function getAdminOperationsJobsOverview(
+  user: SessionUser,
+): Promise<AdminOperationsJobsOverviewDto> {
+  assertOperationsAdmin(user)
+  return getAdminJobsOverviewSummary(user)
 }
 
 export async function getAdminOperationsJobById(

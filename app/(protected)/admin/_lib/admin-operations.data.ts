@@ -5,6 +5,7 @@ import type {
 } from '@/features/admin/operations/admin-operations.dto'
 import {
   getAdminOperationsAuditLogs,
+  getAdminOperationsJobsOverview,
   getAdminOperationsJobs,
 } from '@/features/admin/operations/admin-operations.service'
 import { getDeepHealthStatus, getHealthStatus } from '@/features/health/health.service'
@@ -90,6 +91,17 @@ async function fetchJobs(user: SessionUser, filters: OperationsJobsFilters) {
   )
 }
 
+async function fetchJobsOverview(user: SessionUser) {
+  return measureServerOperation(
+    'admin-operations-jobs-overview',
+    {
+      route: '/admin/operations',
+      service: 'getAdminOperationsJobsOverview',
+    },
+    () => getAdminOperationsJobsOverview(user),
+  )
+}
+
 async function fetchAuditLogs(user: SessionUser, filters: OperationsAuditFilters) {
   return measureServerOperation(
     'admin-operations-audit-logs-list',
@@ -102,25 +114,10 @@ async function fetchAuditLogs(user: SessionUser, filters: OperationsAuditFilters
 }
 
 export async function getAdminOperationsOverviewPageData(user: SessionUser) {
-  const [healthResult, failedJobsResult, pendingJobsResult, auditResult] =
+  const [healthResult, jobsOverviewResult, auditResult] =
     await Promise.allSettled([
       fetchHealthSnapshot(),
-      fetchJobs(user, {
-        page: 1,
-        limit: 5,
-        status: 'FAILED',
-        type: '',
-        dateFrom: '',
-        dateTo: '',
-      }),
-      fetchJobs(user, {
-        page: 1,
-        limit: 5,
-        status: 'PENDING',
-        type: '',
-        dateFrom: '',
-        dateTo: '',
-      }),
+      fetchJobsOverview(user),
       fetchAuditLogs(user, {
         page: 1,
         limit: 5,
@@ -134,10 +131,8 @@ export async function getAdminOperationsOverviewPageData(user: SessionUser) {
     ])
 
   const health = healthResult.status === 'fulfilled' ? healthResult.value : null
-  const failedJobs =
-    failedJobsResult.status === 'fulfilled' ? failedJobsResult.value : null
-  const pendingJobs =
-    pendingJobsResult.status === 'fulfilled' ? pendingJobsResult.value : null
+  const jobsOverview =
+    jobsOverviewResult.status === 'fulfilled' ? jobsOverviewResult.value : null
   const recentAuditLogs =
     auditResult.status === 'fulfilled' ? auditResult.value : null
 
@@ -162,17 +157,8 @@ export async function getAdminOperationsOverviewPageData(user: SessionUser) {
   return {
     health,
     healthError: healthResult.status === 'rejected' ? healthResult.reason : null,
-    failedJobs,
-    pendingJobs,
-    jobsError:
-      failedJobsResult.status === 'rejected' ||
-      pendingJobsResult.status === 'rejected'
-        ? failedJobsResult.status === 'rejected'
-          ? failedJobsResult.reason
-          : pendingJobsResult.status === 'rejected'
-            ? pendingJobsResult.reason
-            : null
-        : null,
+    jobsOverview,
+    jobsError: jobsOverviewResult.status === 'rejected' ? jobsOverviewResult.reason : null,
     recentAuditLogs,
     auditError: auditResult.status === 'rejected' ? auditResult.reason : null,
     providerIssues,

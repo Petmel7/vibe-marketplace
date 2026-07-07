@@ -15,6 +15,7 @@ import type {
   JobListItemDto,
   JobListDto,
   JobListQueryDto,
+  JobsOverviewSummaryDto,
   JobPayload,
   JobProcessResultDto,
   RecoverStaleJobsResultDto,
@@ -40,6 +41,7 @@ import {
   markJobSucceeded,
   recoverStaleJobsByIds,
   requeueJob,
+  summarizeJobsOverview,
 } from './jobs.repository'
 import { enqueueJobSchema, jobPayloadSchemaByType } from './jobs.schema'
 
@@ -489,6 +491,18 @@ export async function getAdminJobs(
     limit: normalizedQuery.limit,
     total,
   }
+}
+
+export async function getAdminJobsOverviewSummary(
+  user: SessionUser,
+): Promise<JobsOverviewSummaryDto> {
+  assertAdmin(user)
+
+  const startedAt = Date.now()
+  const summary = await summarizeJobsOverview()
+  logJobsListTiming('overview-summary', startedAt, summary)
+
+  return summary
 }
 
 export async function getAdminJobById(

@@ -38,13 +38,13 @@ export default async function AdminOperationsOverviewPage() {
           />
           <OperationsMetricCard
             label="Failed jobs"
-            value={data.failedJobs?.total ?? '—'}
+            value={data.jobsOverview?.failedTotal ?? '—'}
             detail="Retryable background jobs that need attention."
             href="/admin/operations/jobs?status=FAILED"
           />
           <OperationsMetricCard
             label="Pending jobs"
-            value={data.pendingJobs?.total ?? '—'}
+            value={data.jobsOverview?.pendingTotal ?? '—'}
             detail="Queued work waiting for the job runner."
             href="/admin/operations/jobs?status=PENDING"
           />
@@ -66,7 +66,11 @@ export default async function AdminOperationsOverviewPage() {
           <AdminDataTable
             title="Recent audit activity"
             description="The newest admin-sensitive mutations recorded by the audit layer."
-            actions={<Link href="/admin/operations/audit-logs" className="ui-link-muted">Open audit logs</Link>}
+            actions={
+              <Link href="/admin/operations/audit-logs" className="ui-link-muted">
+                Open audit logs
+              </Link>
+            }
           >
             {!data.recentAuditLogs || data.recentAuditLogs.items.length === 0 ? (
               <div className="p-6">
@@ -88,7 +92,9 @@ export default async function AdminOperationsOverviewPage() {
                 <tbody>
                   {data.recentAuditLogs.items.map((item) => (
                     <tr key={item.id} className="border-t border-panelBorder align-top">
-                      <td className="px-5 py-4 text-copy-secondary">{getAdminAuditActorLabel(item)}</td>
+                      <td className="px-5 py-4 text-copy-secondary">
+                        {getAdminAuditActorLabel(item)}
+                      </td>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-copy-strong">{item.action}</p>
                         <p className="mt-1 text-xs text-copy-muted">{item.domain}</p>
@@ -97,7 +103,9 @@ export default async function AdminOperationsOverviewPage() {
                         {item.resourceType}
                         <p className="mt-1 text-xs text-copy-muted">{item.resourceId ?? '—'}</p>
                       </td>
-                      <td className="px-5 py-4 text-copy-secondary">{new Date(item.createdAt).toLocaleString('uk-UA')}</td>
+                      <td className="px-5 py-4 text-copy-secondary">
+                        {new Date(item.createdAt).toLocaleString('uk-UA')}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -123,7 +131,11 @@ export default async function AdminOperationsOverviewPage() {
                 <div className="mt-5 space-y-3 text-sm">
                   <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
                     <span>Supabase / database</span>
-                    <ProviderStatusBadge isReady={data.health.deep.database.ok} readyLabel="Ready" missingLabel="Degraded" />
+                    <ProviderStatusBadge
+                      isReady={data.health.deep.database.ok}
+                      readyLabel="Ready"
+                      missingLabel="Degraded"
+                    />
                   </div>
                   <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
                     <span>Resend</span>
@@ -139,14 +151,18 @@ export default async function AdminOperationsOverviewPage() {
                   </div>
                 </div>
               ) : (
-                <p className="mt-5 text-sm text-copy-muted">Health data is currently unavailable.</p>
+                <p className="mt-5 text-sm text-copy-muted">
+                  Health data is currently unavailable.
+                </p>
               )}
             </section>
 
             <section className="ui-elevated-panel p-5 sm:p-6">
               <h2 className="text-lg font-semibold text-copy-strong">Recent provider issues</h2>
               {data.providerIssues.length === 0 ? (
-                <p className="mt-4 text-sm text-copy-muted">No provider readiness issues surfaced by the latest deep health check.</p>
+                <p className="mt-4 text-sm text-copy-muted">
+                  No provider readiness issues surfaced by the latest deep health check.
+                </p>
               ) : (
                 <ul className="mt-4 space-y-3 text-sm text-copy-secondary">
                   {data.providerIssues.map((issue) => (

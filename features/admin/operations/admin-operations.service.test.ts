@@ -7,6 +7,7 @@ vi.mock('@/lib/auth/guards', () => ({
 vi.mock('@/features/jobs/jobs.service', () => ({
   getAdminJobById: vi.fn(),
   getAdminJobs: vi.fn(),
+  getAdminJobsOverviewSummary: vi.fn(),
   recoverStaleAdminJobs: vi.fn(),
   requeueStaleAdminJob: vi.fn(),
   retryAdminJob: vi.fn(),
@@ -27,6 +28,7 @@ import {
   getAdminOperationsAuditLogById,
   getAdminOperationsAuditLogs,
   getAdminOperationsJobById,
+  getAdminOperationsJobsOverview,
   cancelAdminOperationsJob,
   requeueStaleAdminOperationsJob,
   retryAdminOperationsJob,
@@ -74,6 +76,20 @@ describe('admin operations service', () => {
 
     expect(result).not.toHaveProperty('payload')
     expect(result.id).toBe('job-1')
+  })
+
+  it('maps jobs overview summary through the operations service', async () => {
+    mockJobsService.getAdminJobsOverviewSummary.mockResolvedValue({
+      failedTotal: 3,
+      pendingTotal: 9,
+    } as never)
+
+    const result = await getAdminOperationsJobsOverview(adminUser as never)
+
+    expect(result).toEqual({
+      failedTotal: 3,
+      pendingTotal: 9,
+    })
   })
 
   it('maps invalid retry state to InvalidJobTransitionError', async () => {

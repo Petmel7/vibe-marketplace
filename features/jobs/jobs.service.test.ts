@@ -15,6 +15,7 @@ vi.mock('@/features/jobs/jobs.repository', () => ({
   markJobSucceeded: vi.fn(),
   recoverStaleJobsByIds: vi.fn(),
   requeueJob: vi.fn(),
+  summarizeJobsOverview: vi.fn(),
 }))
 
 vi.mock('@/config/env', () => ({
@@ -78,6 +79,7 @@ import {
   markJobSucceeded,
   recoverStaleJobsByIds,
   requeueJob,
+  summarizeJobsOverview,
 } from '@/features/jobs/jobs.repository'
 import { requireAdmin } from '@/lib/auth/guards'
 import { AdminAccessError } from '@/lib/errors/admin'
@@ -94,6 +96,7 @@ import {
   retryAdminJob,
   retryJob,
   runDueJobs,
+  getAdminJobsOverviewSummary,
 } from './jobs.service'
 import type { JobDefinition, JobsRegistry } from './jobs.dto'
 
@@ -112,6 +115,7 @@ const mockRepo = {
   markJobSucceeded: vi.mocked(markJobSucceeded),
   recoverStaleJobsByIds: vi.mocked(recoverStaleJobsByIds),
   requeueJob: vi.mocked(requeueJob),
+  summarizeJobsOverview: vi.mocked(summarizeJobsOverview),
 }
 
 const mockGuards = {
@@ -572,6 +576,23 @@ describe('jobs.service', () => {
     await expect(
       getAdminJobs(adminUser as never, { page: 1, limit: 20 }),
     ).rejects.toThrow(AdminAccessError)
+  })
+
+  it('returns jobs overview summary in one lightweight repository call', async () => {
+    mockRepo.summarizeJobsOverview.mockResolvedValue({
+      failedTotal: 7,
+      pendingTotal: 12,
+    } as never)
+
+    const result = await getAdminJobsOverviewSummary(adminUser as never)
+
+    expect(result).toEqual({
+      failedTotal: 7,
+      pendingTotal: 12,
+    })
+    expect(mockRepo.summarizeJobsOverview).toHaveBeenCalledOnce()
+    expect(mockRepo.listJobs).not.toHaveBeenCalled()
+    expect(mockRepo.countJobs).not.toHaveBeenCalled()
   })
 
   it('retries failed jobs through the admin control surface', async () => {

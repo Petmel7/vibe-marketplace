@@ -34,6 +34,11 @@ export type AdminOperationsJobListDto = {
   total: number
 }
 
+export type AdminOperationsJobsOverviewDto = {
+  failedTotal: number
+  pendingTotal: number
+}
+
 export type AdminOperationsRunDueRequestDto = {
   limit: number
 }

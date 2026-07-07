@@ -272,6 +272,23 @@ export async function countJobs(query: Pick<JobListQueryDto, 'status' | 'type' |
   })
 }
 
+export async function summarizeJobsOverview() {
+  const rows = await prisma.job.groupBy({
+    by: ['status'],
+    where: {
+      status: { in: ['FAILED', 'PENDING'] },
+    },
+    _count: {
+      _all: true,
+    },
+  })
+
+  return {
+    failedTotal: rows.find((row) => row.status === 'FAILED')?._count._all ?? 0,
+    pendingTotal: rows.find((row) => row.status === 'PENDING')?._count._all ?? 0,
+  }
+}
+
 export async function cancelJobRecord(id: string, cancelledAt: Date) {
   const result = await prisma.job.updateMany({
     where: {
