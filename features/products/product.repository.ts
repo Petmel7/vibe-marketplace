@@ -974,53 +974,67 @@ export async function findCategoryBySlug(slug: string): Promise<CategoryNode | n
 export async function findProductById(
   id: string
 ): Promise<ProductDetailProduct | null> {
-  return prisma.product.findFirst({
-    where: {
-      id,
-      isActive: true,
-      status: 'PUBLISHED',
-      store: {
-        isActive: true,
-      },
+  return measureServerOperation(
+    'findProductById',
+    {
+      repository: 'features/products/product.repository',
+      sql: 'prisma.product.findFirst(detail include)',
+      productId: id,
     },
-    include: {
-      variants: true,
-      store: {
-        select: {
-          name: true,
-          slug: true,
+    () =>
+      prisma.product.findFirst({
+        where: {
+          id,
+          isActive: true,
+          status: 'PUBLISHED',
+          store: {
+            isActive: true,
+          },
         },
-      },
-      category: {
-        select: {
-          name: true,
-          slug: true,
+        include: {
+          variants: true,
+          store: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+          category: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+          images: {
+            select: {
+              id: true,
+              url: true,
+              altText: true,
+              isPrimary: true,
+              position: true,
+              createdAt: true,
+            },
+            orderBy: [
+              { isPrimary: 'desc' },
+              { position: 'asc' },
+              { createdAt: 'asc' },
+              { id: 'asc' },
+            ],
+          },
+          ratingSummary: {
+            select: {
+              productId: true,
+              ratingAvg: true,
+              ratingCount: true,
+              rating1Count: true,
+              rating2Count: true,
+              rating3Count: true,
+              rating4Count: true,
+              rating5Count: true,
+              updatedAt: true,
+            },
+          },
         },
-      },
-      images: {
-        select: {
-          id: true,
-          url: true,
-          altText: true,
-          isPrimary: true,
-          position: true,
-          createdAt: true,
-        },
-        orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
-      },
-      ratingSummary: {
-        select: {
-          productId: true,
-          ratingAvg: true,
-          ratingCount: true,
-          rating1Count: true,
-          rating2Count: true,
-          rating3Count: true,
-          rating4Count: true,
-          rating5Count: true,
-          updatedAt: true,
-        },
-      },
-    },
-  })
+      }),
+  )
 }

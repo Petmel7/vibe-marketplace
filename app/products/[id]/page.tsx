@@ -1,13 +1,11 @@
-import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import ProductDetails from '@/components/product/ProductDetails'
 import ProductDetailsShell from '@/components/product/ProductDetailsShell'
 import ProductImageGallery from '@/components/product/ProductImageGallery'
+import ProductReviewsClientSection from '@/components/reviews/ProductReviewsClientSection'
 import BreadcrumbJsonLd from '@/components/seo/BreadcrumbJsonLd'
 import ProductJsonLd from '@/components/seo/ProductJsonLd'
-import ProductReviewsSectionFallback from '@/components/reviews/ProductReviewsSectionFallback'
-import ProductReviewsServerSection from '@/components/reviews/ProductReviewsServerSection'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import RecentlyViewed from '@/components/viewed/RecentlyViewed'
 import { getCachedProductSeo } from '@/app/_lib/seo.data'
@@ -21,6 +19,7 @@ import {
 import { SeoEntityNotFoundError } from '@/lib/errors/seo'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 import { buildProductMetadata } from '@/lib/seo/metadata'
+import { logInfo } from '@/utils/logger'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -30,8 +29,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
 
   try {
+    logInfo('product-page:generateMetadata:before', {
+      route: '/products/[id]',
+      productId: id,
+    })
     const seo = await getCachedProductSeo(id)
-    return buildProductMetadata(seo)
+    const metadata = buildProductMetadata(seo)
+    logInfo('product-page:generateMetadata:after', {
+      route: '/products/[id]',
+      productId: id,
+    })
+    return metadata
   } catch (error) {
     if (error instanceof SeoEntityNotFoundError) {
       notFound()
@@ -67,10 +75,19 @@ function buildProductBreadcrumbItems(product: ProductDetailDto) {
 
 export default async function ProductPage({ params }: Props) {
   const { id } = await params
+  logInfo('product-page:route:start', {
+    route: '/products/[id]',
+    productId: id,
+  })
 
   let product: ProductDetailDto
 
   try {
+    logInfo('product-page:before-service', {
+      route: '/products/[id]',
+      service: 'getProduct',
+      productId: id,
+    })
     product = await measureServerOperation(
       'product-page-product-detail',
       {
@@ -81,6 +98,11 @@ export default async function ProductPage({ params }: Props) {
       },
       () => getProduct(id),
     )
+    logInfo('product-page:after-service', {
+      route: '/products/[id]',
+      service: 'getProduct',
+      productId: product.id,
+    })
   } catch (error) {
     if (error instanceof ProductNotFoundError) {
       notFound()
@@ -147,6 +169,14 @@ export default async function ProductPage({ params }: Props) {
         }
       },
   )
+  logInfo('product-page:after-structured-data', {
+    route: '/products/[id]',
+    productId: product.id,
+  })
+  logInfo('product-page:before-return', {
+    route: '/products/[id]',
+    productId: product.id,
+  })
 
   return (
     <>
@@ -160,13 +190,11 @@ export default async function ProductPage({ params }: Props) {
           purchasePanel={<ProductDetails product={product} />}
         />
 
-        <Suspense fallback={<ProductReviewsSectionFallback summary={product.ratingSummary} />}>
-          <ProductReviewsServerSection
-            productId={product.id}
-            productName={product.name}
-            ratingSummary={product.ratingSummary}
-          />
-        </Suspense>
+        <ProductReviewsClientSection
+          productId={product.id}
+          productName={product.name}
+          ratingSummary={product.ratingSummary}
+        />
       </div>
 
       <RecentlyViewed currentProductId={id} />

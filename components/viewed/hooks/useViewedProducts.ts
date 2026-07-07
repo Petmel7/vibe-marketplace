@@ -42,8 +42,6 @@ export function useViewedProducts(
           return
         }
 
-        console.log('Fetched viewed products:', json)
-
         if (!json.items) {
           setItems([])
 

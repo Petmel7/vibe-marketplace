@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
@@ -99,32 +99,42 @@ describe('getRecentlyViewed', () => {
 // ---------------------------------------------------------------------------
 
 describe('recordView', () => {
-  beforeEach(() => vi.resetAllMocks())
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-01T12:34:56.000Z'))
+  })
 
-  it('records a view and returns the updated list', async () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('records a view and returns an acknowledgement', async () => {
     mockProductExists.mockResolvedValue(true)
     mockRepo.upsertViewedProduct.mockResolvedValue(undefined)
-    mockRepo.findRecentlyViewed.mockResolvedValue([makeViewedRow()] as never)
 
     const result = await recordView(authIdentifier, { productId: PRODUCT_ID })
 
     expect(mockRepo.upsertViewedProduct).toHaveBeenCalledWith(authIdentifier, PRODUCT_ID)
     expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
       reason: 'product-viewed',
-      dedupeKey: 'product-metrics:viewed:cccccccc-0000-0000-0000-000000000003:2025-06-01T12:00:00.000Z',
+      dedupeKey: 'product-metrics:viewed:aaaaaaaa-0000-0000-0000-000000000001:bbbbbbbb-0000-0000-0000-000000000002:2025-06-01T12:34',
     })
-    expect(result.items).toHaveLength(1)
-    expect(result.items[0].productId).toBe(PRODUCT_ID)
+    expect(result).toEqual({ recorded: true })
+    expect(mockRepo.findRecentlyViewed).not.toHaveBeenCalled()
   })
 
   it('works for guest sessions', async () => {
     mockProductExists.mockResolvedValue(true)
     mockRepo.upsertViewedProduct.mockResolvedValue(undefined)
-    mockRepo.findRecentlyViewed.mockResolvedValue([makeViewedRow()] as never)
 
     await recordView(guestIdentifier, { productId: PRODUCT_ID })
 
     expect(mockRepo.upsertViewedProduct).toHaveBeenCalledWith(guestIdentifier, PRODUCT_ID)
+    expect(mockProductMetricsJobs.scheduleProductMetricsRecalculation).toHaveBeenCalledWith({
+      reason: 'product-viewed',
+      dedupeKey: 'product-metrics:viewed:guest-session-xyz:bbbbbbbb-0000-0000-0000-000000000002:2025-06-01T12:34',
+    })
   })
 
   it('throws ProductNotFoundError when product does not exist', async () => {
@@ -145,7 +155,6 @@ describe('recordView', () => {
     // upsert handles deduplication at the DB level; the service always calls upsert
     mockProductExists.mockResolvedValue(true)
     mockRepo.upsertViewedProduct.mockResolvedValue(undefined)
-    mockRepo.findRecentlyViewed.mockResolvedValue([makeViewedRow()] as never)
 
     // Simulate second view of same product
     await recordView(authIdentifier, { productId: PRODUCT_ID })

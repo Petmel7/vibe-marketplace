@@ -5,7 +5,11 @@ import {
 } from '@/features/viewed/viewed.repository'
 import type { ViewedProductWithProduct } from '@/features/viewed/viewed.repository'
 import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
-import type { ViewedProductDto, ViewedListDto } from '@/features/viewed/viewed.dto'
+import type {
+  ViewedListDto,
+  ViewedProductDto,
+  ViewedRecordResultDto,
+} from '@/features/viewed/viewed.dto'
 import type { ViewedRecordInput } from '@/features/viewed/viewed.schema'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 
@@ -43,6 +47,16 @@ function toDto(row: ViewedProductWithProduct): ViewedProductDto {
   }
 }
 
+function buildViewedMetricsDedupeKey(
+  identifier: ViewedIdentifier,
+  productId: string,
+): string {
+  const ownerKey = 'userId' in identifier ? identifier.userId : identifier.sessionId
+  const minuteBucket = new Date().toISOString().slice(0, 16)
+
+  return `product-metrics:viewed:${ownerKey}:${productId}:${minuteBucket}`
+}
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -71,7 +85,7 @@ export async function getRecentlyViewed(identifier: ViewedIdentifier): Promise<V
 export async function recordView(
   identifier: ViewedIdentifier,
   input: ViewedRecordInput,
-): Promise<ViewedListDto> {
+): Promise<ViewedRecordResultDto> {
   const { productId } = input
 
   if (!(await productExists(productId))) {
@@ -80,14 +94,10 @@ export async function recordView(
 
   await upsertViewedProduct(identifier, productId)
 
-  const rows = await findRecentlyViewed(identifier)
-  const viewedRow = rows.find((row) => row.productId === productId)
-  if (viewedRow) {
-    scheduleProductMetricsRecalculation({
-      reason: 'product-viewed',
-      dedupeKey: `product-metrics:viewed:${viewedRow.id}:${viewedRow.viewedAt.toISOString()}`,
-    })
-  }
+  scheduleProductMetricsRecalculation({
+    reason: 'product-viewed',
+    dedupeKey: buildViewedMetricsDedupeKey(identifier, productId),
+  })
 
-  return { items: rows.map(toDto) }
+  return { recorded: true }
 }

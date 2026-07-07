@@ -1206,42 +1206,81 @@ export async function searchProducts(
  * exist or is not active. API routes catch this and respond with 404.
  */
 export async function getProduct(id: string): Promise<ProductDetailDto> {
-  const product = await findProductById(id)
+  const product = await measureServerOperation(
+    'getProductRepository',
+    {
+      service: 'features/products/product.service',
+      repository: 'features/products/product.repository',
+      query: 'findProductById',
+      productId: id,
+    },
+    () => findProductById(id),
+  )
 
   if (!product) {
     throw new ProductNotFoundError(id)
   }
 
-  const badgesByProductId = await resolveMarketplaceBadgesForProducts([{
-    id: product.id,
-    status: product.status,
-    publishedAt: product.publishedAt,
-    isActive: product.isActive,
-  }])
-  const promotionsByProductId = await getVisibleProductPromotions({
-    products: [
+  const [badgesByProductId, promotionsByProductId] = await Promise.all([
+    measureServerOperation(
+      'getProductBadges',
       {
-        id: product.id,
-        storeId: product.storeId,
-        categoryId: product.categoryId ?? null,
+        service: 'features/products/product.service',
+        dependency: 'resolveMarketplaceBadgesForProducts',
+        productId: product.id,
       },
-    ],
-  })
-
-  return {
-    ...toProductSummaryDto(
-      product,
-      product.variants,
-      badgesByProductId.get(product.id) ?? [],
-      'DEFAULT',
-      promotionsByProductId.get(product.id) ?? null,
+      () =>
+        resolveMarketplaceBadgesForProducts([
+          {
+            id: product.id,
+            status: product.status,
+            publishedAt: product.publishedAt,
+            isActive: product.isActive,
+          },
+        ]),
     ),
-    images: toProductImageDto(product),
-    storeName: product.store.name,
-    storeSlug: product.store.slug,
-    categoryName: product.category?.name ?? null,
-    categorySlug: product.category?.slug ?? null,
-    ratingSummary: toRatingSummaryDto(product.ratingSummary),
-    variants: product.variants.map(toProductVariantDto),
-  }
+    measureServerOperation(
+      'getProductPromotions',
+      {
+        service: 'features/products/product.service',
+        dependency: 'getVisibleProductPromotions',
+        productId: product.id,
+      },
+      () =>
+        getVisibleProductPromotions({
+          products: [
+            {
+              id: product.id,
+              storeId: product.storeId,
+              categoryId: product.categoryId ?? null,
+            },
+          ],
+        }),
+    ),
+  ])
+
+  return measureServerOperation(
+    'getProductDtoMapping',
+    {
+      service: 'features/products/product.service',
+      step: 'dto-mapping',
+      productId: product.id,
+    },
+    async () => ({
+      ...toProductSummaryDto(
+        product,
+        product.variants,
+        badgesByProductId.get(product.id) ?? [],
+        'DEFAULT',
+        promotionsByProductId.get(product.id) ?? null,
+      ),
+      images: toProductImageDto(product),
+      storeName: product.store.name,
+      storeSlug: product.store.slug,
+      categoryName: product.category?.name ?? null,
+      categorySlug: product.category?.slug ?? null,
+      ratingSummary: toRatingSummaryDto(product.ratingSummary),
+      variants: product.variants.map(toProductVariantDto),
+    }),
+  )
 }

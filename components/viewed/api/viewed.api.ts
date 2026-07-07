@@ -4,6 +4,8 @@ import { apiClient }
 
 import type { ViewedProductDto }
     from '@/features/viewed/viewed.dto'
+import type { ViewedRecordResultDto }
+    from '@/features/viewed/viewed.dto'
 
 interface ViewedProductsData {
     items: ViewedProductDto[]
@@ -13,7 +15,7 @@ export function recordViewedProduct(
     productId: string,
     signal?: AbortSignal,
 ) {
-    return apiClient.post(
+    return apiClient.post<ViewedRecordResultDto>(
         '/api/viewed',
         { productId },
         { signal },

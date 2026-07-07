@@ -11,3 +11,7 @@ export interface ViewedProductDto {
 export interface ViewedListDto {
   items: ViewedProductDto[]
 }
+
+export interface ViewedRecordResultDto {
+  recorded: true
+}
