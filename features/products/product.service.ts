@@ -726,6 +726,25 @@ const getHomepageProductSectionsCached = unstable_cache(
       { id: 'desc' },
     ]
     const hitOrderBy = mapSortToOrderBy('newest')
+    const fallbackLimit = limit * 2
+    let fallbackCandidatesPromise: Promise<ProductListProduct[]> | null = null
+    const getFallbackCandidates = async () => {
+      fallbackCandidatesPromise ??= findProductCards({
+        where: buildHomepageFallbackWhereInput(),
+        orderBy: fallbackOrderBy,
+        limit: fallbackLimit,
+      })
+
+      return fallbackCandidatesPromise
+    }
+    const selectFallbackProducts = (
+      candidates: ProductListProduct[],
+      excludeIds: string[],
+      take: number,
+    ) => {
+      const excluded = new Set(excludeIds)
+      return candidates.filter((item) => !excluded.has(item.id)).slice(0, take)
+    }
 
     // Keep homepage reads bounded and sequential to avoid unnecessary pool pressure.
     logInfo('homepage-sections:before-strict-new-query', {
@@ -746,11 +765,9 @@ const getHomepageProductSectionsCached = unstable_cache(
     const newItems =
       strictNewItems.length > 0
         ? strictNewItems
-        : await findProductCards({
-            where: buildHomepageFallbackWhereInput(),
-            orderBy: fallbackOrderBy,
-            limit,
-          })
+        : selectFallbackProducts(await getFallbackCandidates(), [], limit)
+
+    const newItemIds = new Set(newItems.map((item) => item.id))
 
     logInfo('homepage-sections:before-strict-hit-query', {
       domain: 'products',
@@ -767,16 +784,17 @@ const getHomepageProductSectionsCached = unstable_cache(
       route: '/',
       count: strictHitItems.length,
     })
-    const hitItems =
-      strictHitItems.length > 0
-        ? strictHitItems
-        : await findProductCards({
-            where: buildHomepageFallbackWhereInput({
-              excludeIds: newItems.map((item) => item.id),
-            }),
-            orderBy: fallbackOrderBy,
-            limit,
-          })
+    const dedupedStrictHitItems = strictHitItems.filter((item) => !newItemIds.has(item.id))
+    let hitItems = dedupedStrictHitItems.slice(0, limit)
+
+    if (hitItems.length < limit) {
+      const fallbackHitCandidates = selectFallbackProducts(
+        await getFallbackCandidates(),
+        [...newItemIds, ...hitItems.map((item) => item.id)],
+        limit - hitItems.length,
+      )
+      hitItems = [...hitItems, ...fallbackHitCandidates]
+    }
 
     const badgeCandidates = new Map<string, Product | ProductListProduct>()
     for (const item of [...newItems, ...hitItems]) {

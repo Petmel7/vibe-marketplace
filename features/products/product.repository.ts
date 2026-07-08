@@ -186,54 +186,136 @@ function mapById<T extends { id: string }>(items: T[]) {
   return new Map(items.map((item) => [item.id, item]))
 }
 
-async function loadProductCardStores(storeIds: string[]): Promise<Map<string, ProductListStorePreview>> {
-  if (storeIds.length === 0) {
-    return new Map()
-  }
-
-  const stores = await prisma.store.findMany({
-    where: {
-      id: {
-        in: storeIds,
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-    },
-  })
-
-  return mapById(stores)
+type ProductCardRelationsRow = {
+  productId: string
+  storeId: string | null
+  storeName: string | null
+  storeSlug: string | null
+  ratingAvg: Prisma.Decimal | null
+  ratingCount: number | bigint | null
+  rating1Count: number | bigint | null
+  rating2Count: number | bigint | null
+  rating3Count: number | bigint | null
+  rating4Count: number | bigint | null
+  rating5Count: number | bigint | null
+  ratingUpdatedAt: Date | null
+  imageId: string | null
+  imageUrl: string | null
+  imageIsPrimary: boolean | null
+  imagePosition: number | null
+  imageCreatedAt: Date | null
 }
 
-async function loadProductCardRatings(
-  productIds: string[],
-): Promise<Map<string, ProductRatingSummaryPreview>> {
-  if (productIds.length === 0) {
-    return new Map()
+type ProductCardRelationsResult = {
+  storesById: Map<string, ProductListStorePreview>
+  ratingsByProductId: Map<string, ProductRatingSummaryPreview>
+  imagesByProductId: Map<string, ProductImagePreview[]>
+}
+
+function toCount(value: number | bigint | null | undefined) {
+  if (typeof value === 'bigint') {
+    return Number(value)
   }
 
-  const rows = await prisma.productRatingSummary.findMany({
-    where: {
-      productId: {
-        in: productIds,
-      },
-    },
-    select: {
-      productId: true,
-      ratingAvg: true,
-      ratingCount: true,
-      rating1Count: true,
-      rating2Count: true,
-      rating3Count: true,
-      rating4Count: true,
-      rating5Count: true,
-      updatedAt: true,
-    },
-  })
+  return value ?? 0
+}
 
-  return new Map(rows.map((row) => [row.productId, row]))
+async function loadProductCardRelations(
+  productIds: string[],
+): Promise<ProductCardRelationsResult> {
+  if (productIds.length === 0) {
+    return {
+      storesById: new Map(),
+      ratingsByProductId: new Map(),
+      imagesByProductId: new Map(),
+    }
+  }
+
+  const rows = await prisma.$queryRaw<ProductCardRelationsRow[]>(Prisma.sql`
+    SELECT
+      p."id" AS "productId",
+      s."id" AS "storeId",
+      s."name" AS "storeName",
+      s."slug" AS "storeSlug",
+      prs."rating_avg" AS "ratingAvg",
+      prs."rating_count" AS "ratingCount",
+      prs."rating1_count" AS "rating1Count",
+      prs."rating2_count" AS "rating2Count",
+      prs."rating3_count" AS "rating3Count",
+      prs."rating4_count" AS "rating4Count",
+      prs."rating5_count" AS "rating5Count",
+      prs."updated_at" AS "ratingUpdatedAt",
+      pi."id" AS "imageId",
+      pi."url" AS "imageUrl",
+      pi."is_primary" AS "imageIsPrimary",
+      pi."position" AS "imagePosition",
+      pi."created_at" AS "imageCreatedAt"
+    FROM "public"."products" p
+    INNER JOIN "public"."stores" s
+      ON s."id" = p."store_id"
+    LEFT JOIN "public"."product_rating_summaries" prs
+      ON prs."product_id" = p."id"
+    LEFT JOIN LATERAL (
+      SELECT
+        img."id",
+        img."url",
+        img."is_primary",
+        img."position",
+        img."created_at"
+      FROM "public"."product_images" img
+      WHERE img."product_id" = p."id"
+        AND img."is_primary" = true
+      ORDER BY img."position" ASC, img."created_at" ASC, img."id" ASC
+      LIMIT 1
+    ) pi ON true
+    WHERE p."id" IN (${Prisma.join(productIds)})
+  `)
+
+  const storesById = new Map<string, ProductListStorePreview>()
+  const ratingsByProductId = new Map<string, ProductRatingSummaryPreview>()
+  const imagesByProductId = new Map<string, ProductImagePreview[]>()
+
+  for (const row of rows) {
+    if (row.storeId && !storesById.has(row.storeId)) {
+      storesById.set(row.storeId, {
+        id: row.storeId,
+        name: row.storeName ?? '',
+        slug: row.storeSlug ?? '',
+      })
+    }
+
+    if (row.ratingAvg != null && !ratingsByProductId.has(row.productId)) {
+      ratingsByProductId.set(row.productId, {
+        productId: row.productId,
+        ratingAvg: row.ratingAvg,
+        ratingCount: toCount(row.ratingCount),
+        rating1Count: toCount(row.rating1Count),
+        rating2Count: toCount(row.rating2Count),
+        rating3Count: toCount(row.rating3Count),
+        rating4Count: toCount(row.rating4Count),
+        rating5Count: toCount(row.rating5Count),
+        updatedAt: row.ratingUpdatedAt ?? new Date(0),
+      })
+    }
+
+    if (row.imageId && row.imageUrl && !imagesByProductId.has(row.productId)) {
+      imagesByProductId.set(row.productId, [
+        {
+          id: row.imageId,
+          url: row.imageUrl,
+          isPrimary: row.imageIsPrimary ?? true,
+          position: row.imagePosition ?? 0,
+          createdAt: row.imageCreatedAt ?? new Date(0),
+        },
+      ])
+    }
+  }
+
+  return {
+    storesById,
+    ratingsByProductId,
+    imagesByProductId,
+  }
 }
 
 async function loadProductCardVariants(
@@ -327,13 +409,10 @@ async function hydrateProductCardRecords(
   }
 
   const productIds = products.map((product) => product.id)
-  const storeIds = [...new Set(products.map((product) => product.storeId))]
 
-  const [storesById, ratingsByProductId, variantsByProductId, imagesByProductId] = await Promise.all([
-    loadProductCardStores(storeIds),
-    loadProductCardRatings(productIds),
+  const [{ storesById, ratingsByProductId, imagesByProductId }, variantsByProductId] = await Promise.all([
+    loadProductCardRelations(productIds),
     loadProductCardVariants(productIds),
-    loadProductCardPrimaryImages(productIds),
   ])
 
   return products.map((product) => ({

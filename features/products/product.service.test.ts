@@ -776,6 +776,10 @@ describe('filtered product listings', () => {
           { id: 'prod-new-fallback', publishedAt: null, createdAt: new Date('2026-06-01T00:00:00.000Z') },
           [makeVariant({ productId: 'prod-new-fallback' })],
         ),
+        makeListProduct(
+          { id: 'prod-hit-fallback', publishedAt: null, createdAt: new Date('2026-05-31T00:00:00.000Z') },
+          [makeVariant({ productId: 'prod-hit-fallback' })],
+        ),
       ])
       .mockResolvedValueOnce([
         makeListProduct(
@@ -796,7 +800,7 @@ describe('filtered product listings', () => {
         AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
       },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-      limit: 4,
+      limit: 8,
     })
     expect(result.newProducts[0]).toMatchObject({
       id: 'prod-new-fallback',
@@ -820,6 +824,10 @@ describe('filtered product listings', () => {
           { id: 'prod-hit-fallback', createdAt: new Date('2026-06-02T00:00:00.000Z') },
           [makeVariant({ productId: 'prod-hit-fallback' })],
         ),
+        makeListProduct(
+          { id: 'prod-new', createdAt: new Date('2026-06-01T00:00:00.000Z') },
+          [makeVariant({ productId: 'prod-new' })],
+        ),
       ])
 
     const result = await getHomepageProductSections()
@@ -832,12 +840,9 @@ describe('filtered product listings', () => {
           isActive: true,
         },
         AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
-        id: {
-          notIn: ['prod-new'],
-        },
       },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-      limit: 4,
+      limit: 8,
     })
     expect(result.newProducts[0]).toMatchObject({
       id: 'prod-new',
@@ -852,18 +857,39 @@ describe('filtered product listings', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         makeListProduct({ id: 'prod-published-a', publishedAt: null }, [makeVariant({ productId: 'prod-published-a' })]),
+        makeListProduct({ id: 'prod-published-b', publishedAt: null }, [makeVariant({ productId: 'prod-published-b' })]),
+        makeListProduct({ id: 'prod-published-c', publishedAt: null }, [makeVariant({ productId: 'prod-published-c' })]),
+        makeListProduct({ id: 'prod-published-d', publishedAt: null }, [makeVariant({ productId: 'prod-published-d' })]),
+        makeListProduct({ id: 'prod-published-e', publishedAt: null }, [makeVariant({ productId: 'prod-published-e' })]),
       ])
       .mockResolvedValueOnce([])
+
+    const result = await getHomepageProductSections()
+
+    expect(result.newProducts).toHaveLength(4)
+    expect(result.hitProducts).toHaveLength(1)
+    expect(result.newProducts[0]?.id).toBe('prod-published-a')
+    expect(result.hitProducts[0]?.id).toBe('prod-published-e')
+    expect(mockedRepository.findProductCards).toHaveBeenCalledTimes(3)
+  })
+
+  it('avoids duplicate products between homepage sections by supplementing from fallback candidates', async () => {
+    mockedRepository.findProductCards
       .mockResolvedValueOnce([
-        makeListProduct({ id: 'prod-published-b', publishedAt: null }, [makeVariant({ productId: 'prod-published-b' })]),
+        makeListProduct({ id: 'prod-shared', isNew: true }, [makeVariant({ productId: 'prod-shared' })]),
+      ])
+      .mockResolvedValueOnce([
+        makeListProduct({ id: 'prod-shared', isHit: true }, [makeVariant({ productId: 'prod-shared' })]),
+      ])
+      .mockResolvedValueOnce([
+        makeListProduct({ id: 'prod-shared' }, [makeVariant({ productId: 'prod-shared' })]),
+        makeListProduct({ id: 'prod-hit-fallback' }, [makeVariant({ productId: 'prod-hit-fallback' })]),
       ])
 
     const result = await getHomepageProductSections()
 
-    expect(result.newProducts).toHaveLength(1)
-    expect(result.hitProducts).toHaveLength(1)
-    expect(result.newProducts[0]?.id).toBe('prod-published-a')
-    expect(result.hitProducts[0]?.id).toBe('prod-published-b')
+    expect(result.newProducts[0]?.id).toBe('prod-shared')
+    expect(result.hitProducts[0]?.id).toBe('prod-hit-fallback')
   })
 
   it('builds the initial New Products page via limit+1 card query without count', async () => {

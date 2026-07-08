@@ -84,6 +84,7 @@ describe('findProducts', () => {
     variantFindManyMock.mockResolvedValue([])
     storeFindManyMock.mockResolvedValue([])
     ratingSummaryFindManyMock.mockResolvedValue([])
+    queryRawMock.mockResolvedValue([])
   })
 
   it('uses page-based pagination with service-provided filters and sorting', async () => {
@@ -139,7 +140,7 @@ describe('findProducts', () => {
       },
     })
     expect(variantFindManyMock).toHaveBeenCalled()
-    expect(storeFindManyMock).toHaveBeenCalled()
+    expect(queryRawMock).toHaveBeenCalled()
     expect(countMock).toHaveBeenCalledWith({ where })
     expect(result.total).toBe(25)
   })
@@ -182,15 +183,27 @@ describe('findProductCards', () => {
         stock: 10,
       },
     ])
-    storeFindManyMock.mockResolvedValue([
+    queryRawMock.mockResolvedValue([
       {
-        id: 'store-1',
-        name: 'Test Store',
-        slug: 'test-store',
+        productId: 'prod-1',
+        storeId: 'store-1',
+        storeName: 'Test Store',
+        storeSlug: 'test-store',
+        ratingAvg: null,
+        ratingCount: null,
+        rating1Count: null,
+        rating2Count: null,
+        rating3Count: null,
+        rating4Count: null,
+        rating5Count: null,
+        ratingUpdatedAt: null,
+        imageId: null,
+        imageUrl: null,
+        imageIsPrimary: null,
+        imagePosition: null,
+        imageCreatedAt: null,
       },
     ])
-    ratingSummaryFindManyMock.mockResolvedValue([])
-    productImageFindManyMock.mockResolvedValue([])
   })
 
   it('returns a lightweight limited product-card query without a count call', async () => {
@@ -231,18 +244,7 @@ describe('findProductCards', () => {
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     })
-    expect(storeFindManyMock).toHaveBeenCalledWith({
-      where: {
-        id: {
-          in: ['store-1'],
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-      },
-    })
+    expect(queryRawMock).toHaveBeenCalled()
     expect(countMock).not.toHaveBeenCalled()
     expect(result).toHaveLength(1)
   })
@@ -283,6 +285,25 @@ describe('searchProducts', () => {
         rating2: BigInt(1),
         rating1: BigInt(1),
       }])
+      .mockResolvedValueOnce([{
+        productId: 'prod-1',
+        storeId: 'store-1',
+        storeName: 'Test Store',
+        storeSlug: 'test-store',
+        ratingAvg: null,
+        ratingCount: null,
+        rating1Count: null,
+        rating2Count: null,
+        rating3Count: null,
+        rating4Count: null,
+        rating5Count: null,
+        ratingUpdatedAt: null,
+        imageId: null,
+        imageUrl: null,
+        imageIsPrimary: null,
+        imagePosition: null,
+        imageCreatedAt: null,
+      }])
       .mockResolvedValueOnce([{ id: 'cat-1', slug: 'dresses', name: 'Dresses', count: BigInt(1) }])
       .mockResolvedValueOnce([{ id: 'store-1', slug: 'test-store', name: 'Test Store', count: BigInt(1) }])
       .mockResolvedValueOnce([{ type: 'NEW', count: BigInt(1) }])
@@ -302,7 +323,7 @@ describe('searchProducts', () => {
       inStock: true,
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(5)
+    expect(queryRawMock).toHaveBeenCalledTimes(6)
     expect(findManyMock).toHaveBeenCalledWith({
       where: {
         id: {
@@ -316,8 +337,6 @@ describe('searchProducts', () => {
       }),
     })
     expect(variantFindManyMock).toHaveBeenCalled()
-    expect(storeFindManyMock).toHaveBeenCalled()
-    expect(ratingSummaryFindManyMock).toHaveBeenCalled()
     expect(result.total).toBe(1)
     expect(result.items).toHaveLength(1)
     expect(result.facets.categories[0]).toEqual({
@@ -346,7 +365,7 @@ describe('searchProducts', () => {
       sort: 'newest',
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(5)
+    expect(queryRawMock).toHaveBeenCalledTimes(6)
   })
 
   it('keeps popular catalog requests bounded to the same raw query count', async () => {
@@ -356,7 +375,7 @@ describe('searchProducts', () => {
       sort: 'popular',
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(5)
+    expect(queryRawMock).toHaveBeenCalledTimes(6)
   })
 
   it('returns immediately without secondary loaders when product ids are empty', async () => {
