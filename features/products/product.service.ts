@@ -1,4 +1,3 @@
-import { unstable_cache } from 'next/cache'
 import { cache } from 'react'
 import { Prisma, ProductBadgeType, ProductStatus } from '@/app/generated/prisma/client'
 import type { Product, ProductVariant } from '@/app/generated/prisma/client'
@@ -42,7 +41,6 @@ import type {
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
 import { getActiveCategoryTraversalNodesCached } from '@/features/categories/category.cache'
 import { getVisibleProductPromotions } from '@/features/promotions/promotions.service'
-import { SEO_CACHE_TAGS } from '@/features/seo/seo.cache'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 import { logInfo } from '@/utils/logger'
 import {
@@ -706,12 +704,13 @@ export async function listHitProducts(
   )
 }
 
-const getHomepageProductSectionsCached = unstable_cache(
+const getHomepageProductSectionsRequestCached = cache(
   async (limit: number): Promise<HomepageProductSectionsDto> => {
     logInfo('homepage-sections:cache-callback:start', {
       domain: 'products',
       route: '/',
       limit,
+      cache: 'react_cache:homepage-product-sections',
     })
     const newWhere = buildCatalogWhereInput({ isNew: true })
     const hitWhere = buildCatalogWhereInput({ isHit: true })
@@ -859,11 +858,6 @@ const getHomepageProductSectionsCached = unstable_cache(
       hitProducts: mapWithContext(hitItems, 'HIT'),
     }
   },
-  ['homepage-product-sections'],
-  {
-    revalidate: 120,
-    tags: [SEO_CACHE_TAGS.products, SEO_CACHE_TAGS.categories, SEO_CACHE_TAGS.stores],
-  },
 )
 
 export const getHomepageProductSections = cache(async (limit = 4): Promise<HomepageProductSectionsDto> =>
@@ -872,17 +866,17 @@ export const getHomepageProductSections = cache(async (limit = 4): Promise<Homep
     {
       service: 'features/products/product.service',
       route: '/',
-      cache: 'unstable_cache:homepage-product-sections',
+      cache: 'react_cache:homepage-product-sections',
       limit,
     },
     async () => {
-      logInfo('homepage-sections:before-unstable-cache', {
+      logInfo('homepage-sections:before-request-cache', {
         domain: 'products',
         route: '/',
         limit,
       })
-      const sections = await getHomepageProductSectionsCached(limit)
-      logInfo('homepage-sections:after-unstable-cache', {
+      const sections = await getHomepageProductSectionsRequestCached(limit)
+      logInfo('homepage-sections:after-request-cache', {
         domain: 'products',
         route: '/',
         limit,
@@ -894,14 +888,20 @@ export const getHomepageProductSections = cache(async (limit = 4): Promise<Homep
   ),
 )
 
-const getDefaultCatalogSearchCached = unstable_cache(
-  async (page: number, limit: number): Promise<ProductSearchDto> => {
+const getDefaultCatalogSearchRequestCached = cache(
+  async (
+    page: number,
+    limit: number,
+    requestId?: string,
+    route?: string,
+  ): Promise<ProductSearchDto> => {
     logInfo('catalog-search:default-cache-callback:start', {
       domain: 'products',
-      route: '/catalog',
+      route: route ?? '/catalog',
       page,
       limit,
-      cache: 'unstable_cache:default-catalog-search',
+      requestId: requestId ?? null,
+      cache: 'react_cache:default-catalog-search',
     })
     const result = await executeSearchProductsQuery(
       {
@@ -909,23 +909,22 @@ const getDefaultCatalogSearchCached = unstable_cache(
         limit,
         sort: 'newest',
       },
-      undefined,
+      {
+        requestId,
+        route,
+      },
     )
     logInfo('catalog-search:default-cache-callback:after', {
       domain: 'products',
-      route: '/catalog',
+      route: route ?? '/catalog',
       page,
       limit,
+      requestId: requestId ?? null,
       total: result.pagination.total,
       itemsCount: result.items.length,
-      cache: 'unstable_cache:default-catalog-search',
+      cache: 'react_cache:default-catalog-search',
     })
     return result
-  },
-  ['default-catalog-search'],
-  {
-    revalidate: 120,
-    tags: [SEO_CACHE_TAGS.products, SEO_CACHE_TAGS.categories, SEO_CACHE_TAGS.stores],
   },
 )
 
@@ -1212,11 +1211,17 @@ export async function searchProducts(
         service: 'features/products/product.service',
         route: traceContext?.route ?? '/catalog',
         requestId: traceContext?.requestId,
-        cache: 'unstable_cache:default-catalog-search',
+        cache: 'react_cache:default-catalog-search',
         page: query.page,
         limit: query.limit,
       },
-      () => getDefaultCatalogSearchCached(query.page, query.limit),
+      () =>
+        getDefaultCatalogSearchRequestCached(
+          query.page,
+          query.limit,
+          traceContext?.requestId,
+          traceContext?.route,
+        ),
     )
   }
 
@@ -1230,10 +1235,10 @@ export async function searchProducts(
  * exist or is not active. API routes catch this and respond with 404.
  */
 export async function getProduct(id: string): Promise<ProductDetailDto> {
-  return getProductCached(id)
+  return getProductRequestCached(id)
 }
 
-const getProductCached = unstable_cache(
+const getProductRequestCached = cache(
   async (id: string): Promise<ProductDetailDto> => {
     const product = await measureServerOperation(
       'getProductRepository',
@@ -1312,10 +1317,5 @@ const getProductCached = unstable_cache(
         variants: product.variants.map(toProductVariantDto),
       }),
     )
-  },
-  ['product-detail'],
-  {
-    revalidate: 60,
-    tags: [SEO_CACHE_TAGS.products, SEO_CACHE_TAGS.categories, SEO_CACHE_TAGS.stores],
   },
 )

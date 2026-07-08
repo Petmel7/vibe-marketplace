@@ -63,12 +63,11 @@ describe('seo cache helpers', () => {
     expect(unstableCacheMock).toHaveBeenCalled()
   })
 
-  it('revalidates sitemap and products tags for product SEO changes', async () => {
+  it('revalidates only products tag for product SEO changes', async () => {
     const { revalidateSeoForMetadataEntity, SEO_CACHE_TAGS } = await import('./seo.cache')
 
     revalidateSeoForMetadataEntity(SeoEntityType.PRODUCT)
 
-    expect(revalidateTagMock).toHaveBeenCalledWith(SEO_CACHE_TAGS.sitemap, 'max')
     expect(revalidateTagMock).toHaveBeenCalledWith(SEO_CACHE_TAGS.products, 'max')
   })
 

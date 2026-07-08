@@ -1,5 +1,7 @@
 import { revalidateTag, unstable_cache } from 'next/cache'
 import { SeoEntityType } from '@/app/generated/prisma/enums'
+import type { SitemapEntryDto } from './seo.dto'
+import { getCurrentRequestTrace } from '@/lib/observability/request-trace'
 import { logInfo, logWarn } from '@/utils/logger'
 
 export const SEO_SITEMAP_REVALIDATE_SECONDS = 60 * 60
@@ -13,30 +15,60 @@ export const SEO_CACHE_TAGS = {
   stores: 'seo:stores',
 } as const
 
-const SITEMAP_CACHE_TAGS = [
-  SEO_CACHE_TAGS.sitemap,
-  SEO_CACHE_TAGS.products,
-  SEO_CACHE_TAGS.categories,
-  SEO_CACHE_TAGS.stores,
-] as const
+const SITEMAP_CACHE_TAGS = [SEO_CACHE_TAGS.sitemap] as const
 
 const ROBOTS_CACHE_TAGS = [SEO_CACHE_TAGS.robots] as const
 
 let sitemapGenerationVersion = 0
 let robotsGenerationVersion = 0
+let sitemapRebuildPromise: Promise<SitemapEntryDto[]> | null = null
+
+function getCacheExecutionContext() {
+  const trace = getCurrentRequestTrace()
+  return {
+    requestId: trace?.requestId ?? null,
+    route: trace?.route ?? null,
+    requestOperation: trace?.operation ?? null,
+    cacheExecution: trace ? 'request' : 'background',
+  }
+}
 
 const cachedSitemapEntries = unstable_cache(
   async () => {
+    const executionContext = getCacheExecutionContext()
     sitemapGenerationVersion += 1
-    if (process.env.NODE_ENV !== 'production') {
-      logInfo('seo:sitemap-cache-miss', {
+    logInfo('seo:sitemap-cache-callback:start', {
+      domain: 'seo',
+      tags: [...SITEMAP_CACHE_TAGS],
+      ...executionContext,
+    })
+
+    if (sitemapRebuildPromise) {
+      logInfo('seo:sitemap-cache-callback:join-existing-rebuild', {
         domain: 'seo',
         tags: [...SITEMAP_CACHE_TAGS],
+        ...executionContext,
       })
+      return sitemapRebuildPromise
     }
 
-    const { getSitemapEntries } = await import('./seo.service')
-    return getSitemapEntries()
+    sitemapRebuildPromise = (async () => {
+      const { getSitemapEntries } = await import('./seo.service')
+      return getSitemapEntries()
+    })()
+
+    try {
+      const result = await sitemapRebuildPromise
+      logInfo('seo:sitemap-cache-callback:after', {
+        domain: 'seo',
+        tags: [...SITEMAP_CACHE_TAGS],
+        count: result.length,
+        ...executionContext,
+      })
+      return result
+    } finally {
+      sitemapRebuildPromise = null
+    }
   },
   ['seo-sitemap'],
   {
@@ -47,16 +79,21 @@ const cachedSitemapEntries = unstable_cache(
 
 const cachedRobotsConfig = unstable_cache(
   async () => {
+    const executionContext = getCacheExecutionContext()
     robotsGenerationVersion += 1
-    if (process.env.NODE_ENV !== 'production') {
-      logInfo('seo:robots-cache-miss', {
-        domain: 'seo',
-        tags: [...ROBOTS_CACHE_TAGS],
-      })
-    }
-
+    logInfo('seo:robots-cache-callback:before', {
+      domain: 'seo',
+      tags: [...ROBOTS_CACHE_TAGS],
+      ...executionContext,
+    })
     const { getRobotsConfig } = await import('./seo.service')
-    return getRobotsConfig()
+    const result = await getRobotsConfig()
+    logInfo('seo:robots-cache-callback:after', {
+      domain: 'seo',
+      tags: [...ROBOTS_CACHE_TAGS],
+      ...executionContext,
+    })
+    return result
   },
   ['seo-robots'],
   {
@@ -102,11 +139,11 @@ export async function getCachedRobotsConfig() {
 export function getSeoRevalidationTagsForEntity(entityType: SeoEntityType) {
   switch (entityType) {
     case SeoEntityType.PRODUCT:
-      return [SEO_CACHE_TAGS.sitemap, SEO_CACHE_TAGS.products]
+      return [SEO_CACHE_TAGS.products]
     case SeoEntityType.CATEGORY:
-      return [SEO_CACHE_TAGS.sitemap, SEO_CACHE_TAGS.categories]
+      return [SEO_CACHE_TAGS.categories]
     case SeoEntityType.STORE:
-      return [SEO_CACHE_TAGS.sitemap, SEO_CACHE_TAGS.stores]
+      return [SEO_CACHE_TAGS.stores]
     case SeoEntityType.GLOBAL:
     case SeoEntityType.PAGE:
     default:
@@ -136,15 +173,15 @@ export function revalidateSeoForMetadataEntity(entityType: SeoEntityType) {
 }
 
 export function revalidateSeoForProductChange() {
-  revalidateSeoTags([SEO_CACHE_TAGS.sitemap, SEO_CACHE_TAGS.products])
+  revalidateSeoTags([SEO_CACHE_TAGS.products])
 }
 
 export function revalidateSeoForCategoryChange() {
-  revalidateSeoTags([SEO_CACHE_TAGS.sitemap, SEO_CACHE_TAGS.categories])
+  revalidateSeoTags([SEO_CACHE_TAGS.categories])
 }
 
 export function revalidateSeoForStoreChange() {
-  revalidateSeoTags([SEO_CACHE_TAGS.sitemap, SEO_CACHE_TAGS.stores])
+  revalidateSeoTags([SEO_CACHE_TAGS.stores])
 }
 
 export function revalidateSeoForRobotsChange() {
