@@ -116,11 +116,11 @@ type ProductRatingSummaryLike = {
     toNumber(): number
   }
   ratingCount: number
-  rating1Count: number
-  rating2Count: number
-  rating3Count: number
-  rating4Count: number
-  rating5Count: number
+  rating1Count?: number
+  rating2Count?: number
+  rating3Count?: number
+  rating4Count?: number
+  rating5Count?: number
 } | null
 
 // ---------------------------------------------------------------------------
@@ -238,11 +238,11 @@ function toRatingSummaryDto(ratingSummary: ProductRatingSummaryLike): ReviewRati
   return {
     averageRating: Number(ratingSummary.ratingAvg.toNumber().toFixed(2)),
     totalCount: ratingSummary.ratingCount,
-    rating1Count: ratingSummary.rating1Count,
-    rating2Count: ratingSummary.rating2Count,
-    rating3Count: ratingSummary.rating3Count,
-    rating4Count: ratingSummary.rating4Count,
-    rating5Count: ratingSummary.rating5Count,
+    rating1Count: ratingSummary.rating1Count ?? 0,
+    rating2Count: ratingSummary.rating2Count ?? 0,
+    rating3Count: ratingSummary.rating3Count ?? 0,
+    rating4Count: ratingSummary.rating4Count ?? 0,
+    rating5Count: ratingSummary.rating5Count ?? 0,
   }
 }
 

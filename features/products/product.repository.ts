@@ -15,22 +15,12 @@ type ProductRatingSummaryPreview = Pick<
       productId: true
       ratingAvg: true
       ratingCount: true
-      rating1Count: true
-      rating2Count: true
-      rating3Count: true
-      rating4Count: true
-      rating5Count: true
       updatedAt: true
     }
   }>,
   | 'productId'
   | 'ratingAvg'
   | 'ratingCount'
-  | 'rating1Count'
-  | 'rating2Count'
-  | 'rating3Count'
-  | 'rating4Count'
-  | 'rating5Count'
   | 'updatedAt'
 >
 type ProductListStorePreview = Pick<Store, 'id' | 'name' | 'slug'>
@@ -193,11 +183,6 @@ type ProductCardRelationsRow = {
   storeSlug: string | null
   ratingAvg: Prisma.Decimal | null
   ratingCount: number | bigint | null
-  rating1Count: number | bigint | null
-  rating2Count: number | bigint | null
-  rating3Count: number | bigint | null
-  rating4Count: number | bigint | null
-  rating5Count: number | bigint | null
   ratingUpdatedAt: Date | null
   imageId: string | null
   imageUrl: string | null
@@ -239,11 +224,6 @@ async function loadProductCardRelations(
       s."slug" AS "storeSlug",
       prs."rating_avg" AS "ratingAvg",
       prs."rating_count" AS "ratingCount",
-      prs."rating1_count" AS "rating1Count",
-      prs."rating2_count" AS "rating2Count",
-      prs."rating3_count" AS "rating3Count",
-      prs."rating4_count" AS "rating4Count",
-      prs."rating5_count" AS "rating5Count",
       prs."updated_at" AS "ratingUpdatedAt",
       pi."id" AS "imageId",
       pi."url" AS "imageUrl",
@@ -289,11 +269,6 @@ async function loadProductCardRelations(
         productId: row.productId,
         ratingAvg: row.ratingAvg,
         ratingCount: toCount(row.ratingCount),
-        rating1Count: toCount(row.rating1Count),
-        rating2Count: toCount(row.rating2Count),
-        rating3Count: toCount(row.rating3Count),
-        rating4Count: toCount(row.rating4Count),
-        rating5Count: toCount(row.rating5Count),
         updatedAt: row.ratingUpdatedAt ?? new Date(0),
       })
     }
