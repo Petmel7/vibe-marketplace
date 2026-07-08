@@ -10,11 +10,7 @@ import { getCurrentUser } from '@/lib/session/getSession'
 import { getAdminAuditActorLabel } from '@/types/operations'
 import { logInfo } from '@/utils/logger'
 
-export default async function AdminOperationsOverviewPage() {
-  logInfo('admin-operations-page:start', {
-    domain: 'admin-operations',
-    route: '/admin/operations',
-  })
+async function renderAdminOperationsOverviewPage() {
   const user = await getCurrentUser()
   logInfo('admin-operations-page:after-get-current-user', {
     domain: 'admin-operations',
@@ -42,7 +38,7 @@ export default async function AdminOperationsOverviewPage() {
   const healthTone =
     !data.health ? 'Unhealthy' : data.health.deep.status === 'ok' ? 'Healthy' : 'Degraded'
 
-  logInfo('admin-operations-page:before-return', {
+  logInfo('admin-operations-page:before-render-tree', {
     domain: 'admin-operations',
     route: '/admin/operations',
     userId: user.id,
@@ -50,7 +46,7 @@ export default async function AdminOperationsOverviewPage() {
     providerIssueCount: data.providerIssues.length,
   })
 
-  return (
+  const tree = (
     <AdminSection
       eyebrow="Operations"
       title="Observability & audit"
@@ -210,4 +206,31 @@ export default async function AdminOperationsOverviewPage() {
       </OperationsShell>
     </AdminSection>
   )
+
+  logInfo('admin-operations-page:after-render-tree', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+    healthTone,
+    providerIssueCount: data.providerIssues.length,
+  })
+
+  return tree
+}
+
+export default async function AdminOperationsOverviewPage() {
+  logInfo('admin-operations-page:start', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+  })
+
+  const page = await renderAdminOperationsOverviewPage()
+
+  logInfo('admin-operations-page:after-page-resolve', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    resolved: true,
+  })
+
+  return page
 }
