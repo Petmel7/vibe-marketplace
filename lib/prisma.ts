@@ -31,8 +31,23 @@ const PrismaColumnType = {
 
 const PRISMA_QUERY_TIMEOUT_MS = 8_000
 const PRISMA_SLOW_QUERY_MS = 1_000
+const PRISMA_CONNECT_TIMEOUT_SECONDS = 10
+const PRISMA_LOCK_TIMEOUT_MS = 5_000
+const PRISMA_IDLE_IN_TRANSACTION_TIMEOUT_MS = 10_000
+const PRISMA_MAX_LIFETIME_SECONDS = 60 * 5
 
 type PgColumn = { name: string; type: number }
+
+type PrismaPoolConfig = {
+  max: number
+  connectTimeoutSeconds: number
+  statementTimeoutMs: number
+  lockTimeoutMs: number
+  idleInTransactionSessionTimeoutMs: number
+  maxLifetimeSeconds: number
+  idleTimeoutSeconds: number
+  environment: 'production' | 'build' | 'development'
+}
 
 function mapColumnType(pgOid: number): number {
   switch (pgOid) {
@@ -85,19 +100,69 @@ function buildResultSet(rows: postgres.RowList<PostgresRow[]>) {
   return { columnNames, columnTypes, rows: mapped }
 }
 
-function getPrismaPoolMax() {
+function getPrismaPoolConfig(): PrismaPoolConfig {
   const isNextProductionBuild =
     process.env.NEXT_PHASE === 'phase-production-build'
 
-  // Supabase Transaction Pooler is session-constrained, but a single session
-  // lets one interactive transaction starve every unrelated read in the same
-  // process. Keep the pool small while allowing one reserved transaction and
-  // one concurrent read to proceed independently.
+  // Supabase Transaction Pooler is session-constrained, but `max=2` lets one
+  // reserved transaction and one slow public read block all remaining work in
+  // the same Vercel process until postgres.js tries to open another session
+  // and eventually hits CONNECT_TIMEOUT. Allow one reserved transaction plus
+  // two concurrent reads while staying well below the 15-session pooler cap.
   if (isNextProductionBuild || process.env.NODE_ENV === 'production') {
-    return 2
+    return {
+      max: 3,
+      connectTimeoutSeconds: PRISMA_CONNECT_TIMEOUT_SECONDS,
+      statementTimeoutMs: PRISMA_QUERY_TIMEOUT_MS,
+      lockTimeoutMs: PRISMA_LOCK_TIMEOUT_MS,
+      idleInTransactionSessionTimeoutMs: PRISMA_IDLE_IN_TRANSACTION_TIMEOUT_MS,
+      maxLifetimeSeconds: PRISMA_MAX_LIFETIME_SECONDS,
+      idleTimeoutSeconds: 20,
+      environment: isNextProductionBuild ? 'build' : 'production',
+    }
   }
 
-  return 3
+  return {
+    max: 4,
+    connectTimeoutSeconds: PRISMA_CONNECT_TIMEOUT_SECONDS,
+    statementTimeoutMs: PRISMA_QUERY_TIMEOUT_MS,
+    lockTimeoutMs: PRISMA_LOCK_TIMEOUT_MS,
+    idleInTransactionSessionTimeoutMs: PRISMA_IDLE_IN_TRANSACTION_TIMEOUT_MS,
+    maxLifetimeSeconds: PRISMA_MAX_LIFETIME_SECONDS,
+    idleTimeoutSeconds: 20,
+    environment: 'development',
+  }
+}
+
+function getConnectionTarget(connectionString: string) {
+  try {
+    const url = new URL(connectionString)
+    return `${url.hostname}:${url.port || '5432'}`
+  } catch {
+    return 'unknown'
+  }
+}
+
+function buildPoolLogContext(connectionString: string, poolConfig: PrismaPoolConfig) {
+  return {
+    poolMax: poolConfig.max,
+    connectTimeoutSeconds: poolConfig.connectTimeoutSeconds,
+    statementTimeoutMs: poolConfig.statementTimeoutMs,
+    lockTimeoutMs: poolConfig.lockTimeoutMs,
+    idleInTransactionSessionTimeoutMs: poolConfig.idleInTransactionSessionTimeoutMs,
+    maxLifetimeSeconds: poolConfig.maxLifetimeSeconds,
+    idleTimeoutSeconds: poolConfig.idleTimeoutSeconds,
+    poolEnvironment: poolConfig.environment,
+    connectionTarget: getConnectionTarget(connectionString),
+  }
+}
+
+function isConnectTimeoutError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.message.includes('CONNECT_TIMEOUT') ||
+      error.message.includes('write CONNECT_TIMEOUT'))
+  )
 }
 
 function redactSqlPreview(sql: string) {
@@ -164,6 +229,15 @@ async function withDatabaseTimeout<T>(
     return result
   } catch (error) {
     settled = true
+    if (isConnectTimeoutError(error)) {
+      logError('prisma:connect-timeout', error, {
+        domain: 'database',
+        operation,
+        durationMs: Number(getDurationMs(startedAt).toFixed(1)),
+        ...traceContext,
+        ...context,
+      })
+    }
     logError('prisma:error', error, {
       domain: 'database',
       operation,
@@ -242,9 +316,13 @@ function normalizeTransactionControlSql(sql: string) {
   return sql.trim().replace(/;+$/, '').toUpperCase()
 }
 
-function buildTransactionObject(reserved: postgres.ReservedSql) {
+function buildTransactionObject(
+  reserved: postgres.ReservedSql,
+  baseContext: Record<string, unknown>,
+) {
   const transactionContext = {
     transaction: true,
+    ...baseContext,
   }
 
   let finalized: 'commit' | 'rollback' | null = null
@@ -356,17 +434,24 @@ function buildTransactionObject(reserved: postgres.ReservedSql) {
 // Adapter factory
 // ---------------------------------------------------------------------------
 
-function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
+function createAdapter(
+  sql: postgres.Sql,
+  baseContext: Record<string, unknown>,
+): SqlDriverAdapterFactory {
+  const queryContext = {
+    transaction: false,
+    ...baseContext,
+  }
   const adapterImpl = {
     provider: 'postgres' as const,
     adapterName: '@local/adapter-postgres' as const,
 
     async queryRaw(query: { sql: string; args: unknown[] }) {
-      return execQueryRaw(sql, query, { transaction: false })
+      return execQueryRaw(sql, query, queryContext)
     },
 
     async executeRaw(query: { sql: string; args: unknown[] }) {
-      return execExecuteRaw(sql, query, { transaction: false })
+      return execExecuteRaw(sql, query, queryContext)
     },
 
     async executeScript(script: string): Promise<void> {
@@ -374,7 +459,7 @@ function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
         'executeScript',
         {
           sqlPreview: redactSqlPreview(script),
-          transaction: false,
+          ...queryContext,
         },
         () => sql.unsafe(script) as Promise<unknown>
       )
@@ -383,7 +468,7 @@ function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
     async startTransaction(isolationLevel?: IsolationLevel) {
       const reserved = await withDatabaseTimeout(
         'transaction.reserve',
-        { transaction: true },
+        { transaction: true, ...baseContext },
         () => sql.reserve()
       )
 
@@ -400,6 +485,7 @@ function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
           {
             transaction: true,
             isolationLevel: level ?? 'default',
+            ...baseContext,
           },
           () => reserved.unsafe(beginSql) as Promise<unknown>
         )
@@ -408,7 +494,7 @@ function createAdapter(sql: postgres.Sql): SqlDriverAdapterFactory {
         throw err
       }
 
-      return buildTransactionObject(reserved)
+      return buildTransactionObject(reserved, baseContext)
     },
 
     async dispose(): Promise<void> {
@@ -441,22 +527,30 @@ function createPrismaClient(): PrismaClient {
     throw new Error('DATABASE_URL environment variable is not set')
   }
 
+  const poolConfig = getPrismaPoolConfig()
+  const poolLogContext = buildPoolLogContext(connectionString, poolConfig)
+
+  logInfo('prisma:pool:init', {
+    domain: 'database',
+    ...poolLogContext,
+  })
+
   const sql = postgres(connectionString, {
-    max: getPrismaPoolMax(),
-    idle_timeout: 20,
-    connect_timeout: 10,
-    max_lifetime: 60 * 5,
+    max: poolConfig.max,
+    idle_timeout: poolConfig.idleTimeoutSeconds,
+    connect_timeout: poolConfig.connectTimeoutSeconds,
+    max_lifetime: poolConfig.maxLifetimeSeconds,
     prepare: false,
     connection: {
       application_name: 'vibe-marketplace-prisma',
-      statement_timeout: PRISMA_QUERY_TIMEOUT_MS,
-      lock_timeout: 5_000,
-      idle_in_transaction_session_timeout: 10_000,
+      statement_timeout: poolConfig.statementTimeoutMs,
+      lock_timeout: poolConfig.lockTimeoutMs,
+      idle_in_transaction_session_timeout: poolConfig.idleInTransactionSessionTimeoutMs,
     },
   })
 
   return new PrismaClient({
-    adapter: createAdapter(sql),
+    adapter: createAdapter(sql, poolLogContext),
   } as ConstructorParameters<typeof PrismaClient>[0])
 }
 
