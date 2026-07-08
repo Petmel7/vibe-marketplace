@@ -10,6 +10,7 @@ import {
 } from '@/features/admin/operations/admin-operations.service'
 import { getDeepHealthStatus, getHealthStatus } from '@/features/health/health.service'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { logInfo } from '@/utils/logger'
 import {
   normalizeOperationsAuditFilters,
   normalizeOperationsJobsFilters,
@@ -23,25 +24,63 @@ import {
 
 type RawSearchParams = Record<string, string | string[] | undefined>
 
+async function traceAsyncBoundary<T>(
+  label: string,
+  context: Record<string, unknown>,
+  run: () => Promise<T>,
+): Promise<T> {
+  logInfo(`${label}:before`, context)
+  const result = await run()
+  logInfo(`${label}:after`, context)
+  return result
+}
+
 async function fetchHealthSnapshot(): Promise<OperationsHealthSnapshot> {
+  logInfo('admin-operations:health-snapshot:before-promise-all', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+  })
   const [basic, deep] = await Promise.all([
-    measureServerOperation(
-      'admin-operations-health-basic',
+    traceAsyncBoundary(
+      'admin-operations:health-basic',
       {
+        domain: 'admin-operations',
         route: '/admin/operations',
         service: 'getHealthStatus',
       },
-      () => getHealthStatus() as Promise<HealthStatus>,
+      () =>
+        measureServerOperation(
+          'admin-operations-health-basic',
+          {
+            route: '/admin/operations',
+            service: 'getHealthStatus',
+          },
+          () => getHealthStatus() as Promise<HealthStatus>,
+        ),
     ),
-    measureServerOperation(
-      'admin-operations-health-deep',
+    traceAsyncBoundary(
+      'admin-operations:health-deep',
       {
+        domain: 'admin-operations',
         route: '/admin/operations',
         service: 'getDeepHealthStatus',
       },
-      () => getDeepHealthStatus() as Promise<DeepHealthStatus>,
+      () =>
+        measureServerOperation(
+          'admin-operations-health-deep',
+          {
+            route: '/admin/operations',
+            service: 'getDeepHealthStatus',
+          },
+          () => getDeepHealthStatus() as Promise<DeepHealthStatus>,
+        ),
     ),
   ])
+  logInfo('admin-operations:health-snapshot:after-promise-all', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    deepStatus: deep.status,
+  })
 
   return {
     basic,
@@ -81,54 +120,129 @@ function toAuditLogQueryDto(
 }
 
 async function fetchJobs(user: SessionUser, filters: OperationsJobsFilters) {
-  return measureServerOperation(
-    'admin-operations-jobs-list',
+  return traceAsyncBoundary(
+    'admin-operations:jobs-list',
     {
+      domain: 'admin-operations',
       route: '/admin/operations/jobs',
-      service: 'getAdminOperationsJobs',
+      userId: user.id,
+      page: filters.page,
+      limit: filters.limit,
+      status: filters.status || null,
+      type: filters.type || null,
     },
-    () => getAdminOperationsJobs(user, toJobQueryDto(filters)),
+    () =>
+      measureServerOperation(
+        'admin-operations-jobs-list',
+        {
+          route: '/admin/operations/jobs',
+          service: 'getAdminOperationsJobs',
+        },
+        () => getAdminOperationsJobs(user, toJobQueryDto(filters)),
+      ),
   )
 }
 
 async function fetchJobsOverview(user: SessionUser) {
-  return measureServerOperation(
-    'admin-operations-jobs-overview',
+  return traceAsyncBoundary(
+    'admin-operations:jobs-overview',
     {
+      domain: 'admin-operations',
       route: '/admin/operations',
-      service: 'getAdminOperationsJobsOverview',
+      userId: user.id,
     },
-    () => getAdminOperationsJobsOverview(user),
+    () =>
+      measureServerOperation(
+        'admin-operations-jobs-overview',
+        {
+          route: '/admin/operations',
+          service: 'getAdminOperationsJobsOverview',
+        },
+        () => getAdminOperationsJobsOverview(user),
+      ),
   )
 }
 
 async function fetchAuditLogs(user: SessionUser, filters: OperationsAuditFilters) {
-  return measureServerOperation(
-    'admin-operations-audit-logs-list',
+  return traceAsyncBoundary(
+    'admin-operations:audit-logs-list',
     {
+      domain: 'admin-operations',
       route: '/admin/operations/audit-logs',
-      service: 'getAdminOperationsAuditLogs',
+      userId: user.id,
+      page: filters.page,
+      limit: filters.limit,
     },
-    () => getAdminOperationsAuditLogs(user, toAuditLogQueryDto(filters)),
+    () =>
+      measureServerOperation(
+        'admin-operations-audit-logs-list',
+        {
+          route: '/admin/operations/audit-logs',
+          service: 'getAdminOperationsAuditLogs',
+        },
+        () => getAdminOperationsAuditLogs(user, toAuditLogQueryDto(filters)),
+      ),
   )
 }
 
 export async function getAdminOperationsOverviewPageData(user: SessionUser) {
-  const [healthResult, jobsOverviewResult, auditResult] =
-    await Promise.allSettled([
-      fetchHealthSnapshot(),
-      fetchJobsOverview(user),
-      fetchAuditLogs(user, {
-        page: 1,
-        limit: 5,
-        actorId: '',
-        domain: '',
-        action: '',
-        resourceType: '',
-        dateFrom: '',
-        dateTo: '',
-      }),
-    ])
+  logInfo('admin-operations-overview-data:start', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+  })
+  logInfo('admin-operations-overview-data:before-promise-all-settled', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+  })
+  const [healthResult, jobsOverviewResult, auditResult] = await Promise.allSettled([
+    traceAsyncBoundary(
+      'admin-operations:overview-health-branch',
+      {
+        domain: 'admin-operations',
+        route: '/admin/operations',
+        userId: user.id,
+      },
+      () => fetchHealthSnapshot(),
+    ),
+    traceAsyncBoundary(
+      'admin-operations:overview-jobs-branch',
+      {
+        domain: 'admin-operations',
+        route: '/admin/operations',
+        userId: user.id,
+      },
+      () => fetchJobsOverview(user),
+    ),
+    traceAsyncBoundary(
+      'admin-operations:overview-audit-branch',
+      {
+        domain: 'admin-operations',
+        route: '/admin/operations',
+        userId: user.id,
+      },
+      () =>
+        fetchAuditLogs(user, {
+          page: 1,
+          limit: 5,
+          actorId: '',
+          domain: '',
+          action: '',
+          resourceType: '',
+          dateFrom: '',
+          dateTo: '',
+        }),
+    ),
+  ])
+  logInfo('admin-operations-overview-data:after-promise-all-settled', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+    healthStatus: healthResult.status,
+    jobsStatus: jobsOverviewResult.status,
+    auditStatus: auditResult.status,
+  })
 
   const health = healthResult.status === 'fulfilled' ? healthResult.value : null
   const jobsOverview =
@@ -153,6 +267,16 @@ export async function getAdminOperationsOverviewPageData(user: SessionUser) {
           : null,
       ].filter((issue): issue is string => Boolean(issue))
     : []
+
+  logInfo('admin-operations-overview-data:before-return', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+    hasHealth: Boolean(health),
+    hasJobsOverview: Boolean(jobsOverview),
+    auditItemCount: recentAuditLogs?.items.length ?? 0,
+    providerIssueCount: providerIssues.length,
+  })
 
   return {
     health,

@@ -8,15 +8,47 @@ import ProviderStatusBadge from '@/components/operations/ProviderStatusBadge'
 import { getAdminOperationsOverviewPageData } from '@/app/(protected)/admin/_lib/admin-operations.data'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getAdminAuditActorLabel } from '@/types/operations'
+import { logInfo } from '@/utils/logger'
 
 export default async function AdminOperationsOverviewPage() {
+  logInfo('admin-operations-page:start', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+  })
   const user = await getCurrentUser()
+  logInfo('admin-operations-page:after-get-current-user', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    hasUser: Boolean(user),
+    userId: user?.id ?? null,
+  })
   if (!user) return null
 
+  logInfo('admin-operations-page:before-overview-data', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+  })
   const data = await getAdminOperationsOverviewPageData(user)
+  logInfo('admin-operations-page:after-overview-data', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+    hasHealth: Boolean(data.health),
+    hasJobsOverview: Boolean(data.jobsOverview),
+    auditItemCount: data.recentAuditLogs?.items.length ?? 0,
+  })
 
   const healthTone =
     !data.health ? 'Unhealthy' : data.health.deep.status === 'ok' ? 'Healthy' : 'Degraded'
+
+  logInfo('admin-operations-page:before-return', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+    healthTone,
+    providerIssueCount: data.providerIssues.length,
+  })
 
   return (
     <AdminSection

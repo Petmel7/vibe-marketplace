@@ -48,7 +48,18 @@ function parseWithSchema<T extends z.ZodTypeAny>(schema: T, searchParams: RawSea
 
 export async function getAdminLayoutData(user: SessionUser) {
   try {
+    logInfo('admin-layout-data:before-get-my-admin-profile', {
+      domain: 'admin',
+      route: '/admin',
+      userId: user.id,
+    })
     const adminProfile = await getMyAdminProfile(user)
+    logInfo('admin-layout-data:after-get-my-admin-profile', {
+      domain: 'admin',
+      route: '/admin',
+      userId: user.id,
+      hasAdminProfile: Boolean(adminProfile),
+    })
 
     return {
       user,
@@ -56,6 +67,11 @@ export async function getAdminLayoutData(user: SessionUser) {
     }
   } catch (error) {
     if (error instanceof AdminProfileNotFoundError) {
+      logInfo('admin-layout-data:admin-profile-not-found', {
+        domain: 'admin',
+        route: '/admin',
+        userId: user.id,
+      })
       return {
         user,
         adminProfile: null,
