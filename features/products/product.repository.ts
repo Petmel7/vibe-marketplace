@@ -197,6 +197,44 @@ type ProductCardRelationsResult = {
   imagesByProductId: Map<string, ProductImagePreview[]>
 }
 
+type ProductSearchPageRow = {
+  id: string
+  storeId: string
+  categoryId: string | null
+  name: string
+  description: string | null
+  price: Prisma.Decimal
+  imageUrl: string | null
+  isActive: boolean
+  sku: string | null
+  isHit: boolean
+  isNew: boolean
+  status: Product['status']
+  publishedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  total: bigint
+  inStock: bigint
+  outOfStock: bigint
+  min: Prisma.Decimal | null
+  max: Prisma.Decimal | null
+  rating5: bigint
+  rating4: bigint
+  rating3: bigint
+  rating2: bigint
+  rating1: bigint
+  storeName: string | null
+  storeSlug: string | null
+  ratingAvg: Prisma.Decimal | null
+  ratingCount: number | bigint | null
+  ratingUpdatedAt: Date | null
+  imageId: string | null
+  primaryImageUrl: string | null
+  imageIsPrimary: boolean | null
+  imagePosition: number | null
+  imageCreatedAt: Date | null
+}
+
 function toCount(value: number | bigint | null | undefined) {
   if (typeof value === 'bigint') {
     return Number(value)
@@ -562,7 +600,6 @@ export async function findProductCardsPage(
   }
 }
 
-type ProductIdRow = { id: string }
 type CountRow = { count: bigint }
 type CategoryFacetRow = { id: string; slug: string; name: string; count: bigint }
 type StoreFacetRow = { id: string; slug: string; name: string; count: bigint }
@@ -638,6 +675,7 @@ async function executeCatalogSearchQuery<T>(
 }
 
 type FilteredProductsCteOptions = {
+  includeCardFields?: boolean
   includeCreatedAt?: boolean
   includeCategoryId?: boolean
   includeStoreId?: boolean
@@ -723,28 +761,33 @@ function buildPublicSearchWhereSql(params: ProductSearchRepositoryParams): Prism
   return Prisma.sql`${Prisma.join(clauses, ' AND ')}`
 }
 
-function buildSearchOrderBySql(params: ProductSearchRepositoryParams): Prisma.Sql {
+function buildSearchOrderBySql(
+  params: ProductSearchRepositoryParams,
+  alias: 'fp' | 'ap' | 'pp' = 'fp',
+): Prisma.Sql {
+  const column = (name: string) => `"${alias}"."${name}"`
+
   if (params.sort === 'price_asc') {
-    return Prisma.sql`fp."price" ASC, fp."created_at" DESC, fp."id" DESC`
+    return Prisma.sql`${Prisma.raw(`${column('price')} ASC, ${column('created_at')} DESC, ${column('id')} DESC`)}`
   }
 
   if (params.sort === 'price_desc') {
-    return Prisma.sql`fp."price" DESC, fp."created_at" DESC, fp."id" DESC`
+    return Prisma.sql`${Prisma.raw(`${column('price')} DESC, ${column('created_at')} DESC, ${column('id')} DESC`)}`
   }
 
   if (params.sort === 'rating') {
-    return Prisma.sql`fp."rating_avg" DESC, fp."rating_count" DESC, fp."created_at" DESC, fp."id" DESC`
+    return Prisma.sql`${Prisma.raw(`${column('rating_avg')} DESC, ${column('rating_count')} DESC, ${column('created_at')} DESC, ${column('id')} DESC`)}`
   }
 
   if (params.sort === 'popular') {
-    return Prisma.sql`fp."hit_score" DESC, fp."sold_count" DESC, fp."wishlist_count" DESC, fp."view_count" DESC, fp."created_at" DESC, fp."id" DESC`
+    return Prisma.sql`${Prisma.raw(`${column('hit_score')} DESC, ${column('sold_count')} DESC, ${column('wishlist_count')} DESC, ${column('view_count')} DESC, ${column('created_at')} DESC, ${column('id')} DESC`)}`
   }
 
   if (params.sort === 'relevance' && params.q?.trim()) {
-    return Prisma.sql`fp."rank" DESC NULLS LAST, fp."created_at" DESC, fp."id" DESC`
+    return Prisma.sql`${Prisma.raw(`${column('rank')} DESC NULLS LAST, ${column('created_at')} DESC, ${column('id')} DESC`)}`
   }
 
-  return Prisma.sql`fp."created_at" DESC, fp."id" DESC`
+  return Prisma.sql`${Prisma.raw(`${column('created_at')} DESC, ${column('id')} DESC`)}`
 }
 
 function buildFilteredProductsCte(
@@ -755,6 +798,25 @@ function buildFilteredProductsCte(
   const whereSql = buildPublicSearchWhereSql(params)
   const needsRatingJoin = options.includeRating || params.rating !== undefined
   const selectColumns: Prisma.Sql[] = [Prisma.sql`p."id"`]
+
+  if (options.includeCardFields) {
+    selectColumns.push(
+      Prisma.sql`p."store_id"`,
+      Prisma.sql`p."category_id"`,
+      Prisma.sql`p."name"`,
+      Prisma.sql`p."description"`,
+      Prisma.sql`p."price"`,
+      Prisma.sql`p."image_url"`,
+      Prisma.sql`p."is_active"`,
+      Prisma.sql`p."sku"`,
+      Prisma.sql`p."is_hit"`,
+      Prisma.sql`p."is_new"`,
+      Prisma.sql`p."status"`,
+      Prisma.sql`p."published_at"`,
+      Prisma.sql`p."created_at"`,
+      Prisma.sql`p."updated_at"`,
+    )
+  }
 
   if (options.includeCategoryId) {
     selectColumns.push(Prisma.sql`p."category_id"`)
@@ -817,25 +879,6 @@ function buildFilteredProductsCte(
   `
 }
 
-async function findProductsByIdsInOrder(ids: string[]): Promise<ProductListProduct[]> {
-  if (ids.length === 0) {
-    return []
-  }
-
-  const items = await prisma.product.findMany({
-    where: {
-      id: {
-        in: ids,
-      },
-    },
-    select: PRODUCT_CARD_BASE_SELECT,
-  })
-
-  const hydratedItems = await hydrateProductCardRecords(items)
-  const itemsById = new Map(hydratedItems.map((item) => [item.id, item]))
-  return ids.map((id) => itemsById.get(id)).filter((item): item is ProductListProduct => Boolean(item))
-}
-
 /**
  * Public search with FTS, filters, facets, and sort options.
  */
@@ -852,10 +895,14 @@ export async function searchProducts(
     q: params.q ?? null,
   })
   const skip = (params.page - 1) * params.limit
-  const itemIdsCte = buildFilteredProductsCte(params, {
+  const pageRowsCte = buildFilteredProductsCte(params, {
+    includeCardFields: true,
     includeCreatedAt: true,
-    includePrice: params.sort === 'price_asc' || params.sort === 'price_desc',
-    includeRating: params.sort === 'rating',
+    includeCategoryId: true,
+    includeStoreId: true,
+    includePrice: true,
+    includeRating: true,
+    includeInStock: true,
     includeMetrics: params.sort === 'popular',
     includeRank: params.sort === 'relevance' && Boolean(params.q?.trim()),
   })
@@ -868,12 +915,86 @@ export async function searchProducts(
   })
   const badgeCte = buildFilteredProductsCte(params, {})
   const orderBySql = buildSearchOrderBySql(params)
-  const itemIdsQuery = Prisma.sql`
-    ${itemIdsCte}
-    SELECT fp."id"
-    FROM filtered_products fp
-    ORDER BY ${orderBySql}
-    LIMIT ${params.limit} OFFSET ${skip}
+  const pageRowsOrderBySql = buildSearchOrderBySql(params, 'ap')
+  const finalRowsOrderBySql = buildSearchOrderBySql(params, 'pp')
+  const pageRowsQuery = Prisma.sql`
+    ${pageRowsCte},
+    annotated_products AS (
+      SELECT
+        fp.*,
+        COUNT(*) OVER() AS total,
+        COUNT(*) FILTER (WHERE fp."in_stock" = true) OVER() AS "inStock",
+        COUNT(*) FILTER (WHERE fp."in_stock" = false) OVER() AS "outOfStock",
+        MIN(fp."price") OVER() AS min,
+        MAX(fp."price") OVER() AS max,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 5) OVER() AS rating5,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 4) OVER() AS rating4,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 3) OVER() AS rating3,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 2) OVER() AS rating2,
+        COUNT(*) FILTER (WHERE fp."rating_avg" >= 1) OVER() AS rating1
+      FROM filtered_products fp
+    ),
+    paged_products AS (
+      SELECT ap.*
+      FROM annotated_products ap
+      ORDER BY ${pageRowsOrderBySql}
+      LIMIT ${params.limit} OFFSET ${skip}
+    )
+    SELECT
+      pp."id" AS "id",
+      pp."store_id" AS "storeId",
+      pp."category_id" AS "categoryId",
+      pp."name" AS "name",
+      pp."description" AS "description",
+      pp."price" AS "price",
+      pp."image_url" AS "imageUrl",
+      pp."is_active" AS "isActive",
+      pp."sku" AS "sku",
+      pp."is_hit" AS "isHit",
+      pp."is_new" AS "isNew",
+      pp."status" AS "status",
+      pp."published_at" AS "publishedAt",
+      pp."created_at" AS "createdAt",
+      pp."updated_at" AS "updatedAt",
+      pp."total" AS "total",
+      pp."inStock" AS "inStock",
+      pp."outOfStock" AS "outOfStock",
+      pp."min" AS "min",
+      pp."max" AS "max",
+      pp."rating5" AS "rating5",
+      pp."rating4" AS "rating4",
+      pp."rating3" AS "rating3",
+      pp."rating2" AS "rating2",
+      pp."rating1" AS "rating1",
+      s."name" AS "storeName",
+      s."slug" AS "storeSlug",
+      prs."rating_avg" AS "ratingAvg",
+      prs."rating_count" AS "ratingCount",
+      prs."updated_at" AS "ratingUpdatedAt",
+      pi."id" AS "imageId",
+      pi."url" AS "primaryImageUrl",
+      pi."is_primary" AS "imageIsPrimary",
+      pi."position" AS "imagePosition",
+      pi."created_at" AS "imageCreatedAt"
+    FROM paged_products pp
+    INNER JOIN "public"."stores" s
+      ON s."id" = pp."store_id"
+    LEFT JOIN "public"."product_rating_summaries" prs
+      ON prs."product_id" = pp."id"
+    LEFT JOIN LATERAL (
+      SELECT
+        img."id",
+        img."url",
+        img."is_primary",
+        img."position",
+        img."created_at"
+      FROM "public"."product_images" img
+      WHERE img."product_id" = pp."id"
+        AND img."is_primary" = true
+      ORDER BY img."position" ASC, img."created_at" ASC, img."id" ASC
+      LIMIT 1
+    ) pi ON true
+    ORDER BY ${finalRowsOrderBySql}
   `
   const summaryQuery = Prisma.sql`
     ${summaryCte}
@@ -928,20 +1049,65 @@ export async function searchProducts(
   `
 
   try {
-    const itemIdRows = await executeCatalogSearchQuery<ProductIdRow[]>(
-      'item-ids',
-      itemIdsQuery,
+    const pageRows = await executeCatalogSearchQuery<ProductSearchPageRow[]>(
+      'page-rows',
+      pageRowsQuery,
       params,
     )
-    const summaryRows = await executeCatalogSearchQuery<SearchSummaryRow[]>(
-      'summary',
-      summaryQuery,
-      params,
-    )
-    const summaryRow = summaryRows[0]
+    let summaryRow: SearchSummaryRow | ProductSearchPageRow | undefined = pageRows[0]
+
+    if (!summaryRow) {
+      const summaryRows = await executeCatalogSearchQuery<SearchSummaryRow[]>(
+        'summary-fallback',
+        summaryQuery,
+        params,
+      )
+      summaryRow = summaryRows[0]
+    }
+
     const total = Number(summaryRow?.total ?? BigInt(0))
-    const ids = itemIdRows.map((row) => row.id)
-    const items = await findProductsByIdsInOrder(ids)
+    const ids = pageRows.map((row) => row.id)
+    const variantsByProductId = await loadProductCardVariants(ids)
+    const items = pageRows.map((row) => ({
+      id: row.id,
+      storeId: row.storeId,
+      categoryId: row.categoryId,
+      name: row.name,
+      description: row.description,
+      price: row.price,
+      imageUrl: row.imageUrl,
+      isActive: row.isActive,
+      sku: row.sku,
+      isHit: row.isHit,
+      isNew: row.isNew,
+      status: row.status,
+      publishedAt: row.publishedAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      store: {
+        id: row.storeId,
+        name: row.storeName ?? '',
+        slug: row.storeSlug ?? '',
+      },
+      ratingSummary: row.ratingAvg != null
+        ? {
+            productId: row.id,
+            ratingAvg: row.ratingAvg,
+            ratingCount: toCount(row.ratingCount),
+            updatedAt: row.ratingUpdatedAt ?? new Date(0),
+          }
+        : null,
+      variants: variantsByProductId.get(row.id) ?? [],
+      images: row.imageUrl && row.imageId
+        ? [{
+            id: row.imageId,
+            url: row.primaryImageUrl ?? row.imageUrl,
+            isPrimary: row.imageIsPrimary ?? true,
+            position: row.imagePosition ?? 0,
+            createdAt: row.imageCreatedAt ?? new Date(0),
+          }]
+        : [],
+    }))
 
     if (total === 0) {
       logInfo('catalog-search:repository:after', {

@@ -272,8 +272,21 @@ describe('searchProducts', () => {
     ratingSummaryFindManyMock.mockResolvedValue([])
     productImageFindManyMock.mockResolvedValue([])
     queryRawMock
-      .mockResolvedValueOnce([{ id: 'prod-1' }])
       .mockResolvedValueOnce([{
+        storeId: 'store-1',
+        categoryId: 'cat-1',
+        name: 'Test Product',
+        description: 'A test product',
+        price: { toString: () => '99.99' },
+        imageUrl: 'https://example.com/img.jpg',
+        isActive: true,
+        sku: 'SKU-001',
+        isHit: false,
+        isNew: true,
+        status: 'PUBLISHED',
+        publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         total: BigInt(1),
         inStock: BigInt(1),
         outOfStock: BigInt(0),
@@ -284,22 +297,13 @@ describe('searchProducts', () => {
         rating3: BigInt(1),
         rating2: BigInt(1),
         rating1: BigInt(1),
-      }])
-      .mockResolvedValueOnce([{
-        productId: 'prod-1',
-        storeId: 'store-1',
         storeName: 'Test Store',
         storeSlug: 'test-store',
         ratingAvg: null,
         ratingCount: null,
-        rating1Count: null,
-        rating2Count: null,
-        rating3Count: null,
-        rating4Count: null,
-        rating5Count: null,
         ratingUpdatedAt: null,
         imageId: null,
-        imageUrl: null,
+        primaryImageUrl: null,
         imageIsPrimary: null,
         imagePosition: null,
         imageCreatedAt: null,
@@ -323,19 +327,8 @@ describe('searchProducts', () => {
       inStock: true,
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(6)
-    expect(findManyMock).toHaveBeenCalledWith({
-      where: {
-        id: {
-          in: ['prod-1'],
-        },
-      },
-      select: expect.objectContaining({
-        id: true,
-        storeId: true,
-        imageUrl: true,
-      }),
-    })
+    expect(queryRawMock).toHaveBeenCalledTimes(4)
+    expect(findManyMock).not.toHaveBeenCalled()
     expect(variantFindManyMock).toHaveBeenCalled()
     expect(result.total).toBe(1)
     expect(result.items).toHaveLength(1)
@@ -365,7 +358,7 @@ describe('searchProducts', () => {
       sort: 'newest',
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(6)
+    expect(queryRawMock).toHaveBeenCalledTimes(4)
   })
 
   it('keeps popular catalog requests bounded to the same raw query count', async () => {
@@ -375,7 +368,7 @@ describe('searchProducts', () => {
       sort: 'popular',
     })
 
-    expect(queryRawMock).toHaveBeenCalledTimes(6)
+    expect(queryRawMock).toHaveBeenCalledTimes(4)
   })
 
   it('returns immediately without secondary loaders when product ids are empty', async () => {
@@ -401,9 +394,6 @@ describe('searchProducts', () => {
         rating2: BigInt(0),
         rating1: BigInt(0),
       }])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
 
     const result = await searchProducts({
       page: 1,
