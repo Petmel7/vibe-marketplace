@@ -10,6 +10,7 @@ import {
 } from '@/features/admin/operations/admin-operations.service'
 import { getDeepHealthStatus, getHealthStatus } from '@/features/health/health.service'
 import { measureServerOperation } from '@/lib/observability/server-timing'
+import { getCurrentRequestTrace } from '@/lib/observability/request-trace'
 import { logInfo } from '@/utils/logger'
 import {
   normalizeOperationsAuditFilters,
@@ -29,10 +30,32 @@ async function traceAsyncBoundary<T>(
   context: Record<string, unknown>,
   run: () => Promise<T>,
 ): Promise<T> {
-  logInfo(`${label}:before`, context)
-  const result = await run()
-  logInfo(`${label}:after`, context)
-  return result
+  const trace = getCurrentRequestTrace()
+  const startedAt = Date.now()
+  const enrichedContext = {
+    ...context,
+    requestId: trace?.requestId ?? null,
+    route: trace?.route ?? '/admin/operations',
+  }
+
+  logInfo(`${label}:before`, enrichedContext)
+
+  try {
+    const result = await run()
+    logInfo(`${label}:after-resolve`, {
+      ...enrichedContext,
+      durationMs: Date.now() - startedAt,
+    })
+    return result
+  } catch (error) {
+    logInfo(`${label}:after-reject`, {
+      ...enrichedContext,
+      durationMs: Date.now() - startedAt,
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    })
+    throw error
+  }
 }
 
 async function fetchHealthSnapshot(): Promise<OperationsHealthSnapshot> {
@@ -186,15 +209,19 @@ async function fetchAuditLogs(user: SessionUser, filters: OperationsAuditFilters
 }
 
 export async function getAdminOperationsOverviewPageData(user: SessionUser) {
+  const trace = getCurrentRequestTrace()
+  const promiseAllStartedAt = Date.now()
   logInfo('admin-operations-overview-data:start', {
     domain: 'admin-operations',
     route: '/admin/operations',
     userId: user.id,
+    requestId: trace?.requestId ?? null,
   })
   logInfo('admin-operations-overview-data:before-promise-all-settled', {
     domain: 'admin-operations',
     route: '/admin/operations',
     userId: user.id,
+    requestId: trace?.requestId ?? null,
   })
   const [healthResult, jobsOverviewResult, auditResult] = await Promise.allSettled([
     traceAsyncBoundary(
@@ -235,10 +262,23 @@ export async function getAdminOperationsOverviewPageData(user: SessionUser) {
         }),
     ),
   ])
+  logInfo('admin-operations-overview-data:promise-all-settled-returned', {
+    domain: 'admin-operations',
+    route: '/admin/operations',
+    userId: user.id,
+    requestId: trace?.requestId ?? null,
+    durationMs: Date.now() - promiseAllStartedAt,
+    results: {
+      health: healthResult.status,
+      jobs: jobsOverviewResult.status,
+      audit: auditResult.status,
+    },
+  })
   logInfo('admin-operations-overview-data:after-promise-all-settled', {
     domain: 'admin-operations',
     route: '/admin/operations',
     userId: user.id,
+    requestId: trace?.requestId ?? null,
     healthStatus: healthResult.status,
     jobsStatus: jobsOverviewResult.status,
     auditStatus: auditResult.status,
