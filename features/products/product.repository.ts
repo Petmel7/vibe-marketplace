@@ -897,10 +897,6 @@ export async function searchProducts(
   const skip = (params.page - 1) * params.limit
   const pageRowsCte = buildFilteredProductsCte(params, {
     includeCardFields: true,
-    includeCreatedAt: true,
-    includeCategoryId: true,
-    includeStoreId: true,
-    includePrice: true,
     includeRating: true,
     includeInStock: true,
     includeMetrics: params.sort === 'popular',
