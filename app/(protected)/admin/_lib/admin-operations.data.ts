@@ -5,6 +5,7 @@ import type {
 } from '@/features/admin/operations/admin-operations.dto'
 import {
   getAdminOperationsAuditLogs,
+  getAdminOperationsAuditLogsOverview,
   getAdminOperationsJobsOverview,
   getAdminOperationsJobs,
 } from '@/features/admin/operations/admin-operations.service'
@@ -24,6 +25,13 @@ import {
 } from '@/types/operations'
 
 type RawSearchParams = Record<string, string | string[] | undefined>
+const ADMIN_OPERATIONS_AUDIT_OVERVIEW_TIMEOUT_MS = 5_000
+
+function createOverviewBranchTimeoutError(branch: string, timeoutMs: number) {
+  const error = new Error(`${branch} timed out after ${timeoutMs}ms`)
+  error.name = 'AdminOperationsOverviewTimeoutError'
+  return error
+}
 
 async function traceAsyncBoundary<T>(
   label: string,
@@ -56,6 +64,50 @@ async function traceAsyncBoundary<T>(
     })
     throw error
   }
+}
+
+async function withOverviewBranchTimeout<T>(
+  branch: string,
+  timeoutMs: number,
+  run: () => Promise<T>,
+) {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false
+    const timeoutId = setTimeout(() => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      logInfo('admin-operations:overview-branch-timeout', {
+        domain: 'admin-operations',
+        route: '/admin/operations',
+        branch,
+        timeoutMs,
+      })
+      reject(createOverviewBranchTimeoutError(branch, timeoutMs))
+    }, timeoutMs)
+
+    void run()
+      .then((result) => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        clearTimeout(timeoutId)
+        resolve(result)
+      })
+      .catch((error) => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        clearTimeout(timeoutId)
+        reject(error)
+      })
+  })
 }
 
 async function fetchHealthSnapshot(): Promise<OperationsHealthSnapshot> {
@@ -208,6 +260,54 @@ async function fetchAuditLogs(user: SessionUser, filters: OperationsAuditFilters
   )
 }
 
+async function fetchAuditLogsOverview(user: SessionUser, filters: OperationsAuditFilters) {
+  return traceAsyncBoundary(
+    'admin-operations:audit-logs-overview',
+    {
+      domain: 'admin-operations',
+      route: '/admin/operations',
+      userId: user.id,
+      page: filters.page,
+      limit: filters.limit,
+    },
+    async () => {
+      logInfo('admin-operations:audit-logs-overview:before-audit-service-call', {
+        domain: 'admin-operations',
+        route: '/admin/operations',
+        userId: user.id,
+        page: filters.page,
+        limit: filters.limit,
+      })
+
+      try {
+        const result = await getAdminOperationsAuditLogsOverview(user, toAuditLogQueryDto(filters))
+        logInfo('admin-operations:audit-logs-overview:after-audit-service-resolve', {
+          domain: 'admin-operations',
+          route: '/admin/operations',
+          userId: user.id,
+          itemCount: result.items.length,
+        })
+        return result
+      } catch (error) {
+        logInfo('admin-operations:audit-logs-overview:after-audit-service-reject', {
+          domain: 'admin-operations',
+          route: '/admin/operations',
+          userId: user.id,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        })
+        throw error
+      } finally {
+        logInfo('admin-operations:audit-logs-overview:finally-audit-branch', {
+          domain: 'admin-operations',
+          route: '/admin/operations',
+          userId: user.id,
+        })
+      }
+    },
+  )
+}
+
 export async function getAdminOperationsOverviewPageData(user: SessionUser) {
   const trace = getCurrentRequestTrace()
   const promiseAllStartedAt = Date.now()
@@ -250,16 +350,21 @@ export async function getAdminOperationsOverviewPageData(user: SessionUser) {
         userId: user.id,
       },
       () =>
-        fetchAuditLogs(user, {
-          page: 1,
-          limit: 5,
-          actorId: '',
-          domain: '',
-          action: '',
-          resourceType: '',
-          dateFrom: '',
-          dateTo: '',
-        }),
+        withOverviewBranchTimeout(
+          'audit',
+          ADMIN_OPERATIONS_AUDIT_OVERVIEW_TIMEOUT_MS,
+          () =>
+            fetchAuditLogsOverview(user, {
+              page: 1,
+              limit: 5,
+              actorId: '',
+              domain: '',
+              action: '',
+              resourceType: '',
+              dateFrom: '',
+              dateTo: '',
+            }),
+        ),
     ),
   ])
   logInfo('admin-operations-overview-data:promise-all-settled-returned', {

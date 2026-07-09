@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth/guards'
 import {
   getAdminAuditLogById,
   listAdminAuditLogs,
+  listAdminAuditLogsOverview,
   recordAdminAudit,
   type AdminAuditLogRecord,
 } from '@/features/admin/audit/admin-audit'
@@ -259,6 +260,21 @@ export async function getAdminOperationsAuditLogs(
 ): Promise<AdminAuditLogListDto> {
   assertOperationsAdmin(user)
   const data = await listAdminAuditLogs(query)
+
+  return {
+    items: data.items.map(toAuditLogDto),
+    page: data.page,
+    limit: data.limit,
+    total: data.total,
+  }
+}
+
+export async function getAdminOperationsAuditLogsOverview(
+  user: SessionUser,
+  query: AdminAuditLogQueryDto,
+): Promise<AdminAuditLogListDto> {
+  assertOperationsAdmin(user)
+  const data = await listAdminAuditLogsOverview(query)
 
   return {
     items: data.items.map(toAuditLogDto),

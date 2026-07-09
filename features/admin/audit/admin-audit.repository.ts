@@ -70,6 +70,28 @@ export async function listAdminAuditLogRecords(query: AdminAuditLogQuery) {
   })
 }
 
+export async function listAdminAuditLogOverviewRecords(query: AdminAuditLogQuery) {
+  const where = buildAdminAuditLogWhere(query)
+
+  return prisma.adminAuditLog.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    skip: (query.page - 1) * query.limit,
+    take: query.limit,
+    select: {
+      id: true,
+      actorId: true,
+      actorEmail: true,
+      actorRole: true,
+      domain: true,
+      action: true,
+      resourceType: true,
+      resourceId: true,
+      createdAt: true,
+    },
+  })
+}
+
 export async function countAdminAuditLogRecords(query: AdminAuditLogQuery) {
   return prisma.adminAuditLog.count({
     where: buildAdminAuditLogWhere(query),

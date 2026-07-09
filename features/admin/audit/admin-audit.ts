@@ -5,6 +5,7 @@ import {
   countAdminAuditLogRecords,
   createAdminAuditLogRecord,
   findAdminAuditLogRecordById,
+  listAdminAuditLogOverviewRecords,
   listAdminAuditLogRecords,
 } from './admin-audit.repository'
 
@@ -64,6 +65,8 @@ export type AdminAuditLogQuery = {
   dateFrom?: string
   dateTo?: string
 }
+
+type AdminAuditLogOverviewRecord = Awaited<ReturnType<typeof listAdminAuditLogOverviewRecords>>[number]
 
 const REDACTED_VALUE = '[redacted]'
 const AUDIT_REDACTED_KEYS = [
@@ -166,6 +169,26 @@ function toAdminAuditLogRecord(
   }
 }
 
+function toAdminAuditLogOverviewRecord(
+  record: AdminAuditLogOverviewRecord,
+): AdminAuditLogRecord {
+  return {
+    id: record.id,
+    actorId: record.actorId ?? null,
+    actorEmail: record.actorEmail ?? null,
+    actorRole: record.actorRole ?? null,
+    domain: record.domain as AdminAuditDomain,
+    action: record.action,
+    resourceType: record.resourceType,
+    resourceId: record.resourceId ?? null,
+    metadata: null,
+    createdAt: record.createdAt.toISOString(),
+    ipAddress: null,
+    userAgent: null,
+    requestId: null,
+  }
+}
+
 export async function recordAdminAudit(entry: AdminAuditEntry): Promise<void> {
   const metadata = redactAuditMetadata(entry.metadata)
 
@@ -219,16 +242,101 @@ export async function recordAdminAudit(entry: AdminAuditEntry): Promise<void> {
 }
 
 export async function listAdminAuditLogs(query: AdminAuditLogQuery) {
-  const [items, total] = await Promise.all([
-    listAdminAuditLogRecords(query),
-    countAdminAuditLogRecords(query),
-  ])
-
-  return {
-    items: items.map(toAdminAuditLogRecord),
-    total,
+  logInfo('admin-audit:list:before-repository-list', {
+    domain: 'admin-audit',
     page: query.page,
     limit: query.limit,
+    resourceType: query.resourceType ?? null,
+    resourceId: query.resourceId ?? null,
+  })
+
+  try {
+    const items = await listAdminAuditLogRecords(query)
+    logInfo('admin-audit:list:after-repository-list', {
+      domain: 'admin-audit',
+      page: query.page,
+      limit: query.limit,
+      itemCount: items.length,
+    })
+
+    logInfo('admin-audit:list:before-count', {
+      domain: 'admin-audit',
+      page: query.page,
+      limit: query.limit,
+    })
+    const total = await countAdminAuditLogRecords(query)
+    logInfo('admin-audit:list:after-count', {
+      domain: 'admin-audit',
+      page: query.page,
+      limit: query.limit,
+      total,
+    })
+
+    logInfo('admin-audit:list:before-dto-mapping', {
+      domain: 'admin-audit',
+      itemCount: items.length,
+    })
+    const mappedItems = items.map(toAdminAuditLogRecord)
+    logInfo('admin-audit:list:after-dto-mapping', {
+      domain: 'admin-audit',
+      itemCount: mappedItems.length,
+    })
+
+    return {
+      items: mappedItems,
+      total,
+      page: query.page,
+      limit: query.limit,
+    }
+  } finally {
+    logInfo('admin-audit:list:finally', {
+      domain: 'admin-audit',
+      page: query.page,
+      limit: query.limit,
+    })
+  }
+}
+
+export async function listAdminAuditLogsOverview(query: AdminAuditLogQuery) {
+  logInfo('admin-audit:overview:before-repository-list', {
+    domain: 'admin-audit',
+    page: query.page,
+    limit: query.limit,
+    resourceType: query.resourceType ?? null,
+    resourceId: query.resourceId ?? null,
+  })
+
+  try {
+    const items = await listAdminAuditLogOverviewRecords(query)
+    logInfo('admin-audit:overview:after-repository-list', {
+      domain: 'admin-audit',
+      page: query.page,
+      limit: query.limit,
+      itemCount: items.length,
+    })
+
+    logInfo('admin-audit:overview:before-dto-mapping', {
+      domain: 'admin-audit',
+      itemCount: items.length,
+    })
+    const mappedItems = items.map(toAdminAuditLogOverviewRecord)
+    logInfo('admin-audit:overview:after-dto-mapping', {
+      domain: 'admin-audit',
+      itemCount: mappedItems.length,
+    })
+
+    return {
+      items: mappedItems,
+      total: mappedItems.length,
+      page: query.page,
+      limit: query.limit,
+    }
+  } finally {
+    logInfo('admin-audit:overview:finally', {
+      domain: 'admin-audit',
+      page: query.page,
+      limit: query.limit,
+    })
   }
 }
 

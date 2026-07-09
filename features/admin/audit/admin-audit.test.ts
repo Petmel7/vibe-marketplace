@@ -3,6 +3,7 @@ import {
   AuditLogWriteError,
   getAdminAuditLogById,
   listAdminAuditLogs,
+  listAdminAuditLogsOverview,
   recordAdminAudit,
   redactAuditMetadata,
 } from '@/features/admin/audit/admin-audit'
@@ -240,6 +241,27 @@ describe('admin audit', () => {
         take: 1,
       }),
     )
+  })
+
+  it('lists overview audit logs without count and without metadata payload', async () => {
+    await recordAdminAudit({
+      actorId: 'admin-1',
+      action: 'approve',
+      domain: 'refunds',
+      targetId: 'refund-1',
+      targetType: 'refund-request',
+      metadata: { status: 'approved', nested: { note: 'keep off overview' } },
+    })
+
+    const result = await listAdminAuditLogsOverview({
+      page: 1,
+      limit: 5,
+    })
+
+    expect(result.total).toBe(1)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.metadata).toBeNull()
+    expect(adminAuditLogModel.count).not.toHaveBeenCalled()
   })
 
   it('returns an audit log by id from the database', async () => {

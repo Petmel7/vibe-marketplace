@@ -100,7 +100,14 @@ async function renderAdminOperationsOverviewPage() {
               </Link>
             }
           >
-            {!data.recentAuditLogs || data.recentAuditLogs.items.length === 0 ? (
+            {data.auditError ? (
+              <div className="p-6">
+                <AdminEmptyState
+                  title="Audit activity is temporarily unavailable"
+                  description="Health and jobs loaded successfully, but the recent audit activity panel could not be loaded right now."
+                />
+              </div>
+            ) : !data.recentAuditLogs || data.recentAuditLogs.items.length === 0 ? (
               <div className="p-6">
                 <AdminEmptyState
                   title="No recent audit activity"

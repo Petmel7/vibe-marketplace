@@ -18,6 +18,7 @@ vi.mock('@/features/jobs/jobs.service', () => ({
 vi.mock('@/features/admin/audit/admin-audit', () => ({
   getAdminAuditLogById: vi.fn(),
   listAdminAuditLogs: vi.fn(),
+  listAdminAuditLogsOverview: vi.fn(),
   recordAdminAudit: vi.fn(),
 }))
 
@@ -27,6 +28,7 @@ import * as adminAudit from '@/features/admin/audit/admin-audit'
 import {
   getAdminOperationsAuditLogById,
   getAdminOperationsAuditLogs,
+  getAdminOperationsAuditLogsOverview,
   getAdminOperationsJobById,
   getAdminOperationsJobsOverview,
   cancelAdminOperationsJob,
@@ -190,6 +192,43 @@ describe('admin operations service', () => {
 
     expect(result.resourceType).toBe('job')
     expect(result.resourceId).toBe('job-1')
+  })
+
+  it('reads lightweight overview audit logs without requiring full metadata payloads', async () => {
+    mockAdminAudit.listAdminAuditLogsOverview.mockResolvedValue({
+      items: [
+        {
+          id: 'audit-1',
+          actorId: 'admin-1',
+          actorEmail: 'admin@example.com',
+          actorRole: 'ADMIN',
+          domain: 'refunds',
+          action: 'approve',
+          resourceType: 'refund-request',
+          resourceId: 'refund-1',
+          metadata: null,
+          createdAt: '2026-06-11T10:00:00.000Z',
+          ipAddress: null,
+          userAgent: null,
+          requestId: null,
+        },
+      ],
+      page: 1,
+      limit: 5,
+      total: 1,
+    })
+
+    const result = await getAdminOperationsAuditLogsOverview(adminUser as never, {
+      page: 1,
+      limit: 5,
+    })
+
+    expect(mockAdminAudit.listAdminAuditLogsOverview).toHaveBeenCalledWith({
+      page: 1,
+      limit: 5,
+    })
+    expect(result.items[0]?.metadata).toBeNull()
+    expect(result.total).toBe(1)
   })
 
   it('audits successful admin job cancellation without changing business result', async () => {
