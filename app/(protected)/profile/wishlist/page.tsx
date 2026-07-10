@@ -12,16 +12,16 @@ export default async function ProfileWishlistPage() {
 
   return (
     <ProfileSection
-      eyebrow="Wishlist"
-      title="Saved products"
-      description="Your buyer wishlist is rendered from the authenticated server session and reuses existing product card behavior."
+      eyebrow="Обране"
+      title="Збережені товари"
+      description="Ваше обране покупця рендериться з автентифікованої серверної сесії та використовує наявну поведінку карток товарів."
     >
       {wishlist.items.length === 0 ? (
         <EmptyState
-          title="Your wishlist is empty"
-          description="Save products while browsing and they will appear here for quick access later."
+          title="Ваше обране порожнє"
+          description="Зберігайте товари під час перегляду, і вони з’являться тут для швидкого доступу."
           actionHref="/catalog"
-          actionLabel="Explore catalog"
+          actionLabel="Перейти до каталогу"
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

@@ -15,12 +15,12 @@ export default async function AdminCommissionRuleNewPage() {
 
   return (
     <AdminSection
-      eyebrow="Finance"
-      title="Create commission rule"
-      description="Set up a new global, category, or store override without changing historical commission snapshots on existing orders."
+      eyebrow="Фінанси"
+      title="Створити правило комісії"
+      description="Налаштуйте нове глобальне правило або перевизначення для категорії чи магазину без зміни історичних знімків комісії в існуючих замовленнях."
     >
       <Link href="/admin/commission-rules" className="ui-link-muted">
-        Back to commission rules
+        Назад до правил комісій
       </Link>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">

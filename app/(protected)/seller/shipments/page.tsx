@@ -29,21 +29,21 @@ export default async function SellerShipmentsPage({
 
   return (
     <SellerSection
-      eyebrow="Shipments"
+      eyebrow="Відправлення"
       title="Відправлення Nova Poshta"
-      description="Створюйте ТТН, відстежуйте статуси доставки та контролюйте seller fulfillment без дублювання checkout логіки."
+      description="Створюйте ТТН, відстежуйте статуси доставки та контролюйте виконання замовлень без дублювання checkout-логіки."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
       <SellerTable
-        title="Shipment queue"
-        description="По одному shipment snapshot на кожен магазин у multi-vendor замовленні."
+        title="Черга відправлень"
+        description="Окреме відправлення формується для кожного магазину в мультивендорному замовленні."
       >
         {data.shipments.items.length === 0 ? (
           <div className="p-6">
             <EmptyState
               title="Відправлень поки що немає"
-              description="Щойно покупці оформлять замовлення з Nova Poshta, тут з’являться shipment snapshots для створення ТТН та відстеження."
+              description="Щойно покупці оформлять замовлення з Nova Poshta, тут з’являться відправлення для створення ТТН та відстеження."
               actionHref="/seller/orders"
               actionLabel="Перейти до замовлень"
             />

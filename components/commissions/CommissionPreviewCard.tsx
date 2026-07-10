@@ -48,17 +48,17 @@ export default function CommissionPreviewCard({
 
   const matchedScopeLabel = result?.matchedRule?.scope
     ? getCommissionRuleScopeLabel(result.matchedRule.scope as CommissionRuleScope)
-    : 'Fallback default'
+    : 'Fallback за замовчуванням'
 
   return (
     <DashboardCard
-      title="Commission preview"
-      description="Run a server-side preview to confirm which rule wins before publishing a rate change."
+      title="Попередній перегляд комісії"
+      description="Запустіть server-side попередній перегляд, щоб перевірити, яке правило спрацює до публікації зміни ставки."
     >
       <form className="space-y-4" onSubmit={handlePreview}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Gross amount</span>
+            <span className="block text-sm font-medium text-copy-strong">Валова сума</span>
             <input
               required
               min="0"
@@ -71,13 +71,13 @@ export default function CommissionPreviewCard({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Store</span>
+            <span className="block text-sm font-medium text-copy-strong">Магазин</span>
             <select
               value={storeId}
               onChange={(event) => setStoreId(event.target.value)}
               className="ui-surface-input"
             >
-              <option value="">Any store</option>
+              <option value="">Будь-який магазин</option>
               {stores.map((store) => (
                 <option key={store.id} value={store.id}>
                   {store.name}
@@ -88,13 +88,13 @@ export default function CommissionPreviewCard({
         </div>
 
         <label className="space-y-2">
-          <span className="block text-sm font-medium text-copy-strong">Category</span>
+          <span className="block text-sm font-medium text-copy-strong">Категорія</span>
           <select
             value={categoryId}
             onChange={(event) => setCategoryId(event.target.value)}
             className="ui-surface-input"
           >
-            <option value="">Any category</option>
+            <option value="">Будь-яка категорія</option>
             {sortedCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 {'— '.repeat(category.level)}
@@ -105,7 +105,7 @@ export default function CommissionPreviewCard({
         </label>
 
         <button type="submit" className="ui-primary-button" disabled={isPreviewPending}>
-          {isPreviewPending ? 'Previewing...' : 'Preview commission'}
+          {isPreviewPending ? 'Рахуємо попередній перегляд...' : 'Переглянути комісію'}
         </button>
 
         {previewErrorMessage ? <p className="text-sm text-brand-danger">{previewErrorMessage}</p> : null}
@@ -115,24 +115,24 @@ export default function CommissionPreviewCard({
         <div className="mt-6 rounded-3xl border border-panelBorder bg-panel/60 p-4">
           <dl className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Matched rule</dt>
+              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Застосоване правило</dt>
               <dd className="text-sm font-medium text-copy-strong">
-                {result.matchedRule?.name ?? 'Fallback marketplace rate'}
+                {result.matchedRule?.name ?? 'Fallback-ставка маркетплейсу'}
               </dd>
               <p className="text-sm text-copy-muted">{matchedScopeLabel}</p>
             </div>
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Rate</dt>
+              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Ставка</dt>
               <dd className="text-sm font-medium text-copy-strong">
                 {result.matchedRule?.rate ?? '0.0000'}
               </dd>
             </div>
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Commission amount</dt>
+              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Сума комісії</dt>
               <dd className="text-sm text-copy-secondary">{formatPrice(result.commissionAmount)}</dd>
             </div>
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Seller net amount</dt>
+              <dt className="text-xs uppercase tracking-[0.14em] text-copy-muted">Чиста сума продавця</dt>
               <dd className="text-sm text-copy-secondary">{formatPrice(result.sellerNetAmount)}</dd>
             </div>
           </dl>

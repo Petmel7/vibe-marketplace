@@ -23,39 +23,39 @@ export default async function AdminRiskUsersPage({
 
   return (
     <AdminSection
-      eyebrow="Trust & Safety"
-      title="User risk profiles"
-      description="Inspect advisory risk scores for marketplace accounts and open detailed signal timelines when something needs review."
+      eyebrow="Довіра та безпека"
+      title="Профілі ризику користувачів"
+      description="Переглядайте advisory-оцінки ризику для акаунтів маркетплейсу та відкривайте детальні хронології сигналів, коли щось потребує перевірки."
     >
       <RiskAdvisoryNotice />
 
       <AdminFilterBar action="/admin/risk/users">
         <SearchInput
           name="search"
-          label="Search users"
+          label="Пошук користувачів"
           defaultValue={data.filters.search}
-          placeholder="Search by email or name"
+          placeholder="Пошук за email або ім’ям"
         />
         <StatusFilter
           name="level"
-          label="Risk level"
+          label="Рівень ризику"
           defaultValue={data.filters.level}
           options={RISK_LEVELS.map((level) => ({ label: level, value: level }))}
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="User risk queue"
-        description="Risk scoring is advisory only and should be combined with report, dispute, and moderation context."
+        title="Черга ризиків користувачів"
+        description="Оцінки ризику мають лише рекомендаційний характер і повинні розглядатися разом із контекстом скарг, суперечок і модерації."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No user risk profiles found"
-              description="Try a different search term or risk level to surface more accounts."
+              title="Профілів ризику користувачів не знайдено"
+              description="Спробуйте інший пошуковий запит або рівень ризику, щоб побачити більше акаунтів."
             />
           </div>
         ) : (

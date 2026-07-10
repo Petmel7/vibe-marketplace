@@ -126,19 +126,19 @@ export default function SellerPromotionForm({
   const [targetError, setTargetError] = useState<string | null>(null)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
 
-  const submitLabel = mode === 'create' ? 'Create promotion' : 'Save changes'
-  const title = mode === 'create' ? 'Create seller promotion' : `Edit ${initialPromotion?.code ?? 'promotion'}`
+  const submitLabel = mode === 'create' ? 'Створити промоакцію' : 'Зберегти зміни'
+  const title = mode === 'create' ? 'Створити промоакцію продавця' : `Редагувати ${initialPromotion?.code ?? 'промоакцію'}`
   const description =
     mode === 'create'
-      ? 'Create a store-scoped coupon without exposing discount logic to the client. Checkout totals always come from the backend.'
-      : 'Update the promotion configuration, scope, and active window. Past order snapshots stay immutable.'
+      ? 'Створіть купон для магазину без винесення логіки знижок на клієнт. Підсумки checkout завжди обчислюються на бекенді.'
+      : 'Оновіть налаштування промоакції, її охоплення та період дії. Історичні знімки замовлень залишаються незмінними.'
 
   const currentDiscountHint = useMemo(() => {
     if (values.discountType === 'PERCENTAGE') {
-      return 'Use a percentage value such as 10 or 15.5.'
+      return 'Використайте відсоткове значення, наприклад 10 або 15.5.'
     }
 
-    return 'Use a fixed amount in UAH, for example 100.00.'
+    return 'Використайте фіксовану суму в грн, наприклад 100.00.'
   }, [values.discountType])
 
   const selectedScopeSummary = useMemo(() => {
@@ -146,7 +146,7 @@ export default function SellerPromotionForm({
       return `${getPromotionTargetTypeLabel(targetScope)} · ${store.name}`
     }
 
-    return `${getPromotionTargetTypeLabel(targetScope)} · ${selectedTargetIds.length} selected`
+    return `${getPromotionTargetTypeLabel(targetScope)} · вибрано: ${selectedTargetIds.length}`
   }, [selectedTargetIds.length, store.name, targetScope])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -156,7 +156,7 @@ export default function SellerPromotionForm({
       targetScope === 'STORE' ? [store.id] : selectedTargetIds.filter((targetId) => targetId.trim().length > 0)
 
     if (normalizedTargetIds.length === 0) {
-      setTargetError('Select at least one target for this promotion.')
+      setTargetError('Оберіть щонайменше одну ціль для цієї промоакції.')
       return
     }
 
@@ -204,7 +204,7 @@ export default function SellerPromotionForm({
     <DashboardCard title={title} description={description}>
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div className="rounded-2xl border border-panelBorder bg-panel/60 px-4 py-4">
-          <p className="text-sm font-medium text-copy-strong">Store context</p>
+          <p className="text-sm font-medium text-copy-strong">Контекст магазину</p>
           <p className="mt-1 text-sm text-copy-secondary">
             {store.name} · /{store.slug}
           </p>
@@ -213,7 +213,7 @@ export default function SellerPromotionForm({
 
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Code</span>
+            <span className="block text-sm font-medium text-copy-strong">Код</span>
             <input
               required
               value={values.code}
@@ -224,31 +224,31 @@ export default function SellerPromotionForm({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Name</span>
+            <span className="block text-sm font-medium text-copy-strong">Назва</span>
             <input
               required
               value={values.name}
               onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
               className="ui-surface-input"
-              placeholder="Store launch coupon"
+              placeholder="Купон на запуск магазину"
             />
           </label>
         </div>
 
         <label className="space-y-2">
-          <span className="block text-sm font-medium text-copy-strong">Description</span>
+          <span className="block text-sm font-medium text-copy-strong">Опис</span>
           <textarea
             value={values.description}
             onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
             rows={3}
             className="ui-surface-input min-h-28"
-            placeholder="Optional context for your team or buyers."
+            placeholder="Необов’язковий опис для команди або покупців."
           />
         </label>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Promotion type</span>
+            <span className="block text-sm font-medium text-copy-strong">Тип промоакції</span>
             <select
               value={values.type}
               onChange={(event) =>
@@ -268,7 +268,7 @@ export default function SellerPromotionForm({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Discount type</span>
+            <span className="block text-sm font-medium text-copy-strong">Тип знижки</span>
             <select
               value={values.discountType}
               onChange={(event) =>
@@ -301,7 +301,7 @@ export default function SellerPromotionForm({
 
         <div className="grid gap-4 lg:grid-cols-3">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Discount value</span>
+            <span className="block text-sm font-medium text-copy-strong">Розмір знижки</span>
             <input
               required
               type="number"
@@ -316,7 +316,7 @@ export default function SellerPromotionForm({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Minimum order amount</span>
+            <span className="block text-sm font-medium text-copy-strong">Мінімальна сума замовлення</span>
             <input
               type="number"
               min="0"
@@ -324,12 +324,12 @@ export default function SellerPromotionForm({
               value={values.minOrderAmount}
               onChange={(event) => setValues((current) => ({ ...current, minOrderAmount: event.target.value }))}
               className="ui-surface-input"
-              placeholder="Optional"
+              placeholder="Необов’язково"
             />
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Maximum discount amount</span>
+            <span className="block text-sm font-medium text-copy-strong">Максимальна сума знижки</span>
             <input
               type="number"
               min="0"
@@ -337,14 +337,14 @@ export default function SellerPromotionForm({
               value={values.maxDiscountAmount}
               onChange={(event) => setValues((current) => ({ ...current, maxDiscountAmount: event.target.value }))}
               className="ui-surface-input"
-              placeholder="Optional"
+              placeholder="Необов’язково"
             />
           </label>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Usage limit</span>
+            <span className="block text-sm font-medium text-copy-strong">Ліміт використань</span>
             <input
               type="number"
               min="1"
@@ -352,12 +352,12 @@ export default function SellerPromotionForm({
               value={values.usageLimit}
               onChange={(event) => setValues((current) => ({ ...current, usageLimit: event.target.value }))}
               className="ui-surface-input"
-              placeholder="Optional"
+              placeholder="Необов’язково"
             />
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Per-user usage limit</span>
+            <span className="block text-sm font-medium text-copy-strong">Ліміт на користувача</span>
             <input
               type="number"
               min="1"
@@ -365,14 +365,14 @@ export default function SellerPromotionForm({
               value={values.usageLimitPerUser}
               onChange={(event) => setValues((current) => ({ ...current, usageLimitPerUser: event.target.value }))}
               className="ui-surface-input"
-              placeholder="Optional"
+              placeholder="Необов’язково"
             />
           </label>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Starts at</span>
+            <span className="block text-sm font-medium text-copy-strong">Початок дії</span>
             <input
               required
               type="datetime-local"
@@ -383,7 +383,7 @@ export default function SellerPromotionForm({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Ends at</span>
+            <span className="block text-sm font-medium text-copy-strong">Кінець дії</span>
             <input
               type="datetime-local"
               value={values.endsAt}
@@ -401,17 +401,17 @@ export default function SellerPromotionForm({
             className="h-4 w-4 rounded border-panelBorder text-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
           />
           <span className="space-y-1">
-            <span className="block text-sm font-medium text-copy-strong">Promotion is active</span>
+            <span className="block text-sm font-medium text-copy-strong">Промоакція активна</span>
             <span className="block text-sm text-copy-muted">
-              Disable the coupon without deleting its historical usage snapshots.
+              Можна вимкнути купон без видалення його історичних знімків використання.
             </span>
           </span>
         </label>
 
         <div className="rounded-2xl border border-panelBorder bg-panel/60 px-4 py-4 text-sm text-copy-secondary">
-          <p className="font-medium text-copy-strong">Checkout behavior</p>
+          <p className="font-medium text-copy-strong">Поведінка в checkout</p>
           <p className="mt-1">
-            Checkout always revalidates this coupon on the server. Only one coupon can apply to an order in the current MVP.
+            Checkout завжди повторно перевіряє цей купон на сервері. У поточному MVP до замовлення може застосовуватися лише один купон.
           </p>
         </div>
 
@@ -428,7 +428,7 @@ export default function SellerPromotionForm({
               disabled={isPending}
               className="ui-primary-button disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isPending ? 'Saving...' : submitLabel}
+              {isPending ? 'Збереження...' : submitLabel}
             </button>
 
             {mode === 'edit' && initialPromotion ? (
@@ -438,7 +438,7 @@ export default function SellerPromotionForm({
                 onClick={() => void updatePromotionStatus(initialPromotion.id, !initialPromotion.isActive)}
                 className="ui-secondary-button disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {initialPromotion.isActive ? 'Disable promotion' : 'Activate promotion'}
+                {initialPromotion.isActive ? 'Вимкнути промоакцію' : 'Активувати промоакцію'}
               </button>
             ) : null}
           </div>
@@ -452,18 +452,18 @@ export default function SellerPromotionForm({
                   onClick={() => setShowDeleteConfirmation(true)}
                   className="rounded-2xl border border-brand-danger/25 px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-brand-danger/10 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Delete promotion
+                  Видалити промоакцію
                 </button>
               ) : (
                 <>
-                  <span className="text-sm text-copy-secondary">Delete this promotion?</span>
+                  <span className="text-sm text-copy-secondary">Видалити цю промоакцію?</span>
                   <button
                     type="button"
                     disabled={isPending}
                     onClick={() => void deletePromotion(initialPromotion.id)}
                     className="rounded-2xl border border-brand-danger/25 bg-brand-danger/10 px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-brand-danger/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Confirm delete
+                    Підтвердити видалення
                   </button>
                   <button
                     type="button"
@@ -471,7 +471,7 @@ export default function SellerPromotionForm({
                     onClick={() => setShowDeleteConfirmation(false)}
                     className="ui-secondary-button disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Cancel
+                    Скасувати
                   </button>
                 </>
               )}

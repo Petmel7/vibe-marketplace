@@ -23,7 +23,7 @@ export default function CheckoutItemCard({
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-copy-muted">
-            No image
+            Немає фото
           </div>
         )}
       </div>
@@ -32,7 +32,7 @@ export default function CheckoutItemCard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-copy-strong">{item.productName}</h3>
-            <p className="text-sm text-copy-muted">{item.variantLabel ?? 'Standard option'}</p>
+            <p className="text-sm text-copy-muted">{item.variantLabel ?? 'Стандартний варіант'}</p>
             {item.storeName ? <p className="text-sm text-copy-muted">{item.storeName}</p> : null}
           </div>
           <p className="text-base font-semibold text-copy-strong">{formatPrice(item.lineTotal)}</p>
@@ -40,19 +40,19 @@ export default function CheckoutItemCard({
 
         <dl className="grid gap-2 text-sm text-copy-secondary sm:grid-cols-2 xl:grid-cols-4">
           <div>
-            <dt className="text-copy-muted">Unit price</dt>
+            <dt className="text-copy-muted">Ціна за одиницю</dt>
             <dd className="mt-1 text-copy-primary">{formatPrice(item.unitPrice)}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Quantity</dt>
+            <dt className="text-copy-muted">Кількість</dt>
             <dd className="mt-1 text-copy-primary">{item.quantity}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Available stock</dt>
+            <dt className="text-copy-muted">Доступний залишок</dt>
             <dd className="mt-1 text-copy-primary">{item.availableStock}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Stock state</dt>
+            <dt className="text-copy-muted">Статус залишку</dt>
             <dd className="mt-1">
               {inventoryChip?.dotClassName ? (
                 <span className={inventoryChip.className}>
@@ -62,7 +62,7 @@ export default function CheckoutItemCard({
               ) : inventoryChip ? (
                 <span className={inventoryChip.className}>{inventoryChip.label}</span>
               ) : (
-                <span className="text-copy-muted">Unknown</span>
+                <span className="text-copy-muted">Невідомо</span>
               )}
             </dd>
           </div>

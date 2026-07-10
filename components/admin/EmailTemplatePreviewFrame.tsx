@@ -15,7 +15,7 @@ export default function EmailTemplatePreviewFrame({
       </div>
       <div className="bg-panel p-3 sm:p-4">
         <iframe
-          title={`${title} email preview`}
+          title={`Попередній перегляд листа: ${title}`}
           srcDoc={html}
           className="h-[540px] w-full rounded-2xl border border-panelBorder bg-white"
         />

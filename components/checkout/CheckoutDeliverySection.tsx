@@ -136,7 +136,7 @@ export default function CheckoutDeliverySection({
             <span className="space-y-1">
               <span className="block text-sm font-semibold text-copy-strong">Нова Пошта</span>
               <span className="block text-sm text-copy-muted">
-                Окремо збережемо снапшот доставки для кожного магазину у multi-vendor замовленні.
+                Окремо збережемо снапшот доставки для кожного магазину в multi-vendor замовленні.
               </span>
             </span>
           </label>

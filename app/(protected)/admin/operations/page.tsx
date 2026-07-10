@@ -36,7 +36,7 @@ async function renderAdminOperationsOverviewPage() {
   })
 
   const healthTone =
-    !data.health ? 'Unhealthy' : data.health.deep.status === 'ok' ? 'Healthy' : 'Degraded'
+    !data.health ? 'Проблема' : data.health.deep.status === 'ok' ? 'Справно' : 'Деградовано'
 
   logInfo('admin-operations-page:before-render-tree', {
     domain: 'admin-operations',
@@ -48,80 +48,80 @@ async function renderAdminOperationsOverviewPage() {
 
   const tree = (
     <AdminSection
-      eyebrow="Operations"
-      title="Observability & audit"
-      description="Operational health, background jobs, and admin audit trails for production support and safer debugging."
+      eyebrow="Операції"
+      title="Спостереження й аудит"
+      description="Операційний стан, фонові задачі та аудит дій адміністраторів для безпечнішої підтримки продакшену й діагностики."
     >
       <OperationsShell currentPath="/admin/operations">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <OperationsMetricCard
-            label="Health"
+            label="Стан"
             value={healthTone}
             detail={
               data.health
-                ? `Last checked ${new Date(data.health.lastCheckedAt).toLocaleString('uk-UA')}`
-                : 'Health endpoints are currently unavailable.'
+                ? `Остання перевірка: ${new Date(data.health.lastCheckedAt).toLocaleString('uk-UA')}`
+                : 'Health-ендпоїнти зараз недоступні.'
             }
             href="/admin/operations/health"
           />
           <OperationsMetricCard
-            label="Failed jobs"
+            label="Помилкові задачі"
             value={data.jobsOverview?.failedTotal ?? '—'}
-            detail="Retryable background jobs that need attention."
+            detail="Фонові задачі, які можна повторити й які потребують уваги."
             href="/admin/operations/jobs?status=FAILED"
           />
           <OperationsMetricCard
-            label="Pending jobs"
+            label="Задачі в черзі"
             value={data.jobsOverview?.pendingTotal ?? '—'}
-            detail="Queued work waiting for the job runner."
+            detail="Робота в черзі, яка очікує запуску job runner."
             href="/admin/operations/jobs?status=PENDING"
           />
           <OperationsMetricCard
-            label="Recent admin actions"
+            label="Останні дії адміністратора"
             value={data.recentAuditLogs?.items.length ?? '—'}
-            detail="Latest audit trail entries from sensitive admin flows."
+            detail="Останні записи аудиту з чутливих адміністративних сценаріїв."
             href="/admin/operations/audit-logs"
           />
           <OperationsMetricCard
-            label="Provider issues"
+            label="Проблеми провайдерів"
             value={data.providerIssues.length}
-            detail="Config/readiness concerns surfaced by deep health checks."
+            detail="Проблеми конфігурації або готовності, виявлені поглибленою health-перевіркою."
             href="/admin/operations/health"
           />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <AdminDataTable
-            title="Recent audit activity"
-            description="The newest admin-sensitive mutations recorded by the audit layer."
+            title="Остання активність аудиту"
+            description="Найновіші чутливі адміністративні зміни, зафіксовані шаром аудиту."
             actions={
               <Link href="/admin/operations/audit-logs" className="ui-link-muted">
-                Open audit logs
+                Відкрити журнал аудиту
               </Link>
             }
           >
             {data.auditError ? (
               <div className="p-6">
                 <AdminEmptyState
-                  title="Audit activity is temporarily unavailable"
-                  description="Health and jobs loaded successfully, but the recent audit activity panel could not be loaded right now."
+                  title="Активність аудиту тимчасово недоступна"
+                  description="Дані health і jobs завантажилися успішно, але панель останньої аудиторської активності зараз не вдалося відкрити."
                 />
               </div>
             ) : !data.recentAuditLogs || data.recentAuditLogs.items.length === 0 ? (
               <div className="p-6">
                 <AdminEmptyState
-                  title="No recent audit activity"
-                  description="Sensitive admin actions will appear here once the audit stream has entries."
+                  title="Немає нещодавньої активності аудиту"
+                  description="Чутливі адміністративні дії з’являться тут, щойно потік аудиту отримає записи."
                 />
               </div>
             ) : (
               <table className="min-w-full text-sm">
                 <thead className="bg-panel/60 text-left text-copy-muted">
                   <tr>
-                    <th className="px-5 py-3 font-medium">Actor</th>
-                    <th className="px-5 py-3 font-medium">Action</th>
-                    <th className="px-5 py-3 font-medium">Resource</th>
-                    <th className="px-5 py-3 font-medium">Time</th>
+                    <th className="px-5 py-3 font-medium">Виконавець</th>
+                    <th className="px-5 py-3 font-medium">Дія</th>
+                    <th className="px-5 py-3 font-medium">Ресурс</th>
+                    <th className="px-5 py-3 font-medium">Час</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,24 +152,24 @@ async function renderAdminOperationsOverviewPage() {
             <section className="ui-elevated-panel p-5 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-copy-strong">Provider readiness</h2>
+                  <h2 className="text-lg font-semibold text-copy-strong">Готовність провайдерів</h2>
                   <p className="mt-1 text-sm text-copy-muted">
-                    Quick signal of the external services that power email, payments, and shipping.
+                    Швидкий сигнал щодо зовнішніх сервісів, які забезпечують email, платежі та доставку.
                   </p>
                 </div>
                 <Link href="/admin/operations/health" className="ui-link-muted">
-                  Open health
+                  Відкрити стан системи
                 </Link>
               </div>
 
               {data.health ? (
                 <div className="mt-5 space-y-3 text-sm">
                   <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                    <span>Supabase / database</span>
+                    <span>Supabase / база даних</span>
                     <ProviderStatusBadge
                       isReady={data.health.deep.database.ok}
-                      readyLabel="Ready"
-                      missingLabel="Degraded"
+                      readyLabel="Готово"
+                      missingLabel="Деградовано"
                     />
                   </div>
                   <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
@@ -187,16 +187,16 @@ async function renderAdminOperationsOverviewPage() {
                 </div>
               ) : (
                 <p className="mt-5 text-sm text-copy-muted">
-                  Health data is currently unavailable.
+                  Дані health зараз недоступні.
                 </p>
               )}
             </section>
 
             <section className="ui-elevated-panel p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-copy-strong">Recent provider issues</h2>
+              <h2 className="text-lg font-semibold text-copy-strong">Останні проблеми провайдерів</h2>
               {data.providerIssues.length === 0 ? (
                 <p className="mt-4 text-sm text-copy-muted">
-                  No provider readiness issues surfaced by the latest deep health check.
+                  Остання поглиблена health-перевірка не виявила проблем готовності провайдерів.
                 </p>
               ) : (
                 <ul className="mt-4 space-y-3 text-sm text-copy-secondary">

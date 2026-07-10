@@ -11,12 +11,12 @@ export default function AdminDisputesTable({ disputes }: { disputes: DisputeSumm
     <table className="min-w-full divide-y divide-panelBorder text-left text-sm">
       <thead className="bg-panelAlt/70 text-copy-secondary">
         <tr>
-          <th className="px-5 py-3 font-medium">Dispute</th>
-          <th className="px-5 py-3 font-medium">Reason</th>
-          <th className="px-5 py-3 font-medium">Priority</th>
-          <th className="px-5 py-3 font-medium">Status</th>
-          <th className="px-5 py-3 font-medium">Created</th>
-          <th className="px-5 py-3 font-medium">Action</th>
+          <th className="px-5 py-3 font-medium">Суперечка</th>
+          <th className="px-5 py-3 font-medium">Причина</th>
+          <th className="px-5 py-3 font-medium">Пріоритет</th>
+          <th className="px-5 py-3 font-medium">Статус</th>
+          <th className="px-5 py-3 font-medium">Створено</th>
+          <th className="px-5 py-3 font-medium">Дія</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-panelBorder">
@@ -24,7 +24,7 @@ export default function AdminDisputesTable({ disputes }: { disputes: DisputeSumm
           <tr key={dispute.id} className="align-top">
             <td className="px-5 py-4">
               <p className="font-semibold text-copy-strong">#{dispute.id.slice(0, 8)}</p>
-              <p className="mt-1 text-copy-secondary">{dispute.productName ?? 'Order dispute'}</p>
+              <p className="mt-1 text-copy-secondary">{dispute.productName ?? 'Суперечка щодо замовлення'}</p>
               <p className="mt-1 text-copy-muted">{dispute.storeName ?? `Order #${dispute.orderId.slice(0, 8)}`}</p>
             </td>
             <td className="px-5 py-4 text-copy-primary">{getDisputeReasonLabel(dispute.reason)}</td>
@@ -37,7 +37,7 @@ export default function AdminDisputesTable({ disputes }: { disputes: DisputeSumm
             </td>
             <td className="px-5 py-4">
               <Link href={`/admin/disputes/${dispute.id}`} className="ui-secondary-button">
-                Open
+                Відкрити
               </Link>
             </td>
           </tr>

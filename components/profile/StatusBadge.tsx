@@ -9,8 +9,19 @@ const STATUS_STYLES: Record<string, string> = {
   refunded: 'border-orange-400/30 bg-orange-400/10 text-orange-200',
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Очікує',
+  confirmed: 'Підтверджено',
+  paid: 'Оплачено',
+  processing: 'Обробляється',
+  shipped: 'Відправлено',
+  delivered: 'Доставлено',
+  cancelled: 'Скасовано',
+  refunded: 'Повернено',
+}
+
 function humanizeStatus(status: string) {
-  return status.charAt(0).toUpperCase() + status.slice(1)
+  return STATUS_LABELS[status] ?? status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 export default function StatusBadge({ status }: { status: string }) {

@@ -86,26 +86,26 @@ export default function CheckoutAddressSelector({
 
   return (
     <DashboardCard
-      title="Shipping address"
-      description="Choose a saved shipping destination or add a new one without leaving checkout."
+      title="Адреса доставки"
+      description="Оберіть збережену адресу доставки або додайте нову, не залишаючи оформлення замовлення."
       action={
         <button
           type="button"
           className="ui-secondary-button"
           onClick={() => setIsAdding((current) => !current)}
         >
-          {isAdding ? 'Close form' : 'Add address'}
+          {isAdding ? 'Закрити форму' : 'Додати адресу'}
         </button>
       }
     >
       <div className="space-y-4">
         {addresses.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-panelBorder bg-panel/60 px-4 py-4 text-sm text-copy-muted">
-            No saved shipping addresses yet. Add one below to continue.
+            Збережених адрес доставки ще немає. Додайте одну нижче, щоб продовжити.
           </p>
         ) : (
           <fieldset className="space-y-3">
-            <legend className="sr-only">Saved shipping addresses</legend>
+            <legend className="sr-only">Збережені адреси доставки</legend>
             {addresses.map((address) => (
               <label
                 key={address.id}
@@ -132,7 +132,7 @@ export default function CheckoutAddressSelector({
                       </span>
                       {address.isDefault ? (
                         <span className="rounded-full border border-brand-success/30 bg-brand-success/10 px-2 py-0.5 text-xs font-medium text-brand-success">
-                          Default
+                          За замовчуванням
                         </span>
                       ) : null}
                     </div>
@@ -140,7 +140,7 @@ export default function CheckoutAddressSelector({
                     <p className="text-copy-muted">{address.phone}</p>
                     <p className="text-copy-muted">
                       {address.street}, {address.building}
-                      {address.apartment ? `, apt ${address.apartment}` : ''}
+                      {address.apartment ? `, кв. ${address.apartment}` : ''}
                     </p>
                     <p className="text-copy-muted">
                       {address.city}
@@ -157,16 +157,16 @@ export default function CheckoutAddressSelector({
         {isAdding ? (
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
             {[
-              ['label', 'Label'],
-              ['fullName', 'Full name'],
-              ['phone', 'Phone'],
-              ['country', 'Country'],
-              ['city', 'City'],
-              ['region', 'Region'],
-              ['street', 'Street'],
-              ['building', 'Building'],
-              ['apartment', 'Apartment'],
-              ['zipCode', 'ZIP code'],
+              ['label', 'Назва'],
+              ['fullName', 'Повне ім’я'],
+              ['phone', 'Телефон'],
+              ['country', 'Країна'],
+              ['city', 'Місто'],
+              ['region', 'Область'],
+              ['street', 'Вулиця'],
+              ['building', 'Будинок'],
+              ['apartment', 'Квартира'],
+              ['zipCode', 'Поштовий індекс'],
             ].map(([field, label]) => (
               <label
                 key={field}
@@ -190,7 +190,7 @@ export default function CheckoutAddressSelector({
                 checked={formState.isDefault}
                 onChange={(event) => handleFieldChange('isDefault', event.target.checked)}
               />
-              Set as default shipping address
+              Зробити адресою доставки за замовчуванням
             </label>
 
             {errorMessage ? (
@@ -201,7 +201,7 @@ export default function CheckoutAddressSelector({
 
             <div className="sm:col-span-2 flex flex-col gap-3 sm:flex-row">
               <button type="submit" className="ui-primary-button" disabled={isSaving}>
-                {isSaving ? 'Saving address...' : 'Save address'}
+                {isSaving ? 'Зберігаємо адресу...' : 'Зберегти адресу'}
               </button>
               <button
                 type="button"
@@ -209,7 +209,7 @@ export default function CheckoutAddressSelector({
                 onClick={() => setIsAdding(false)}
                 disabled={isSaving}
               >
-                Cancel
+                Скасувати
               </button>
             </div>
           </form>

@@ -25,13 +25,13 @@ export default function PromotionTable({
     <table className="min-w-full text-sm">
       <thead className="bg-panel/60 text-left text-copy-muted">
         <tr>
-          <th className="px-5 py-3 font-medium">Promotion</th>
-          <th className="px-5 py-3 font-medium">Status</th>
-          <th className="px-5 py-3 font-medium">Type</th>
-          <th className="px-5 py-3 font-medium">Discount</th>
-          <th className="px-5 py-3 font-medium">Usage</th>
-          <th className="px-5 py-3 font-medium">Window</th>
-          <th className="px-5 py-3 font-medium">Open</th>
+          <th className="px-5 py-3 font-medium">Акція</th>
+          <th className="px-5 py-3 font-medium">Статус</th>
+          <th className="px-5 py-3 font-medium">Тип</th>
+          <th className="px-5 py-3 font-medium">Знижка</th>
+          <th className="px-5 py-3 font-medium">Використання</th>
+          <th className="px-5 py-3 font-medium">Період дії</th>
+          <th className="px-5 py-3 font-medium">Відкрити</th>
         </tr>
       </thead>
       <tbody>
@@ -54,7 +54,7 @@ export default function PromotionTable({
             <td className="px-5 py-4 text-copy-secondary">
               <p className="font-medium text-copy-strong">{getPromotionDiscountLabel(promotion)}</p>
               {promotion.minOrderAmount ? (
-                <p className="mt-1 text-copy-muted">Min order {formatPrice(promotion.minOrderAmount)}</p>
+                <p className="mt-1 text-copy-muted">Мін. замовлення {formatPrice(promotion.minOrderAmount)}</p>
               ) : null}
             </td>
             <td className="px-5 py-4">
@@ -63,12 +63,12 @@ export default function PromotionTable({
             <td className="px-5 py-4 text-copy-secondary">
               <p>{new Date(promotion.startsAt).toLocaleString('uk-UA')}</p>
               <p className="mt-1 text-copy-muted">
-                {promotion.endsAt ? new Date(promotion.endsAt).toLocaleString('uk-UA') : 'No expiry'}
+                {promotion.endsAt ? new Date(promotion.endsAt).toLocaleString('uk-UA') : 'Без дати завершення'}
               </p>
             </td>
             <td className="px-5 py-4">
               <Link href={`/admin/promotions/${promotion.id}`} className="ui-link-muted">
-                View details
+                Переглянути деталі
               </Link>
             </td>
           </tr>

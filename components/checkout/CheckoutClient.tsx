@@ -158,10 +158,10 @@ export default function CheckoutClient({
   if (loadError) {
     return (
       <ProtectedRouteState
-        title="Checkout preview unavailable"
+        title="Попередній перегляд оформлення недоступний"
         description={loadError}
         actionHref="/cart"
-        actionLabel="Back to cart"
+        actionLabel="Повернутися до кошика"
       />
     )
   }
@@ -170,7 +170,7 @@ export default function CheckoutClient({
     return (
       <ProtectedRouteState
         title="Синхронізуємо кошик..."
-        description="Зачекайте, поки ми об'єднаємо гостьовий кошик і оновимо оформлення замовлення."
+        description="Зачекайте, поки ми об’єднаємо гостьовий кошик і оновимо оформлення замовлення."
         actionHref="/cart"
         actionLabel="Повернутися до кошика"
       />
@@ -180,10 +180,10 @@ export default function CheckoutClient({
   if (!preview || isEmpty) {
     return (
       <EmptyState
-        title="Your cart is empty"
-        description="Add products to the cart before continuing to checkout."
+        title="Ваш кошик порожній"
+        description="Додайте товари в кошик перед переходом до оформлення замовлення."
         actionHref="/catalog"
-        actionLabel="Browse catalog"
+        actionLabel="Перейти до каталогу"
       />
     )
   }
@@ -281,9 +281,7 @@ export default function CheckoutClient({
                 className="mt-1 h-4 w-4"
                 aria-invalid={privacyConsentError ? true : undefined}
                 aria-describedby={
-                  privacyConsentError
-                    ? privacyConsentErrorId
-                    : privacyConsentHintId
+                  privacyConsentError ? privacyConsentErrorId : privacyConsentHintId
                 }
               />
               <span>
@@ -313,7 +311,7 @@ export default function CheckoutClient({
               <p className="text-sm text-copy-muted">{previewSyncMessage}</p>
             ) : isPreviewRecalculating ? (
               <p className="text-sm text-copy-muted">
-                Updating checkout total with the latest shipping estimate...
+                Оновлюємо підсумок замовлення з актуальною оцінкою доставки...
               </p>
             ) : null}
 

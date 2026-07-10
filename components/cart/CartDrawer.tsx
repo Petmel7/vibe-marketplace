@@ -86,8 +86,7 @@ export default function CartDrawer() {
           countLabel={pluralizeItems(cart.itemCount)}
         />
         <p className="max-w-3xl text-sm text-copy-muted">
-          Перевірте товари, оновіть кількість і переходьте до безпечного оформлення
-          замовлення з серверною перевіркою цін та залишків.
+          Перевірте товари, оновіть кількість і переходьте до безпечного оформлення замовлення з серверною перевіркою цін та залишків.
         </p>
       </div>
 
@@ -127,7 +126,7 @@ export default function CartDrawer() {
 
           <DashboardCard
             title="Товари у кошику"
-            description="Усі позиції з актуальними цінами та кількістю перед переходом до checkout."
+            description="Усі позиції з актуальними цінами та кількістю перед переходом до оформлення замовлення."
           >
             <div className="space-y-4">
               {cart.items.map((item) => (
@@ -158,7 +157,7 @@ export default function CartDrawer() {
         <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
           <DashboardCard
             title="Підсумок замовлення"
-            description="Сума в кошику і попередній total перед переходом до checkout."
+            description="Сума в кошику і попередній підсумок перед переходом до оформлення замовлення."
           >
             <div className="space-y-4">
               <dl className="space-y-3 text-sm text-copy-secondary">
@@ -184,8 +183,7 @@ export default function CartDrawer() {
 
               {checkoutDisabled ? (
                 <div className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary">
-                  Поки що не можна перейти до оформлення: у кошику є позиції з
-                  недоступною кількістю.
+                  Поки що не можна перейти до оформлення: у кошику є позиції з недоступною кількістю.
                 </div>
               ) : null}
 
@@ -208,7 +206,7 @@ export default function CartDrawer() {
               )}
 
               <p className="text-[11px] leading-4 text-copy-secondary">
-                На етапі checkout ми попросимо вас явно погодитися з умовами обробки{' '}
+                На етапі оформлення ми попросимо вас явно погодитися з умовами обробки{' '}
                 <Link
                   href="/privacy"
                   className="text-brand hover:underline"

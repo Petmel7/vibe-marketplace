@@ -8,13 +8,13 @@ export default function AdminPayoutsTable({ items }: { items: AdminPayout[] }) {
     <table className="min-w-full text-sm">
       <thead className="bg-panel/60 text-left text-copy-muted">
         <tr>
-          <th className="px-5 py-3 font-medium">Store</th>
-          <th className="px-5 py-3 font-medium">Seller</th>
-          <th className="px-5 py-3 font-medium">Amount</th>
-          <th className="px-5 py-3 font-medium">Status</th>
-          <th className="px-5 py-3 font-medium">Method</th>
-          <th className="px-5 py-3 font-medium">Created</th>
-          <th className="px-5 py-3 font-medium">Open</th>
+          <th className="px-5 py-3 font-medium">Магазин</th>
+          <th className="px-5 py-3 font-medium">Продавець</th>
+          <th className="px-5 py-3 font-medium">Сума</th>
+          <th className="px-5 py-3 font-medium">Статус</th>
+          <th className="px-5 py-3 font-medium">Метод</th>
+          <th className="px-5 py-3 font-medium">Створено</th>
+          <th className="px-5 py-3 font-medium">Відкрити</th>
         </tr>
       </thead>
       <tbody>
@@ -33,7 +33,7 @@ export default function AdminPayoutsTable({ items }: { items: AdminPayout[] }) {
             <td className="px-5 py-4 text-copy-secondary">{getPayoutMethodLabel(item.method)}</td>
             <td className="px-5 py-4 text-copy-secondary">{new Date(item.createdAt).toLocaleString('uk-UA')}</td>
             <td className="px-5 py-4">
-              <Link href={`/admin/payouts/${item.id}`} className="ui-link-muted">View details</Link>
+              <Link href={`/admin/payouts/${item.id}`} className="ui-link-muted">Переглянути деталі</Link>
             </td>
           </tr>
         ))}

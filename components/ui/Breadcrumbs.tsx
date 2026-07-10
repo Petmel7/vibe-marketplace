@@ -19,7 +19,7 @@ export function Breadcrumbs({
 }: BreadcrumbsProps) {
     return (
         <nav
-            aria-label="breadcrumbs"
+            aria-label="Хлібні крихти"
             className={`mb-6 ${className}`}
         >
             <ol

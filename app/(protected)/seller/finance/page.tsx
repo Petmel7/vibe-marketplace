@@ -29,9 +29,9 @@ export default async function SellerFinancePage({
 
   return (
     <SellerSection
-      eyebrow="Finance"
+      eyebrow="Фінанси"
       title="Фінанси продавця"
-      description="Переглядайте утримані, доступні та вже виплачені кошти. Виплати в MVP запускаються вручну адміністраторами маркетплейсу."
+      description="Переглядайте кошти в очікуванні, доступний баланс і вже виплачені суми. У MVP виплати запускаються вручну адміністраторами маркетплейсу."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
@@ -40,21 +40,21 @@ export default async function SellerFinancePage({
       <div className="ui-panel p-5">
         <h2 className="text-lg font-semibold text-copy-strong">Як працюють кошти</h2>
         <ul className="mt-3 space-y-2 text-sm text-copy-secondary">
-          <li>Pending funds утримуються до дати <code>availableAt</code> для кожного ledger entry.</li>
-          <li>Available funds можна включити у ручну payout після server-side recalculation.</li>
-          <li>Paid out funds — це історично виплачені суми, які не змінюють старі ledger записи.</li>
+          <li>Кошти в очікуванні утримуються до дати <code>availableAt</code> для кожного запису в книзі операцій.</li>
+          <li>Доступний баланс можна включити до ручної виплати після серверного перерахунку.</li>
+          <li>Виплачені кошти — це історично завершені виплати, які не змінюють старі записи в книзі операцій.</li>
         </ul>
       </div>
 
       <SellerTable
-        title="Store balances"
-        description="Якщо у вас кілька storefronts, маркетплейс веде окремий баланс для кожного store."
+        title="Баланси магазинів"
+        description="Якщо у вас кілька вітрин, маркетплейс веде окремий баланс для кожного магазину."
       >
         {data.summary.stores.length === 0 ? (
           <div className="p-5 sm:p-6">
             <EmptyState
               title="Фінансових записів поки що немає"
-              description="Коли замовлення стануть seller-actionable, тут з’являться balance snapshots і історія нарахувань."
+              description="Коли замовлення стануть доступними для обробки продавцем, тут з’являться балансові знімки та історія нарахувань."
               actionHref="/seller/orders"
               actionLabel="Перейти до замовлень"
             />
@@ -63,11 +63,11 @@ export default async function SellerFinancePage({
           <table className="min-w-full text-sm">
             <thead className="bg-panel/60 text-left text-copy-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Store</th>
-                <th className="px-5 py-3 font-medium">Pending</th>
-                <th className="px-5 py-3 font-medium">Available</th>
-                <th className="px-5 py-3 font-medium">Paid out</th>
-                <th className="px-5 py-3 font-medium">Updated</th>
+                <th className="px-5 py-3 font-medium">Магазин</th>
+                <th className="px-5 py-3 font-medium">В очікуванні</th>
+                <th className="px-5 py-3 font-medium">Доступно</th>
+                <th className="px-5 py-3 font-medium">Виплачено</th>
+                <th className="px-5 py-3 font-medium">Оновлено</th>
               </tr>
             </thead>
             <tbody>
@@ -89,8 +89,8 @@ export default async function SellerFinancePage({
       </SellerTable>
 
       <div className="flex flex-wrap gap-3">
-        <Link href="/seller/finance/ledger" className="ui-secondary-button">Open ledger</Link>
-        <Link href="/seller/finance/payouts" className="ui-secondary-button">Open payouts</Link>
+        <Link href="/seller/finance/ledger" className="ui-secondary-button">Відкрити книгу операцій</Link>
+        <Link href="/seller/finance/payouts" className="ui-secondary-button">Відкрити виплати</Link>
       </div>
     </SellerSection>
   )

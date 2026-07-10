@@ -15,11 +15,11 @@ export default function SellerVerificationNotice({
   if (status === 'PENDING') {
     return (
       <SellerStatePanel
-        title="Verification is in progress"
-        description="Your seller account is under review. You can prepare product data and store settings while marketplace activation remains gated."
+        title="Верифікація триває"
+        description="Ваш акаунт продавця проходить перевірку. Ви можете підготувати дані товарів і налаштування магазину, поки активація маркетплейсом ще обмежена."
         status={status}
         actionHref="/seller/store"
-        actionLabel="Review store readiness"
+        actionLabel="Перевірити готовність магазину"
       />
     )
   }
@@ -27,24 +27,24 @@ export default function SellerVerificationNotice({
   if (status === 'REJECTED') {
     return (
       <SellerStatePanel
-        title="Seller verification was rejected"
-        description="Review the moderation feedback, update your store information, and coordinate the next verification step before resuming seller operations."
+        title="Верифікацію продавця відхилено"
+        description="Перегляньте зауваження модерації, оновіть інформацію про магазин і узгодьте наступний крок верифікації перед відновленням роботи."
         status={status}
         reason={reason}
         actionHref="/seller/store"
-        actionLabel="Open store settings"
+        actionLabel="Відкрити налаштування магазину"
       />
     )
   }
 
   return (
     <SellerStatePanel
-      title="Seller account is suspended"
-      description="Storefront operations are paused until moderation clears the suspension. You can still review dashboard information and account context here."
+      title="Акаунт продавця призупинено"
+      description="Роботу магазину призупинено, доки модерація не зніме обмеження. Ви все ще можете переглядати дані дашборду та статус акаунта."
       status={status}
       reason={reason}
       actionHref="/seller/store"
-      actionLabel="View store status"
+      actionLabel="Переглянути статус магазину"
     />
   )
 }

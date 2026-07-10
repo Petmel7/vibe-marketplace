@@ -18,68 +18,68 @@ export default async function AdminDisputesPage({
 
   return (
     <AdminSection
-      eyebrow="Disputes"
-      title="Dispute queue"
-      description="Контролюйте суперечки по замовленнях, фільтруйте чергу та відкривайте детальні resolution workflows."
+      eyebrow="Суперечки"
+      title="Черга суперечок"
+      description="Контролюйте суперечки по замовленнях, фільтруйте чергу та відкривайте детальні сценарії вирішення."
     >
       <AdminDataTable
-        title="Marketplace disputes"
+        title="Суперечки маркетплейсу"
         description="Фільтруйте суперечки за статусом, причиною, пріоритетом і датою створення."
         actions={
           <form method="GET" className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Status</span>
+              <span>Статус</span>
               <select
                 name="status"
                 defaultValue={data.filters.status ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="OPEN">Open</option>
-                <option value="UNDER_REVIEW">Under review</option>
-                <option value="WAITING_BUYER">Waiting buyer</option>
-                <option value="WAITING_SELLER">Waiting seller</option>
-                <option value="ESCALATED">Escalated</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CLOSED">Closed</option>
+                <option value="">Усі</option>
+                <option value="OPEN">Відкрито</option>
+                <option value="UNDER_REVIEW">На розгляді</option>
+                <option value="WAITING_BUYER">Очікуємо покупця</option>
+                <option value="WAITING_SELLER">Очікуємо продавця</option>
+                <option value="ESCALATED">Ескальовано</option>
+                <option value="RESOLVED">Вирішено</option>
+                <option value="REJECTED">Відхилено</option>
+                <option value="CLOSED">Закрито</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Reason</span>
+              <span>Причина</span>
               <select
                 name="reason"
                 defaultValue={data.filters.reason ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="ITEM_NOT_RECEIVED">Not received</option>
-                <option value="ITEM_NOT_AS_DESCRIBED">Not as described</option>
-                <option value="DAMAGED_ITEM">Damaged</option>
-                <option value="WRONG_ITEM">Wrong item</option>
-                <option value="PAYMENT_ISSUE">Payment issue</option>
-                <option value="REFUND_REQUEST">Refund request</option>
-                <option value="SELLER_ISSUE">Seller issue</option>
-                <option value="BUYER_ISSUE">Buyer issue</option>
-                <option value="OTHER">Other</option>
+                <option value="">Усі</option>
+                <option value="ITEM_NOT_RECEIVED">Товар не отримано</option>
+                <option value="ITEM_NOT_AS_DESCRIBED">Товар не відповідає опису</option>
+                <option value="DAMAGED_ITEM">Пошкоджений товар</option>
+                <option value="WRONG_ITEM">Неправильний товар</option>
+                <option value="PAYMENT_ISSUE">Проблема з оплатою</option>
+                <option value="REFUND_REQUEST">Запит на повернення</option>
+                <option value="SELLER_ISSUE">Проблема з боку продавця</option>
+                <option value="BUYER_ISSUE">Проблема з боку покупця</option>
+                <option value="OTHER">Інше</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Priority</span>
+              <span>Пріоритет</span>
               <select
                 name="priority"
                 defaultValue={data.filters.priority ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="LOW">Low</option>
-                <option value="NORMAL">Normal</option>
-                <option value="HIGH">High</option>
-                <option value="URGENT">Urgent</option>
+                <option value="">Усі</option>
+                <option value="LOW">Низький</option>
+                <option value="NORMAL">Звичайний</option>
+                <option value="HIGH">Високий</option>
+                <option value="URGENT">Терміновий</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>From</span>
+              <span>Від</span>
               <input
                 type="date"
                 name="dateFrom"
@@ -88,7 +88,7 @@ export default async function AdminDisputesPage({
               />
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>To</span>
+              <span>До</span>
               <input
                 type="date"
                 name="dateTo"
@@ -97,7 +97,7 @@ export default async function AdminDisputesPage({
               />
             </label>
             <button type="submit" className="ui-secondary-button">
-              Apply
+              Застосувати
             </button>
           </form>
         }
@@ -105,8 +105,8 @@ export default async function AdminDisputesPage({
         <div className="space-y-5 p-5 sm:p-6">
           {data.items.length === 0 ? (
             <AdminEmptyState
-              title="No disputes found"
-              description="Disputes that match the current filters will appear here."
+              title="Суперечок не знайдено"
+              description="Тут з’являться суперечки, що відповідають поточним фільтрам."
             />
           ) : (
             <>

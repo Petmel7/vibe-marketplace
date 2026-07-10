@@ -18,7 +18,7 @@ export default async function ProfileDisputesPage({
 
   return (
     <ProfileSection
-      eyebrow="Disputes"
+      eyebrow="Суперечки"
       title="Мої суперечки"
       description="Відстежуйте спори по замовленнях, відповідайте в діалозі та додавайте нові докази."
     >

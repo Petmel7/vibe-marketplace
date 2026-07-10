@@ -14,7 +14,7 @@ export default function CommissionScopeSelector({
 }) {
   return (
     <label className="space-y-2">
-      <span className="block text-sm font-medium text-copy-strong">Scope</span>
+      <span className="block text-sm font-medium text-copy-strong">Область дії</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as CommissionRuleScope)}

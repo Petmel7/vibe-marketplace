@@ -18,7 +18,7 @@ export default function AuthPasswordField({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor={id} className="block text-sm font-medium text-copy-strong">
-          Password
+          Пароль
         </label>
         <button
           type="button"
@@ -28,7 +28,7 @@ export default function AuthPasswordField({
           onClick={() => setIsVisible((current) => !current)}
         >
           {isVisible ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
-          <span>{isVisible ? 'Hide' : 'Show'}</span>
+          <span>{isVisible ? 'Сховати' : 'Показати'}</span>
         </button>
       </div>
 
@@ -38,7 +38,7 @@ export default function AuthPasswordField({
         autoComplete={autoComplete}
         type={isVisible ? 'text' : 'password'}
         error={error}
-        hint="At least 8 characters."
+        hint="Щонайменше 8 символів."
         required
       />
     </div>

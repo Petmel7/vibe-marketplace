@@ -2,10 +2,10 @@ import SellerStatusBadge from '@/components/seller/SellerStatusBadge'
 import type { SellerFulfillmentStatus } from '@/types/seller'
 
 const FULFILLMENT_STATUS_LABELS: Record<SellerFulfillmentStatus, string> = {
-  PENDING: 'Pending',
-  PROCESSING: 'Processing',
-  SHIPPED: 'Shipped',
-  DELIVERED: 'Delivered',
+  PENDING: 'Очікує',
+  PROCESSING: 'Обробляється',
+  SHIPPED: 'Відправлено',
+  DELIVERED: 'Доставлено',
 }
 
 const FULFILLMENT_STATUS_TONES: Record<SellerFulfillmentStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {

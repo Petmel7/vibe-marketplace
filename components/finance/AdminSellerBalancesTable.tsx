@@ -7,12 +7,12 @@ export default function AdminSellerBalancesTable({ items }: { items: SellerBalan
     <table className="min-w-full text-sm">
       <thead className="bg-panel/60 text-left text-copy-muted">
         <tr>
-          <th className="px-5 py-3 font-medium">Seller / store</th>
-          <th className="px-5 py-3 font-medium">Pending</th>
-          <th className="px-5 py-3 font-medium">Available</th>
-          <th className="px-5 py-3 font-medium">Paid out</th>
-          <th className="px-5 py-3 font-medium">Updated</th>
-          <th className="px-5 py-3 font-medium">Action</th>
+          <th className="px-5 py-3 font-medium">Продавець / магазин</th>
+          <th className="px-5 py-3 font-medium">В очікуванні</th>
+          <th className="px-5 py-3 font-medium">Доступно</th>
+          <th className="px-5 py-3 font-medium">Виплачено</th>
+          <th className="px-5 py-3 font-medium">Оновлено</th>
+          <th className="px-5 py-3 font-medium">Дія</th>
         </tr>
       </thead>
       <tbody>

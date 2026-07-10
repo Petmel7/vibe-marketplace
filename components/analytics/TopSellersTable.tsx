@@ -11,12 +11,12 @@ export default function TopSellersTable({
   return (
     <AdminDataTable
       title="Топ продавці"
-      description="Найсильніші storefront-оператори за виручкою у вибраному періоді."
+      description="Найсильніші оператори магазинів за виручкою у вибраному періоді."
     >
       {items.length === 0 ? (
         <div className="p-6">
           <AdminEmptyState
-            title="Немає seller analytics"
+            title="Немає аналітики продавців"
             description="Список лідерів з’явиться, коли маркетплейс поверне продажі за вибраний період."
           />
         </div>

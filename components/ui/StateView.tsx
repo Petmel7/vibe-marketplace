@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { Button } from "@/components/ui/Button";
+import { Button } from '@/components/ui/Button'
 
 interface StateAction {
   label: string
@@ -24,7 +24,7 @@ export const COMMON_ACTIONS = {
     label: 'Перейти на головну',
     href: '/',
   },
-} as const;
+} as const
 
 export function createState(
   config: Omit<StateViewProps, 'primaryAction' | 'secondaryAction'>
@@ -32,43 +32,41 @@ export function createState(
   return {
     ...config,
     ...COMMON_ACTIONS,
-  };
+  }
 }
 
 export const CART_EMPTY_STATE = createState({
-  title: 'Ой ... Здається тут ще пусто ...',
+  title: 'Ой... Здається, тут ще пусто...',
   subtitle: 'Ваша корзина пуста',
-  description: 'Щоб здійснити покупку перейдіть до каталогу...',
+  description: 'Щоб здійснити покупку, перейдіть до каталогу...',
   imageSrc: '/uploads/cart.png',
-});
+})
 
 export const WISHLIST_ERROR_STATE = createState({
   title: 'Не вдалося завантажити обране',
-  // subtitle: 'В обраному нічого немає',
-  // description: 'Ми впевнені, що в нашому каталогу знайдете...',
   imageSrc: '/uploads/heart.png',
-});
+})
 
 export const WISHLIST_EMPTY_STATE = createState({
-  title: 'Ой ... Здається тут ще пусто ...',
+  title: 'Ой... Здається, тут ще пусто...',
   subtitle: 'В обраному нічого немає',
-  description: 'Ми впевнені, що в нашому каталогу знайдете...',
+  description: 'Ми впевнені, що в нашому каталозі знайдете щось цікаве...',
   imageSrc: '/uploads/heart.png',
-});
+})
 
 export const NOT_FOUND_STATE = createState({
-  title: 'Упс ... Здається хтось вкрав сторінку!',
+  title: 'Упс... Здається, хтось вкрав сторінку!',
   subtitle: 'Наша таємна служба вже веде розслідування',
   description: 'Найближчим часом сторінку буде знайдено',
   imageSrc: '/uploads/ufo.png',
-});
+})
 
 export const ORDER_SUCCESS_STATE = createState({
   title: 'Дякуємо! Ваше замовлення успішно оформлено',
   subtitle: 'Ми вже почали його опрацьовувати',
   description: 'Слідкуйте за оновленнями статусу у своєму профілі',
   imageSrc: '/uploads/bag.png',
-});
+})
 
 export default function StateView({
   title,
@@ -81,13 +79,10 @@ export default function StateView({
   return (
     <main className="ui-page-shell flex min-h-screen items-center justify-center py-6 md:py-10">
       <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 md:gap-8 lg:flex-row lg:items-center lg:gap-16">
-
-        {/* TITLE (top on mobile) */}
         <h1 className="text-center text-[24px] leading-8 font-bold text-copy-strong lg:hidden">
           {title}
         </h1>
 
-        {/* IMAGE */}
         <div className="flex w-full justify-center lg:flex-1">
           <Image
             src={imageSrc}
@@ -99,10 +94,7 @@ export default function StateView({
           />
         </div>
 
-        {/* CONTENT */}
         <div className="flex w-full max-w-lg flex-col items-center gap-4 text-center md:gap-5 lg:max-w-md lg:items-start lg:text-left">
-
-          {/* TITLE (desktop) */}
           <h1 className="hidden text-[24px] leading-8 font-bold text-copy-strong lg:block">
             {title}
           </h1>
@@ -119,7 +111,6 @@ export default function StateView({
             </p>
           )}
 
-          {/* BUTTONS */}
           <div className="flex w-full flex-col gap-2 md:flex-row">
             <Button href={primaryAction.href} fullWidth>
               {primaryAction.label}
@@ -134,5 +125,5 @@ export default function StateView({
         </div>
       </section>
     </main>
-  );
+  )
 }

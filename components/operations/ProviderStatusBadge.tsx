@@ -2,8 +2,8 @@ import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 
 export default function ProviderStatusBadge({
   isReady,
-  readyLabel = 'Ready',
-  missingLabel = 'Needs config',
+  readyLabel = 'Готово',
+  missingLabel = 'Потрібне налаштування',
 }: {
   isReady: boolean
   readyLabel?: string
@@ -16,4 +16,3 @@ export default function ProviderStatusBadge({
     />
   )
 }
-

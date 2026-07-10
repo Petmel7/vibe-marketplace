@@ -112,8 +112,8 @@ export default function AdminReportDetail({ report }: { report: ReportDetail }) 
                 endpointId={report.id}
                 status="UNDER_REVIEW"
                 triggerLabel="Взяти в роботу"
-                title="Позначити як “На розгляді”"
-                description="Скарга перейде в активну роботу й стане видимою як така, що вже в обробці."
+                title="Позначити як «На розгляді»"
+                description="Скарга перейде в активну роботу й буде видимою як така, що вже обробляється."
                 successMessage="Скаргу позначено як таку, що в роботі."
               />
               <AbuseReportActionDialog
@@ -200,7 +200,7 @@ export default function AdminReportDetail({ report }: { report: ReportDetail }) 
                 actionType="ARCHIVE_PRODUCT"
                 triggerLabel="Архівувати товар"
                 title="Архівувати товар"
-                description="Прибере товар з публічної вітрини, якщо дію підтримує поточний стан товару."
+                description="Прибере товар з публічної вітрини, якщо дія підтримується поточним станом товару."
                 successMessage="Дію збережено."
                 requireNote
                 noteLabel="Причина архівації"
@@ -212,7 +212,7 @@ export default function AdminReportDetail({ report }: { report: ReportDetail }) 
                 actionType="SUSPEND_SELLER"
                 triggerLabel="Призупинити продавця"
                 title="Призупинити продавця"
-                description="Використовуйте лише коли target безпечно резолвиться до seller-профілю."
+                description="Використовуйте лише коли ціль безпечно резолвиться до профілю продавця."
                 successMessage="Дію збережено."
                 requireNote
                 noteLabel="Причина призупинення"
@@ -224,7 +224,7 @@ export default function AdminReportDetail({ report }: { report: ReportDetail }) 
                 actionType="SUSPEND_STORE"
                 triggerLabel="Призупинити магазин"
                 title="Призупинити магазин"
-                description="Це приховає магазин від buyer-facing вітрин."
+                description="Це приховає магазин із buyer-facing вітрини."
                 successMessage="Дію збережено."
                 requireNote
                 noteLabel="Причина призупинення"

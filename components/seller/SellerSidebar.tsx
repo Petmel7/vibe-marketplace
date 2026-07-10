@@ -7,18 +7,18 @@ import type { SellerVerificationStatus } from '@/types/seller'
 import VerificationStatusBadge from '@/components/seller/VerificationStatusBadge'
 
 const NAV_ITEMS = [
-  { href: '/seller', label: 'Overview' },
-  { href: '/seller/products', label: 'Products' },
-  { href: '/seller/orders', label: 'Orders' },
-  { href: '/seller/shipments', label: 'Shipments' },
-  { href: '/seller/promotions', label: 'Promotions' },
-  { href: '/seller/finance', label: 'Finance' },
-  { href: '/seller/refunds', label: 'Refunds' },
-  { href: '/seller/disputes', label: 'Disputes' },
-  { href: '/seller/reviews', label: 'Reviews' },
-  { href: '/seller/inventory', label: 'Inventory' },
-  { href: '/seller/analytics', label: 'Analytics' },
-  { href: '/seller/store', label: 'Store' },
+  { href: '/seller', label: 'Огляд' },
+  { href: '/seller/products', label: 'Товари' },
+  { href: '/seller/orders', label: 'Замовлення' },
+  { href: '/seller/shipments', label: 'Відправлення' },
+  { href: '/seller/promotions', label: 'Акції' },
+  { href: '/seller/finance', label: 'Фінанси' },
+  { href: '/seller/refunds', label: 'Повернення' },
+  { href: '/seller/disputes', label: 'Суперечки' },
+  { href: '/seller/reviews', label: 'Відгуки' },
+  { href: '/seller/inventory', label: 'Склад' },
+  { href: '/seller/analytics', label: 'Аналітика' },
+  { href: '/seller/store', label: 'Магазин' },
 ] as const
 
 export default function SellerSidebar({
@@ -44,7 +44,7 @@ export default function SellerSidebar({
   return (
     <aside className="space-y-4 lg:sticky lg:top-6">
       <section className="ui-elevated-panel p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Seller workspace</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Кабінет продавця</p>
         <h2 className="mt-3 text-xl font-semibold text-copy-strong">{displayName}</h2>
         <p className="mt-1 break-all text-sm text-copy-muted">{user.email}</p>
         {verificationStatus ? (
@@ -54,7 +54,7 @@ export default function SellerSidebar({
         ) : null}
       </section>
 
-      <nav aria-label="Seller navigation" className="ui-elevated-panel p-3">
+      <nav aria-label="Навігація продавця" className="ui-elevated-panel p-3">
         <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
           {NAV_ITEMS.map((item) => {
             const isActive =
@@ -79,14 +79,14 @@ export default function SellerSidebar({
       </nav>
 
       <section className="ui-panel p-5">
-        <h3 className="text-base font-semibold text-copy-strong">Store readiness</h3>
+        <h3 className="text-base font-semibold text-copy-strong">Готовність магазину</h3>
         <p className="mt-2 text-sm text-copy-muted">
           {store
-            ? `Your storefront is connected at /${store.slug} and ${store.isActive ? 'currently active' : 'currently paused'}.`
-            : 'Your seller verification is complete, but storefront provisioning still needs to be finished before product, order, and inventory workflows can open.'}
+            ? `Вашу вітрину підключено за адресою /${store.slug}, і вона зараз ${store.isActive ? 'активна' : 'призупинена'}.`
+            : 'Вашу верифікацію продавця завершено, але підключення вітрини ще потрібно завершити, перш ніж стануть доступними товари, замовлення та складські процеси.'}
         </p>
         <Link href="/seller/store" className="ui-secondary-button mt-4 w-full">
-          Open store settings
+          Відкрити налаштування магазину
         </Link>
       </section>
     </aside>

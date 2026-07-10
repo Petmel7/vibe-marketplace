@@ -2,10 +2,10 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 const NAV_ITEMS = [
-  { href: '/admin/operations', label: 'Overview' },
-  { href: '/admin/operations/health', label: 'Health' },
-  { href: '/admin/operations/jobs', label: 'Jobs' },
-  { href: '/admin/operations/audit-logs', label: 'Audit logs' },
+  { href: '/admin/operations', label: 'Огляд' },
+  { href: '/admin/operations/health', label: 'Стан системи' },
+  { href: '/admin/operations/jobs', label: 'Задачі' },
+  { href: '/admin/operations/audit-logs', label: 'Журнал аудиту' },
 ] as const
 
 export default function OperationsShell({
@@ -17,7 +17,7 @@ export default function OperationsShell({
 }) {
   return (
     <div className="space-y-5">
-      <nav aria-label="Operations navigation" className="ui-elevated-panel p-3">
+      <nav aria-label="Навігація операцій" className="ui-elevated-panel p-3">
         <div className="flex flex-wrap gap-2">
           {NAV_ITEMS.map((item) => {
             const isActive =
@@ -44,4 +44,3 @@ export default function OperationsShell({
     </div>
   )
 }
-

@@ -9,7 +9,7 @@ export default function ProductReviewsSectionFallback({
   return (
     <section className="space-y-6" aria-busy="true" aria-live="polite">
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-copy-muted">Reviews</p>
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-copy-muted">Відгуки</p>
         <h2 className="ui-heading-page text-3xl">Відгуки та оцінки</h2>
         <p className="max-w-3xl text-sm text-copy-secondary">
           Завантажуємо відгуки покупців і детальну статистику по цьому товару.

@@ -2,11 +2,11 @@ import SellerStatusBadge from '@/components/seller/SellerStatusBadge'
 import type { SellerProductStatus } from '@/types/seller'
 
 const PRODUCT_STATUS_LABELS: Record<SellerProductStatus, string> = {
-  DRAFT: 'Draft',
-  PENDING_REVIEW: 'Pending review',
-  PUBLISHED: 'Published',
-  REJECTED: 'Rejected',
-  ARCHIVED: 'Archived',
+  DRAFT: 'Чернетка',
+  PENDING_REVIEW: 'Очікує перевірки',
+  PUBLISHED: 'Опубліковано',
+  REJECTED: 'Відхилено',
+  ARCHIVED: 'Архівовано',
 }
 
 const PRODUCT_STATUS_TONES: Record<SellerProductStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {

@@ -17,7 +17,7 @@ export default async function ProfileReportsPage({
 
   return (
     <ProfileSection
-      eyebrow="Safety"
+      eyebrow="Безпека"
       title="Мої скарги"
       description="Переглядайте статус своїх звернень до команди безпеки маркетплейсу."
     >

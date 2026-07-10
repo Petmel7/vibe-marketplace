@@ -17,10 +17,10 @@ export default async function ProfileLayout({ children }: { children: ReactNode 
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         <ProtectedRouteState
-          title="Buyer access required"
-          description="This dashboard is reserved for buyer account workflows like orders, addresses, and wishlists."
+          title="Потрібен доступ покупця"
+          description="Цей кабінет призначений для сценаріїв покупця: замовлень, адрес та обраного."
           actionHref="/"
-          actionLabel="Go home"
+          actionLabel="На головну"
         />
       </main>
     )

@@ -23,15 +23,15 @@ export default async function SellerReviewsPage() {
 
   return (
     <SellerSection
-      eyebrow="Reviews"
-      title="Customer reviews"
-      description="Track published buyer feedback on your products and reply from the seller workspace."
+      eyebrow="Відгуки"
+      title="Відгуки покупців"
+      description="Переглядайте опубліковані відгуки про ваші товари та відповідайте на них із кабінету продавця."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
       <SellerTable
-        title="Published product reviews"
-        description="Only marketplace-published reviews are visible here. Seller replies appear publicly on the product page."
+        title="Опубліковані відгуки про товари"
+        description="Тут відображаються лише опубліковані маркетплейсом відгуки. Відповіді продавця публічно видно на сторінці товару."
       >
         <div className="p-5 sm:p-6">
           <ReviewList
@@ -39,10 +39,10 @@ export default async function SellerReviewsPage() {
             showProductMeta
             emptyState={
               <EmptyState
-                title="No published reviews yet"
-                description="Once buyers leave approved reviews on your products, they will appear here for follow-up."
+                title="Опублікованих відгуків ще немає"
+                description="Коли покупці залишать схвалені відгуки про ваші товари, вони з’являться тут для подальшої роботи."
                 actionHref="/seller/products"
-                actionLabel="Open products"
+                actionLabel="Відкрити товари"
               />
             }
             renderAction={(review) => (

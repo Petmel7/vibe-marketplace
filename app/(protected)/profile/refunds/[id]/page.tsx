@@ -38,9 +38,9 @@ export default async function ProfileRefundDetailPage({
 
   return (
     <ProfileSection
-      eyebrow="Refund details"
+      eyebrow="Деталі повернення"
       title={`Повернення #${refund.id.slice(0, 8)}`}
-      description="Переглядайте статус, суму повернення та кроки, які backend вже зафіксував по вашому запиту."
+      description="Переглядайте статус, суму повернення та кроки, які backend уже зафіксував по вашому запиту."
     >
       <div className="flex flex-wrap items-center gap-3">
         <Link href={`/profile/orders/${refund.orderId}`} className="ui-link-muted">
@@ -56,10 +56,10 @@ export default async function ProfileRefundDetailPage({
           <RefundDetailCard refund={refund} />
           <DashboardCard
             title="Що далі"
-            description="Рішення, результат обробки та доступний залишок на повернення завжди визначаються тільки backend."
+            description="Рішення, результат обробки та доступний залишок на повернення завжди визначаються тільки backend-ом."
           >
-            <div className="space-y-3 p-5 sm:p-6 text-sm leading-6 text-copy-secondary">
-              <p>Стежте за timeline нижче, щоб побачити переведення в review, processing або фінальний результат.</p>
+            <div className="space-y-3 p-5 text-sm leading-6 text-copy-secondary sm:p-6">
+              <p>Стежте за таймлайном нижче, щоб побачити перехід у review, processing або фінальний результат.</p>
               <p>Якщо маркетплейс запросить додаткові деталі, вони з’являться в оновленому статусі вашого повернення.</p>
             </div>
           </DashboardCard>

@@ -63,8 +63,8 @@ export default function AdminCategoryTree() {
       body: {
         items: next.map((node, index) => ({ id: node.id, position: index })),
       },
-      successMessage: 'Category order updated.',
-      fallbackErrorMessage: 'We could not reorder categories right now.',
+      successMessage: 'Порядок категорій оновлено.',
+      fallbackErrorMessage: 'Зараз не вдалося змінити порядок категорій.',
       onSuccess: async () => {
         await reloadCategories()
       },
@@ -75,8 +75,8 @@ export default function AdminCategoryTree() {
     const action = node.isActive ? 'archive' : 'reactivate'
     const confirmed = window.confirm(
       node.isActive
-        ? `Archive "${node.name}" and hide it from seller/public category trees?`
-        : `Reactivate "${node.name}" and show it again in active category trees?`,
+        ? `Архівувати "${node.name}" і приховати її з дерева категорій продавця та публічного каталогу?`
+        : `Повторно активувати "${node.name}" і знову показувати її в активних деревах категорій?`,
     )
 
     if (!confirmed) {
@@ -89,8 +89,8 @@ export default function AdminCategoryTree() {
       body: {
         isActive: !node.isActive,
       },
-      successMessage: action === 'archive' ? 'Category archived.' : 'Category reactivated.',
-      fallbackErrorMessage: 'We could not update category visibility right now.',
+      successMessage: action === 'archive' ? 'Категорію архівовано.' : 'Категорію повторно активовано.',
+      fallbackErrorMessage: 'Зараз не вдалося оновити видимість категорії.',
       onSuccess: async () => {
         await reloadCategories()
       },
@@ -100,11 +100,11 @@ export default function AdminCategoryTree() {
   async function handleDelete(node: AdminCategoryTreeNode) {
     const subtreeProductCount = getSubtreeProductCount(node)
     if (subtreeProductCount > 0) {
-      setErrorMessage('Categories with linked products should be deactivated instead of deleted.')
+      setErrorMessage('Категорії з прив’язаними товарами потрібно деактивувати, а не видаляти.')
       return
     }
 
-    const confirmed = window.confirm(`Delete "${node.name}" permanently? This cannot be undone.`)
+    const confirmed = window.confirm(`Видалити "${node.name}" назавжди? Цю дію не можна скасувати.`)
     if (!confirmed) {
       return
     }
@@ -112,8 +112,8 @@ export default function AdminCategoryTree() {
     await execute<{ deleted: true }>({
       url: `${API_ROUTES.adminCategories}/${node.id}`,
       method: 'DELETE',
-      successMessage: 'Category deleted.',
-      fallbackErrorMessage: 'We could not delete this category right now.',
+      successMessage: 'Категорію видалено.',
+      fallbackErrorMessage: 'Зараз не вдалося видалити цю категорію.',
       onSuccess: async () => {
         await reloadCategories()
       },
@@ -134,8 +134,8 @@ export default function AdminCategoryTree() {
           ...payload,
           parentId: payload.parentId ?? dialogState.parentId ?? null,
         },
-        successMessage: 'Category created.',
-        fallbackErrorMessage: 'We could not create this category right now.',
+        successMessage: 'Категорію створено.',
+        fallbackErrorMessage: 'Зараз не вдалося створити цю категорію.',
         onSuccess: async () => {
           await reloadCategories()
           setDialogState({ mode: 'closed' })
@@ -154,8 +154,8 @@ export default function AdminCategoryTree() {
         url: `${API_ROUTES.adminCategories}/${dialogState.categoryId}`,
         method: 'PATCH',
         body: payload,
-        successMessage: 'Category updated.',
-        fallbackErrorMessage: 'We could not update this category right now.',
+        successMessage: 'Категорію оновлено.',
+        fallbackErrorMessage: 'Зараз не вдалося оновити цю категорію.',
         onSuccess: async () => {
           await reloadCategories()
           setDialogState({ mode: 'closed' })
@@ -188,9 +188,10 @@ export default function AdminCategoryTree() {
       <section className="ui-elevated-panel p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-copy-strong">Marketplace taxonomy</h2>
+            <h2 className="text-lg font-semibold text-copy-strong">Таксономія маркетплейсу</h2>
             <p className="max-w-3xl text-sm text-copy-secondary">
-              Manage the nested category tree sellers use when classifying products. Root ordering and child ordering stay deterministic through explicit position controls.
+              Керуйте вкладеним деревом категорій, яке продавці використовують для класифікації товарів. Порядок
+              кореневих і дочірніх категорій лишається передбачуваним завдяки явним елементам керування позиціями.
             </p>
           </div>
           <button
@@ -201,12 +202,12 @@ export default function AdminCategoryTree() {
               setDialogState({ mode: 'create', parentId: null })
             }}
           >
-            Create root category
+            Створити кореневу категорію
           </button>
         </div>
 
         <div className="mt-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 text-sm text-copy-secondary">
-          Total category nodes: <span className="font-medium text-copy-strong">{totalCategories}</span>
+          Усього вузлів категорій: <span className="font-medium text-copy-strong">{totalCategories}</span>
         </div>
 
         {errorMessage ? (
@@ -225,8 +226,8 @@ export default function AdminCategoryTree() {
       <section className="ui-elevated-panel p-5 sm:p-6">
         {categories.length === 0 ? (
           <AdminEmptyState
-            title="Category tree is empty"
-            description="Create the first root category to start building the marketplace taxonomy."
+            title="Дерево категорій порожнє"
+            description="Створіть першу кореневу категорію, щоб почати будувати таксономію маркетплейсу."
           />
         ) : (
           <div className="space-y-4">
@@ -265,7 +266,7 @@ export default function AdminCategoryTree() {
         }
         open={dialogState.mode !== 'closed'}
         mode={dialogState.mode === 'edit' ? 'edit' : 'create'}
-        title={dialogState.mode === 'edit' ? 'Edit category' : 'Create category'}
+        title={dialogState.mode === 'edit' ? 'Редагувати категорію' : 'Створити категорію'}
         categories={categories}
         category={activeDialogCategory}
         parentId={dialogState.mode === 'create' ? dialogState.parentId : undefined}
@@ -316,7 +317,7 @@ function AdminCategoryBranch({
                 node.isActive ? 'bg-brand-success/15 text-copy-strong' : 'bg-panelAlt text-copy-secondary'
               }`}
             >
-              {node.isActive ? 'Active' : 'Inactive'}
+              {node.isActive ? 'Активна' : 'Неактивна'}
             </span>
             <span className="rounded-full bg-panelAlt px-3 py-1 text-xs font-medium text-copy-secondary">
               {node.slug}
@@ -324,9 +325,9 @@ function AdminCategoryBranch({
           </div>
           <p className="text-sm text-copy-secondary">{breadcrumb}</p>
           <div className="flex flex-wrap gap-3 text-xs text-copy-muted">
-            <span>Children: {node.children.length}</span>
-            <span>Direct products: {node.productCount}</span>
-            <span>Subtree products: {subtreeProductCount}</span>
+            <span>Дочірніх: {node.children.length}</span>
+            <span>Прямих товарів: {node.productCount}</span>
+            <span>Товарів у піддереві: {subtreeProductCount}</span>
           </div>
         </div>
 
@@ -340,10 +341,10 @@ function AdminCategoryBranch({
             onMoveDown={() => void onReorder(siblings, node.id, 'down')}
           />
           <button type="button" className="ui-secondary-button" onClick={() => onCreateChild(node.id)} disabled={isPending}>
-            Add child
+            Додати дочірню
           </button>
           <button type="button" className="ui-secondary-button" onClick={() => onEdit(node.id)} disabled={isPending}>
-            Edit
+            Редагувати
           </button>
           <button
             type="button"
@@ -351,16 +352,16 @@ function AdminCategoryBranch({
             onClick={() => void onToggleActive(node)}
             disabled={isPending}
           >
-            {node.isActive ? 'Archive' : 'Reactivate'}
+            {node.isActive ? 'Архівувати' : 'Активувати знову'}
           </button>
           <button
             type="button"
             className="rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => void onDelete(node)}
             disabled={isPending || subtreeProductCount > 0}
-            title={subtreeProductCount > 0 ? 'Deactivate categories with products instead of deleting them.' : undefined}
+            title={subtreeProductCount > 0 ? 'Деактивуйте категорії з товарами замість їх видалення.' : undefined}
           >
-            Delete
+            Видалити
           </button>
         </div>
       </div>

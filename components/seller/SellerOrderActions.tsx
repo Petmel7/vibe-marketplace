@@ -33,11 +33,11 @@ export default function SellerOrderActions({
             onClick={() =>
               execute({
                 url: `/api/seller/orders/${itemId}/process`,
-                successMessage: 'Order item moved to processing.',
+                successMessage: 'Позицію замовлення переведено в обробку.',
               })
             }
           >
-            Process
+            В обробку
           </button>
         ) : null}
 
@@ -49,11 +49,11 @@ export default function SellerOrderActions({
             onClick={() =>
               execute({
                 url: `/api/seller/orders/${itemId}/ship`,
-                successMessage: 'Order item marked as shipped.',
+                successMessage: 'Позицію замовлення позначено як відправлену.',
               })
             }
           >
-            Ship
+            Відправити
           </button>
         ) : null}
 
@@ -65,11 +65,11 @@ export default function SellerOrderActions({
             onClick={() =>
               execute({
                 url: `/api/seller/orders/${itemId}/deliver`,
-                successMessage: 'Order item marked as delivered.',
+                successMessage: 'Позицію замовлення позначено як доставлену.',
               })
             }
           >
-            Deliver
+            Доставити
           </button>
         ) : null}
       </div>

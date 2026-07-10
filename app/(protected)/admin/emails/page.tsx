@@ -10,6 +10,7 @@ import {
   ADMIN_EMAIL_EVENT_STATUSES,
   ADMIN_EMAIL_EVENT_TYPES,
   ADMIN_EMAIL_TEMPLATE_KEYS,
+  formatEmailEventLabel,
 } from '@/types/admin-emails'
 
 export default async function AdminEmailsPage({
@@ -27,43 +28,43 @@ export default async function AdminEmailsPage({
 
   return (
     <AdminSection
-      eyebrow="Email operations"
-      title="Transactional email diagnostics"
-      description="Review marketplace email events, inspect provider delivery outcomes, and retry failed transactional sends without leaving the admin workspace."
+      eyebrow="Email-операції"
+      title="Діагностика транзакційних листів"
+      description="Переглядайте email-події маркетплейсу, перевіряйте результати доставки від провайдера та повторно запускайте невдалі транзакційні відправлення, не залишаючи адмін-простір."
     >
       <AdminFilterBar action="/admin/emails">
         <StatusFilter
           name="status"
-          label="Event status"
+          label="Статус події"
           defaultValue={data.filters.status}
           options={ADMIN_EMAIL_EVENT_STATUSES.map((status) => ({
-            label: status.replaceAll('_', ' '),
+            label: formatEmailEventLabel(status),
             value: status,
           }))}
         />
         <StatusFilter
           name="eventType"
-          label="Event type"
+          label="Тип події"
           defaultValue={data.filters.eventType}
           options={ADMIN_EMAIL_EVENT_TYPES.map((eventType) => ({
-            label: eventType.replaceAll('_', ' '),
+            label: formatEmailEventLabel(eventType),
             value: eventType,
           }))}
         />
         <StatusFilter
           name="template"
-          label="Template"
+          label="Шаблон"
           defaultValue={data.filters.template}
           options={ADMIN_EMAIL_TEMPLATE_KEYS.map((template) => ({
-            label: template.replaceAll('_', ' '),
+            label: formatEmailEventLabel(template),
             value: template,
           }))}
         />
         <div className="flex flex-wrap gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
           {process.env.NODE_ENV === 'development' ? (
             <Link href="/admin/emails/preview" className="ui-secondary-button">
-              Open template preview
+              Відкрити попередній перегляд шаблонів
             </Link>
           ) : null}
         </div>

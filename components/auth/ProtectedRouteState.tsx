@@ -15,7 +15,7 @@ export default function ProtectedRouteState({
     <div className="ui-elevated-panel mx-auto max-w-3xl p-8">
       <div className="space-y-4">
         <span className="inline-flex rounded-full border border-panelBorder bg-panel px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-copy-muted">
-          Access state
+          Стан доступу
         </span>
         <h1 className="ui-heading-page">{title}</h1>
         <p className="ui-body-secondary max-w-2xl">{description}</p>

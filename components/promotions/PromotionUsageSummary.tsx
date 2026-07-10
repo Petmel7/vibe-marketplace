@@ -12,16 +12,16 @@ export default function PromotionUsageSummary({
 
   return (
     <div className="space-y-1 text-sm">
-      <p className="font-medium text-copy-strong">{promotion.totalUsageCount} total uses</p>
+      <p className="font-medium text-copy-strong">{promotion.totalUsageCount} використання загалом</p>
       <p className="text-copy-secondary">
         {promotion.usageLimit == null
-          ? 'No global usage limit'
-          : `${remainingUses ?? 0} remaining of ${promotion.usageLimit}`}
+          ? 'Без загального ліміту використань'
+          : `Залишилося ${remainingUses ?? 0} із ${promotion.usageLimit}`}
       </p>
       <p className="text-copy-muted">
         {promotion.usageLimitPerUser == null
-          ? 'No per-user limit'
-          : `${promotion.usageLimitPerUser} use${promotion.usageLimitPerUser === 1 ? '' : 's'} per user`}
+          ? 'Без ліміту на користувача'
+          : `${promotion.usageLimitPerUser} використання на користувача`}
       </p>
     </div>
   )

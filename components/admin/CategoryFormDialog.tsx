@@ -77,8 +77,8 @@ export default function CategoryFormDialog({
             <h2 className="text-xl font-semibold text-copy-strong">{title}</h2>
             <p className="mt-1 text-sm text-copy-secondary">
               {mode === 'create'
-                ? 'Create a new category node inside the marketplace taxonomy.'
-                : 'Update category naming, slug, placement, and visibility.'}
+                ? 'Створіть новий вузол категорії в таксономії маркетплейсу.'
+                : 'Оновіть назву категорії, slug, розташування та видимість.'}
             </p>
           </div>
           <button
@@ -86,7 +86,7 @@ export default function CategoryFormDialog({
             className="rounded-full border border-panelBorder px-3 py-2 text-sm text-copy-secondary transition-colors hover:bg-panelAlt hover:text-copy-strong"
             onClick={onClose}
           >
-            Close
+            Закрити
           </button>
         </div>
 
@@ -104,7 +104,7 @@ export default function CategoryFormDialog({
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Name</span>
+              <span className="block text-sm font-medium text-copy-strong">Назва</span>
               <input
                 className="ui-surface-input"
                 value={formState.name}
@@ -118,19 +118,19 @@ export default function CategoryFormDialog({
                 className="ui-surface-input"
                 value={formState.slug}
                 onChange={(event) => setFormState((current) => ({ ...current, slug: event.target.value }))}
-                placeholder="auto-from-name"
+                placeholder="авто-з-назви"
               />
             </label>
           </div>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Parent category</span>
+            <span className="block text-sm font-medium text-copy-strong">Батьківська категорія</span>
             <select
               className="ui-surface-input"
               value={formState.parentId}
               onChange={(event) => setFormState((current) => ({ ...current, parentId: event.target.value }))}
             >
-              <option value="">Root category</option>
+              <option value="">Коренева категорія</option>
               {parentOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -147,9 +147,9 @@ export default function CategoryFormDialog({
               onChange={(event) => setFormState((current) => ({ ...current, isActive: event.target.checked }))}
             />
             <span className="space-y-1 text-sm">
-              <span className="block font-medium text-copy-strong">Active in taxonomy</span>
+              <span className="block font-medium text-copy-strong">Активна в таксономії</span>
               <span className="block text-copy-secondary">
-                Inactive categories are hidden from seller and public category trees.
+                Неактивні категорії приховуються з дерева категорій продавця та публічного каталогу.
               </span>
             </span>
           </label>
@@ -162,10 +162,10 @@ export default function CategoryFormDialog({
 
           <div className="flex flex-wrap justify-end gap-3">
             <button type="button" className="ui-secondary-button" onClick={onClose} disabled={isPending}>
-              Cancel
+              Скасувати
             </button>
             <button type="submit" className="ui-primary-button" disabled={isPending}>
-              {isPending ? 'Saving…' : mode === 'create' ? 'Create category' : 'Save changes'}
+              {isPending ? 'Зберігаємо…' : mode === 'create' ? 'Створити категорію' : 'Зберегти зміни'}
             </button>
           </div>
         </form>

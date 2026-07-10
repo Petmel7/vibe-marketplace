@@ -34,7 +34,7 @@ export default function AdminReviewModerationForm({ review }: { review: ProductR
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : 'Не вдалося оновити moderation status відгуку.',
+            : 'Не вдалося оновити статус модерації відгуку.',
         )
       }
     })
@@ -72,7 +72,7 @@ export default function AdminReviewModerationForm({ review }: { review: ProductR
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           className="min-h-24 w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-3 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-          placeholder="Додайте причину для reject або hide"
+          placeholder="Додайте причину для відхилення або приховування"
           maxLength={2000}
         />
       </label>

@@ -62,22 +62,22 @@ export type CommissionRulePreview = {
 export function getCommissionRuleScopeLabel(scope: CommissionRuleScope) {
   switch (scope) {
     case 'GLOBAL':
-      return 'Global'
+      return 'Глобальна'
     case 'STORE':
-      return 'Store'
+      return 'Для магазину'
     case 'CATEGORY':
-      return 'Category'
+      return 'Для категорії'
   }
 }
 
 export function getCommissionRuleSpecificityLabel(rule: Pick<CommissionRuleSummary, 'scope' | 'storeName' | 'categoryName'>) {
   switch (rule.scope) {
     case 'GLOBAL':
-      return 'Marketplace-wide default'
+      return 'Стандартне правило для всього маркетплейсу'
     case 'STORE':
-      return rule.storeName ? `Store: ${rule.storeName}` : 'Store-specific'
+      return rule.storeName ? `Магазин: ${rule.storeName}` : 'Правило для магазину'
     case 'CATEGORY':
-      return rule.categoryName ? `Category: ${rule.categoryName}` : 'Category-specific'
+      return rule.categoryName ? `Категорія: ${rule.categoryName}` : 'Правило для категорії'
   }
 }
 
@@ -107,23 +107,23 @@ export function getCommissionRuleDisplayStatus(
 export function getCommissionRuleDisplayStatusLabel(status: CommissionRuleDisplayStatus) {
   switch (status) {
     case 'ACTIVE':
-      return 'Active'
+      return 'Активне'
     case 'SCHEDULED':
-      return 'Scheduled'
+      return 'Заплановане'
     case 'EXPIRED':
-      return 'Expired'
+      return 'Завершене'
     case 'DISABLED':
-      return 'Disabled'
+      return 'Вимкнене'
   }
 }
 
 export function getCommissionRuleScopeHint(scope: CommissionRuleScope) {
   switch (scope) {
     case 'GLOBAL':
-      return 'Applies when no more specific active rule wins.'
+      return 'Застосовується, коли не перемагає жодне активне правило з вищою специфічністю.'
     case 'STORE':
-      return 'Overrides category and global rules for one store.'
+      return 'Перевизначає правила категорії та глобальні правила для одного магазину.'
     case 'CATEGORY':
-      return 'Overrides the global rule for one category.'
+      return 'Перевизначає глобальне правило для однієї категорії.'
   }
 }

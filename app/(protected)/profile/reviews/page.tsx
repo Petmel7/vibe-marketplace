@@ -15,41 +15,41 @@ export default async function ProfileReviewsPage() {
 
   return (
     <ProfileSection
-      eyebrow="Reviews"
-      title="Reviews & ratings"
-      description="Leave marketplace reviews from product pages after purchase. The server validates purchase eligibility and moderation status."
+      eyebrow="Відгуки"
+      title="Відгуки та оцінки"
+      description="Залишайте відгуки зі сторінок товарів після покупки. Сервер перевіряє право на відгук і статус модерації."
     >
       <DashboardCard
-        title="How reviews work"
-        description="Verified purchase checks and publication status are enforced by the marketplace backend."
-        action={<Link href="/profile/orders" className="ui-link-muted">Open orders</Link>}
+        title="Як працюють відгуки"
+        description="Перевірка підтвердженої покупки та статусу публікації контролюється backend-ом маркетплейсу."
+        action={<Link href="/profile/orders" className="ui-link-muted">Відкрити замовлення</Link>}
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl bg-panel p-4 text-sm text-copy-secondary">
-            <p className="font-semibold text-copy-strong">1. Buy the product</p>
-            <p className="mt-2">Only confirmed marketplace purchases can submit a review.</p>
+            <p className="font-semibold text-copy-strong">1. Купіть товар</p>
+            <p className="mt-2">Лише підтверджені покупки на маркетплейсі можуть залишати відгук.</p>
           </div>
           <div className="rounded-2xl bg-panel p-4 text-sm text-copy-secondary">
-            <p className="font-semibold text-copy-strong">2. Review from the product page</p>
-            <p className="mt-2">Ratings, title, comment, pros, and cons are submitted from the product details screen.</p>
+            <p className="font-semibold text-copy-strong">2. Залиште відгук зі сторінки товару</p>
+            <p className="mt-2">Оцінка, заголовок, коментар, переваги та недоліки надсилаються зі сторінки товару.</p>
           </div>
           <div className="rounded-2xl bg-panel p-4 text-sm text-copy-secondary">
-            <p className="font-semibold text-copy-strong">3. Wait for moderation</p>
-            <p className="mt-2">Published reviews appear publicly with the verified purchase label and seller replies.</p>
+            <p className="font-semibold text-copy-strong">3. Дочекайтеся модерації</p>
+            <p className="mt-2">Опубліковані відгуки з’являються публічно з позначкою підтвердженої покупки та відповідями продавця.</p>
           </div>
         </div>
       </DashboardCard>
 
       <DashboardCard
-        title="Products to revisit"
-        description="Quick links back to items you saved or viewed recently, so you can leave feedback directly from the product page."
+        title="Товари, до яких варто повернутися"
+        description="Швидкі посилання на збережені або нещодавно переглянуті позиції, щоб ви могли залишити відгук прямо зі сторінки товару."
       >
         {reviewProducts.length === 0 ? (
           <EmptyState
-            title="No recent products yet"
-            description="Browse the catalog or add products to wishlist, and they will appear here for quick review access."
+            title="Нещодавніх товарів поки що немає"
+            description="Переглядайте каталог або додавайте товари в обране, і вони з’являться тут для швидкого доступу до відгуків."
             actionHref="/catalog"
-            actionLabel="Open catalog"
+            actionLabel="Відкрити каталог"
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -21,58 +21,58 @@ export default async function AdminOperationsAuditLogsPage({
 
   return (
     <AdminSection
-      eyebrow="Operations"
-      title="Audit logs"
-      description="Review admin-sensitive actions with server-redacted metadata summaries for safer incident response."
+      eyebrow="Операції"
+      title="Журнал аудиту"
+      description="Переглядайте чутливі дії адміністраторів із серверно-редагованими зведеннями metadata для безпечнішого реагування на інциденти."
     >
       <OperationsShell currentPath="/admin/operations/audit-logs">
         <AdminFilterBar action="/admin/operations/audit-logs">
           <SearchInput
             name="actorId"
-            label="Actor id"
+            label="ID виконавця"
             defaultValue={data.filters.actorId}
-            placeholder="Filter by admin UUID"
+            placeholder="Фільтр за UUID адміністратора"
           />
           <SearchInput
             name="domain"
-            label="Domain"
+            label="Домен"
             defaultValue={data.filters.domain}
-            placeholder="e.g. payouts, promotions, refunds"
+            placeholder="напр. payouts, promotions, refunds"
           />
           <SearchInput
             name="action"
-            label="Action"
+            label="Дія"
             defaultValue={data.filters.action}
-            placeholder="e.g. retry, approve, update"
+            placeholder="напр. retry, approve, update"
           />
           <SearchInput
             name="resourceType"
-            label="Resource type"
+            label="Тип ресурсу"
             defaultValue={data.filters.resourceType}
-            placeholder="e.g. job, payout, promotion"
+            placeholder="напр. job, payout, promotion"
           />
           <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">From date</span>
+            <span className="block text-sm font-medium text-copy-strong">Від дати</span>
             <input type="date" name="dateFrom" defaultValue={data.filters.dateFrom} className="ui-surface-input" />
           </label>
           <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">To date</span>
+            <span className="block text-sm font-medium text-copy-strong">До дати</span>
             <input type="date" name="dateTo" defaultValue={data.filters.dateTo} className="ui-surface-input" />
           </label>
           <div className="flex gap-2 xl:self-end">
-            <button type="submit" className="ui-primary-button">Apply filters</button>
+            <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
           </div>
         </AdminFilterBar>
 
         <AdminDataTable
-          title="Audit trail"
-          description="Metadata is already redacted by the backend before it reaches the operations dashboard."
+          title="Слід аудиту"
+          description="Metadata вже проходить редагування на бекенді до того, як потрапляє в operations dashboard."
         >
           {data.status === 'error' ? (
             <div className="p-6">
               <AdminEmptyState
-                title="Audit logs unavailable"
-                description={data.errorMessage ?? 'Не вдалося завантажити audit logs.'}
+                title="Журнал аудиту недоступний"
+                description={data.errorMessage ?? 'Не вдалося завантажити журнал аудиту.'}
               />
             </div>
           ) : data.auditLogs && data.auditLogs.items.length > 0 ? (
@@ -80,8 +80,8 @@ export default async function AdminOperationsAuditLogsPage({
           ) : (
             <div className="p-6">
               <AdminEmptyState
-                title="No audit logs found"
-                description="Sensitive admin actions will appear here once the current filters match recorded entries."
+                title="Записів аудиту не знайдено"
+                description="Чутливі адміністративні дії з’являться тут, щойно поточні фільтри збігатимуться із зафіксованими записами."
               />
             </div>
           )}

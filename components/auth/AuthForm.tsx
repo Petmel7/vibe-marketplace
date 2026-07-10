@@ -48,7 +48,7 @@ export default function AuthForm({
 
       <div className="space-y-2">
         <label htmlFor="email" className="block text-sm font-medium text-copy-strong">
-          Email
+          Електронна пошта
         </label>
         <input
           ref={emailRef}
@@ -56,7 +56,7 @@ export default function AuthForm({
           name="email"
           type="email"
           autoComplete={emailAutoComplete}
-          placeholder="you@example.com"
+          placeholder="name@example.com"
           aria-invalid={state.fieldErrors?.email ? 'true' : 'false'}
           aria-describedby={state.fieldErrors?.email ? 'email-error' : undefined}
           className="ui-surface-input"

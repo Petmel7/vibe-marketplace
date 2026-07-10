@@ -15,12 +15,12 @@ export default function CommissionRuleTable({
     <table className="min-w-full text-sm">
       <thead className="bg-panel/60 text-left text-copy-muted">
         <tr>
-          <th className="px-5 py-3 font-medium">Rule</th>
-          <th className="px-5 py-3 font-medium">Status</th>
-          <th className="px-5 py-3 font-medium">Scope</th>
-          <th className="px-5 py-3 font-medium">Rate</th>
-          <th className="px-5 py-3 font-medium">Window</th>
-          <th className="px-5 py-3 font-medium">Open</th>
+          <th className="px-5 py-3 font-medium">Правило</th>
+          <th className="px-5 py-3 font-medium">Статус</th>
+          <th className="px-5 py-3 font-medium">Область дії</th>
+          <th className="px-5 py-3 font-medium">Ставка</th>
+          <th className="px-5 py-3 font-medium">Період дії</th>
+          <th className="px-5 py-3 font-medium">Відкрити</th>
         </tr>
       </thead>
       <tbody>
@@ -29,7 +29,7 @@ export default function CommissionRuleTable({
             <td className="px-5 py-4">
               <p className="font-semibold text-copy-strong">{rule.name}</p>
               <p className="mt-1 text-copy-secondary">{getCommissionRuleSpecificityLabel(rule)}</p>
-              <p className="mt-1 text-copy-muted">Priority {rule.priority}</p>
+              <p className="mt-1 text-copy-muted">Пріоритет {rule.priority}</p>
             </td>
             <td className="px-5 py-4">
               <CommissionRuleStatusBadge rule={rule} />
@@ -41,17 +41,17 @@ export default function CommissionRuleTable({
             </td>
             <td className="px-5 py-4 text-copy-secondary">
               <p className="font-medium text-copy-strong">{rule.rate}</p>
-              <p className="mt-1 text-copy-muted">{Number(rule.rate) * 100}% commission</p>
+              <p className="mt-1 text-copy-muted">{Number(rule.rate) * 100}% комісії</p>
             </td>
             <td className="px-5 py-4 text-copy-secondary">
               <p>{new Date(rule.startsAt).toLocaleString('uk-UA')}</p>
               <p className="mt-1 text-copy-muted">
-                {rule.endsAt ? new Date(rule.endsAt).toLocaleString('uk-UA') : 'No expiry'}
+                {rule.endsAt ? new Date(rule.endsAt).toLocaleString('uk-UA') : 'Без завершення'}
               </p>
             </td>
             <td className="px-5 py-4">
               <Link href={`/admin/commission-rules/${rule.id}`} className="ui-link-muted">
-                View details
+                Переглянути деталі
               </Link>
             </td>
           </tr>

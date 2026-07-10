@@ -162,12 +162,12 @@ export default async function ProductPage({ params }: Props) {
         inStock: product.inStock,
       })
 
-        return {
-          breadcrumbItems: resolvedBreadcrumbItems,
-          breadcrumbJsonLd: resolvedBreadcrumbJsonLd,
-          productJsonLd: resolvedProductJsonLd,
-        }
-      },
+      return {
+        breadcrumbItems: resolvedBreadcrumbItems,
+        breadcrumbJsonLd: resolvedBreadcrumbJsonLd,
+        productJsonLd: resolvedProductJsonLd,
+      }
+    },
   )
   logInfo('product-page:after-structured-data', {
     route: '/products/[id]',

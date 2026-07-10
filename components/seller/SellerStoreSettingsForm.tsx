@@ -114,21 +114,21 @@ export default function SellerStoreSettingsForm({
     if (store) {
       return {
         tone: 'text-copy-muted',
-        message: 'Your storefront URL is locked after provisioning to keep links stable.',
+        message: 'URL вашої вітрини фіксується після створення, щоб посилання залишалися стабільними.',
       }
     }
 
     if (!slugValue) {
       return {
         tone: 'text-copy-muted',
-        message: 'Choose a public storefront URL for your marketplace presence.',
+        message: 'Оберіть публічну адресу вітрини для вашої присутності на маркетплейсі.',
       }
     }
 
     if (!parsedSlug.success) {
       return {
         tone: 'text-brand-danger',
-        message: parsedSlug.error.issues[0]?.message ?? 'Enter a valid slug.',
+        message: parsedSlug.error.issues[0]?.message ?? 'Введіть коректний slug.',
       }
     }
 
@@ -142,7 +142,7 @@ export default function SellerStoreSettingsForm({
     if (slugAvailability.status === 'unavailable') {
       return {
         tone: 'text-brand-danger',
-        message: `${slugAvailability.message}${slugAvailability.suggestion ? ` Try ${slugAvailability.suggestion}.` : ''}`,
+        message: `${slugAvailability.message}${slugAvailability.suggestion ? ` Спробуйте ${slugAvailability.suggestion}.` : ''}`,
       }
     }
 
@@ -202,7 +202,7 @@ export default function SellerStoreSettingsForm({
       active: true,
       current: 0,
       total: assets.length,
-      label: 'Uploading store assets...',
+      label: 'Завантажуємо файли магазину...',
     })
 
     const resolvedStore = {
@@ -215,7 +215,7 @@ export default function SellerStoreSettingsForm({
       const result = await uploadAsset(asset.kind, asset.file)
 
       if (!result) {
-        setErrorMessage('Store asset upload failed. Please try again.')
+        setErrorMessage('Не вдалося завантажити файли магазину. Спробуйте ще раз.')
         setAssetProgress({
           active: false,
           current: 0,
@@ -239,7 +239,7 @@ export default function SellerStoreSettingsForm({
         active: true,
         current: index + 1,
         total: assets.length,
-        label: 'Uploading store assets...',
+        label: 'Завантажуємо файли магазину...',
       })
     }
 
@@ -247,7 +247,7 @@ export default function SellerStoreSettingsForm({
       active: false,
       current: assets.length,
       total: assets.length,
-      label: 'Store assets uploaded.',
+      label: 'Файли магазину завантажено.',
     })
 
     return {
@@ -286,11 +286,11 @@ export default function SellerStoreSettingsForm({
     return (
       <section className="ui-elevated-panel p-5 sm:p-6">
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-copy-strong">Complete seller onboarding</h2>
+          <h2 className="text-lg font-semibold text-copy-strong">Завершіть підключення продавця</h2>
           <p className="text-sm text-copy-muted">
             {setupHint === 'profile'
-              ? 'Before the seller workspace can open fully, we need the core business profile details below.'
-              : 'Your seller role is present, but the seller profile record has not been initialized yet.'}
+              ? 'Перш ніж робочий простір продавця повністю відкриється, нам потрібні базові дані бізнес-профілю нижче.'
+              : 'Роль продавця вже є, але запис профілю продавця ще не ініціалізовано.'}
           </p>
         </div>
 
@@ -306,7 +306,7 @@ export default function SellerStoreSettingsForm({
             })
 
             if (!parsed.success) {
-              setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the onboarding fields.')
+              setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля підключення.')
               return
             }
 
@@ -314,12 +314,12 @@ export default function SellerStoreSettingsForm({
               url: '/api/profile/seller/onboard',
               method: 'POST',
               body: parsed.data,
-              successMessage: 'Seller profile created.',
+              successMessage: 'Профіль продавця створено.',
             })
           }}
         >
           <label className="space-y-2 sm:col-span-2">
-            <span className="block text-sm font-medium text-copy-strong">Business name</span>
+            <span className="block text-sm font-medium text-copy-strong">Назва бізнесу</span>
             <input
               className="ui-surface-input"
               value={onboardingState.businessName}
@@ -330,7 +330,7 @@ export default function SellerStoreSettingsForm({
             />
           </label>
           <label className="space-y-2 sm:col-span-2">
-            <span className="block text-sm font-medium text-copy-strong">Tax ID</span>
+            <span className="block text-sm font-medium text-copy-strong">ІПН / податковий номер</span>
             <input
               className="ui-surface-input"
               value={onboardingState.taxId}
@@ -341,7 +341,7 @@ export default function SellerStoreSettingsForm({
           </label>
           <div className="sm:col-span-2">
             <button type="submit" className="ui-primary-button" disabled={isBusy}>
-              {isBusy ? 'Saving...' : 'Create seller profile'}
+              {isBusy ? 'Зберігаємо...' : 'Створити профіль продавця'}
             </button>
           </div>
         </form>
@@ -357,11 +357,11 @@ export default function SellerStoreSettingsForm({
     return (
       <section className="ui-elevated-panel p-5 sm:p-6">
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-copy-strong">Provision storefront</h2>
+          <h2 className="text-lg font-semibold text-copy-strong">Створіть вітрину магазину</h2>
           <p className="text-sm text-copy-muted">
             {setupHint === 'storefront'
-              ? 'Your seller verification is complete. Finish the storefront identity below to unlock the full seller workspace.'
-              : 'Your seller profile is verified. Complete storefront setup to unlock products, orders, inventory, and analytics.'}
+              ? 'Верифікацію продавця завершено. Заповніть дані вітрини нижче, щоб відкрити повний робочий простір продавця.'
+              : 'Ваш профіль продавця верифіковано. Завершіть налаштування вітрини, щоб відкрити товари, замовлення, склад і аналітику.'}
           </p>
         </div>
 
@@ -378,12 +378,12 @@ export default function SellerStoreSettingsForm({
             })
 
             if (!parsed.success) {
-              setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the storefront fields.')
+              setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля вітрини.')
               return
             }
 
             if (!canSubmitProvisioning) {
-              setErrorMessage('Choose an available storefront slug before continuing.')
+              setErrorMessage('Оберіть доступний slug вітрини перед продовженням.')
               return
             }
 
@@ -391,7 +391,7 @@ export default function SellerStoreSettingsForm({
               url: '/api/seller/storefront/provision',
               method: 'POST',
               body: parsed.data,
-              successMessage: 'Storefront provisioned.',
+              successMessage: 'Вітрину магазину створено.',
               refresh: false,
             })
 
@@ -409,7 +409,7 @@ export default function SellerStoreSettingsForm({
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Store name</span>
+              <span className="block text-sm font-medium text-copy-strong">Назва магазину</span>
               <input
                 className="ui-surface-input"
                 value={storeState.name}
@@ -425,7 +425,7 @@ export default function SellerStoreSettingsForm({
               />
             </label>
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Store slug</span>
+              <span className="block text-sm font-medium text-copy-strong">Slug магазину</span>
               <input
                 className="ui-surface-input"
                 value={storeState.slug}
@@ -444,7 +444,7 @@ export default function SellerStoreSettingsForm({
           </div>
 
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
-            <p className="font-medium text-copy-strong">Storefront URL preview</p>
+            <p className="font-medium text-copy-strong">Попередній перегляд URL вітрини</p>
             <p className="mt-1">{slugPreview}</p>
             <p id="storefront-slug-hint" className={`mt-2 ${slugStatus.tone}`}>
               {slugStatus.message}
@@ -458,13 +458,13 @@ export default function SellerStoreSettingsForm({
                   setStoreState((current) => ({ ...current, slug: slugAvailability.suggestion ?? current.slug }))
                 }}
               >
-                Use suggestion
+                Використати підказку
               </button>
             ) : null}
           </div>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Description</span>
+            <span className="block text-sm font-medium text-copy-strong">Опис</span>
             <textarea
               className="ui-surface-input min-h-32 resize-y"
               value={storeState.description}
@@ -476,22 +476,22 @@ export default function SellerStoreSettingsForm({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <ImageUploadField
-              label="Store logo"
-              description="Optional square brand asset. JPG, PNG, WEBP, or SVG up to 5MB."
+              label="Логотип магазину"
+              description="Необов’язковий квадратний бренд-актив. JPG, PNG, WEBP або SVG до 5MB."
               file={logoAsset.file}
               imageUrl={null}
-              alt="Store logo preview"
+              alt="Попередній перегляд логотипа магазину"
               accept=".jpg,.jpeg,.png,.webp,.svg"
               errorMessage={logoAsset.errorMessage}
               onFileSelect={(file) => handleAssetSelection(file, 'logo')}
               onClear={() => setLogoAsset(createPendingAssetState())}
             />
             <ImageUploadField
-              label="Store banner"
-              description="Optional wide storefront cover image. JPG, PNG, WEBP, or SVG up to 5MB."
+              label="Банер магазину"
+              description="Необов’язкове широке зображення для вітрини. JPG, PNG, WEBP або SVG до 5MB."
               file={bannerAsset.file}
               imageUrl={null}
-              alt="Store banner preview"
+              alt="Попередній перегляд банера магазину"
               accept=".jpg,.jpeg,.png,.webp,.svg"
               errorMessage={bannerAsset.errorMessage}
               onFileSelect={(file) => handleAssetSelection(file, 'banner')}
@@ -508,10 +508,10 @@ export default function SellerStoreSettingsForm({
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button type="submit" className="ui-primary-button" disabled={isBusy || !canSubmitProvisioning}>
-              {isBusy ? 'Provisioning...' : 'Provision storefront'}
+              {isBusy ? 'Створюємо...' : 'Створити вітрину'}
             </button>
             <p className="text-sm text-copy-muted">
-              Store assets will upload automatically right after the storefront is created.
+              Файли магазину завантажаться автоматично одразу після створення вітрини.
             </p>
           </div>
         </form>
@@ -527,9 +527,9 @@ export default function SellerStoreSettingsForm({
     <div className="space-y-6">
       <section className="ui-elevated-panel p-5 sm:p-6">
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-copy-strong">Store settings</h2>
+          <h2 className="text-lg font-semibold text-copy-strong">Налаштування магазину</h2>
           <p className="text-sm text-copy-muted">
-            Manage storefront presentation, public slug, and readiness for activation.
+            Керуйте виглядом вітрини, публічним slug і готовністю до активації.
           </p>
         </div>
 
@@ -554,7 +554,7 @@ export default function SellerStoreSettingsForm({
             const parsed = updateStoreSettingsSchema.safeParse(payload)
 
             if (!parsed.success) {
-              setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the store fields.')
+              setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля магазину.')
               return
             }
 
@@ -568,7 +568,7 @@ export default function SellerStoreSettingsForm({
               url: '/api/seller/storefront/settings',
               method: 'PATCH',
               body: parsed.data,
-              successMessage: 'Store settings saved.',
+              successMessage: 'Налаштування магазину збережено.',
               refresh: false,
             })
 
@@ -582,7 +582,7 @@ export default function SellerStoreSettingsForm({
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Store name</span>
+              <span className="block text-sm font-medium text-copy-strong">Назва магазину</span>
               <input
                 className="ui-surface-input"
                 value={storeState.name}
@@ -591,7 +591,7 @@ export default function SellerStoreSettingsForm({
               />
             </label>
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Store slug</span>
+              <span className="block text-sm font-medium text-copy-strong">Slug магазину</span>
               <input
                 className="ui-surface-input"
                 value={storeState.slug}
@@ -600,13 +600,13 @@ export default function SellerStoreSettingsForm({
                 aria-describedby="store-settings-slug-note"
               />
               <p id="store-settings-slug-note" className="text-sm text-copy-muted">
-                Your storefront URL is locked after provisioning to keep links stable.
+                URL вашої вітрини фіксується після створення, щоб посилання залишалися стабільними.
               </p>
             </label>
           </div>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Description</span>
+            <span className="block text-sm font-medium text-copy-strong">Опис</span>
             <textarea
               className="ui-surface-input min-h-32 resize-y"
               value={storeState.description}
@@ -618,27 +618,27 @@ export default function SellerStoreSettingsForm({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <ImageUploadField
-              label="Store logo"
-              description="Replace your uploaded store logo. JPG, PNG, WEBP, or SVG up to 5MB."
+              label="Логотип магазину"
+              description="Замініть завантажений логотип магазину. JPG, PNG, WEBP або SVG до 5MB."
               file={logoAsset.file}
               imageUrl={storeState.logoUrl || null}
-              alt="Store logo preview"
+              alt="Попередній перегляд логотипа магазину"
               accept=".jpg,.jpeg,.png,.webp,.svg"
               errorMessage={logoAsset.errorMessage}
-              statusLabel={logoAsset.file ? 'Ready to upload' : storeState.logoUrl ? 'Uploaded' : undefined}
+              statusLabel={logoAsset.file ? 'Готово до завантаження' : storeState.logoUrl ? 'Завантажено' : undefined}
               disabled={isBusy}
               onFileSelect={(file) => handleAssetSelection(file, 'logo')}
               onClear={() => setLogoAsset(createPendingAssetState())}
             />
             <ImageUploadField
-              label="Store banner"
-              description="Replace your uploaded store banner. JPG, PNG, WEBP, or SVG up to 5MB."
+              label="Банер магазину"
+              description="Замініть завантажений банер магазину. JPG, PNG, WEBP або SVG до 5MB."
               file={bannerAsset.file}
               imageUrl={storeState.bannerUrl || null}
-              alt="Store banner preview"
+              alt="Попередній перегляд банера магазину"
               accept=".jpg,.jpeg,.png,.webp,.svg"
               errorMessage={bannerAsset.errorMessage}
-              statusLabel={bannerAsset.file ? 'Ready to upload' : storeState.bannerUrl ? 'Uploaded' : undefined}
+              statusLabel={bannerAsset.file ? 'Готово до завантаження' : storeState.bannerUrl ? 'Завантажено' : undefined}
               disabled={isBusy}
               onFileSelect={(file) => handleAssetSelection(file, 'banner')}
               onClear={() => setBannerAsset(createPendingAssetState())}
@@ -654,7 +654,7 @@ export default function SellerStoreSettingsForm({
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button type="submit" className="ui-primary-button" disabled={isBusy}>
-              {isBusy ? 'Saving...' : 'Save store'}
+              {isBusy ? 'Зберігаємо...' : 'Зберегти магазин'}
             </button>
             <button
               type="button"
@@ -663,11 +663,11 @@ export default function SellerStoreSettingsForm({
               onClick={() =>
                 execute({
                   url: '/api/seller/store/activate',
-                  successMessage: 'Store activated.',
+                  successMessage: 'Магазин активовано.',
                 })
               }
             >
-              Activate store
+              Активувати магазин
             </button>
             <button
               type="button"
@@ -676,11 +676,11 @@ export default function SellerStoreSettingsForm({
               onClick={() =>
                 execute({
                   url: '/api/seller/store/deactivate',
-                  successMessage: 'Store deactivated.',
+                  successMessage: 'Магазин деактивовано.',
                 })
               }
             >
-              Deactivate store
+              Деактивувати магазин
             </button>
           </div>
         </form>

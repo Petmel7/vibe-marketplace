@@ -14,16 +14,16 @@ export default async function ProfileOrdersPage() {
 
   return (
     <ProfileSection
-      eyebrow="Orders"
-      title="Order history"
-      description="Review totals, statuses, and fulfillment progress for your marketplace purchases."
+      eyebrow="Замовлення"
+      title="Історія замовлень"
+      description="Переглядайте суми, статуси та хід виконання ваших покупок на маркетплейсі."
     >
       {orders.length === 0 ? (
         <EmptyState
-          title="No order history yet"
-          description="Your completed and in-progress purchases will appear here once you place an order."
+          title="Історія замовлень порожня"
+          description="Після першого замовлення тут з’являться як завершені, так і активні покупки."
           actionHref="/catalog"
-          actionLabel="Browse products"
+          actionLabel="Переглянути товари"
         />
       ) : (
         <div className="space-y-4">
@@ -36,11 +36,11 @@ export default async function ProfileOrdersPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-lg font-semibold text-copy-strong">Order #{order.id.slice(0, 8)}</h2>
+                    <h2 className="text-lg font-semibold text-copy-strong">Замовлення #{order.id.slice(0, 8)}</h2>
                     <StatusBadge status={order.status} />
                   </div>
                   <p className="text-sm text-copy-muted">
-                    Created {new Date(order.createdAt).toLocaleDateString('uk-UA')} · {order.itemCount} items
+                    Створено {new Date(order.createdAt).toLocaleDateString('uk-UA')} · {order.itemCount} товарів
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {order.storeNames.map((storeName) => (
@@ -52,7 +52,7 @@ export default async function ProfileOrdersPage() {
                 </div>
                 <div className="space-y-1 text-sm text-copy-secondary lg:text-right">
                   <p className="text-xl font-semibold text-copy-strong">{formatPrice(order.totalAmount)}</p>
-                  <p>Open details</p>
+                  <p>Відкрити деталі</p>
                 </div>
               </div>
             </Link>

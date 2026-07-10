@@ -4,9 +4,9 @@ import AdminSection from '@/components/admin/AdminSection'
 export default function AdminCategoriesPage() {
   return (
     <AdminSection
-      eyebrow="Taxonomy"
-      title="Marketplace categories"
-      description="Shape the seller-facing category tree, manage parent-child hierarchy, and keep taxonomy ordering deterministic across the marketplace."
+      eyebrow="Таксономія"
+      title="Категорії маркетплейсу"
+      description="Формуйте дерево категорій для продавців, керуйте ієрархією батьківських і дочірніх категорій та підтримуйте передбачуваний порядок у всьому маркетплейсі."
     >
       <AdminCategoryTree />
     </AdminSection>

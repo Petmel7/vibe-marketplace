@@ -1,11 +1,11 @@
 import type { CheckoutBlockingIssue } from '@/types/checkout'
 
 const ISSUE_COPY: Record<CheckoutBlockingIssue['code'], string> = {
-  EMPTY_CART: 'Your cart is empty.',
-  ADDRESS_REQUIRED: 'Select or add a shipping address before placing the order.',
-  PRODUCT_UNAVAILABLE: 'One or more products are unavailable right now.',
-  STOCK_UNAVAILABLE: 'Some items no longer have enough stock for the requested quantity.',
-  PRICE_CHANGED: 'The server detected updated pricing. Review the refreshed totals before continuing.',
+  EMPTY_CART: 'Ваш кошик порожній.',
+  ADDRESS_REQUIRED: 'Оберіть або додайте адресу доставки перед оформленням замовлення.',
+  PRODUCT_UNAVAILABLE: 'Один або кілька товарів зараз недоступні.',
+  STOCK_UNAVAILABLE: 'Для деяких товарів більше не вистачає залишку на вибрану кількість.',
+  PRICE_CHANGED: 'Сервер зафіксував оновлення цін. Перевірте оновлені підсумки перед продовженням.',
 }
 
 export default function CheckoutBlockingIssues({
@@ -25,10 +25,10 @@ export default function CheckoutBlockingIssues({
       <div className="space-y-3">
         <div>
           <h2 id="checkout-issues-title" className="text-sm font-semibold text-copy-strong">
-            Checkout needs attention
+            Потрібна увага до оформлення
           </h2>
           <p className="mt-1 text-sm text-copy-secondary">
-            Resolve the issues below before placing the order.
+            Усуньте проблеми нижче перед оформленням замовлення.
           </p>
         </div>
 

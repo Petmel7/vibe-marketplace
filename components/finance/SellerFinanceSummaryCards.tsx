@@ -6,17 +6,17 @@ export default function SellerFinanceSummaryCards({ summary }: { summary: Seller
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <AdminMetricCard
-        label="Pending"
+        label="В очікуванні"
         value={formatMoneyAmount(summary.pendingAmount, summary.currency)}
         detail="Кошти утримуються до дати availableAt перед переходом у доступний баланс."
       />
       <AdminMetricCard
-        label="Available"
+        label="Доступно"
         value={formatMoneyAmount(summary.availableAmount, summary.currency)}
         detail="Доступний баланс може бути включений у ручну виплату адміністратора."
       />
       <AdminMetricCard
-        label="Paid out"
+        label="Виплачено"
         value={formatMoneyAmount(summary.paidOutAmount, summary.currency)}
         detail="Це сума, яку маркетплейс уже відмітив як виплачену продавцю."
       />

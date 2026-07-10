@@ -11,9 +11,9 @@ export default async function ProfileAddressesPage() {
 
   return (
     <ProfileSection
-      eyebrow="Addresses"
-      title="Shipping addresses"
-      description="Create, update, and prioritize delivery destinations with responsive buyer-friendly controls."
+      eyebrow="Адреси"
+      title="Адреси доставки"
+      description="Створюйте, редагуйте та пріоритезуйте адреси доставки для майбутніх замовлень."
     >
       <AddressBookClient initialAddresses={addresses} />
     </ProfileSection>

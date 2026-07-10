@@ -36,93 +36,93 @@ export default async function AdminOverviewPage() {
 
   return (
     <AdminSection
-      eyebrow="Marketplace overview"
-      title="Admin dashboard"
-      description="Track marketplace health, moderation pressure, and operational growth from one governance workspace."
+      eyebrow="Огляд маркетплейсу"
+      title="Панель адміністратора"
+      description="Відстежуйте стан маркетплейсу, навантаження модерації та операційне зростання в єдиному робочому просторі."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <AdminMetricCard
           label="GMV"
           value={formatPrice(data.analytics.gmv)}
-          detail={`${data.analytics.orderGrowthLast30Days} orders created in the last 30 days`}
+          detail={`Створено замовлень за останні 30 днів: ${data.analytics.orderGrowthLast30Days}`}
         />
         <AdminMetricCard
-          label="Orders"
+          label="Замовлення"
           value={data.analytics.totalOrders}
-          detail={`${data.analytics.moderationStats.pendingProductApprovals} products waiting on moderation`}
+          detail={`Товарів очікують модерації: ${data.analytics.moderationStats.pendingProductApprovals}`}
         />
         <AdminMetricCard
-          label="Sellers"
+          label="Продавці"
           value={data.analytics.totalSellers}
-          detail={`${data.analytics.sellerGrowthLast30Days} seller profiles created in the last 30 days`}
+          detail={`Профілів продавців створено за 30 днів: ${data.analytics.sellerGrowthLast30Days}`}
         />
         <AdminMetricCard
-          label="Buyers"
+          label="Покупці"
           value={data.analytics.totalBuyers}
-          detail="Active buyer accounts available for order and support oversight"
+          detail="Активні акаунти покупців, доступні для контролю замовлень і підтримки"
         />
         <AdminMetricCard
-          label="Catalog"
+          label="Каталог"
           value={data.analytics.totalProducts}
-          detail={`${data.analytics.moderationStats.rejectedProducts} rejected products currently tracked`}
+          detail={`Відхилених товарів у відстеженні: ${data.analytics.moderationStats.rejectedProducts}`}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ModerationQueueCard
-          label="Pending sellers"
+          label="Продавці в очікуванні"
           count={data.analytics.moderationStats.pendingSellerApprovals}
-          description="Seller applications waiting for verification review."
+          description="Заявки продавців, які очікують перевірки."
           href="/admin/moderation"
         />
         <ModerationQueueCard
-          label="Pending products"
+          label="Товари в очікуванні"
           count={data.analytics.moderationStats.pendingProductApprovals}
-          description="Products queued for marketplace publication approval."
+          description="Товари в черзі на схвалення публікації."
           href="/admin/moderation"
         />
         <ModerationQueueCard
-          label="Suspended sellers"
+          label="Призупинені продавці"
           count={data.analytics.moderationStats.suspendedSellers}
-          description="Store operators currently blocked from marketplace activity."
+          description="Власники магазинів, яким зараз заблоковано активність на маркетплейсі."
           href="/admin/sellers?status=SUSPENDED"
         />
         <ModerationQueueCard
-          label="Rejected products"
+          label="Відхилені товари"
           count={data.analytics.moderationStats.rejectedProducts}
-          description="Rejected catalog items that may need follow-up or archival."
+          description="Відхилені позиції каталогу, які можуть потребувати подальших дій або архівації."
           href="/admin/products?status=REJECTED"
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <AdminDataTable
-          title="Moderation pulse"
-          description="The newest moderation items across sellers and products."
-          actions={<Link href="/admin/moderation" className="ui-link-muted">Open moderation</Link>}
+          title="Пульс модерації"
+          description="Найновіші елементи модерації серед продавців і товарів."
+          actions={<Link href="/admin/moderation" className="ui-link-muted">Відкрити модерацію</Link>}
         >
           {data.pendingSellerQueue.items.length === 0 && data.pendingProductQueue.items.length === 0 ? (
             <div className="p-6">
               <AdminEmptyState
-                title="No pending moderation items"
-                description="Seller applications and products awaiting approval will appear here automatically."
+                title="Немає елементів модерації в очікуванні"
+                description="Заявки продавців і товари, що очікують схвалення, автоматично з’являться тут."
               />
             </div>
           ) : (
             <table className="min-w-full text-sm">
               <thead className="bg-panel/60 text-left text-copy-muted">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Queue item</th>
-                  <th className="px-5 py-3 font-medium">Owner</th>
-                  <th className="px-5 py-3 font-medium">State</th>
+                  <th className="px-5 py-3 font-medium">Елемент черги</th>
+                  <th className="px-5 py-3 font-medium">Власник</th>
+                  <th className="px-5 py-3 font-medium">Стан</th>
                 </tr>
               </thead>
               <tbody>
                 {data.pendingSellerQueue.items.map((seller) => (
                   <tr key={`seller-${seller.id}`} className="border-t border-panelBorder align-top">
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{seller.businessName || 'Unnamed seller application'}</p>
-                      <p className="mt-1 text-copy-muted">Seller verification queue</p>
+                      <p className="font-semibold text-copy-strong">{seller.businessName || 'Заявка продавця без назви'}</p>
+                      <p className="mt-1 text-copy-muted">Черга верифікації продавців</p>
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{seller.userId.slice(0, 8)}</td>
                     <td className="px-5 py-4">
@@ -134,7 +134,7 @@ export default async function AdminOverviewPage() {
                   <tr key={`product-${product.id}`} className="border-t border-panelBorder align-top">
                     <td className="px-5 py-4">
                       <p className="font-semibold text-copy-strong">{product.name}</p>
-                      <p className="mt-1 text-copy-muted">Product moderation queue</p>
+                      <p className="mt-1 text-copy-muted">Черга модерації товарів</p>
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
                     <td className="px-5 py-4">
@@ -149,15 +149,15 @@ export default async function AdminOverviewPage() {
 
         <div className="space-y-6">
           <AdminDataTable
-            title="Top sellers"
-            description="Highest revenue storefront operators from the current analytics snapshot."
-            actions={<Link href="/admin/sellers" className="ui-link-muted">View sellers</Link>}
+            title="Топ продавців"
+            description="Магазини з найбільшою виручкою за поточним аналітичним знімком."
+            actions={<Link href="/admin/sellers" className="ui-link-muted">Переглянути продавців</Link>}
           >
             {data.analytics.topSellers.length === 0 ? (
               <div className="p-6">
                 <AdminEmptyState
-                  title="No seller revenue yet"
-                  description="Top sellers will appear once orders are flowing through marketplace storefronts."
+                  title="Ще немає виручки продавців"
+                  description="Топ продавців з’явиться, щойно замовлення почнуть проходити через вітрини маркетплейсу."
                 />
               </div>
             ) : (
@@ -167,7 +167,7 @@ export default async function AdminOverviewPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="font-semibold text-copy-strong">{seller.storeName}</p>
-                        <p className="mt-1 text-sm text-copy-muted">{seller.orderCount} marketplace orders</p>
+                        <p className="mt-1 text-sm text-copy-muted">{seller.orderCount} замовлень маркетплейсу</p>
                       </div>
                       <p className="text-sm font-semibold text-copy-strong">{formatPrice(seller.revenue)}</p>
                     </div>
@@ -178,15 +178,15 @@ export default async function AdminOverviewPage() {
           </AdminDataTable>
 
           <AdminDataTable
-            title="Top products"
-            description="Marketplace catalog leaders by sold quantity and revenue."
-            actions={<Link href="/admin/products" className="ui-link-muted">View products</Link>}
+            title="Топ товарів"
+            description="Лідери каталогу маркетплейсу за кількістю продажів і виручкою."
+            actions={<Link href="/admin/products" className="ui-link-muted">Переглянути товари</Link>}
           >
             {data.analytics.topProducts.length === 0 ? (
               <div className="p-6">
                 <AdminEmptyState
-                  title="No top products yet"
-                  description="Best-performing products will surface here once order volume accumulates."
+                  title="Топ товарів поки що немає"
+                  description="Найуспішніші товари з’являться тут, щойно накопичиться достатній обсяг замовлень."
                 />
               </div>
             ) : (
@@ -196,7 +196,7 @@ export default async function AdminOverviewPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="font-semibold text-copy-strong">{product.name}</p>
-                        <p className="mt-1 text-sm text-copy-muted">{product.totalSold} units sold</p>
+                        <p className="mt-1 text-sm text-copy-muted">{product.totalSold} проданих одиниць</p>
                       </div>
                       <p className="text-sm font-semibold text-copy-strong">{formatPrice(product.revenue)}</p>
                     </div>

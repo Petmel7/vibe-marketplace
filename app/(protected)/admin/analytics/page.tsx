@@ -25,9 +25,9 @@ export default async function AdminAnalyticsPage({
 
   return (
     <AdminSection
-      eyebrow="Analytics"
-      title="Marketplace analytics"
-      description="GMV, commissions, refunds, disputes, seller growth і moderation pressure тепер приходять із backend analytics v2 у вигляді реальних KPI та zero-filled series."
+      eyebrow="Аналітика"
+      title="Аналітика маркетплейсу"
+      description="GMV, комісії, повернення, суперечки, зростання продавців і навантаження модерації тепер надходять із бекенд-аналітики v2 у вигляді реальних KPI та часових рядів із заповненими нулями проміжками."
     >
       <AnalyticsDateRangeSelector filters={data.filters} />
 
@@ -51,64 +51,64 @@ export default async function AdminAnalyticsPage({
               tone="success"
             />
             <AnalyticsKpiCard
-              label="Commission revenue"
+              label="Комісійна виручка"
               value={formatPrice(data.analytics.commissionRevenue)}
-              detail={`Net seller revenue: ${formatPrice(data.analytics.netSellerRevenue)}`}
+              detail={`Чиста виручка продавців: ${formatPrice(data.analytics.netSellerRevenue)}`}
             />
             <AnalyticsKpiCard
-              label="Orders"
+              label="Замовлення"
               value={formatAnalyticsNumber(data.analytics.ordersTotal)}
-              detail={`Paid: ${data.analytics.paidOrders} · COD: ${data.analytics.codOrders}`}
+              detail={`Оплачені: ${data.analytics.paidOrders} · Післяплата: ${data.analytics.codOrders}`}
             />
             <AnalyticsKpiCard
-              label="Refunds / disputes"
+              label="Повернення / суперечки"
               value={`${data.analytics.refundCount} / ${data.analytics.disputeCount}`}
-              detail={`Refund amount: ${formatPrice(data.analytics.refundAmount)} · Dispute rate: ${data.analytics.disputeRate}%`}
+              detail={`Сума повернень: ${formatPrice(data.analytics.refundAmount)} · Рівень суперечок: ${data.analytics.disputeRate}%`}
               tone="danger"
             />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <AnalyticsKpiCard
-              label="Active sellers"
+              label="Активні продавці"
               value={data.analytics.activeSellerCount}
               detail={`Нових продавців: ${data.analytics.newSellerCount}`}
             />
             <AnalyticsKpiCard
-              label="Products"
+              label="Товари"
               value={data.analytics.productCount}
-              detail={`Published: ${data.analytics.publishedProductCount}`}
+              detail={`Опубліковано: ${data.analytics.publishedProductCount}`}
             />
             <AnalyticsKpiCard
-              label="Moderation queue"
+              label="Черга модерації"
               value={data.analytics.moderationQueueCount}
-              detail={`Seller approvals: ${data.analytics.moderationStats.pendingSellerApprovals} · Product approvals: ${data.analytics.moderationStats.pendingProductApprovals}`}
+              detail={`Схвалення продавців: ${data.analytics.moderationStats.pendingSellerApprovals} · Схвалення товарів: ${data.analytics.moderationStats.pendingProductApprovals}`}
               tone="warning"
             />
             <AnalyticsKpiCard
-              label="Failed payments"
+              label="Невдалі платежі"
               value={data.analytics.failedPayments}
-              detail={`Legacy buyer count snapshot: ${data.analytics.totalBuyers}`}
+              detail={`Історичний знімок кількості покупців: ${data.analytics.totalBuyers}`}
               tone="danger"
             />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <AnalyticsChartCard
-              title="GMV trend"
-              description="Server-aggregated GMV / revenue trend for the selected marketplace window."
-              summary="The backend fills missing buckets with zero to keep comparisons stable."
+              title="Тренд GMV"
+              description="Серверно агрегований тренд GMV / виручки за вибраний період маркетплейсу."
+              summary="Бекенд заповнює відсутні часові інтервали нулями, щоб порівняння залишалися стабільними."
             >
-              <AnalyticsAreaChart series={data.analytics.revenueSeries} valueLabel="GMV trend" />
+              <AnalyticsAreaChart series={data.analytics.revenueSeries} valueLabel="Тренд GMV" />
             </AnalyticsChartCard>
 
             <AnalyticsChartCard
-              title="Commission revenue"
-              description="Marketplace commission snapshots from platform commission records."
+              title="Комісійна виручка"
+              description="Знімки комісії маркетплейсу на основі platform commission records."
             >
               <AnalyticsBarChart
                 series={data.analytics.commissionSeries}
-                valueLabel="Commission revenue trend"
+                valueLabel="Тренд комісійної виручки"
                 color="#7c3aed"
               />
             </AnalyticsChartCard>
@@ -116,34 +116,34 @@ export default async function AdminAnalyticsPage({
 
           <div className="grid gap-6 xl:grid-cols-3">
             <AnalyticsChartCard
-              title="Order flow"
-              description="Order creation volume by selected interval."
+              title="Потік замовлень"
+              description="Обсяг створення замовлень за вибраним інтервалом."
             >
               <AnalyticsBarChart
                 series={data.analytics.orderSeries}
-                valueLabel="Marketplace order trend"
+                valueLabel="Тренд замовлень маркетплейсу"
                 color="#2563eb"
               />
             </AnalyticsChartCard>
 
             <AnalyticsChartCard
-              title="Seller growth"
-              description="New seller profiles over time in the selected window."
+              title="Зростання продавців"
+              description="Нові профілі продавців у вибраному часовому вікні."
             >
               <AnalyticsBarChart
                 series={data.analytics.sellerGrowthSeries}
-                valueLabel="Seller growth trend"
+                valueLabel="Тренд зростання продавців"
                 color="#0f766e"
               />
             </AnalyticsChartCard>
 
             <AnalyticsChartCard
-              title="Refund pressure"
-              description="Refund request volume in the selected interval."
+              title="Тиск повернень"
+              description="Обсяг запитів на повернення за вибраний інтервал."
             >
               <AnalyticsBarChart
                 series={data.analytics.refundSeries}
-                valueLabel="Refund trend"
+                valueLabel="Тренд повернень"
                 color="#dc2626"
               />
             </AnalyticsChartCard>
@@ -151,60 +151,60 @@ export default async function AdminAnalyticsPage({
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
             <AnalyticsChartCard
-              title="Dispute trend"
-              description="Trust & safety dispute load across the selected range."
+              title="Тренд суперечок"
+              description="Навантаження суперечок у trust & safety за вибраний діапазон."
             >
               <AnalyticsAreaChart
                 series={data.analytics.disputeSeries}
-                valueLabel="Dispute trend"
+                valueLabel="Тренд суперечок"
                 stroke="#b91c1c"
                 fill="rgba(185,28,28,0.14)"
               />
             </AnalyticsChartCard>
 
             <section className="ui-elevated-panel p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-copy-strong">Risk summary</h2>
+              <h2 className="text-lg font-semibold text-copy-strong">Підсумок ризику</h2>
               <p className="mt-1 text-sm text-copy-muted">
-                Risk scoring is advisory only and should be combined with reports, disputes, moderation context, and payouts.
+                Оцінка ризику має рекомендаційний характер і повинна розглядатися разом зі скаргами, суперечками, контекстом модерації та виплатами.
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl bg-panel px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Low</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Низький</p>
                   <p className="mt-2 text-2xl font-semibold text-copy-strong">{data.analytics.riskSummary.low}</p>
                 </div>
                 <div className="rounded-2xl bg-panel px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Medium</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Середній</p>
                   <p className="mt-2 text-2xl font-semibold text-copy-strong">{data.analytics.riskSummary.medium}</p>
                 </div>
                 <div className="rounded-2xl bg-panel px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">High</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Високий</p>
                   <p className="mt-2 text-2xl font-semibold text-copy-strong">{data.analytics.riskSummary.high}</p>
                 </div>
                 <div className="rounded-2xl bg-panel px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Critical</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Критичний</p>
                   <p className="mt-2 text-2xl font-semibold text-copy-strong">{data.analytics.riskSummary.critical}</p>
                 </div>
               </div>
             </section>
 
             <section className="ui-elevated-panel p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-copy-strong">Moderation pressure</h2>
+              <h2 className="text-lg font-semibold text-copy-strong">Навантаження модерації</h2>
               <div className="mt-5 space-y-3 text-sm text-copy-secondary">
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                  <span>Pending seller approvals</span>
+                  <span>Схвалення продавців у черзі</span>
                   <span className="font-semibold text-copy-strong">{data.analytics.moderationStats.pendingSellerApprovals}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                  <span>Pending product approvals</span>
+                  <span>Схвалення товарів у черзі</span>
                   <span className="font-semibold text-copy-strong">{data.analytics.moderationStats.pendingProductApprovals}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                  <span>Suspended sellers</span>
+                  <span>Призупинені продавці</span>
                   <span className="font-semibold text-copy-strong">{data.analytics.moderationStats.suspendedSellers}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                  <span>Rejected products</span>
+                  <span>Відхилені товари</span>
                   <span className="font-semibold text-copy-strong">{data.analytics.moderationStats.rejectedProducts}</span>
                 </div>
               </div>
@@ -216,7 +216,7 @@ export default async function AdminAnalyticsPage({
             <TopProductsTable
               items={data.analytics.topProducts}
               title="Топ товари"
-              description="Лідери маркетплейсу за виручкою та unit volume у вибраному періоді."
+              description="Лідери маркетплейсу за виручкою та обсягом проданих одиниць у вибраному періоді."
               variant="admin"
             />
           </div>

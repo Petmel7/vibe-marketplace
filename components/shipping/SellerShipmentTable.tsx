@@ -30,7 +30,7 @@ export default function SellerShipmentTable({
       <div className="p-6">
         <EmptyState
           title="Відправлень поки що немає"
-          description="Коли покупці оформлять замовлення з Nova Poshta, тут з’являться shipment snapshots для створення ТТН."
+          description="Коли покупці оформлять замовлення з Nova Poshta, тут з’являться відправлення для створення ТТН."
           actionHref="/seller/orders"
           actionLabel="Перейти до замовлень"
         />
@@ -46,9 +46,9 @@ export default function SellerShipmentTable({
     <div className="space-y-4 p-4 sm:p-5">
       <div className="flex flex-col gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-copy-strong">Bulk TTN</p>
+          <p className="text-sm font-semibold text-copy-strong">Масове створення ТТН</p>
           <p className="text-sm text-copy-muted">
-            Виберіть кілька shipment, готових до відправлення. Часткові помилки не зупиняють решту batch.
+            Виберіть кілька відправлень, готових до оформлення. Часткові помилки не зупиняють решту пакета.
           </p>
         </div>
         <BulkCreateTtnDialog
@@ -64,7 +64,7 @@ export default function SellerShipmentTable({
             <th className="px-5 py-3 font-medium">
               <input
                 type="checkbox"
-                aria-label="Вибрати всі shipment, придатні для bulk TTN"
+                aria-label="Вибрати всі відправлення, придатні для масового створення ТТН"
                 checked={allEligibleSelected}
                 onChange={(event) => {
                   setSelectedShipmentIds(event.target.checked ? eligibleShipmentIds : [])
@@ -89,7 +89,7 @@ export default function SellerShipmentTable({
                 <td className="px-5 py-4">
                   <input
                     type="checkbox"
-                    aria-label={`Вибрати shipment ${shipment.id}`}
+                    aria-label={`Вибрати відправлення ${shipment.id}`}
                     checked={isSelected}
                     disabled={!isEligible}
                     onChange={(event) => {
@@ -105,7 +105,7 @@ export default function SellerShipmentTable({
                   <p className="font-semibold text-copy-strong">#{shipment.orderId.slice(0, 8)}</p>
                   <p className="mt-1 text-copy-muted">{shipment.id.slice(0, 8)}</p>
                   {shipment.isReturnShipment ? (
-                    <p className="mt-2 text-xs text-amber-200">Return shipment</p>
+                    <p className="mt-2 text-xs text-amber-200">Зворотне відправлення</p>
                   ) : null}
                 </td>
                 <td className="px-5 py-4 text-copy-secondary">
@@ -125,8 +125,8 @@ export default function SellerShipmentTable({
                     {shipment.status === 'FAILED' || shipment.status === 'RETURNED' ? (
                       <p className="text-xs text-amber-200">
                         {shipment.status === 'FAILED'
-                          ? 'Потрібна перевірка проблеми з доставкою'
-                          : 'Повернення активне або завершене'}
+                          ? 'Потрібно перевірити проблему з доставкою'
+                          : 'Повернення активне або вже завершене'}
                       </p>
                     ) : null}
                   </div>

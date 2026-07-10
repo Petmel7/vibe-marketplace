@@ -12,8 +12,8 @@ import { getCurrentUser } from '@/lib/session/getSession'
 import { COMMISSION_RULE_SCOPES, getCommissionRuleScopeLabel } from '@/types/commissions'
 
 const COMMISSION_ACTIVE_FILTERS = [
-  { label: 'Active only', value: 'true' },
-  { label: 'Disabled only', value: 'false' },
+  { label: 'Лише активні', value: 'true' },
+  { label: 'Лише вимкнені', value: 'false' },
 ] as const
 
 export default async function AdminCommissionRulesPage({
@@ -30,14 +30,14 @@ export default async function AdminCommissionRulesPage({
 
   return (
     <AdminSection
-      eyebrow="Finance"
-      title="Commission rules"
-      description="Manage global, category, and store-specific commission rates while keeping historical platform commission snapshots immutable."
+      eyebrow="Фінанси"
+      title="Правила комісій"
+      description="Керуйте глобальними, категорійними та магазинними ставками комісії, зберігаючи історичні знімки платформної комісії незмінними."
     >
       <AdminFilterBar action="/admin/commission-rules">
         <StatusFilter
           name="scope"
-          label="Scope"
+          label="Область дії"
           defaultValue={data.filters.scope}
           options={COMMISSION_RULE_SCOPES.map((scope) => ({
             label: getCommissionRuleScopeLabel(scope),
@@ -46,29 +46,29 @@ export default async function AdminCommissionRulesPage({
         />
         <StatusFilter
           name="isActive"
-          label="Availability"
+          label="Доступність"
           defaultValue={
             typeof data.filters.isActive === 'boolean' ? String(data.filters.isActive) : undefined
           }
           options={[...COMMISSION_ACTIVE_FILTERS]}
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
           <Link href="/admin/commission-rules/new" className="ui-secondary-button">
-            New rule
+            Нове правило
           </Link>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Commission rule catalog"
-        description="Priorities are evaluated first; when priorities match, store rules beat category rules, and category rules beat the global fallback."
+        title="Каталог правил комісій"
+        description="Спочатку враховуються пріоритети; якщо пріоритет однаковий, правила магазину мають перевагу над правилами категорії, а правила категорії — над глобальним fallback."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No commission rules found"
-              description="Create a global fallback or a more specific override to make commission policy transparent and auditable."
+              title="Правила комісій не знайдено"
+              description="Створіть глобальний fallback або більш конкретне перевизначення, щоб політика комісій була прозорою й придатною до аудиту."
             />
           </div>
         ) : (

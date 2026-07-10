@@ -51,19 +51,19 @@ export default function MultiImageUploadField({
 
       {items.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-panelBorder bg-panel px-5 py-10 text-center text-sm text-copy-muted">
-          Upload product images to build a gallery, choose a primary image, and control image order.
+          Завантажте зображення товару, щоб зібрати галерею, вибрати головне фото та керувати порядком кадрів.
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {items.map((item, index) => (
             <div key={item.id} className="space-y-3">
               <ImagePreviewCard
-                title={`Image ${index + 1}`}
-                alt={item.altText || `Product image ${index + 1}`}
+                title={`Зображення ${index + 1}`}
+                alt={item.altText || `Зображення товару ${index + 1}`}
                 src={item.source === 'server' ? item.url : item.previewUrl}
                 isPrimary={item.isPrimary}
-                statusLabel={item.source === 'server' ? 'Uploaded' : 'Ready to upload'}
-                helperText={item.source === 'server' ? 'Saved to your gallery' : item.file?.name ?? 'Selected file'}
+                statusLabel={item.source === 'server' ? 'Завантажено' : 'Готово до завантаження'}
+                helperText={item.source === 'server' ? 'Збережено у вашій галереї' : item.file?.name ?? 'Вибраний файл'}
               >
                 <button
                   type="button"
@@ -71,7 +71,7 @@ export default function MultiImageUploadField({
                   disabled={disabled || item.isPrimary}
                   onClick={() => onSetPrimary(item.id)}
                 >
-                  Set primary
+                  Зробити головним
                 </button>
                 <button
                   type="button"
@@ -79,7 +79,7 @@ export default function MultiImageUploadField({
                   disabled={disabled || index === 0}
                   onClick={() => onMove(item.id, 'up')}
                 >
-                  Move up
+                  Перемістити вище
                 </button>
                 <button
                   type="button"
@@ -87,7 +87,7 @@ export default function MultiImageUploadField({
                   disabled={disabled || index === items.length - 1}
                   onClick={() => onMove(item.id, 'down')}
                 >
-                  Move down
+                  Перемістити нижче
                 </button>
                 <button
                   type="button"
@@ -95,18 +95,18 @@ export default function MultiImageUploadField({
                   disabled={disabled}
                   onClick={() => onRemove(item.id)}
                 >
-                  Remove
+                  Видалити
                 </button>
               </ImagePreviewCard>
 
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-copy-strong">Alt text</span>
+                <span className="block text-sm font-medium text-copy-strong">Alt-текст</span>
                 <input
                   className="ui-surface-input"
                   value={item.altText}
                   disabled={disabled}
                   onChange={(event) => onAltTextChange(item.id, event.target.value)}
-                  placeholder="Describe the product image for accessibility"
+                  placeholder="Опишіть зображення товару для доступності"
                 />
               </label>
             </div>

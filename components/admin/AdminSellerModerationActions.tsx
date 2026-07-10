@@ -19,25 +19,25 @@ export default function AdminSellerModerationActions({
     <div className="flex flex-wrap gap-2">
       {canAdminApproveSeller(verificationStatus) ? (
         <ModerationActionDialog
-          triggerLabel="Approve"
-          title="Approve seller"
-          description="This will verify the seller and unlock the seller workspace."
+          triggerLabel="Схвалити"
+          title="Схвалити продавця"
+          description="Ця дія підтвердить продавця й відкриє seller workspace."
           endpoint={`/api/admin/moderation/sellers/${sellerId}/approve`}
-          actionLabel="Approve seller"
-          successMessage="Seller approved."
+          actionLabel="Схвалити продавця"
+          successMessage="Продавця схвалено."
           tone="success"
         />
       ) : null}
 
       {canAdminRejectSeller(verificationStatus) ? (
         <ModerationActionDialog
-          triggerLabel="Reject"
-          title="Reject seller application"
-          description="Provide a clear moderation reason so the seller understands what must change before reapplying."
+          triggerLabel="Відхилити"
+          title="Відхилити заявку продавця"
+          description="Вкажіть зрозумілу причину модерації, щоб продавець розумів, що потрібно змінити перед повторною подачею."
           endpoint={`/api/admin/moderation/sellers/${sellerId}/reject`}
-          actionLabel="Reject seller"
-          successMessage="Seller rejected."
-          reasonLabel="Moderation reason"
+          actionLabel="Відхилити продавця"
+          successMessage="Продавця відхилено."
+          reasonLabel="Причина модерації"
           reasonRequired
           reasonMinLength={10}
           tone="danger"
@@ -46,13 +46,13 @@ export default function AdminSellerModerationActions({
 
       {canAdminSuspendSeller(verificationStatus) ? (
         <ModerationActionDialog
-          triggerLabel="Suspend"
-          title="Suspend seller"
-          description="Suspending a seller pauses storefront operations and deactivates owned stores."
+          triggerLabel="Призупинити"
+          title="Призупинити продавця"
+          description="Призупинення зупиняє роботу вітрини продавця та деактивує пов’язані магазини."
           endpoint={`/api/admin/moderation/sellers/${sellerId}/suspend`}
-          actionLabel="Suspend seller"
-          successMessage="Seller suspended."
-          reasonLabel="Suspension reason"
+          actionLabel="Призупинити продавця"
+          successMessage="Продавця призупинено."
+          reasonLabel="Причина призупинення"
           reasonRequired
           reasonMinLength={1}
           tone="danger"
@@ -61,12 +61,12 @@ export default function AdminSellerModerationActions({
 
       {canAdminReactivateSeller(verificationStatus) ? (
         <ModerationActionDialog
-          triggerLabel="Reactivate"
-          title="Reactivate seller"
-          description="This restores the seller to a verified state."
+          triggerLabel="Відновити"
+          title="Відновити продавця"
+          description="Ця дія поверне продавця до підтвердженого стану."
           endpoint={`/api/admin/moderation/sellers/${sellerId}/reactivate`}
-          actionLabel="Reactivate seller"
-          successMessage="Seller reactivated."
+          actionLabel="Відновити продавця"
+          successMessage="Продавця відновлено."
           tone="success"
         />
       ) : null}

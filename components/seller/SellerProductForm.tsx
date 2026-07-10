@@ -239,7 +239,7 @@ export default function SellerProductForm({
         url: '',
         previewUrl: URL.createObjectURL(file),
         storagePath: null,
-        altText: formState.name ? `${formState.name} product image` : '',
+        altText: formState.name ? `${formState.name} — зображення товару` : '',
         isPrimary: false,
         position: 0,
         source: 'local',
@@ -313,7 +313,7 @@ export default function SellerProductForm({
     setProductImageError(null)
 
     if (!selectedCategoryIsValid) {
-      setErrorMessage('Please choose a valid category.')
+      setErrorMessage('Оберіть коректну категорію.')
       return
     }
 
@@ -334,7 +334,7 @@ export default function SellerProductForm({
       })
 
       if (!parsed.success) {
-        setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the product fields.')
+        setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля товару.')
         return
       }
 
@@ -342,7 +342,7 @@ export default function SellerProductForm({
         url: '/api/seller/products',
         method: 'POST',
         body: parsed.data,
-        successMessage: 'Product draft created.',
+        successMessage: 'Чернетку товару створено.',
         refresh: false,
       })
 
@@ -363,7 +363,7 @@ export default function SellerProductForm({
     })
 
     if (!parsed.success) {
-      setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the product fields.')
+      setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля товару.')
       return
     }
 
@@ -371,7 +371,7 @@ export default function SellerProductForm({
       url: `/api/seller/products/${initialProduct.id}`,
       method: 'PATCH',
       body: parsed.data,
-      successMessage: 'Product updated.',
+      successMessage: 'Товар оновлено.',
       refresh: false,
     })
 
@@ -396,7 +396,7 @@ export default function SellerProductForm({
     })
 
     if (!parsed.success) {
-      setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the variant fields.')
+      setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля варіанта.')
       return
     }
 
@@ -411,7 +411,7 @@ export default function SellerProductForm({
       url: `/api/seller/products/${initialProduct.id}/variants/${variant.id}`,
       method: 'PATCH',
       body: parsed.data,
-      successMessage: 'Variant updated.',
+      successMessage: 'Варіант оновлено.',
       refresh: false,
     })
 
@@ -445,7 +445,7 @@ export default function SellerProductForm({
     const removed = await execute<null>({
       url: `/api/seller/products/${initialProduct.id}/variants/${variant.id}`,
       method: 'DELETE',
-      successMessage: 'Variant removed.',
+      successMessage: 'Варіант видалено.',
       refresh: false,
     })
 
@@ -468,7 +468,7 @@ export default function SellerProductForm({
     })
 
     if (!parsed.success) {
-      setErrorMessage(parsed.error.issues[0]?.message ?? 'Please review the new variant fields.')
+      setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля нового варіанта.')
       return
     }
 
@@ -483,7 +483,7 @@ export default function SellerProductForm({
       url: `/api/seller/products/${initialProduct.id}/variants`,
       method: 'POST',
       body: parsed.data,
-      successMessage: 'Variant added.',
+      successMessage: 'Варіант додано.',
       refresh: false,
     })
 
@@ -511,7 +511,7 @@ export default function SellerProductForm({
     const submitted = await execute({
       url: `/api/seller/products/${initialProduct.id}/submit`,
       method: 'POST',
-      successMessage: 'Product submitted for review.',
+      successMessage: 'Товар відправлено на перевірку.',
       refresh: false,
     })
 
@@ -525,7 +525,7 @@ export default function SellerProductForm({
     const archived = await execute({
       url: `/api/seller/products/${initialProduct.id}/archive`,
       method: 'POST',
-      successMessage: 'Product archived.',
+      successMessage: 'Товар архівовано.',
       refresh: false,
     })
 
@@ -540,10 +540,10 @@ export default function SellerProductForm({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-copy-strong">
-              {mode === 'create' ? 'New product draft' : 'Product details'}
+              {mode === 'create' ? 'Нова чернетка товару' : 'Деталі товару'}
             </h2>
             <p className="mt-1 text-sm text-copy-muted">
-              Build a moderation-ready draft with guided category selection, editable SKU generation, and a product gallery.
+              Підготуйте чернетку для модерації з керованим вибором категорії, редагованою генерацією SKU та галереєю товару.
             </p>
           </div>
           {initialProduct ? <ProductStatusBadge status={initialProduct.status} /> : null}
@@ -564,7 +564,7 @@ export default function SellerProductForm({
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 sm:col-span-2">
-              <span className="block text-sm font-medium text-copy-strong">Product name</span>
+              <span className="block text-sm font-medium text-copy-strong">Назва товару</span>
               <input
                 className="ui-surface-input"
                 value={formState.name}
@@ -584,7 +584,7 @@ export default function SellerProductForm({
               />
             </label>
             <label className="space-y-2 sm:col-span-2">
-              <span className="block text-sm font-medium text-copy-strong">Description</span>
+              <span className="block text-sm font-medium text-copy-strong">Опис</span>
               <textarea
                 className="ui-surface-input min-h-32 resize-y"
                 value={formState.description}
@@ -592,7 +592,7 @@ export default function SellerProductForm({
               />
             </label>
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Base price</span>
+              <span className="block text-sm font-medium text-copy-strong">Базова ціна</span>
               <input
                 className="ui-surface-input"
                 value={formState.price}
@@ -602,7 +602,7 @@ export default function SellerProductForm({
               />
             </label>
             <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Base SKU</span>
+              <span className="block text-sm font-medium text-copy-strong">Базовий SKU</span>
               <div className="flex gap-2">
                 <input
                   className="ui-surface-input"
@@ -614,15 +614,15 @@ export default function SellerProductForm({
                   className="ui-secondary-button h-12 px-4 py-2 text-sm"
                   onClick={() => updateBaseSku(generateBaseSkuDraft(formState.name, storeSlug), false)}
                 >
-                  Auto
+                  Авто
                 </button>
               </div>
               <p className="text-sm text-copy-muted">
-                SKU drafts follow the product name and store context until you override them manually.
+                Чернетки SKU формуються з назви товару та контексту магазину, доки ви не перевизначите їх вручну.
               </p>
             </div>
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Category</span>
+              <span className="block text-sm font-medium text-copy-strong">Категорія</span>
               <CategoryTreeSelect
                 tree={categories}
                 value={formState.categoryId || null}
@@ -636,23 +636,23 @@ export default function SellerProductForm({
                 emptyLabel="Оберіть фінальну підкатегорію. Для товару доступні лише листові категорії."
               />
               {!selectedCategoryIsValid ? (
-                <p className="text-sm text-brand-danger">Please choose a valid final category option.</p>
+                <p className="text-sm text-brand-danger">Оберіть коректну фінальну категорію.</p>
               ) : null}
             </label>
             <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Store context</span>
+              <span className="block text-sm font-medium text-copy-strong">Контекст магазину</span>
               <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
-                Drafts use <span className="font-medium text-copy-strong">{storeSlug}</span> to seed SKU suggestions.
+                Чернетки використовують <span className="font-medium text-copy-strong">{storeSlug}</span> для формування підказок SKU.
               </div>
             </div>
           </div>
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
-            Marketplace badges are assigned automatically based on publication date, sales, and platform analytics.
+            Бейджі маркетплейсу призначаються автоматично на основі дати публікації, продажів і аналітики платформи.
           </div>
 
           <MultiImageUploadField
-            label="Product gallery"
-            description="Upload multiple product images, select a primary image, set accessible alt text, and arrange the gallery order."
+            label="Галерея товару"
+            description="Завантажте кілька зображень товару, виберіть головне фото, задайте доступний alt-текст і впорядкуйте галерею."
             items={productImages}
             disabled={isBusy}
             errorMessage={productImageError ?? progress.errorMessage}
@@ -691,9 +691,9 @@ export default function SellerProductForm({
           {mode === 'create' ? (
             <div className="space-y-4 rounded-3xl border border-panelBorder bg-panel/40 p-5">
               <div>
-                <h3 className="text-base font-semibold text-copy-strong">Initial variants</h3>
+                <h3 className="text-base font-semibold text-copy-strong">Початкові варіанти</h3>
                 <p className="mt-1 text-sm text-copy-muted">
-                  Start with one or more sellable options. Variant SKUs follow the base SKU until you override them.
+                  Почніть з одного або кількох варіантів для продажу. SKU варіантів наслідують базовий SKU, доки ви не перевизначите їх.
                 </p>
               </div>
 
@@ -702,7 +702,7 @@ export default function SellerProductForm({
                   <div key={`create-variant-${index}`} className="grid gap-3 rounded-2xl border border-panelBorder bg-panel p-4">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Size</span>
+                        <span className="block text-sm font-medium text-copy-strong">Розмір</span>
                         <input
                           className="ui-surface-input"
                           value={variant.size}
@@ -711,25 +711,25 @@ export default function SellerProductForm({
                         />
                       </label>
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Color</span>
+                        <span className="block text-sm font-medium text-copy-strong">Колір</span>
                         <input
                           className="ui-surface-input"
                           value={variant.color}
                           onChange={(event) => setCreateVariantField(index, 'color', event.target.value)}
-                          placeholder="Black"
+                          placeholder="Чорний"
                         />
                       </label>
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Variant price</span>
+                        <span className="block text-sm font-medium text-copy-strong">Ціна варіанта</span>
                         <input
                           className="ui-surface-input"
                           value={variant.price}
                           onChange={(event) => setCreateVariantField(index, 'price', event.target.value)}
-                          placeholder="Optional override"
+                          placeholder="Необов’язкове перевизначення"
                         />
                       </label>
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Stock</span>
+                        <span className="block text-sm font-medium text-copy-strong">Залишок</span>
                         <input
                           type="number"
                           min={0}
@@ -739,7 +739,7 @@ export default function SellerProductForm({
                         />
                       </label>
                       <div className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Variant SKU</span>
+                        <span className="block text-sm font-medium text-copy-strong">SKU варіанта</span>
                         <div className="flex gap-2">
                           <input
                             className="ui-surface-input"
@@ -771,7 +771,7 @@ export default function SellerProductForm({
                               )
                             }
                           >
-                            Auto
+                            Авто
                           </button>
                         </div>
                       </div>
@@ -793,7 +793,7 @@ export default function SellerProductForm({
                           )
                         }
                       >
-                        Remove variant
+                        Видалити варіант
                       </button>
                     </div>
                   </div>
@@ -814,7 +814,7 @@ export default function SellerProductForm({
                     ])
                   }
                 >
-                  Add variant
+                  Додати варіант
                 </button>
               </div>
             </div>
@@ -823,16 +823,16 @@ export default function SellerProductForm({
           {mode === 'edit' ? (
             <div className="space-y-4 rounded-3xl border border-panelBorder bg-panel/40 p-5">
               <div>
-                <h3 className="text-base font-semibold text-copy-strong">Variants</h3>
+                <h3 className="text-base font-semibold text-copy-strong">Варіанти</h3>
                 <p className="mt-1 text-sm text-copy-muted">
-                  Keep variant inventory and pricing tidy while preserving editable SKU overrides.
+                  Тримайте ціни й залишки варіантів у порядку, зберігаючи можливість вручну редагувати SKU.
                 </p>
               </div>
 
               <div className="space-y-4">
                 {editVariants.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-panelBorder bg-panel px-5 py-8 text-sm text-copy-muted">
-                    No variants yet. Add your first option below.
+                    Варіантів ще немає. Додайте перший нижче.
                   </div>
                 ) : null}
 
@@ -840,7 +840,7 @@ export default function SellerProductForm({
                   <div key={variant.id ?? `variant-${index}`} className="grid gap-3 rounded-2xl border border-panelBorder bg-panel p-4">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Size</span>
+                        <span className="block text-sm font-medium text-copy-strong">Розмір</span>
                         <input
                           className="ui-surface-input"
                           value={variant.size}
@@ -849,25 +849,25 @@ export default function SellerProductForm({
                         />
                       </label>
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Color</span>
+                        <span className="block text-sm font-medium text-copy-strong">Колір</span>
                         <input
                           className="ui-surface-input"
                           value={variant.color}
                           onChange={(event) => setEditVariantField(index, 'color', event.target.value)}
-                          placeholder="Black"
+                          placeholder="Чорний"
                         />
                       </label>
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Variant price</span>
+                        <span className="block text-sm font-medium text-copy-strong">Ціна варіанта</span>
                         <input
                           className="ui-surface-input"
                           value={variant.price}
                           onChange={(event) => setEditVariantField(index, 'price', event.target.value)}
-                          placeholder="Optional override"
+                          placeholder="Необов’язкове перевизначення"
                         />
                       </label>
                       <label className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Stock</span>
+                        <span className="block text-sm font-medium text-copy-strong">Залишок</span>
                         <input
                           type="number"
                           min={0}
@@ -877,7 +877,7 @@ export default function SellerProductForm({
                         />
                       </label>
                       <div className="space-y-2">
-                        <span className="block text-sm font-medium text-copy-strong">Variant SKU</span>
+                        <span className="block text-sm font-medium text-copy-strong">SKU варіанта</span>
                         <div className="flex gap-2">
                           <input
                             className="ui-surface-input"
@@ -909,7 +909,7 @@ export default function SellerProductForm({
                               )
                             }
                           >
-                            Auto
+                            Авто
                           </button>
                         </div>
                       </div>
@@ -922,7 +922,7 @@ export default function SellerProductForm({
                         disabled={isBusy}
                         onClick={() => void saveExistingVariant(index)}
                       >
-                        Save variant
+                        Зберегти варіант
                       </button>
                       <button
                         type="button"
@@ -930,7 +930,7 @@ export default function SellerProductForm({
                         disabled={isBusy}
                         onClick={() => void removeExistingVariant(index)}
                       >
-                        Remove
+                        Видалити
                       </button>
                     </div>
                   </div>
@@ -939,15 +939,15 @@ export default function SellerProductForm({
 
               <div className="grid gap-3 rounded-2xl border border-dashed border-panelBorder bg-panel px-4 py-4">
                 <div>
-                  <h4 className="text-sm font-semibold text-copy-strong">Add new variant</h4>
+                  <h4 className="text-sm font-semibold text-copy-strong">Додати новий варіант</h4>
                   <p className="mt-1 text-sm text-copy-muted">
-                    New variant SKUs follow the current base SKU until you choose a manual override.
+                    SKU нового варіанта наслідує поточний базовий SKU, доки ви не задасте його вручну.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   <label className="space-y-2">
-                    <span className="block text-sm font-medium text-copy-strong">Size</span>
+                    <span className="block text-sm font-medium text-copy-strong">Розмір</span>
                     <input
                       className="ui-surface-input"
                       value={newVariant.size}
@@ -963,7 +963,7 @@ export default function SellerProductForm({
                     />
                   </label>
                   <label className="space-y-2">
-                    <span className="block text-sm font-medium text-copy-strong">Color</span>
+                    <span className="block text-sm font-medium text-copy-strong">Колір</span>
                     <input
                       className="ui-surface-input"
                       value={newVariant.color}
@@ -975,20 +975,20 @@ export default function SellerProductForm({
                             : syncVariantSku(formState.sku, updated, editVariants.length)
                         })
                       }
-                      placeholder="Black"
+                      placeholder="Чорний"
                     />
                   </label>
                   <label className="space-y-2">
-                    <span className="block text-sm font-medium text-copy-strong">Variant price</span>
+                    <span className="block text-sm font-medium text-copy-strong">Ціна варіанта</span>
                     <input
                       className="ui-surface-input"
                       value={newVariant.price}
                       onChange={(event) => setNewVariant((current) => ({ ...current, price: event.target.value }))}
-                      placeholder="Optional override"
+                      placeholder="Необов’язкове перевизначення"
                     />
                   </label>
                   <label className="space-y-2">
-                    <span className="block text-sm font-medium text-copy-strong">Stock</span>
+                    <span className="block text-sm font-medium text-copy-strong">Залишок</span>
                     <input
                       type="number"
                       min={0}
@@ -998,7 +998,7 @@ export default function SellerProductForm({
                     />
                   </label>
                   <div className="space-y-2">
-                    <span className="block text-sm font-medium text-copy-strong">Variant SKU</span>
+                    <span className="block text-sm font-medium text-copy-strong">SKU варіанта</span>
                     <div className="flex gap-2">
                       <input
                         className="ui-surface-input"
@@ -1022,7 +1022,7 @@ export default function SellerProductForm({
                           }))
                         }
                       >
-                        Auto
+                        Авто
                       </button>
                     </div>
                   </div>
@@ -1035,7 +1035,7 @@ export default function SellerProductForm({
                     disabled={isBusy}
                     onClick={() => void addNewVariant()}
                   >
-                    Add variant
+                    Додати варіант
                   </button>
                 </div>
               </div>
@@ -1056,7 +1056,7 @@ export default function SellerProductForm({
                 disabled={isBusy}
                 onClick={() => void archiveProduct()}
               >
-                Archive product
+                Архівувати товар
               </button>
             ) : null}
             {initialProduct && canSubmitProductForReview(initialProduct.status) ? (
@@ -1066,11 +1066,11 @@ export default function SellerProductForm({
                 disabled={isBusy}
                 onClick={() => void submitForReview()}
               >
-                Submit for review
+                Відправити на перевірку
               </button>
             ) : null}
             <button type="submit" className="ui-primary-button" disabled={isBusy}>
-              {mode === 'create' ? 'Create product draft' : 'Save changes'}
+              {mode === 'create' ? 'Створити чернетку товару' : 'Зберегти зміни'}
             </button>
           </div>
         </form>

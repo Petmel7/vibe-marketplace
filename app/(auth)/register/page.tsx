@@ -16,19 +16,19 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
 
   return (
     <AuthPageShell
-      title="Create your account"
-      description="Start as a buyer today, then expand into seller or admin workflows as your role grows."
+      title="Створення акаунта"
+      description="Почніть як покупець уже сьогодні, а згодом розширте доступ до сценаріїв продавця або адміністратора."
       alternateHref="/login"
-      alternateLabel="Already have an account?"
-      alternateCta="Go to sign in"
+      alternateLabel="Уже маєте акаунт?"
+      alternateCta="Перейти до входу"
     >
       <AuthForm
         action={signUpWithPasswordAction}
-        submitLabel="Create account"
-        pendingLabel="Creating account..."
+        submitLabel="Створити акаунт"
+        pendingLabel="Створюємо акаунт..."
         next={typeof next === 'string' ? next : undefined}
         passwordAutoComplete="new-password"
-        intro="Email verification, password reset, social login, and MFA hooks can plug into this same flow later."
+        intro="Пізніше в цей самий потік можна додати підтвердження email, скидання пароля, соціальний вхід і MFA."
       />
     </AuthPageShell>
   )

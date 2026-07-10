@@ -4,9 +4,9 @@ import { PageTitle } from '@/components/ui/PageTitle'
 
 export default function CheckoutShell({
   children,
-  title = 'Checkout',
-  description = 'Review your items, confirm a shipping address, and place the order using server-validated pricing and inventory.',
-  currentLabel = 'Checkout',
+  title = 'Оформлення замовлення',
+  description = 'Перевірте товари, підтвердьте адресу доставки та оформіть замовлення з валідацією ціни й наявності на сервері.',
+  currentLabel = 'Оформлення замовлення',
 }: {
   children: ReactNode
   title?: string
@@ -17,8 +17,8 @@ export default function CheckoutShell({
     <>
       <Breadcrumbs
         items={[
-          { label: 'Home', href: '/' },
-          { label: 'Cart', href: '/cart' },
+          { label: 'Головна', href: '/' },
+          { label: 'Кошик', href: '/cart' },
           { label: currentLabel },
         ]}
       />

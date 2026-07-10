@@ -33,9 +33,9 @@ export default async function SellerOverviewPage() {
 
   return (
     <SellerSection
-      eyebrow="Overview"
-      title="Seller dashboard"
-      description="Monitor revenue, fulfillment, catalog health, and store readiness from one operational workspace."
+      eyebrow="Огляд"
+      title="Кабінет продавця"
+      description="Стежте за виручкою, виконанням замовлень, станом каталогу та готовністю магазину в одному робочому просторі."
     >
       <SellerVerificationNotice
         status={sellerProfile.verificationStatus}
@@ -43,55 +43,55 @@ export default async function SellerOverviewPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SellerMetricCard
-          label="Total revenue"
+          label="Загальна виручка"
           value={data.analytics ? formatPrice(data.analytics.totalRevenue) : '—'}
           detail={
             data.analytics
-              ? `Last 30 days: ${formatPrice(data.analytics.revenueLast30Days)}`
-              : 'Store analytics will appear once your storefront is connected.'
+              ? `Останні 30 днів: ${formatPrice(data.analytics.revenueLast30Days)}`
+              : 'Аналітика магазину з’явиться, щойно вашу вітрину буде підключено.'
           }
         />
         <SellerMetricCard
-          label="Orders"
+          label="Замовлення"
           value={data.analytics?.totalOrders ?? 0}
-          detail={`${processingCount} processing · ${shippedCount} shipped`}
+          detail={`${processingCount} в обробці · ${shippedCount} відправлено`}
         />
         <SellerMetricCard
-          label="Products sold"
+          label="Продано товарів"
           value={data.analytics?.totalProductsSold ?? 0}
-          detail={`${data.productSummaries.length} active dashboard items loaded`}
+          detail={`${data.productSummaries.length} активних позицій завантажено на дашборд`}
         />
         <SellerMetricCard
-          label="Low stock"
+          label="Малий залишок"
           value={data.lowStockProducts.length}
           detail={
             deliveredCount > 0
-              ? `${deliveredCount} delivered order items tracked`
-              : 'No completed fulfillment snapshots yet'
+              ? `${deliveredCount} доставлених позицій відстежується`
+              : 'Ще немає завершених відправлень'
           }
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <SellerTable
-          title="Recent fulfillment items"
-          description="Seller-scoped line items with the next operational step."
+          title="Останні позиції для виконання"
+          description="Позиції замовлень вашого магазину з наступною операційною дією."
         >
           {data.orderItems.length === 0 ? (
             <div className="p-6">
               <EmptyState
-                title="No seller orders yet"
-                description="Order items connected to your storefront will appear here as soon as buyers start checking out."
+                title="Замовлень продавця ще немає"
+                description="Позиції замовлень, пов’язані з вашим магазином, з’являться тут, щойно покупці почнуть оформлювати покупки."
               />
             </div>
           ) : (
             <table className="min-w-full text-sm">
               <thead className="bg-panel/60 text-left text-copy-muted">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Item</th>
-                  <th className="px-5 py-3 font-medium">Buyer shipping</th>
-                  <th className="px-5 py-3 font-medium">Shipment</th>
-                  <th className="px-5 py-3 font-medium">Fulfillment</th>
+                  <th className="px-5 py-3 font-medium">Товар</th>
+                  <th className="px-5 py-3 font-medium">Доставка покупця</th>
+                  <th className="px-5 py-3 font-medium">Відправлення</th>
+                  <th className="px-5 py-3 font-medium">Виконання</th>
                 </tr>
               </thead>
               <tbody>
@@ -99,9 +99,9 @@ export default async function SellerOverviewPage() {
                   <tr key={item.id} className="border-t border-panelBorder align-top">
                     <td className="px-5 py-4">
                       <p className="font-semibold text-copy-strong">{item.productNameSnapshot}</p>
-                      <p className="mt-1 text-copy-muted">{item.variantSnapshot || 'Default option'}</p>
+                      <p className="mt-1 text-copy-muted">{item.variantSnapshot || 'Базовий варіант'}</p>
                       <p className="mt-1 text-copy-secondary">
-                        {item.quantity} units · {formatPrice(item.unitPriceSnapshot)}
+                        {item.quantity} шт. · {formatPrice(item.unitPriceSnapshot)}
                       </p>
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">
@@ -113,7 +113,7 @@ export default async function SellerOverviewPage() {
                           </p>
                         </>
                       ) : (
-                        <p className="text-copy-muted">Address unavailable</p>
+                        <p className="text-copy-muted">Адреса недоступна</p>
                       )}
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">
@@ -124,11 +124,11 @@ export default async function SellerOverviewPage() {
                             {item.shipment.trackingNumber ?? 'ТТН ще не створено'}
                           </p>
                           <Link href={`/seller/shipments/${item.shipment.id}`} className="ui-link-muted">
-                            {item.shipment.trackingNumber ? 'Відкрити shipment' : 'Підготувати shipment'}
+                            {item.shipment.trackingNumber ? 'Відкрити відправлення' : 'Підготувати відправлення'}
                           </Link>
                         </div>
                       ) : (
-                        <p className="text-copy-muted">Shipment unavailable</p>
+                        <p className="text-copy-muted">Відправлення недоступне</p>
                       )}
                     </td>
                     <td className="px-5 py-4">
@@ -145,19 +145,19 @@ export default async function SellerOverviewPage() {
           <section className="ui-elevated-panel p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-copy-strong">Top products</h2>
+                <h2 className="text-lg font-semibold text-copy-strong">Топові товари</h2>
                 <p className="mt-1 text-sm text-copy-muted">
-                  Best performers by sold quantity and storefront revenue.
+                  Найкращі позиції за кількістю продажів і виручкою магазину.
                 </p>
               </div>
               <Link href="/seller/products" className="ui-link-muted">
-                Manage catalog
+                Керувати каталогом
               </Link>
             </div>
             {data.topProducts.length === 0 ? (
               <EmptyState
-                title="No top products yet"
-                description="As your first orders come in, the strongest performers will surface here automatically."
+                title="Топових товарів ще немає"
+                description="Щойно з’являться перші замовлення, найсильніші позиції автоматично відобразяться тут."
               />
             ) : (
               <div className="mt-5 space-y-4">
@@ -166,7 +166,7 @@ export default async function SellerOverviewPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="font-semibold text-copy-strong">{product.name}</p>
-                        <p className="mt-1 text-sm text-copy-muted">{product.totalSold} units sold</p>
+                        <p className="mt-1 text-sm text-copy-muted">{product.totalSold} шт. продано</p>
                       </div>
                       <p className="text-sm font-semibold text-copy-strong">{formatPrice(product.revenue)}</p>
                     </div>
@@ -179,21 +179,21 @@ export default async function SellerOverviewPage() {
           <section className="ui-elevated-panel p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-copy-strong">Catalog health</h2>
+                <h2 className="text-lg font-semibold text-copy-strong">Стан каталогу</h2>
                 <p className="mt-1 text-sm text-copy-muted">
-                  Moderation and inventory snapshots across your loaded products.
+                  Зріз модерації та залишків по ваших завантажених товарах.
                 </p>
               </div>
               <Link href="/seller/inventory" className="ui-link-muted">
-                Open inventory
+                Відкрити склад
               </Link>
             </div>
             {data.productSummaries.length === 0 ? (
               <EmptyState
-                title="No products created yet"
-                description="Start your catalog with a first draft product and variant set."
+                title="Товарів ще не створено"
+                description="Почніть каталог із першої чернетки товару та набору варіантів."
                 actionHref="/seller/products/new"
-                actionLabel="Create product"
+                actionLabel="Створити товар"
               />
             ) : (
               <div className="mt-5 space-y-4">
@@ -203,7 +203,7 @@ export default async function SellerOverviewPage() {
                       <div>
                         <p className="font-semibold text-copy-strong">{product.name}</p>
                         <p className="mt-1 text-sm text-copy-secondary">
-                          {formatPrice(product.price)} · {product.totalStock} units
+                          {formatPrice(product.price)} · {product.totalStock} шт.
                         </p>
                       </div>
                       <ProductStatusBadge status={product.status} />

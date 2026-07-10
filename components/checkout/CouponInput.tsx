@@ -22,14 +22,14 @@ export default function CouponInput({
   return (
     <div className="space-y-3">
       <label className="block space-y-2" htmlFor="checkout-coupon-code">
-        <span className="text-sm font-medium text-copy-strong">Coupon code</span>
+        <span className="text-sm font-medium text-copy-strong">Промокод</span>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             id="checkout-coupon-code"
             type="text"
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Enter a coupon code"
+            placeholder="Введіть промокод"
             autoCapitalize="characters"
             className="ui-surface-input flex-1"
             aria-invalid={Boolean(errorMessage)}
@@ -42,7 +42,7 @@ export default function CouponInput({
             disabled={disabled || isApplying || value.trim().length === 0}
             className="ui-primary-button whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isApplying ? 'Applying...' : 'Apply'}
+            {isApplying ? 'Застосовуємо...' : 'Застосувати'}
           </button>
         </div>
       </label>

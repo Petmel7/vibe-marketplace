@@ -10,12 +10,12 @@ import { formatPrice } from '@/utils/formatters/price'
 import { getSellerProductsPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 const FILTERS = [
-  { label: 'All', value: undefined },
-  { label: 'Drafts', value: 'DRAFT' },
-  { label: 'Pending review', value: 'PENDING_REVIEW' },
-  { label: 'Published', value: 'PUBLISHED' },
-  { label: 'Rejected', value: 'REJECTED' },
-  { label: 'Archived', value: 'ARCHIVED' },
+  { label: 'Усі', value: undefined },
+  { label: 'Чернетки', value: 'DRAFT' },
+  { label: 'На перевірці', value: 'PENDING_REVIEW' },
+  { label: 'Опубліковані', value: 'PUBLISHED' },
+  { label: 'Відхилені', value: 'REJECTED' },
+  { label: 'Архів', value: 'ARCHIVED' },
 ] as const
 
 export default async function SellerProductsPage({
@@ -38,9 +38,9 @@ export default async function SellerProductsPage({
 
   return (
     <SellerSection
-      eyebrow="Products"
-      title="Catalog management"
-      description="Review moderation states, inventory health, and draft readiness across your storefront products."
+      eyebrow="Товари"
+      title="Керування каталогом"
+      description="Переглядайте стани модерації, залишки та готовність чернеток по товарах вашої вітрини."
     >
       <SellerVerificationNotice
         status={sellerProfile.verificationStatus}
@@ -68,32 +68,32 @@ export default async function SellerProductsPage({
           })}
         </div>
         <Link href="/seller/products/new" className="ui-primary-button">
-          New product
+          Новий товар
         </Link>
       </div>
 
       <SellerTable
-        title="Seller products"
-        description="Moderation-aware product records with inventory visibility and edit entry points."
+        title="Товари продавця"
+        description="Товари з урахуванням модерації, видимості залишків і швидкими точками входу для редагування."
       >
         {data.products.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title="No products in this view"
-              description="Start with a draft product or switch filters to explore the rest of your catalog."
+              title="У цьому розділі немає товарів"
+              description="Почніть із чернетки товару або перемкніть фільтри, щоб переглянути решту каталогу."
               actionHref="/seller/products/new"
-              actionLabel="Create product"
+              actionLabel="Створити товар"
             />
           </div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-panel/60 text-left text-copy-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Product</th>
-                <th className="px-5 py-3 font-medium">Price</th>
-                <th className="px-5 py-3 font-medium">Inventory</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Updated</th>
+                <th className="px-5 py-3 font-medium">Товар</th>
+                <th className="px-5 py-3 font-medium">Ціна</th>
+                <th className="px-5 py-3 font-medium">Залишок</th>
+                <th className="px-5 py-3 font-medium">Статус</th>
+                <th className="px-5 py-3 font-medium">Оновлено</th>
               </tr>
             </thead>
             <tbody>
@@ -107,7 +107,7 @@ export default async function SellerProductsPage({
                   <td className="px-5 py-4 text-copy-secondary">{formatPrice(product.price)}</td>
                   <td className="px-5 py-4 text-copy-secondary">
                     <span className={product.totalStock <= 5 ? 'text-amber-200' : 'text-copy-secondary'}>
-                      {product.totalStock} units
+                      {product.totalStock} шт.
                     </span>
                   </td>
                   <td className="px-5 py-4">

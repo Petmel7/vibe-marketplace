@@ -10,6 +10,12 @@ import { getCurrentUser } from '@/lib/session/getSession'
 import { ADMIN_USER_ROLE_FILTERS, getAdminRoleTone } from '@/types/admin'
 import { getAdminUsersPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
 
+const ROLE_LABELS: Record<string, string> = {
+  BUYER: 'Покупець',
+  SELLER: 'Продавець',
+  ADMIN: 'Адміністратор',
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
@@ -23,56 +29,56 @@ export default async function AdminUsersPage({
 
   return (
     <AdminSection
-      eyebrow="Users"
-      title="User management"
-      description="Search marketplace accounts, inspect role assignment, and review account metadata without leaving the admin workspace."
+      eyebrow="Користувачі"
+      title="Керування користувачами"
+      description="Шукайте акаунти маркетплейсу, перевіряйте призначені ролі та переглядайте метадані акаунтів, не залишаючи адмін-простір."
     >
       <AdminFilterBar action="/admin/users">
         <SearchInput
           name="search"
-          label="Search users"
+          label="Пошук користувачів"
           defaultValue={data.filters.search}
-          placeholder="Search by email or name"
+          placeholder="Пошук за email або іменем"
         />
         <StatusFilter
           name="role"
-          label="Role"
+          label="Роль"
           defaultValue={data.filters.role}
-          options={ADMIN_USER_ROLE_FILTERS.map((role) => ({ label: role, value: role }))}
+          options={ADMIN_USER_ROLE_FILTERS.map((role) => ({ label: ROLE_LABELS[role] ?? role, value: role }))}
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Marketplace users"
-        description="Roles, profile metadata, and creation history for user oversight."
+        title="Користувачі маркетплейсу"
+        description="Ролі, метадані профілів та історія створення для контролю користувачів."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No users in this view"
-              description="Try a different search term or role filter to find more accounts."
+              title="У цьому поданні немає користувачів"
+              description="Спробуйте інший пошуковий запит або фільтр ролі, щоб знайти більше акаунтів."
             />
           </div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-panel/60 text-left text-copy-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">User</th>
-                <th className="px-5 py-3 font-medium">Roles</th>
-                <th className="px-5 py-3 font-medium">Onboarding state</th>
-                <th className="px-5 py-3 font-medium">Created</th>
+                <th className="px-5 py-3 font-medium">Користувач</th>
+                <th className="px-5 py-3 font-medium">Ролі</th>
+                <th className="px-5 py-3 font-medium">Стан онбордингу</th>
+                <th className="px-5 py-3 font-medium">Створено</th>
               </tr>
             </thead>
             <tbody>
               {data.items.map((item) => {
                 const onboardingState = item.roles.includes('SELLER')
-                  ? 'Seller enabled'
+                  ? 'Продавця активовано'
                   : item.roles.includes('BUYER')
-                    ? 'Buyer active'
-                    : 'Role pending'
+                    ? 'Покупець активний'
+                    : 'Роль очікує'
 
                 return (
                   <tr key={item.id} className="border-t border-panelBorder align-top">
@@ -83,7 +89,7 @@ export default async function AdminUsersPage({
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-2">
                         {item.roles.map((role) => (
-                          <AdminStatusBadge key={role} label={role} tone={getAdminRoleTone(role)} />
+                          <AdminStatusBadge key={role} label={ROLE_LABELS[role] ?? role} tone={getAdminRoleTone(role)} />
                         ))}
                       </div>
                     </td>

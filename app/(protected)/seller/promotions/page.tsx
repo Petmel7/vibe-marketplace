@@ -30,35 +30,35 @@ export default async function SellerPromotionsPage({
 
   return (
     <SellerSection
-      eyebrow="Promotions"
-      title="Seller coupons"
-      description="Create and manage store-scoped promotions while keeping checkout totals fully authoritative on the backend."
+      eyebrow="Промоакції"
+      title="Купони продавця"
+      description="Створюйте й керуйте акціями для свого магазину, зберігаючи серверний контроль над підсумками в checkout."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
       <div className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel/60 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-copy-strong">Promotion overview</h2>
+          <h2 className="text-lg font-semibold text-copy-strong">Огляд промоакцій</h2>
           <p className="text-sm text-copy-muted">
-            Seller coupons can target your whole store, selected products, or selected categories.
+            Купони продавця можуть діяти на весь магазин, вибрані товари або вибрані категорії.
           </p>
         </div>
         <Link href="/seller/promotions/new" className="ui-primary-button">
-          New promotion
+          Нова промоакція
         </Link>
       </div>
 
       <SellerTable
-        title="Your promotions"
-        description="Status, discount windows, and usage snapshots for promotions attached to your storefront."
+        title="Ваші промоакції"
+        description="Статуси, періоди дії знижок і зведення використання для акцій вашої вітрини."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title="No seller promotions yet"
-              description="Create your first store coupon to test scoped discounts in checkout."
+              title="Промоакцій продавця ще немає"
+              description="Створіть свій перший купон магазину, щоб протестувати цільові знижки в checkout."
               actionHref="/seller/promotions/new"
-              actionLabel="Create promotion"
+              actionLabel="Створити промоакцію"
             />
           </div>
         ) : (

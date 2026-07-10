@@ -43,11 +43,11 @@ export default function ProfileSettingsForm({
 
       const json = await response.json()
       if (!response.ok || !json.success) {
-        setErrorMessage(json.error?.message ?? 'Could not save profile settings.')
+        setErrorMessage(json.error?.message ?? 'Не вдалося зберегти налаштування профілю.')
         return
       }
 
-      setMessage('Profile settings saved.')
+      setMessage('Налаштування профілю збережено.')
       router.refresh()
     })
   }
@@ -60,14 +60,14 @@ export default function ProfileSettingsForm({
             {formState.displayName?.trim().charAt(0) || user.email.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-copy-strong">Account settings</h2>
-            <p className="text-sm text-copy-muted">Update your buyer profile and account presentation.</p>
+            <h2 className="text-lg font-semibold text-copy-strong">Налаштування акаунта</h2>
+            <p className="text-sm text-copy-muted">Оновлюйте профіль покупця та представлення акаунта.</p>
           </div>
         </div>
 
         <form className="mt-6 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Display name</span>
+            <span className="block text-sm font-medium text-copy-strong">Ім’я профілю</span>
             <input
               className="ui-surface-input"
               value={formState.displayName}
@@ -76,7 +76,7 @@ export default function ProfileSettingsForm({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Phone number</span>
+            <span className="block text-sm font-medium text-copy-strong">Номер телефону</span>
             <input
               className="ui-surface-input"
               value={formState.phoneNumber}
@@ -85,7 +85,7 @@ export default function ProfileSettingsForm({
           </label>
 
           <label className="space-y-2 sm:col-span-2">
-            <span className="block text-sm font-medium text-copy-strong">Avatar URL</span>
+            <span className="block text-sm font-medium text-copy-strong">URL аватара</span>
             <input
               className="ui-surface-input"
               value={formState.avatarUrl}
@@ -95,7 +95,7 @@ export default function ProfileSettingsForm({
           </label>
 
           <label className="space-y-2 sm:col-span-2">
-            <span className="block text-sm font-medium text-copy-strong">Bio</span>
+            <span className="block text-sm font-medium text-copy-strong">Про себе</span>
             <textarea
               className="ui-surface-input min-h-32 resize-y"
               value={formState.bio}
@@ -105,7 +105,7 @@ export default function ProfileSettingsForm({
 
           <div className="sm:col-span-2 flex flex-col gap-3 sm:flex-row">
             <button type="submit" className="ui-primary-button" disabled={isPending}>
-              {isPending ? 'Saving...' : 'Save profile'}
+              {isPending ? 'Зберігаємо...' : 'Зберегти профіль'}
             </button>
           </div>
         </form>
@@ -123,33 +123,33 @@ export default function ProfileSettingsForm({
       </section>
 
       <section className="ui-panel p-5 sm:p-6">
-        <h3 className="text-base font-semibold text-copy-strong">Account metadata</h3>
+        <h3 className="text-base font-semibold text-copy-strong">Метадані акаунта</h3>
         <dl className="mt-4 grid gap-3 text-sm text-copy-secondary sm:grid-cols-2">
           <div>
-            <dt className="text-copy-muted">Email</dt>
+            <dt className="text-copy-muted">Електронна пошта</dt>
             <dd className="mt-1 break-all text-copy-primary">{user.email}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Profile created</dt>
+            <dt className="text-copy-muted">Профіль створено</dt>
             <dd className="mt-1 text-copy-primary">
-              {profile ? new Date(profile.createdAt).toLocaleDateString('uk-UA') : 'Not available'}
+              {profile ? new Date(profile.createdAt).toLocaleDateString('uk-UA') : 'Недоступно'}
             </dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Last updated</dt>
+            <dt className="text-copy-muted">Останнє оновлення</dt>
             <dd className="mt-1 text-copy-primary">
-              {profile ? new Date(profile.updatedAt).toLocaleDateString('uk-UA') : 'Not available'}
+              {profile ? new Date(profile.updatedAt).toLocaleDateString('uk-UA') : 'Недоступно'}
             </dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Security</dt>
-            <dd className="mt-1 text-copy-primary">Ready for future MFA and account security flows.</dd>
+            <dt className="text-copy-muted">Безпека</dt>
+            <dd className="mt-1 text-copy-primary">Готово до майбутніх сценаріїв MFA та захисту акаунта.</dd>
           </div>
         </dl>
 
         <form action={signOutAction} className="mt-5">
           <button type="submit" className="ui-secondary-button w-full sm:w-auto">
-            Sign out
+            Вийти
           </button>
         </form>
       </section>

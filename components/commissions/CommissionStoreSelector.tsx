@@ -75,8 +75,8 @@ export default function CommissionStoreSelector({
           setOptions(selectedOption ? [selectedOption] : [])
           setErrorMessage(
             json.success
-              ? 'We could not load stores right now.'
-              : json.error?.message ?? 'We could not load stores right now.',
+              ? 'Зараз не вдалося завантажити магазини.'
+              : json.error?.message ?? 'Зараз не вдалося завантажити магазини.',
           )
           return
         }
@@ -107,7 +107,7 @@ export default function CommissionStoreSelector({
         }
 
         setOptions(selectedOption ? [selectedOption] : [])
-        setErrorMessage('We could not load stores right now.')
+        setErrorMessage('Зараз не вдалося завантажити магазини.')
       } finally {
         setIsLoading(false)
       }
@@ -123,17 +123,17 @@ export default function CommissionStoreSelector({
 
   return (
     <div className="space-y-2">
-      <span className="block text-sm font-medium text-copy-strong">Store</span>
+      <span className="block text-sm font-medium text-copy-strong">Магазин</span>
 
       <label className="space-y-2">
-        <span className="sr-only">Search stores</span>
+        <span className="sr-only">Пошук магазинів</span>
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="ui-surface-input"
-          placeholder="Search stores by name"
-          aria-label="Search stores"
+          placeholder="Пошук магазинів за назвою"
+          aria-label="Пошук магазинів"
         />
       </label>
 
@@ -145,7 +145,7 @@ export default function CommissionStoreSelector({
         aria-invalid={Boolean(errorMessage) || (required && !value)}
         disabled={isLoading && options.length === 0}
       >
-        <option value="">{isLoading ? 'Loading stores...' : 'Select a store'}</option>
+        <option value="">{isLoading ? 'Завантажуємо магазини...' : 'Оберіть магазин'}</option>
         {options.map((store) => (
           <option key={store.id} value={store.id}>
             {store.name}
@@ -154,16 +154,16 @@ export default function CommissionStoreSelector({
       </select>
 
       <div aria-live="polite" className="min-h-5 text-xs">
-        {isLoading ? <p className="text-copy-muted">Loading store options...</p> : null}
+        {isLoading ? <p className="text-copy-muted">Завантажуємо варіанти магазинів...</p> : null}
         {errorMessage ? <p className="text-brand-danger">{errorMessage}</p> : null}
-        {hasEmptyState ? <p className="text-copy-muted">No stores matched this search yet.</p> : null}
+        {hasEmptyState ? <p className="text-copy-muted">За цим пошуком ще не знайдено магазинів.</p> : null}
         {!isLoading && !errorMessage && selectedOption ? (
-          <p className="text-copy-muted">Selected store: {selectedOption.name}</p>
+          <p className="text-copy-muted">Обраний магазин: {selectedOption.name}</p>
         ) : null}
       </div>
 
       <p className="text-xs text-copy-muted">
-        Store-specific rules win over category and global rules at the same priority.
+        Правила конкретного магазину мають перевагу над правилами категорії та глобальними правилами за однакового пріоритету.
       </p>
     </div>
   )

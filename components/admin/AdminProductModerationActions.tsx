@@ -19,25 +19,25 @@ export default function AdminProductModerationActions({
     <div className="flex flex-wrap gap-2">
       {canAdminApproveProduct(status) ? (
         <ModerationActionDialog
-          triggerLabel="Approve"
-          title="Approve product"
-          description="This will publish the product into the marketplace catalog."
+          triggerLabel="Схвалити"
+          title="Схвалити товар"
+          description="Ця дія опублікує товар у каталозі маркетплейсу."
           endpoint={`/api/admin/moderation/products/${productId}/approve`}
-          actionLabel="Approve product"
-          successMessage="Product approved."
+          actionLabel="Схвалити товар"
+          successMessage="Товар схвалено."
           tone="success"
         />
       ) : null}
 
       {canAdminRejectProduct(status) ? (
         <ModerationActionDialog
-          triggerLabel="Reject"
-          title="Reject product"
-          description="Add moderation feedback so the seller can address the issues before resubmitting."
+          triggerLabel="Відхилити"
+          title="Відхилити товар"
+          description="Додайте коментар модерації, щоб продавець міг виправити проблеми перед повторною подачею."
           endpoint={`/api/admin/moderation/products/${productId}/reject`}
-          actionLabel="Reject product"
-          successMessage="Product rejected."
-          reasonLabel="Moderation reason"
+          actionLabel="Відхилити товар"
+          successMessage="Товар відхилено."
+          reasonLabel="Причина модерації"
           reasonRequired
           reasonMinLength={1}
           tone="danger"
@@ -46,25 +46,25 @@ export default function AdminProductModerationActions({
 
       {canAdminArchiveProduct(status) ? (
         <ModerationActionDialog
-          triggerLabel="Archive"
-          title="Archive product"
-          description="Archiving removes the listing from active marketplace circulation while preserving a moderation record."
+          triggerLabel="Архівувати"
+          title="Архівувати товар"
+          description="Архівація прибирає товар з активної публічної вітрини, зберігаючи запис модерації."
           endpoint={`/api/admin/moderation/products/${productId}/archive`}
-          actionLabel="Archive product"
-          successMessage="Product archived."
-          reasonLabel="Archive note"
+          actionLabel="Архівувати товар"
+          successMessage="Товар архівовано."
+          reasonLabel="Примітка до архівації"
           tone="secondary"
         />
       ) : null}
 
       {canAdminRestoreProduct(status) ? (
         <ModerationActionDialog
-          triggerLabel="Restore"
-          title="Restore product to draft"
-          description="Restoring sends the product back to draft so the seller can update and resubmit it."
+          triggerLabel="Повернути"
+          title="Повернути товар у чернетку"
+          description="Товар буде повернено в чернетку, щоб продавець міг оновити його та повторно відправити на модерацію."
           endpoint={`/api/admin/moderation/products/${productId}/restore`}
-          actionLabel="Restore product"
-          successMessage="Product restored."
+          actionLabel="Повернути товар"
+          successMessage="Товар повернуто."
           tone="success"
         />
       ) : null}

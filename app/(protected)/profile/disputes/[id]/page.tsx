@@ -43,7 +43,7 @@ export default async function ProfileDisputeDetailPage({
 
   return (
     <ProfileSection
-      eyebrow="Dispute details"
+      eyebrow="Деталі суперечки"
       title={`Суперечка #${dispute.id.slice(0, 8)}`}
       description="Переглядайте статус, листування та матеріали по проблемному замовленню."
     >
@@ -64,7 +64,7 @@ export default async function ProfileDisputeDetailPage({
         <div className="space-y-6">
           <DashboardCard
             title="Контекст суперечки"
-            description={`Замовлення #${dispute.orderId.slice(0, 8)} · ${dispute.productName ?? 'Marketplace order'}`}
+            description={`Замовлення #${dispute.orderId.slice(0, 8)} · ${dispute.productName ?? 'Замовлення маркетплейсу'}`}
           >
             <div className="space-y-4 p-5 sm:p-6">
               <p className="text-sm leading-6 text-copy-primary">{dispute.description}</p>

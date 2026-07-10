@@ -97,11 +97,11 @@ export default function CommissionRuleForm({
     [categories],
   )
 
-  const title = mode === 'create' ? 'Create commission rule' : initialRule?.name ?? 'Edit commission rule'
+  const title = mode === 'create' ? 'Створити правило комісії' : initialRule?.name ?? 'Редагувати правило комісії'
   const description =
     mode === 'create'
-      ? 'Configure a global, store, or category-specific commission rule. The backend still resolves priority and specificity.'
-      : 'Update the rule window, priority, or activity. Historical commission snapshots remain unchanged.'
+      ? 'Налаштуйте глобальне правило або правило для магазину чи категорії. Backend і надалі сам визначає пріоритет і специфічність.'
+      : 'Оновіть часове вікно, пріоритет або активність правила. Історичні знімки комісій залишаються без змін.'
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -138,13 +138,13 @@ export default function CommissionRuleForm({
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Rule name</span>
+            <span className="block text-sm font-medium text-copy-strong">Назва правила</span>
             <input
               required
               value={values.name}
               onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
               className="ui-surface-input"
-              placeholder="Default marketplace commission"
+              placeholder="Стандартна комісія маркетплейсу"
             />
           </label>
 
@@ -172,14 +172,14 @@ export default function CommissionRuleForm({
 
         {values.scope === 'CATEGORY' ? (
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Category</span>
+            <span className="block text-sm font-medium text-copy-strong">Категорія</span>
             <select
               required
               value={values.categoryId}
               onChange={(event) => setValues((current) => ({ ...current, categoryId: event.target.value }))}
               className="ui-surface-input"
             >
-              <option value="">Select a category</option>
+              <option value="">Оберіть категорію</option>
               {sortedCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {'— '.repeat(category.level)}
@@ -187,13 +187,13 @@ export default function CommissionRuleForm({
                 </option>
               ))}
             </select>
-            <p className="text-xs text-copy-muted">Category rules override the global rule but still lose to store-specific rules.</p>
+            <p className="text-xs text-copy-muted">Правила категорії мають перевагу над глобальним правилом, але поступаються правилам конкретного магазину.</p>
           </label>
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-3">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Rate</span>
+            <span className="block text-sm font-medium text-copy-strong">Ставка</span>
             <input
               required
               type="number"
@@ -205,11 +205,11 @@ export default function CommissionRuleForm({
               className="ui-surface-input"
               placeholder="0.1000"
             />
-            <p className="text-xs text-copy-muted">Use decimal format, for example `0.10` for 10%.</p>
+            <p className="text-xs text-copy-muted">Використовуйте десятковий формат, наприклад `0.10` для 10%.</p>
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Priority</span>
+            <span className="block text-sm font-medium text-copy-strong">Пріоритет</span>
             <input
               required
               type="number"
@@ -228,13 +228,13 @@ export default function CommissionRuleForm({
               onChange={(event) => setValues((current) => ({ ...current, isActive: event.target.checked }))}
               className="h-4 w-4 rounded border-panelBorder text-brand focus:ring-brand"
             />
-            <span className="text-sm font-medium text-copy-strong">Rule is active</span>
+            <span className="text-sm font-medium text-copy-strong">Правило активне</span>
           </label>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Starts at</span>
+            <span className="block text-sm font-medium text-copy-strong">Початок дії</span>
             <input
               required
               type="datetime-local"
@@ -245,7 +245,7 @@ export default function CommissionRuleForm({
           </label>
 
           <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Ends at</span>
+            <span className="block text-sm font-medium text-copy-strong">Кінець дії</span>
             <input
               type="datetime-local"
               value={values.endsAt}
@@ -256,10 +256,10 @@ export default function CommissionRuleForm({
         </div>
 
         <div className="rounded-3xl border border-panelBorder bg-panel/60 p-4 text-sm text-copy-secondary">
-          <p className="font-medium text-copy-strong">Priority and specificity</p>
+          <p className="font-medium text-copy-strong">Пріоритет і специфічність</p>
           <p className="mt-1">
-            Higher priority wins first. If priorities match, the backend resolves specificity in this order:
-            store, then category, then global.
+            Спочатку перемагає вищий пріоритет. Якщо пріоритет однаковий, backend визначає специфічність у такому порядку:
+            магазин, потім категорія, потім глобальне правило.
           </p>
         </div>
 
@@ -267,7 +267,7 @@ export default function CommissionRuleForm({
 
         <div className="flex flex-wrap gap-3">
           <button type="submit" className="ui-primary-button" disabled={isPending}>
-            {isPending ? 'Saving...' : mode === 'create' ? 'Create rule' : 'Save changes'}
+            {isPending ? 'Зберігаємо...' : mode === 'create' ? 'Створити правило' : 'Зберегти зміни'}
           </button>
 
           {mode === 'edit' && initialRule ? (
@@ -277,7 +277,7 @@ export default function CommissionRuleForm({
               disabled={isPending}
               onClick={() => void updateRuleStatus(initialRule.id, !initialRule.isActive)}
             >
-              {initialRule.isActive ? 'Deactivate rule' : 'Activate rule'}
+              {initialRule.isActive ? 'Деактивувати правило' : 'Активувати правило'}
             </button>
           ) : null}
 
@@ -287,7 +287,7 @@ export default function CommissionRuleForm({
               className="rounded-2xl border border-brand-danger/30 px-4 py-2 text-sm font-medium text-brand-danger transition hover:bg-brand-danger/10"
               onClick={() => setShowArchiveConfirmation((current) => !current)}
             >
-              {showArchiveConfirmation ? 'Keep rule' : 'Archive rule'}
+              {showArchiveConfirmation ? 'Залишити правило' : 'Архівувати правило'}
             </button>
           ) : null}
         </div>
@@ -295,7 +295,7 @@ export default function CommissionRuleForm({
         {mode === 'edit' && initialRule && showArchiveConfirmation ? (
           <div className="rounded-3xl border border-brand-danger/30 bg-brand-danger/5 p-4">
             <p className="text-sm text-copy-strong">
-              Archiving disables this rule for future resolution without changing historical commission snapshots.
+              Архівація вимикає це правило для майбутнього застосування, не змінюючи історичні знімки комісій.
             </p>
             <div className="mt-3 flex gap-3">
               <button
@@ -304,14 +304,14 @@ export default function CommissionRuleForm({
                 disabled={isPending}
                 onClick={() => void archiveRule(initialRule.id)}
               >
-                Confirm archive
+                Підтвердити архівацію
               </button>
               <button
                 type="button"
                 className="ui-secondary-button"
                 onClick={() => setShowArchiveConfirmation(false)}
               >
-                Cancel
+                Скасувати
               </button>
             </div>
           </div>

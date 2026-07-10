@@ -18,31 +18,31 @@ export default async function AdminReviewsPage({
 
   return (
     <AdminSection
-      eyebrow="Reviews"
-      title="Review moderation queue"
-      description="Approve, reject, hide, and restore marketplace reviews using the backend moderation workflow."
+      eyebrow="Відгуки"
+      title="Черга модерації відгуків"
+      description="Схвалюйте, відхиляйте, приховуйте та відновлюйте відгуки маркетплейсу через backend-процес модерації."
     >
       <AdminDataTable
-        title="Review queue"
-        description="Filter by moderation status and respond without exposing moderation controls publicly."
+        title="Черга відгуків"
+        description="Фільтруйте за статусом модерації та реагуйте без публічного показу інструментів модерації."
         actions={
           <form method="GET" className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Status</span>
+              <span>Статус</span>
               <select
                 name="status"
                 defaultValue={data.filters.status ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="PENDING">Pending</option>
-                <option value="PUBLISHED">Published</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="HIDDEN">Hidden</option>
+                <option value="">Усі</option>
+                <option value="PENDING">Очікує</option>
+                <option value="PUBLISHED">Опубліковано</option>
+                <option value="REJECTED">Відхилено</option>
+                <option value="HIDDEN">Приховано</option>
               </select>
             </label>
             <button type="submit" className="ui-secondary-button">
-              Apply
+              Застосувати
             </button>
           </form>
         }
@@ -53,8 +53,8 @@ export default async function AdminReviewsPage({
             showProductMeta
             emptyState={
               <AdminEmptyState
-                title="No reviews in this queue"
-                description="Reviews that match the current filter will appear here for moderation."
+                title="У цій черзі немає відгуків"
+                description="Тут з’являться відгуки, які відповідають поточному фільтру."
               />
             }
             renderAction={(review) => (

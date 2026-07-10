@@ -4,9 +4,9 @@ import AdminSection from '@/components/admin/AdminSection'
 export default function AdminBadgeRulesPage() {
   return (
     <AdminSection
-      eyebrow="Marketplace configuration"
-      title="Badge rules"
-      description="Manage the marketplace-controlled HIT badge thresholds that drive public product merchandising."
+      eyebrow="Конфігурація маркетплейсу"
+      title="Правила бейджів"
+      description="Керуйте порогами HIT-бейджа, які контролюються маркетплейсом і впливають на публічне просування товарів."
     >
       <AdminBadgeRuleSettingsForm />
     </AdminSection>

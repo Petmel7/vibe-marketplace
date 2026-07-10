@@ -22,31 +22,31 @@ export default async function AdminPayoutsPage({
 
   return (
     <AdminSection
-      eyebrow="Seller finance"
-      title="Manual payouts"
-      description="Review payout batches, inspect their state, and update lifecycle status without exposing provider-side settlement details."
+      eyebrow="Фінанси продавців"
+      title="Ручні виплати"
+      description="Переглядайте пакети виплат, перевіряйте їхній стан і оновлюйте статус життєвого циклу без розкриття деталей розрахунків на стороні провайдера."
     >
       <AdminFilterBar action="/admin/payouts">
         <StatusFilter
           name="status"
-          label="Status"
+          label="Статус"
           defaultValue={data.filters.status}
           options={PAYOUT_STATUSES.map((status) => ({ label: getPayoutStatusLabel(status), value: status }))}
         />
         <SearchInput
           name="sellerId"
-          label="Seller id"
+          label="ID продавця"
           defaultValue={data.filters.sellerId}
-          placeholder="Filter by seller UUID"
+          placeholder="Фільтр за UUID продавця"
         />
         <SearchInput
           name="storeId"
-          label="Store id"
+          label="ID магазину"
           defaultValue={data.filters.storeId}
-          placeholder="Filter by store UUID"
+          placeholder="Фільтр за UUID магазину"
         />
         <label className="space-y-2 xl:w-56">
-          <span className="block text-sm font-medium text-copy-strong">From date</span>
+          <span className="block text-sm font-medium text-copy-strong">Дата від</span>
           <input
             type="date"
             name="dateFrom"
@@ -55,7 +55,7 @@ export default async function AdminPayoutsPage({
           />
         </label>
         <label className="space-y-2 xl:w-56">
-          <span className="block text-sm font-medium text-copy-strong">To date</span>
+          <span className="block text-sm font-medium text-copy-strong">Дата до</span>
           <input
             type="date"
             name="dateTo"
@@ -64,21 +64,21 @@ export default async function AdminPayoutsPage({
           />
         </label>
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Payout queue"
-        description="Use payout details to confirm the included ledger entries and apply financial status changes carefully."
+        title="Черга виплат"
+        description="Використовуйте деталі виплат, щоб підтвердити включені записи бухгалтерії та обережно змінювати фінансові статуси."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No payouts found"
-              description="Create a payout from seller balances or widen the current filters."
+              title="Виплат не знайдено"
+              description="Створіть виплату з балансів продавців або розширте поточні фільтри."
               actionHref="/admin/seller-balances"
-              actionLabel="Open seller balances"
+              actionLabel="Відкрити баланси продавців"
             />
           </div>
         ) : (

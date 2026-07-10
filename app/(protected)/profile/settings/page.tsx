@@ -11,9 +11,9 @@ export default async function ProfileSettingsPage() {
 
   return (
     <ProfileSection
-      eyebrow="Settings"
-      title="Account settings"
-      description="Keep buyer identity, contact details, and account readiness up to date without leaving the dashboard."
+      eyebrow="Налаштування"
+      title="Налаштування акаунта"
+      description="Оновлюйте дані покупця, контакти та готовність акаунта, не залишаючи кабінет."
     >
       <ProfileSettingsForm user={user} profile={profile} />
     </ProfileSection>

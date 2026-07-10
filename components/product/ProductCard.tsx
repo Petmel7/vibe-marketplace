@@ -85,7 +85,7 @@ export default function ProductCard({
             {badgeChips.length > 0 ? (
               <div
                 className="absolute left-3 top-3 z-10 flex flex-wrap gap-2"
-                aria-label="Marketplace badges"
+                aria-label="Бейджі маркетплейсу"
               >
                 {badgeChips.map((badge) => (
                   <span

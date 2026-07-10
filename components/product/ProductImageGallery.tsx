@@ -52,7 +52,9 @@ export default function ProductImageGallery({
     return sortedImages.map((image, index) => ({
       id: image.id,
       src: image.url,
-      alt: image.altText?.trim() || `${productName}${sortedImages.length > 1 ? ` — image ${index + 1}` : ''}`,
+      alt:
+        image.altText?.trim() ||
+        `${productName}${sortedImages.length > 1 ? ` — зображення ${index + 1}` : ''}`,
     }))
   }, [images, productName])
 
@@ -76,7 +78,7 @@ export default function ProductImageGallery({
   }
 
   return (
-    <section className="space-y-4" aria-label="Product image gallery">
+    <section className="space-y-4" aria-label="Галерея зображень товару">
       <div className={hasMultipleImages ? 'grid gap-4 lg:grid-cols-[88px_minmax(0,1fr)]' : 'grid gap-4'}>
         {hasMultipleImages ? (
           <div className="order-2 lg:order-1">
@@ -85,7 +87,7 @@ export default function ProductImageGallery({
                 <ProductGalleryThumbnail
                   key={image.id}
                   src={resolveImageSrc(image)}
-                  alt={`Select image ${index + 1} for ${productName}`}
+                  alt={`Обрати зображення ${index + 1} для товару ${productName}`}
                   isSelected={image.id === selectedImage.id}
                   onSelect={() => setSelectedImageId(image.id)}
                   onError={() => markBroken(image.id)}

@@ -13,35 +13,35 @@ export default function CheckoutSummary({
 }) {
   return (
     <DashboardCard
-      title="Order summary"
-      description="Totals are calculated on the server and rechecked again during order submission."
+      title="Підсумок замовлення"
+      description="Підсумкові суми обчислюються на сервері та повторно перевіряються під час оформлення замовлення."
     >
       <dl className="space-y-3 text-sm text-copy-secondary">
         <div className="flex items-center justify-between gap-4">
-          <dt>Items</dt>
+          <dt>Товари</dt>
           <dd className="text-copy-primary">{preview.itemCount}</dd>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <dt>Subtotal</dt>
+          <dt>Сума товарів</dt>
           <dd className="text-copy-primary">{formatPrice(preview.subtotal)}</dd>
         </div>
         {Number(preview.discountAmount) > 0 ? (
           <div className="flex items-center justify-between gap-4">
-            <dt>Discount</dt>
+            <dt>Знижка</dt>
             <dd className="text-copy-primary">-{formatPrice(preview.discountAmount)}</dd>
           </div>
         ) : null}
         <div className="flex items-center justify-between gap-4">
-          <dt>Shipping</dt>
+          <dt>Доставка</dt>
           <dd className="text-copy-primary">{formatPrice(preview.shippingAmount)}</dd>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <dt>Payment</dt>
+          <dt>Оплата</dt>
           <dd className="text-copy-primary">{getPaymentMethodLabel(paymentMethod)}</dd>
         </div>
         {preview.appliedPromotion ? (
           <div className="flex items-center justify-between gap-4">
-            <dt>Promotion</dt>
+            <dt>Промокод</dt>
             <dd className="text-right text-copy-primary">
               <span className="block font-medium">{preview.appliedPromotion.code}</span>
               <span className="block text-xs text-copy-muted">{preview.appliedPromotion.name}</span>
@@ -49,7 +49,7 @@ export default function CheckoutSummary({
           </div>
         ) : null}
         <div className="flex items-center justify-between gap-4 border-t border-panelBorder pt-3 text-base font-semibold text-copy-strong">
-          <dt>Total</dt>
+          <dt>Усього</dt>
           <dd>{formatPrice(preview.total)}</dd>
         </div>
       </dl>

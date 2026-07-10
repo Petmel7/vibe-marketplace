@@ -17,56 +17,56 @@ export default async function AdminRiskOverviewPage() {
 
   return (
     <AdminSection
-      eyebrow="Trust & Safety"
-      title="Risk scoring"
-      description="Review advisory risk profiles for users and stores, inspect recent signals, and manually refresh scoring when moderation events land."
+      eyebrow="Довіра та безпека"
+      title="Оцінка ризику"
+      description="Переглядайте advisory-профілі ризику для користувачів і магазинів, аналізуйте нещодавні сигнали та вручну оновлюйте оцінки після модераційних подій."
     >
       <RiskAdvisoryNotice />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AdminMetricCard
-          label="Critical users"
+          label="Критичні користувачі"
           value={data.criticalUsers.total}
-          detail="Accounts currently at the highest advisory risk level"
+          detail="Акаунти з найвищим advisory-рівнем ризику"
         />
         <AdminMetricCard
-          label="Critical stores"
+          label="Критичні магазини"
           value={data.criticalStores.total}
-          detail="Storefronts currently requiring the fastest trust review"
+          detail="Вітрини, які зараз потребують найшвидшого перегляду довіри"
         />
         <AdminMetricCard
-          label="Recent user profiles"
+          label="Останні профілі користувачів"
           value={data.recentUsers.total}
-          detail="Tracked user risk profiles available to review"
+          detail="Відстежувані профілі ризику користувачів, доступні для перегляду"
         />
         <AdminMetricCard
-          label="Recent store profiles"
+          label="Останні профілі магазинів"
           value={data.recentStores.total}
-          detail="Tracked store risk profiles available to review"
+          detail="Відстежувані профілі ризику магазинів, доступні для перегляду"
         />
       </div>
 
       <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-copy-strong">Manual recalculation</h2>
+          <h2 className="text-lg font-semibold text-copy-strong">Ручний перерахунок</h2>
           <p className="text-sm text-copy-secondary">
-            Rebuild the advisory scores from stored signals when you need a fresh operational snapshot.
+            Перебудуйте advisory-оцінки зі збережених сигналів, коли потрібен свіжий операційний знімок.
           </p>
         </div>
-        <RiskRecalculateButton targetType="ALL" label="Recalculate all risk profiles" />
+        <RiskRecalculateButton targetType="ALL" label="Перерахувати всі профілі ризику" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <AdminDataTable
-          title="Critical user profiles"
-          description="Accounts with the most urgent trust and safety signal mix."
-          actions={<Link href="/admin/risk/users?level=CRITICAL" className="ui-link-muted">Open users</Link>}
+          title="Критичні профілі користувачів"
+          description="Акаунти з найтерміновішою комбінацією сигналів довіри та безпеки."
+          actions={<Link href="/admin/risk/users?level=CRITICAL" className="ui-link-muted">Відкрити користувачів</Link>}
         >
           {data.criticalUsers.items.length === 0 ? (
             <div className="p-6">
               <AdminEmptyState
-                title="No critical user profiles"
-                description="Critical user risk profiles will appear here when the signal threshold is crossed."
+                title="Немає критичних профілів користувачів"
+                description="Критичні профілі ризику користувачів з’являться тут, коли буде перевищено поріг сигналів."
               />
             </div>
           ) : (
@@ -75,15 +75,15 @@ export default async function AdminRiskOverviewPage() {
         </AdminDataTable>
 
         <AdminDataTable
-          title="Critical store profiles"
-          description="Storefronts whose risk signal load needs admin review."
-          actions={<Link href="/admin/risk/stores?level=CRITICAL" className="ui-link-muted">Open stores</Link>}
+          title="Критичні профілі магазинів"
+          description="Вітрини, навантаження сигналів ризику яких потребує перегляду адміністратором."
+          actions={<Link href="/admin/risk/stores?level=CRITICAL" className="ui-link-muted">Відкрити магазини</Link>}
         >
           {data.criticalStores.items.length === 0 ? (
             <div className="p-6">
               <AdminEmptyState
-                title="No critical store profiles"
-                description="Critical store risk profiles will appear here when the signal threshold is crossed."
+                title="Немає критичних профілів магазинів"
+                description="Критичні профілі ризику магазинів з’являться тут, коли буде перевищено поріг сигналів."
               />
             </div>
           ) : (

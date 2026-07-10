@@ -16,38 +16,38 @@ export default async function AdminModerationPage() {
 
   return (
     <AdminSection
-      eyebrow="Moderation"
-      title="Trust and safety queues"
-      description="Review pending seller and product decisions, plus the escalated rejected and suspended items that need administrative follow-up."
+      eyebrow="Модерація"
+      title="Черги довіри та безпеки"
+      description="Переглядайте рішення по продавцях і товарах, що очікують схвалення, а також відхилені й призупинені позиції, які потребують адміністративної уваги."
     >
       <div className="space-y-6">
         <AdminDataTable
-          title="Pending seller approvals"
-          description="Approve or reject seller applications before seller tooling becomes available."
+          title="Продавці, що очікують схвалення"
+          description="Схвалюйте або відхиляйте заявки продавців до того, як їм стане доступний seller workspace."
         >
           {data.pendingSellerQueue.items.length === 0 ? (
             <div className="p-6">
               <AdminEmptyState
-                title="No sellers waiting on approval"
-                description="New seller applications will appear here when buyer accounts apply for marketplace access."
+                title="Немає продавців, які очікують схвалення"
+                description="Нові заявки продавців з’являться тут, коли акаунти покупців подадуть запит на доступ до маркетплейсу."
               />
             </div>
           ) : (
             <table className="min-w-full text-sm">
               <thead className="bg-panel/60 text-left text-copy-muted">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Seller</th>
-                  <th className="px-5 py-3 font-medium">Created</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium">Actions</th>
+                  <th className="px-5 py-3 font-medium">Продавець</th>
+                  <th className="px-5 py-3 font-medium">Створено</th>
+                  <th className="px-5 py-3 font-medium">Статус</th>
+                  <th className="px-5 py-3 font-medium">Дії</th>
                 </tr>
               </thead>
               <tbody>
                 {data.pendingSellerQueue.items.map((seller) => (
                   <tr key={seller.id} className="border-t border-panelBorder align-top">
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{seller.businessName || 'Unnamed seller application'}</p>
-                      <p className="mt-1 text-copy-muted">User {seller.userId.slice(0, 8)}</p>
+                      <p className="font-semibold text-copy-strong">{seller.businessName || 'Заявка продавця без назви'}</p>
+                      <p className="mt-1 text-copy-muted">Користувач {seller.userId.slice(0, 8)}</p>
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{new Date(seller.createdAt).toLocaleDateString('uk-UA')}</td>
                     <td className="px-5 py-4">
@@ -64,24 +64,24 @@ export default async function AdminModerationPage() {
         </AdminDataTable>
 
         <AdminDataTable
-          title="Pending product approvals"
-          description="Review catalog items queued for publication."
+          title="Товари, що очікують схвалення"
+          description="Переглядайте позиції каталогу, поставлені в чергу на публікацію."
         >
           {data.pendingProductQueue.items.length === 0 ? (
             <div className="p-6">
               <AdminEmptyState
-                title="No products waiting on approval"
-                description="Products submitted for review will appear here automatically."
+                title="Немає товарів, які очікують схвалення"
+                description="Товари, відправлені на перевірку, автоматично з’являться тут."
               />
             </div>
           ) : (
             <table className="min-w-full text-sm">
               <thead className="bg-panel/60 text-left text-copy-muted">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Product</th>
-                  <th className="px-5 py-3 font-medium">Store</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium">Actions</th>
+                  <th className="px-5 py-3 font-medium">Товар</th>
+                  <th className="px-5 py-3 font-medium">Магазин</th>
+                  <th className="px-5 py-3 font-medium">Статус</th>
+                  <th className="px-5 py-3 font-medium">Дії</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,14 +107,14 @@ export default async function AdminModerationPage() {
 
         <div className="grid gap-6 xl:grid-cols-2">
           <AdminDataTable
-            title="Rejected products"
-            description="Catalog items returned to sellers with moderation feedback."
+            title="Відхилені товари"
+            description="Позиції каталогу, повернуті продавцям із коментарем модерації."
           >
             {data.rejectedProductQueue.items.length === 0 ? (
               <div className="p-6">
                 <AdminEmptyState
-                  title="No rejected products"
-                  description="Rejected product listings will appear here when moderation feedback has been issued."
+                  title="Немає відхилених товарів"
+                  description="Відхилені товари з’являться тут, коли модерація видасть відповідний фідбек."
                 />
               </div>
             ) : (
@@ -129,7 +129,7 @@ export default async function AdminModerationPage() {
                         </div>
                         <AdminStatusBadge label={product.status} tone={getAdminProductStatusTone(product.status)} />
                       </div>
-                      <p className="text-sm text-copy-secondary">{product.moderationReason || 'No rejection reason available.'}</p>
+                      <p className="text-sm text-copy-secondary">{product.moderationReason || 'Причина відхилення недоступна.'}</p>
                       <AdminProductModerationActions productId={product.id} status={product.status} />
                     </div>
                   </div>
@@ -139,14 +139,14 @@ export default async function AdminModerationPage() {
           </AdminDataTable>
 
           <AdminDataTable
-            title="Suspended sellers"
-            description="Seller operators currently blocked from marketplace activity."
+            title="Призупинені продавці"
+            description="Продавці, яким зараз заблоковано активність на маркетплейсі."
           >
             {data.suspendedSellerQueue.items.length === 0 ? (
               <div className="p-6">
                 <AdminEmptyState
-                  title="No suspended sellers"
-                  description="Suspended seller accounts will appear here whenever moderation pauses storefront activity."
+                  title="Немає призупинених продавців"
+                  description="Призупинені акаунти продавців з’являться тут, коли модерація тимчасово зупинить роботу вітрини."
                 />
               </div>
             ) : (
@@ -156,12 +156,12 @@ export default async function AdminModerationPage() {
                     <div className="flex flex-col gap-3">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="font-semibold text-copy-strong">{seller.businessName || 'Unnamed seller'}</p>
-                          <p className="mt-1 text-sm text-copy-muted">User {seller.userId.slice(0, 8)}</p>
+                          <p className="font-semibold text-copy-strong">{seller.businessName || 'Продавець без назви'}</p>
+                          <p className="mt-1 text-sm text-copy-muted">Користувач {seller.userId.slice(0, 8)}</p>
                         </div>
                         <AdminStatusBadge label={seller.verificationStatus} tone={getAdminSellerStatusTone(seller.verificationStatus)} />
                       </div>
-                      <p className="text-sm text-copy-secondary">{seller.moderationReason || 'No suspension reason available.'}</p>
+                      <p className="text-sm text-copy-secondary">{seller.moderationReason || 'Причина призупинення недоступна.'}</p>
                       <AdminSellerModerationActions sellerId={seller.id} verificationStatus={seller.verificationStatus} />
                     </div>
                   </div>

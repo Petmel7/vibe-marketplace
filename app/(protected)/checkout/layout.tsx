@@ -19,10 +19,10 @@ export default async function CheckoutLayout({
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         <ProtectedRouteState
-          title="Buyer access required"
-          description="Checkout is available only for authenticated buyer accounts."
+          title="Потрібен доступ покупця"
+          description="Оформлення замовлення доступне лише для автентифікованих акаунтів покупця."
           actionHref="/"
-          actionLabel="Go home"
+          actionLabel="На головну"
         />
       </main>
     )

@@ -11,14 +11,14 @@ import EmailTemplatePreviewFrame from '@/components/admin/EmailTemplatePreviewFr
 const TEMPLATE_PREVIEWS = [
   {
     key: 'WELCOME_EMAIL',
-    title: 'Welcome email',
-    description: 'Sent after an account is first synchronized into the marketplace.',
+    title: 'Лист привітання',
+    description: 'Надсилається після першої синхронізації акаунта з маркетплейсом.',
     render: () => <WelcomeEmail displayName="Olena Buyer" email="olena@example.com" />,
   },
   {
     key: 'ORDER_CREATED_EMAIL',
-    title: 'Order created email',
-    description: 'Confirms that checkout succeeded and an order record now exists.',
+    title: 'Лист про створення замовлення',
+    description: 'Підтверджує, що оформлення замовлення пройшло успішно і запис про замовлення вже створено.',
     render: () => (
       <OrderCreatedEmail
         buyerEmail="olena@example.com"
@@ -52,8 +52,8 @@ const TEMPLATE_PREVIEWS = [
   },
   {
     key: 'ORDER_CONFIRMED_EMAIL',
-    title: 'Order confirmed email',
-    description: 'Sent when order status transitions into confirmed processing.',
+    title: 'Лист про підтвердження замовлення',
+    description: 'Надсилається, коли статус замовлення переходить у підтверджену обробку.',
     render: () => (
       <OrderConfirmedEmail
         buyerEmail="olena@example.com"
@@ -87,14 +87,14 @@ const TEMPLATE_PREVIEWS = [
   },
   {
     key: 'SELLER_APPROVED_EMAIL',
-    title: 'Seller approved email',
-    description: 'Sent after marketplace moderation approves a seller profile.',
+    title: 'Лист про схвалення продавця',
+    description: 'Надсилається після того, як модерація маркетплейсу схвалює профіль продавця.',
     render: () => <SellerApprovedEmail businessName="Dnipro Atelier" />,
   },
   {
     key: 'SELLER_REJECTED_EMAIL',
-    title: 'Seller rejected email',
-    description: 'Sent when a seller application needs corrections before approval.',
+    title: 'Лист про відхилення продавця',
+    description: 'Надсилається, коли заявці продавця потрібні виправлення перед схваленням.',
     render: () => (
       <SellerRejectedEmail
         businessName="Dnipro Atelier"
@@ -104,14 +104,14 @@ const TEMPLATE_PREVIEWS = [
   },
   {
     key: 'PRODUCT_APPROVED_EMAIL',
-    title: 'Product approved email',
-    description: 'Sent after a pending product passes marketplace moderation.',
+    title: 'Лист про схвалення товару',
+    description: 'Надсилається після того, як товар у статусі очікування проходить модерацію маркетплейсу.',
     render: () => <ProductApprovedEmail productName="Linen Summer Dress" storeName="Dnipro Atelier" />,
   },
   {
     key: 'PRODUCT_REJECTED_EMAIL',
-    title: 'Product rejected email',
-    description: 'Sent when a product needs moderation fixes before it can be published.',
+    title: 'Лист про відхилення товару',
+    description: 'Надсилається, коли товару потрібні виправлення модерації перед публікацією.',
     render: () => (
       <ProductRejectedEmail
         productName="Linen Summer Dress"

@@ -19,7 +19,7 @@ export default async function ProfileRefundsPage({
 
   return (
     <ProfileSection
-      eyebrow="Refunds"
+      eyebrow="Повернення"
       title="Мої повернення"
       description="Відстежуйте запити на повернення, їхній статус і фінальний результат обробки."
     >

@@ -132,9 +132,32 @@ export function getEmailDeliveryStatusTone(status: AdminEmailDeliveryStatus) {
 }
 
 export function formatEmailEventLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+  const labels: Record<string, string> = {
+    PENDING: 'Очікує',
+    PROCESSING: 'Обробляється',
+    SENT: 'Надіслано',
+    FAILED: 'Помилка',
+    CANCELLED: 'Скасовано',
+    QUEUED: 'У черзі',
+    DELIVERED: 'Доставлено',
+    BOUNCED: 'Відхилено',
+    OPENED: 'Відкрито',
+    CLICKED: 'Натиснуто',
+    USER_REGISTERED: 'Користувача зареєстровано',
+    ORDER_CREATED: 'Замовлення створено',
+    ORDER_CONFIRMED: 'Замовлення підтверджено',
+    SELLER_APPROVED: 'Продавця схвалено',
+    SELLER_REJECTED: 'Продавця відхилено',
+    PRODUCT_APPROVED: 'Товар схвалено',
+    PRODUCT_REJECTED: 'Товар відхилено',
+    WELCOME_EMAIL: 'Лист привітання',
+    ORDER_CREATED_EMAIL: 'Лист про створення замовлення',
+    ORDER_CONFIRMED_EMAIL: 'Лист про підтвердження замовлення',
+    SELLER_APPROVED_EMAIL: 'Лист про схвалення продавця',
+    SELLER_REJECTED_EMAIL: 'Лист про відхилення продавця',
+    PRODUCT_APPROVED_EMAIL: 'Лист про схвалення товару',
+    PRODUCT_REJECTED_EMAIL: 'Лист про відхилення товару',
+  }
+
+  return labels[value] ?? value
 }

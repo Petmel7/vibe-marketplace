@@ -24,9 +24,9 @@ export default async function SellerStorePage({
 
   return (
     <SellerSection
-      eyebrow="Store"
-      title="Store settings"
-      description="Manage onboarding progress, storefront identity, verification messaging, and activation readiness."
+      eyebrow="Магазин"
+      title="Налаштування магазину"
+      description="Керуйте прогресом підключення, ідентичністю вітрини, повідомленнями про верифікацію та готовністю до активації."
     >
       <SellerVerificationNotice
         status={data.sellerProfile?.verificationStatus}

@@ -6,6 +6,24 @@ import {
   type DisputeSummary,
 } from '@/types/disputes'
 
+const DISPUTE_RESULT_LABELS: Record<string, string> = {
+  SUCCEEDED: 'Успішно',
+  PARTIALLY_REFUNDED: 'Часткове повернення',
+  PENDING: 'Очікує',
+  PROCESSING: 'Обробляється',
+  FAILED: 'Неуспішно',
+  CANCELLED: 'Скасовано',
+  REFUNDED: 'Повернено',
+}
+
+function getDisputeResultLabel(status: string | null | undefined) {
+  if (!status) {
+    return 'Статус оплати уточнюється'
+  }
+
+  return DISPUTE_RESULT_LABELS[status] ?? status
+}
+
 export default function DisputeSummaryList({
   disputes,
   detailBasePath,
@@ -33,7 +51,7 @@ export default function DisputeSummaryList({
                 {getDisputeReasonLabel(dispute.reason)} · {getDisputePriorityLabel(dispute.priority)}
               </p>
               <p className="text-sm text-copy-muted">
-                {dispute.productName ?? 'Замовлення'} · {dispute.storeName ?? 'Marketplace order'}
+                {dispute.productName ?? 'Замовлення'} · {dispute.storeName ?? 'Замовлення маркетплейсу'}
               </p>
               <p className="line-clamp-2 text-sm text-copy-primary">{dispute.description}</p>
             </div>
@@ -41,7 +59,7 @@ export default function DisputeSummaryList({
             <div className="space-y-1 text-sm text-copy-secondary lg:text-right">
               <p>Замовлення #{dispute.orderId.slice(0, 8)}</p>
               <p>{new Date(dispute.createdAt).toLocaleDateString('uk-UA')}</p>
-              <p>{dispute.paymentStatus ?? 'Статус оплати уточнюється'}</p>
+              <p>{getDisputeResultLabel(dispute.paymentStatus)}</p>
             </div>
           </div>
         </Link>

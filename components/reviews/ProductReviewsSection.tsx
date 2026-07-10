@@ -38,7 +38,7 @@ export default function ProductReviewsSection({
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-copy-muted">Reviews</p>
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-copy-muted">Відгуки</p>
         <h2 className="ui-heading-page text-3xl">Відгуки та оцінки</h2>
         <p className="max-w-3xl text-sm text-copy-secondary">
           Оцінки та текстові відгуки допомагають покупцям зрозуміти реальний досвід з товаром {productName}.
@@ -56,14 +56,14 @@ export default function ProductReviewsSection({
             helperText={
               ownPublishedReview
                 ? 'Ви можете оновити свій опублікований відгук. Після змін він знову потрапить на модерацію.'
-                : 'Відгуки доступні покупцям після замовлення. Маркетплейс перевірить eligibility під час збереження.'
+                : 'Відгуки доступні покупцям після замовлення. Маркетплейс перевірить право на публікацію під час збереження.'
             }
           />
         ) : null
       ) : (
         <ReviewEmptyState
           title="Увійдіть, щоб залишити відгук"
-          description="Після входу buyer-акаунт зможе надіслати відгук про товар, якщо покупка вже підтверджена маркетплейсом."
+          description="Після входу покупець зможе надіслати відгук про товар, якщо покупка вже підтверджена маркетплейсом."
           actionHref="/login"
           actionLabel="Увійти"
         />

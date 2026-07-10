@@ -33,22 +33,22 @@ export default function PaginationControls({
   return (
     <div className="flex flex-col gap-3 rounded-3xl border border-panelBorder bg-panel px-4 py-4 text-sm text-copy-secondary sm:flex-row sm:items-center sm:justify-between">
       <p>
-        Page {page} of {totalPages} · {total} results
+        Сторінка {page} із {totalPages} · {total} результати
       </p>
       <div className="flex gap-2">
         {previousPage ? (
           <Link href={buildHref(pathname, query, previousPage)} className="ui-secondary-button">
-            Previous
+            Назад
           </Link>
         ) : (
-          <span className="ui-secondary-button pointer-events-none opacity-50">Previous</span>
+          <span className="ui-secondary-button pointer-events-none opacity-50">Назад</span>
         )}
         {nextPage ? (
           <Link href={buildHref(pathname, query, nextPage)} className="ui-secondary-button">
-            Next
+            Далі
           </Link>
         ) : (
-          <span className="ui-secondary-button pointer-events-none opacity-50">Next</span>
+          <span className="ui-secondary-button pointer-events-none opacity-50">Далі</span>
         )}
       </div>
     </div>

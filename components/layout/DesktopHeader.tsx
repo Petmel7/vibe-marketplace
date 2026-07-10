@@ -95,7 +95,7 @@ export default function DesktopHeader({
       />
 
       <nav className="ml-auto flex items-center gap-5">
-        <HeaderIconButton label="Search" onClick={onSearch}>
+        <HeaderIconButton label="Пошук" onClick={onSearch}>
           <Search size={24} color="#E8E9EA" />
         </HeaderIconButton>
 

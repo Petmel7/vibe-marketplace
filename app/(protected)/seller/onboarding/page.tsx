@@ -24,38 +24,38 @@ export default async function SellerOnboardingPage() {
 
   return (
     <SellerOnboardingShell
-      eyebrow="Seller onboarding"
+      eyebrow="Онбординг продавця"
       title={
         data.onboardingState === 'BUYER'
-          ? 'Become a seller'
+          ? 'Стати продавцем'
           : data.onboardingState === 'PENDING_VERIFICATION'
-            ? 'Seller verification in progress'
+            ? 'Верифікація продавця триває'
             : data.onboardingState === 'VERIFIED_NO_STORE'
-              ? 'Set up your storefront'
-            : data.onboardingState === 'REJECTED'
-              ? 'Seller application needs attention'
-              : data.onboardingState === 'SUSPENDED'
-                ? 'Seller account is suspended'
-                : 'Seller storefront is ready'
+              ? 'Налаштуйте свою вітрину'
+              : data.onboardingState === 'REJECTED'
+                ? 'Заявка продавця потребує уваги'
+                : data.onboardingState === 'SUSPENDED'
+                  ? 'Обліковий запис продавця призупинено'
+                  : 'Вітрина продавця готова'
       }
       description={
         data.onboardingState === 'BUYER'
-          ? 'Upgrade your buyer account into a marketplace seller experience with a reviewed storefront identity and a clear verification path.'
+          ? 'Розширте свій акаунт покупця до ролі продавця з перевіреною вітриною та зрозумілим процесом верифікації.'
           : data.onboardingState === 'PENDING_VERIFICATION'
-            ? 'Your seller application is already under review. Buyer tools remain active while we prepare the next seller setup steps.'
+            ? 'Вашу заявку продавця вже перевіряють. Інструменти покупця залишаються активними, поки ми готуємо наступні кроки налаштування.'
             : data.onboardingState === 'VERIFIED_NO_STORE'
-              ? 'Your seller profile is approved. The last step is provisioning your storefront so catalog, order, inventory, and analytics tools can open without restrictions.'
-            : data.onboardingState === 'REJECTED'
-              ? 'Review the feedback below, update your seller context when needed, and coordinate the next verification attempt.'
-            : data.onboardingState === 'SUSPENDED'
-              ? 'Seller operations are currently paused. You can still review account context and buyer tools while moderation resolves the suspension.'
-                : 'Your seller profile and storefront are both ready. We will hand you off to the seller workspace automatically.'
+              ? 'Ваш профіль продавця схвалено. Залишився останній крок — підключити вітрину, щоб без обмежень відкрити каталог, замовлення, залишки та аналітику.'
+              : data.onboardingState === 'REJECTED'
+                ? 'Перегляньте зауваження нижче, за потреби оновіть дані продавця та підготуйте наступну спробу верифікації.'
+              : data.onboardingState === 'SUSPENDED'
+                ? 'Операції продавця тимчасово призупинено. Ви все ще можете переглядати дані акаунта та інструменти покупця, поки модерація вирішує питання.'
+                : 'Ваш профіль продавця та вітрина вже готові. Ми автоматично переведемо вас у робочий простір продавця.'
       }
       badge={<SellerVerificationBadge state={data.onboardingState} />}
       aside={
         <>
           <section className="ui-elevated-panel p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Account snapshot</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Стан акаунта</p>
             <h2 className="mt-3 text-xl font-semibold text-copy-strong">{displayName}</h2>
             <p className="mt-1 break-all text-sm text-copy-muted">{user.email}</p>
             <div className="mt-4">
@@ -64,11 +64,11 @@ export default async function SellerOnboardingPage() {
           </section>
 
           <section className="ui-panel p-5">
-            <h3 className="text-base font-semibold text-copy-strong">What happens next</h3>
+            <h3 className="text-base font-semibold text-copy-strong">Що далі</h3>
             <ul className="mt-3 space-y-3 text-sm text-copy-muted">
-              <li>Buyer dashboard access stays available while seller onboarding is in progress.</li>
-              <li>Seller product, order, inventory, and analytics tools unlock after verification and storefront provisioning.</li>
-              <li>Future steps will expand into verification uploads, payouts, and storefront customization.</li>
+              <li>Доступ до кабінету покупця залишається активним, поки триває онбординг продавця.</li>
+              <li>Інструменти товарів, замовлень, залишків і аналітики відкриються після верифікації та підключення вітрини.</li>
+              <li>Наступні етапи охоплять документи для верифікації, виплати та налаштування вітрини.</li>
             </ul>
           </section>
         </>
@@ -83,42 +83,42 @@ export default async function SellerOnboardingPage() {
 
       {data.onboardingState === 'PENDING_VERIFICATION' ? (
         <SellerStatusCard
-          title="Application received"
-          description="Your seller application is being reviewed. As soon as moderation clears it, this route will hand you off to the seller workspace automatically."
+          title="Заявку отримано"
+          description="Вашу заявку продавця перевіряють. Щойно модерація схвалить її, цей маршрут автоматично переведе вас у кабінет продавця."
           status="PENDING"
           actionHref="/profile"
-          actionLabel="Return to buyer dashboard"
+          actionLabel="Повернутися до кабінету покупця"
         />
       ) : null}
 
       {data.onboardingState === 'REJECTED' ? (
         <SellerStatusCard
-          title="Application needs updates"
-          description="Your seller application was not approved in its current form. Review the moderation notes below and prepare the requested updates before retrying the next step with marketplace support."
+          title="Заявку потрібно доопрацювати"
+          description="Вашу заявку продавця не схвалили в поточному вигляді. Перегляньте зауваження модерації нижче та внесіть потрібні зміни перед наступною спробою."
           status="REJECTED"
           reason={data.moderationReason}
           actionHref="/profile/settings"
-          actionLabel="Update profile details"
+          actionLabel="Оновити дані профілю"
         />
       ) : null}
 
       {data.onboardingState === 'SUSPENDED' ? (
         <SellerStatusCard
-          title="Seller access is paused"
-          description="Moderation has paused seller operations for this account. Buyer tools remain available while the marketplace team resolves the suspension."
+          title="Доступ продавця призупинено"
+          description="Модерація тимчасово зупинила операції продавця для цього акаунта. Інструменти покупця залишаються доступними, поки команда маркетплейсу вирішує питання."
           status="SUSPENDED"
           reason={data.moderationReason}
           actionHref="/profile"
-          actionLabel="Open buyer dashboard"
+          actionLabel="Відкрити кабінет покупця"
         />
       ) : null}
 
       {data.onboardingState === 'VERIFIED_NO_STORE' ? (
         <OnboardingEmptyState
-          title="Storefront setup is ready"
-          description="Your seller identity is approved and the marketplace can now provision your storefront. Finish store settings to unlock the full seller workspace without any redirect loops."
+          title="Налаштування вітрини готове"
+          description="Ваш профіль продавця схвалено, і маркетплейс може підключити вашу вітрину. Завершіть налаштування магазину, щоб відкрити повний робочий простір продавця без зайвих редіректів."
           actionHref="/seller/store?setup=storefront"
-          actionLabel="Open store settings"
+          actionLabel="Відкрити налаштування магазину"
         />
       ) : null}
     </SellerOnboardingShell>

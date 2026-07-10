@@ -15,8 +15,8 @@ import {
 } from '@/types/promotions'
 
 const PROMOTION_ACTIVE_FILTERS = [
-  { label: 'Active only', value: 'true' },
-  { label: 'Disabled only', value: 'false' },
+  { label: 'Лише активні', value: 'true' },
+  { label: 'Лише вимкнені', value: 'false' },
 ] as const
 
 export default async function AdminPromotionsPage({
@@ -33,20 +33,20 @@ export default async function AdminPromotionsPage({
 
   return (
     <AdminSection
-      eyebrow="Promotions"
-      title="Marketplace coupon management"
-      description="Create marketplace-wide coupon codes and automatic discounts while keeping discount validation and usage tracking authoritative on the backend."
+      eyebrow="Акції"
+      title="Керування купонами маркетплейсу"
+      description="Створюйте купони для всього маркетплейсу та автоматичні знижки, зберігаючи валідацію знижок і облік використання повністю під контролем бекенду."
     >
       <AdminFilterBar action="/admin/promotions">
         <SearchInput
           name="code"
-          label="Coupon code"
+          label="Код купона"
           defaultValue={data.filters.code}
-          placeholder="Filter by code"
+          placeholder="Фільтр за кодом"
         />
         <StatusFilter
           name="type"
-          label="Promotion type"
+          label="Тип акції"
           defaultValue={data.filters.type}
           options={PROMOTION_TYPES.map((type) => ({
             label: getPromotionTypeLabel(type),
@@ -55,26 +55,26 @@ export default async function AdminPromotionsPage({
         />
         <StatusFilter
           name="isActive"
-          label="Availability"
+          label="Доступність"
           defaultValue={
             typeof data.filters.isActive === 'boolean' ? String(data.filters.isActive) : undefined
           }
           options={[...PROMOTION_ACTIVE_FILTERS]}
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Promotion catalog"
-        description="Review campaign windows, usage, and status before editing or disabling a promotion."
+        title="Каталог акцій"
+        description="Переглядайте періоди дії, використання та статус акцій перед редагуванням або вимкненням."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No promotions yet"
-              description="Create your first coupon or automatic discount to start testing promotion-aware checkout flows."
+              title="Акцій ще немає"
+              description="Створіть свій перший купон або автоматичну знижку, щоб почати тестувати checkout зі сценаріями акцій."
             />
           </div>
         ) : (

@@ -23,39 +23,39 @@ export default async function AdminRiskStoresPage({
 
   return (
     <AdminSection
-      eyebrow="Trust & Safety"
-      title="Store risk profiles"
-      description="Inspect advisory risk scores for storefronts and drill into the signal history behind each risk level."
+      eyebrow="Довіра та безпека"
+      title="Профілі ризику магазинів"
+      description="Переглядайте advisory-оцінки ризику для вітрин і заглиблюйтеся в історію сигналів, що стоять за кожним рівнем ризику."
     >
       <RiskAdvisoryNotice />
 
       <AdminFilterBar action="/admin/risk/stores">
         <SearchInput
           name="search"
-          label="Search stores"
+          label="Пошук магазинів"
           defaultValue={data.filters.search}
-          placeholder="Search by store or owner email"
+          placeholder="Пошук за магазином або email власника"
         />
         <StatusFilter
           name="level"
-          label="Risk level"
+          label="Рівень ризику"
           defaultValue={data.filters.level}
           options={RISK_LEVELS.map((level) => ({ label: level, value: level }))}
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Store risk queue"
-        description="Use these advisory scores to prioritize manual review of storefront behavior and trust signals."
+        title="Черга ризиків магазинів"
+        description="Використовуйте ці advisory-оцінки, щоб пріоритезувати ручний перегляд поведінки вітрин і сигналів довіри."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No store risk profiles found"
-              description="Try a different search term or risk level to surface more storefronts."
+              title="Профілів ризику магазинів не знайдено"
+              description="Спробуйте інший пошуковий запит або рівень ризику, щоб побачити більше вітрин."
             />
           </div>
         ) : (

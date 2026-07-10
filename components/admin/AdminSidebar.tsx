@@ -6,27 +6,27 @@ import type { SessionUser } from '@/types/auth'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 
 const NAV_ITEMS = [
-  { href: '/admin', label: 'Overview' },
-  { href: '/admin/moderation', label: 'Moderation' },
-  { href: '/admin/products', label: 'Products' },
-  { href: '/admin/categories', label: 'Categories' },
-  { href: '/admin/sellers', label: 'Sellers' },
-  { href: '/admin/users', label: 'Users' },
-  { href: '/admin/orders', label: 'Orders' },
-  { href: '/admin/shipments', label: 'Shipments' },
-  { href: '/admin/promotions', label: 'Promotions' },
-  { href: '/admin/commission-rules', label: 'Commission rules' },
-  { href: '/admin/payouts', label: 'Payouts' },
-  { href: '/admin/refunds', label: 'Refunds' },
-  { href: '/admin/seller-balances', label: 'Seller balances' },
-  { href: '/admin/disputes', label: 'Disputes' },
-  { href: '/admin/reviews', label: 'Reviews' },
-  { href: '/admin/reports', label: 'Reports' },
-  { href: '/admin/risk', label: 'Risk' },
-  { href: '/admin/analytics', label: 'Analytics' },
-  { href: '/admin/operations', label: 'Operations' },
-  { href: '/admin/emails', label: 'Emails' },
-  { href: '/admin/settings/badges', label: 'Badge rules' },
+  { href: '/admin', label: 'Огляд' },
+  { href: '/admin/moderation', label: 'Модерація' },
+  { href: '/admin/products', label: 'Товари' },
+  { href: '/admin/categories', label: 'Категорії' },
+  { href: '/admin/sellers', label: 'Продавці' },
+  { href: '/admin/users', label: 'Користувачі' },
+  { href: '/admin/orders', label: 'Замовлення' },
+  { href: '/admin/shipments', label: 'Відправлення' },
+  { href: '/admin/promotions', label: 'Акції' },
+  { href: '/admin/commission-rules', label: 'Правила комісій' },
+  { href: '/admin/payouts', label: 'Виплати' },
+  { href: '/admin/refunds', label: 'Повернення' },
+  { href: '/admin/seller-balances', label: 'Баланси продавців' },
+  { href: '/admin/disputes', label: 'Суперечки' },
+  { href: '/admin/reviews', label: 'Відгуки' },
+  { href: '/admin/reports', label: 'Скарги' },
+  { href: '/admin/risk', label: 'Ризики' },
+  { href: '/admin/analytics', label: 'Аналітика' },
+  { href: '/admin/operations', label: 'Операції' },
+  { href: '/admin/emails', label: 'Листи' },
+  { href: '/admin/settings/badges', label: 'Правила бейджів' },
 ] as const
 
 export default function AdminSidebar({
@@ -43,15 +43,15 @@ export default function AdminSidebar({
   return (
     <aside className="space-y-4 lg:sticky lg:top-6">
       <section className="ui-elevated-panel p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Admin workspace</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Кабінет адміністратора</p>
         <h2 className="mt-3 text-xl font-semibold text-copy-strong">{user.email}</h2>
-        <p className="mt-1 text-sm text-copy-muted">Marketplace governance and operational oversight</p>
+        <p className="mt-1 text-sm text-copy-muted">Керування маркетплейсом та операційний контроль</p>
         <div className="mt-4">
-          <AdminStatusBadge label="Administrator" tone="info" />
+          <AdminStatusBadge label="Адміністратор" tone="info" />
         </div>
       </section>
 
-      <nav aria-label="Admin navigation" className="ui-elevated-panel p-3">
+      <nav aria-label="Навігація адміністратора" className="ui-elevated-panel p-3">
         <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
           {NAV_ITEMS.map((item) => {
             const isActive =
@@ -77,11 +77,11 @@ export default function AdminSidebar({
       </nav>
 
       <section className="ui-panel p-5">
-        <h3 className="text-base font-semibold text-copy-strong">Admin permissions</h3>
+        <h3 className="text-base font-semibold text-copy-strong">Права адміністратора</h3>
         <p className="mt-2 text-sm text-copy-muted">
           {adminProfile.permissions.length
             ? adminProfile.permissions.join(', ')
-            : 'No explicit permission scopes are attached to this admin profile yet.'}
+            : 'До цього профілю адміністратора ще не прив’язано явних областей дозволів.'}
         </p>
       </section>
     </aside>

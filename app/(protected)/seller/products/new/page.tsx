@@ -20,9 +20,9 @@ export default async function SellerNewProductPage() {
 
   return (
     <SellerSection
-      eyebrow="New product"
-      title="Create product draft"
-      description="Prepare a moderation-ready product draft with variants, media placeholders, and inventory metadata."
+      eyebrow="Новий товар"
+      title="Створити чернетку товару"
+      description="Підготуйте чернетку для модерації з варіантами, медіа-заглушками та даними про залишки."
     >
       <SellerVerificationNotice
         status={sellerProfile.verificationStatus}

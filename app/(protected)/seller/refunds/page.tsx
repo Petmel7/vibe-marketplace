@@ -30,15 +30,15 @@ export default async function SellerRefundsPage({
 
   return (
     <SellerSection
-      eyebrow="Refunds"
+      eyebrow="Повернення"
       title="Повернення покупців"
       description="Переглядайте запити на повернення по своїх товарах і відстежуйте, як вони проходять ручну обробку."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
       <SellerTable
-        title="Refund requests"
-        description="Це read-only вікно для продавця: рішення, approve та фінальні зміни стану робить лише адміністрація."
+        title="Запити на повернення"
+        description="Це режим лише для перегляду: рішення, схвалення та фінальні зміни статусу виконує лише адміністрація."
       >
         <div className="space-y-5 p-5 sm:p-6">
           <form method="GET" className="flex flex-wrap items-center gap-3">
@@ -64,10 +64,10 @@ export default async function SellerRefundsPage({
 
           {!data.store ? (
             <EmptyState
-              title="Storefront ще не готовий"
-              description="Щойно storefront буде підключений, тут з’являться повернення по ваших товарах."
+              title="Вітрина ще не готова"
+              description="Щойно вітрина буде підключена, тут з’являться повернення за вашими товарами."
               actionHref="/seller/store"
-              actionLabel="Відкрити store settings"
+              actionLabel="Відкрити налаштування магазину"
             />
           ) : data.items.length === 0 ? (
             <RefundEmptyState

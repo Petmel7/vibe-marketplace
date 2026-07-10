@@ -9,8 +9,8 @@ export default function CheckoutItemList({
 }) {
   return (
     <DashboardCard
-      title="Order review"
-      description="Server-validated items, quantities, pricing, and inventory states before order creation."
+      title="Огляд замовлення"
+      description="Товари, кількість, ціни та статуси залишків перевіряються сервером перед створенням замовлення."
     >
       <div className="space-y-4">
         {items.map((item) => (

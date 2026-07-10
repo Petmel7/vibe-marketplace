@@ -21,15 +21,15 @@ export default async function AdminSellerBalancesPage({
 
   return (
     <AdminSection
-      eyebrow="Seller finance"
-      title="Seller balances"
-      description="Review pending, available, and paid-out balances before creating manual payouts."
+      eyebrow="Фінанси продавців"
+      title="Баланси продавців"
+      description="Переглядайте баланси в очікуванні, доступні та вже виплачені суми перед створенням ручних виплат."
     >
       <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-copy-strong">Balance recalculation</h2>
+          <h2 className="text-lg font-semibold text-copy-strong">Перерахунок балансів</h2>
           <p className="text-sm text-copy-secondary">
-            Use this manual trigger when held funds should become available and no background worker is running yet.
+            Використовуйте цей ручний запуск, коли утримані кошти вже мають стати доступними, а фоновий воркер ще не працює.
           </p>
         </div>
         <RecalculateSellerBalancesButton />
@@ -38,30 +38,30 @@ export default async function AdminSellerBalancesPage({
       <AdminFilterBar action="/admin/seller-balances">
         <SearchInput
           name="sellerId"
-          label="Seller id"
+          label="ID продавця"
           defaultValue={data.filters.sellerId}
-          placeholder="Filter by seller UUID"
+          placeholder="Фільтр за UUID продавця"
         />
         <SearchInput
           name="storeId"
-          label="Store id"
+          label="ID магазину"
           defaultValue={data.filters.storeId}
-          placeholder="Filter by store UUID"
+          placeholder="Фільтр за UUID магазину"
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Seller balances"
-        description="Create payouts only for available balances. The current backend expects exact available ledger batches."
+        title="Баланси продавців"
+        description="Створюйте виплати лише для доступних балансів. Поточний бекенд очікує точні доступні партії в реєстрі."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No seller balances found"
-              description="Try a different seller or store filter, or recalculate balances after seller-actionable orders land."
+              title="Балансів продавців не знайдено"
+              description="Спробуйте інший фільтр продавця чи магазину або перерахунок балансів після появи релевантних замовлень."
             />
           </div>
         ) : (

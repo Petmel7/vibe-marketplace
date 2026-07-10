@@ -137,7 +137,7 @@ export default function AddressBookClient({
 
         if (!defaultResponse.ok) {
           setAddresses(nextAddresses)
-          setErrorMessage('Saved the address, but could not mark it as default.')
+          setErrorMessage('Адресу збережено, але не вдалося зробити її основною.')
         } else {
           nextAddresses = optimisticDefault
         }
@@ -161,7 +161,7 @@ export default function AddressBookClient({
 
       if (!response.ok) {
         setAddresses(previousAddresses)
-        setErrorMessage('Could not delete the address. Please try again.')
+        setErrorMessage('Не вдалося видалити адресу. Спробуйте ще раз.')
         return
       }
 
@@ -186,7 +186,7 @@ export default function AddressBookClient({
 
       if (!response.ok) {
         setAddresses(previousAddresses)
-        setErrorMessage('Could not update the default address.')
+        setErrorMessage('Не вдалося оновити основну адресу.')
         return
       }
 
@@ -198,11 +198,11 @@ export default function AddressBookClient({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-copy-strong">Shipping addresses</h2>
-          <p className="text-sm text-copy-muted">Manage delivery destinations for future orders.</p>
+          <h2 className="text-lg font-semibold text-copy-strong">Адреси доставки</h2>
+          <p className="text-sm text-copy-muted">Керуйте адресами доставки для майбутніх замовлень.</p>
         </div>
         <button type="button" className="ui-primary-button" onClick={openCreate}>
-          Add address
+          Додати адресу
         </button>
       </div>
 
@@ -215,20 +215,20 @@ export default function AddressBookClient({
       {mode ? (
         <section className="ui-elevated-panel p-5 sm:p-6">
           <h3 className="text-base font-semibold text-copy-strong">
-            {mode.type === 'edit' ? 'Edit address' : 'New address'}
+            {mode.type === 'edit' ? 'Редагувати адресу' : 'Нова адреса'}
           </h3>
           <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
             {[
-              ['label', 'Label'],
-              ['fullName', 'Full name'],
-              ['phone', 'Phone'],
-              ['country', 'Country'],
-              ['city', 'City'],
-              ['region', 'Region'],
-              ['street', 'Street'],
-              ['building', 'Building'],
-              ['apartment', 'Apartment'],
-              ['zipCode', 'ZIP code'],
+              ['label', 'Назва'],
+              ['fullName', 'Повне ім’я'],
+              ['phone', 'Телефон'],
+              ['country', 'Країна'],
+              ['city', 'Місто'],
+              ['region', 'Область'],
+              ['street', 'Вулиця'],
+              ['building', 'Будинок'],
+              ['apartment', 'Квартира'],
+              ['zipCode', 'Поштовий індекс'],
             ].map(([field, label]) => (
               <label key={field} className={`space-y-2 ${field === 'street' ? 'sm:col-span-2' : ''}`}>
                 <span className="block text-sm font-medium text-copy-strong">{label}</span>
@@ -247,15 +247,15 @@ export default function AddressBookClient({
                 checked={formState.isDefault}
                 onChange={(event) => handleFieldChange('isDefault', event.target.checked)}
               />
-              Set as default shipping address
+              Зробити основною адресою доставки
             </label>
 
             <div className="sm:col-span-2 flex flex-col gap-3 sm:flex-row">
               <button type="submit" className="ui-primary-button" disabled={isPending}>
-                {isPending ? 'Saving...' : mode.type === 'edit' ? 'Save changes' : 'Create address'}
+                {isPending ? 'Зберігаємо...' : mode.type === 'edit' ? 'Зберегти зміни' : 'Створити адресу'}
               </button>
               <button type="button" className="ui-secondary-button" onClick={closeForm} disabled={isPending}>
-                Cancel
+                Скасувати
               </button>
             </div>
           </form>
@@ -264,8 +264,8 @@ export default function AddressBookClient({
 
       {addresses.length === 0 ? (
         <EmptyState
-          title="No saved addresses yet"
-          description="Add your first shipping address to speed up checkout and keep deliveries organized."
+          title="Збережених адрес поки що немає"
+          description="Додайте першу адресу доставки, щоб пришвидшити оформлення та впорядкувати доставки."
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -279,7 +279,7 @@ export default function AddressBookClient({
                     </h3>
                     {address.isDefault ? (
                       <span className="rounded-full border border-brand-success/30 bg-brand-success/10 px-3 py-1 text-xs font-medium text-brand-success">
-                        Default
+                        Основна
                       </span>
                     ) : null}
                   </div>
@@ -289,14 +289,14 @@ export default function AddressBookClient({
               </div>
 
               <div className="mt-4 space-y-1 text-sm text-copy-secondary">
-                <p>{address.street}, {address.building}{address.apartment ? `, apt ${address.apartment}` : ''}</p>
+                <p>{address.street}, {address.building}{address.apartment ? `, кв. ${address.apartment}` : ''}</p>
                 <p>{address.city}{address.region ? `, ${address.region}` : ''}</p>
                 <p>{address.country}{address.zipCode ? `, ${address.zipCode}` : ''}</p>
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <button type="button" className="ui-secondary-button h-10 px-5 py-2 text-sm" onClick={() => openEdit(address)}>
-                  Edit
+                  Редагувати
                 </button>
                 {!address.isDefault ? (
                   <button
@@ -305,7 +305,7 @@ export default function AddressBookClient({
                     onClick={() => handleSetDefault(address.id)}
                     disabled={isPending}
                   >
-                    Make default
+                    Зробити основною
                   </button>
                 ) : null}
                 <button
@@ -314,7 +314,7 @@ export default function AddressBookClient({
                   onClick={() => handleDelete(address.id)}
                   disabled={isPending}
                 >
-                  Delete
+                  Видалити
                 </button>
               </div>
             </article>

@@ -11,7 +11,7 @@ export default function PrivacyPage() {
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
       <header className="space-y-3">
         <p className="text-sm uppercase tracking-[0.16em] text-copy-muted">
-          Legal
+          Юридична інформація
         </p>
         <h1 className="text-3xl font-semibold text-copy-strong sm:text-4xl">
           Політика конфіденційності
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         </p>
         <p>
           Якщо вам потрібна детальніша юридична редакція політики, її можна
-          доповнити окремим затвердженим текстом без зміни checkout-логіки.
+          доповнити окремим затвердженим текстом без зміни логіки оформлення замовлення.
         </p>
       </section>
     </main>

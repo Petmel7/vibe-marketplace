@@ -22,37 +22,37 @@ export default async function AdminRefundsPage({
 
   return (
     <AdminSection
-      eyebrow="Refund Center"
-      title="Refund requests"
-      description="Керуйте ручним review flow, підтверджуйте фінальні стани та тримайте повернення повністю backend-authoritative."
+      eyebrow="Центр повернень"
+      title="Запити на повернення"
+      description="Керуйте ручним процесом розгляду, підтверджуйте фінальні стани та зберігайте повернення повністю backend-authoritative."
     >
       <AdminFilterBar action="/admin/refunds">
         <StatusFilter
           name="status"
-          label="Status"
+          label="Статус"
           defaultValue={data.filters.status}
           options={REFUND_REQUEST_STATUSES.map((status) => ({ label: getRefundStatusLabel(status), value: status }))}
         />
         <StatusFilter
           name="reason"
-          label="Reason"
+          label="Причина"
           defaultValue={data.filters.reason}
           options={REFUND_REQUEST_REASONS.map((reason) => ({ label: getRefundReasonLabel(reason), value: reason }))}
         />
         <SearchInput
           name="storeId"
-          label="Store id"
+          label="ID магазину"
           defaultValue={data.filters.storeId}
-          placeholder="Filter by store UUID"
+          placeholder="Фільтр за UUID магазину"
         />
         <SearchInput
           name="requestedById"
-          label="Buyer id"
+          label="ID покупця"
           defaultValue={data.filters.requestedById}
-          placeholder="Filter by buyer UUID"
+          placeholder="Фільтр за UUID покупця"
         />
         <label className="space-y-2 xl:w-56">
-          <span className="block text-sm font-medium text-copy-strong">From date</span>
+          <span className="block text-sm font-medium text-copy-strong">Дата від</span>
           <input
             type="date"
             name="dateFrom"
@@ -61,7 +61,7 @@ export default async function AdminRefundsPage({
           />
         </label>
         <label className="space-y-2 xl:w-56">
-          <span className="block text-sm font-medium text-copy-strong">To date</span>
+          <span className="block text-sm font-medium text-copy-strong">Дата до</span>
           <input
             type="date"
             name="dateTo"
@@ -70,19 +70,19 @@ export default async function AdminRefundsPage({
           />
         </label>
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Refund queue"
-        description="Список показує buyer request context, суму та поточний статус. Деталі відкривають повний audit trail."
+        title="Черга повернень"
+        description="Список показує контекст запиту покупця, суму та поточний статус. Деталі відкривають повний audit trail."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No refund requests found"
-              description="Розширте фільтри або дочекайтеся нових buyer requests."
+              title="Запитів на повернення не знайдено"
+              description="Розширте фільтри або дочекайтеся нових запитів від покупців."
             />
           </div>
         ) : (

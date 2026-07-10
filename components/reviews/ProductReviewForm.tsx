@@ -118,7 +118,7 @@ export default function ProductReviewForm({
 
       {!canWrite ? (
         <p className="mt-5 rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
-          Відгук можна залишити після покупки товару з вашого buyer-акаунта. Остаточну доступність перевіряє маркетплейс під час відправлення форми.
+          Відгук можна залишити після покупки товару з вашого акаунта покупця. Остаточну доступність перевіряє маркетплейс під час відправлення форми.
         </p>
       ) : (
         <form className="mt-5 space-y-4" onSubmit={handleSubmit}>

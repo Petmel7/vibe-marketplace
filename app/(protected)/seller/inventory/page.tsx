@@ -21,9 +21,9 @@ export default async function SellerInventoryPage() {
 
   return (
     <SellerSection
-      eyebrow="Inventory"
-      title="Inventory controls"
-      description="Update per-variant stock levels, review low-stock risks, and keep SKU availability current."
+      eyebrow="Склад"
+      title="Керування складом"
+      description="Оновлюйте залишки для кожного варіанта, контролюйте ризики низького запасу та підтримуйте актуальну наявність SKU."
     >
       <SellerVerificationNotice
         status={sellerProfile.verificationStatus}
@@ -31,10 +31,10 @@ export default async function SellerInventoryPage() {
 
       {data.products.length === 0 ? (
         <EmptyState
-          title="No inventory yet"
-          description="Create your first product and variant set to unlock seller inventory controls."
+          title="Склад ще порожній"
+          description="Створіть свій перший товар і набір варіантів, щоб відкрити керування складом продавця."
           actionHref="/seller/products/new"
-          actionLabel="Create product"
+          actionLabel="Створити товар"
         />
       ) : (
         <SellerInventoryManager

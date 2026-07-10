@@ -17,67 +17,67 @@ export default async function AdminReportsPage({
 
   return (
     <AdminSection
-      eyebrow="Trust & Safety"
-      title="Abuse reports queue"
-      description="Review marketplace abuse reports, filter incoming safety signals, and open detailed moderation workflows."
+      eyebrow="Довіра та безпека"
+      title="Черга скарг"
+      description="Переглядайте скарги про зловживання на маркетплейсі, фільтруйте вхідні сигнали безпеки та відкривайте детальні moderation workflows."
     >
       <AdminDataTable
-        title="Reports"
-        description="Use filters to narrow the queue by status, target type, reason, and date."
+        title="Скарги"
+        description="Використовуйте фільтри, щоб звузити чергу за статусом, типом цілі, причиною та датою."
         actions={
           <form method="GET" className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Status</span>
+              <span>Статус</span>
               <select
                 name="status"
                 defaultValue={data.filters.status ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="PENDING">Pending</option>
-                <option value="UNDER_REVIEW">Under review</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="DISMISSED">Dismissed</option>
-                <option value="ESCALATED">Escalated</option>
+                <option value="">Усі</option>
+                <option value="PENDING">Очікує</option>
+                <option value="UNDER_REVIEW">На розгляді</option>
+                <option value="RESOLVED">Вирішено</option>
+                <option value="DISMISSED">Відхилено</option>
+                <option value="ESCALATED">Ескальовано</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Target</span>
+              <span>Ціль</span>
               <select
                 name="targetType"
                 defaultValue={data.filters.targetType ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="PRODUCT">Product</option>
-                <option value="REVIEW">Review</option>
-                <option value="STORE">Store</option>
-                <option value="USER">User</option>
-                <option value="ORDER">Order</option>
+                <option value="">Усі</option>
+                <option value="PRODUCT">Товар</option>
+                <option value="REVIEW">Відгук</option>
+                <option value="STORE">Магазин</option>
+                <option value="USER">Користувач</option>
+                <option value="ORDER">Замовлення</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Reason</span>
+              <span>Причина</span>
               <select
                 name="reason"
                 defaultValue={data.filters.reason ?? ''}
                 className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
-                <option value="">All</option>
-                <option value="SPAM">Spam</option>
-                <option value="SCAM">Scam</option>
-                <option value="COUNTERFEIT">Counterfeit</option>
-                <option value="PROHIBITED_ITEM">Prohibited item</option>
-                <option value="INAPPROPRIATE_CONTENT">Inappropriate content</option>
-                <option value="HARASSMENT">Harassment</option>
-                <option value="MISLEADING_INFO">Misleading info</option>
-                <option value="PAYMENT_ISSUE">Payment issue</option>
-                <option value="DELIVERY_ISSUE">Delivery issue</option>
-                <option value="OTHER">Other</option>
+                <option value="">Усі</option>
+                <option value="SPAM">Спам</option>
+                <option value="SCAM">Шахрайство</option>
+                <option value="COUNTERFEIT">Підробка</option>
+                <option value="PROHIBITED_ITEM">Заборонений товар</option>
+                <option value="INAPPROPRIATE_CONTENT">Неприйнятний контент</option>
+                <option value="HARASSMENT">Домагання</option>
+                <option value="MISLEADING_INFO">Оманлива інформація</option>
+                <option value="PAYMENT_ISSUE">Проблема з оплатою</option>
+                <option value="DELIVERY_ISSUE">Проблема з доставкою</option>
+                <option value="OTHER">Інше</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>From</span>
+              <span>Від</span>
               <input
                 type="date"
                 name="dateFrom"
@@ -86,7 +86,7 @@ export default async function AdminReportsPage({
               />
             </label>
             <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>To</span>
+              <span>До</span>
               <input
                 type="date"
                 name="dateTo"
@@ -95,7 +95,7 @@ export default async function AdminReportsPage({
               />
             </label>
             <button type="submit" className="ui-secondary-button">
-              Apply
+              Застосувати
             </button>
           </form>
         }
@@ -103,8 +103,8 @@ export default async function AdminReportsPage({
         <div className="p-5 sm:p-6">
           {data.items.length === 0 ? (
             <AdminEmptyState
-              title="No reports found"
-              description="Reports that match the current filter set will appear here."
+              title="Скарг не знайдено"
+              description="Тут з’являться скарги, що відповідають поточному набору фільтрів."
             />
           ) : (
             <AdminReportsTable reports={data.items} />

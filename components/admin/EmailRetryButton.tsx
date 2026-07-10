@@ -35,14 +35,14 @@ export default function EmailRetryButton({
       type="button"
       className="ui-secondary-button"
       disabled={disabled}
-      aria-label="Retry email event"
+      aria-label="Повторити email-подію"
       onClick={async () => {
         const data = await execute<AdminEmailEventDetail>({
           url: getAdminEmailRetryRoute(eventId),
           method: 'POST',
-          successMessage: 'Email retry started.',
+          successMessage: 'Повторну спробу email-запущено.',
           fallbackErrorMessage:
-            'We could not retry this transactional email right now. Please try again.',
+            'Зараз не вдалося повторити цей транзакційний лист. Спробуйте ще раз.',
           onSuccess: async (updatedEvent) => {
             await onRetried?.(updatedEvent)
           },
@@ -53,7 +53,7 @@ export default function EmailRetryButton({
         }
       }}
     >
-      {isPending ? 'Retrying...' : 'Retry email'}
+      {isPending ? 'Повторюємо...' : 'Повторити email'}
     </button>
   )
 }

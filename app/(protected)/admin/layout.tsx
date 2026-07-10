@@ -28,10 +28,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         <ProtectedRouteState
-          title="Admin access required"
-          description="This workspace is reserved for marketplace administrators managing moderation, analytics, and operational oversight."
+          title="Потрібен доступ адміністратора"
+          description="Цей робочий простір призначений для адміністраторів маркетплейсу, які керують модерацією, аналітикою та операційним контролем."
           actionHref="/profile"
-          actionLabel="Go to account"
+          actionLabel="Перейти до акаунта"
         />
       </main>
     )
@@ -54,10 +54,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         <ProtectedRouteState
-          title="Admin profile not ready"
-          description="Your admin role is active, but the admin profile record has not been initialized yet."
+          title="Профіль адміністратора ще не готовий"
+          description="Ваша роль адміністратора вже активна, але запис профілю адміністратора ще не ініціалізовано."
           actionHref="/profile"
-          actionLabel="Go to account"
+          actionLabel="Перейти до акаунта"
         />
       </main>
     )

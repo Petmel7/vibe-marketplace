@@ -30,15 +30,15 @@ export default async function SellerDisputesPage({
 
   return (
     <SellerSection
-      eyebrow="Disputes"
+      eyebrow="Суперечки"
       title="Суперечки по замовленнях"
       description="Переглядайте суперечки по своїх товарах, відповідайте покупцям та додавайте матеріали."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
       <SellerTable
-        title="Seller disputes"
-        description="Сюди потрапляють лише суперечки по замовленнях, де є ваші товари."
+        title="Суперечки продавця"
+        description="Тут відображаються лише ті суперечки по замовленнях, у яких є ваші товари."
       >
         <div className="space-y-5 p-5 sm:p-6">
           <form method="GET" className="flex flex-wrap items-center gap-3">

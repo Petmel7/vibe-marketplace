@@ -31,7 +31,7 @@ export default function AdminRefundsTable({ items }: { items: AdminRefundRequest
               <p className="font-medium text-copy-strong">{refund.requestedByName}</p>
               <p className="mt-1 text-copy-muted">{refund.requestedById}</p>
             </td>
-            <td className="px-5 py-4 text-copy-secondary">{refund.storeName ?? 'Marketplace'}</td>
+            <td className="px-5 py-4 text-copy-secondary">{refund.storeName ?? 'Маркетплейс'}</td>
             <td className="px-5 py-4 text-copy-secondary">{getRefundReasonLabel(refund.reason)}</td>
             <td className="px-5 py-4">
               <RefundAmount amount={refund.amount} currency={refund.currency} emphasize />

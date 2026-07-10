@@ -28,7 +28,7 @@ function toFormState(rule: AdminBadgeRule): FormState {
 
 function validateNonNegativeInteger(value: string, label: string) {
   if (!/^\d+$/.test(value.trim())) {
-    return `${label} must be a whole number of 0 or greater.`
+    return `${label} має бути цілим числом, не меншим за 0.`
   }
 
   return null
@@ -36,7 +36,7 @@ function validateNonNegativeInteger(value: string, label: string) {
 
 function validateMoney(value: string) {
   if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) {
-    return 'Minimum revenue must be a valid amount like 0 or 25.50.'
+    return 'Мінімальний виторг має бути коректною сумою, наприклад 0 або 25.50.'
   }
 
   return null
@@ -44,9 +44,9 @@ function validateMoney(value: string) {
 
 function validateFormState(formState: FormState) {
   return (
-    validateNonNegativeInteger(formState.minViews, 'Minimum views') ||
-    validateNonNegativeInteger(formState.minWishlists, 'Minimum wishlists') ||
-    validateNonNegativeInteger(formState.minSoldCount, 'Minimum sold count') ||
+    validateNonNegativeInteger(formState.minViews, 'Мінімум переглядів') ||
+    validateNonNegativeInteger(formState.minWishlists, 'Мінімум додавань у вибране') ||
+    validateNonNegativeInteger(formState.minSoldCount, 'Мінімум проданих одиниць') ||
     validateMoney(formState.minRevenueAmount)
   )
 }
@@ -89,14 +89,14 @@ export default function AdminBadgeRuleSettingsForm() {
     return (
       <section className="ui-elevated-panel p-5 sm:p-6">
         <AdminEmptyState
-          title="Badge rules are unavailable"
+          title="Правила бейджів недоступні"
           description={errorMessage}
           actionHref="/admin"
-          actionLabel="Back to overview"
+          actionLabel="Назад до огляду"
         />
         <div className="mt-4">
           <button type="button" className="ui-secondary-button" onClick={() => void reloadRules()}>
-            Try again
+            Спробувати ще раз
           </button>
         </div>
       </section>
@@ -107,8 +107,8 @@ export default function AdminBadgeRuleSettingsForm() {
     return (
       <section className="ui-elevated-panel p-5 sm:p-6">
         <AdminEmptyState
-          title="HIT badge rule not found"
-          description="The marketplace does not have an active HIT badge rule record yet. Seed or restore the rule to manage marketplace thresholds here."
+          title="Правило HIT-бейджа не знайдено"
+          description="Маркетплейс ще не має активного запису правила HIT-бейджа. Ініціалізуйте або відновіть це правило, щоб керувати порогами тут."
         />
       </section>
     )
@@ -155,14 +155,14 @@ function AdminBadgeRuleSettingsCard({
       url: API_ROUTES.adminHitBadgeRule,
       method: 'PATCH',
       body: payload,
-      successMessage: 'Marketplace HIT badge rule updated.',
-      fallbackErrorMessage: 'We could not update the HIT badge rule right now. Please try again.',
+      successMessage: 'Правило HIT-бейджа маркетплейсу оновлено.',
+      fallbackErrorMessage: 'Зараз не вдалося оновити правило HIT-бейджа. Спробуйте ще раз.',
       onSuccess: async (data) => {
         setRules((current) =>
           current.map((rule) => (rule.badgeType === 'HIT' ? data : rule)),
         )
         setFormState(toFormState(data))
-        setSuccessMessage('The new thresholds are saved. Product HIT badges will follow this rule on the backend.')
+        setSuccessMessage('Нові пороги збережено. HIT-бейджі товарів надалі визначатимуться цим правилом на backend.')
       },
     })
 
@@ -178,25 +178,27 @@ function AdminBadgeRuleSettingsCard({
       <section className="ui-elevated-panel p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-copy-strong">Marketplace HIT rule</h2>
+            <h2 className="text-lg font-semibold text-copy-strong">Правило HIT маркетплейсу</h2>
             <p className="max-w-3xl text-sm text-copy-secondary">
-              A product becomes <strong>HIT</strong> when it reaches <strong>any</strong> enabled threshold below. Badge assignment and removal stay fully backend-driven.
+              Товар отримує <strong>HIT</strong>, коли досягає <strong>будь-якого</strong> з увімкнених порогів нижче.
+              Призначення та зняття бейджа повністю визначається на backend.
             </p>
           </div>
           <AdminStatusBadge
-            label={formState.enabled ? 'Rule enabled' : 'Rule disabled'}
+            label={formState.enabled ? 'Правило увімкнено' : 'Правило вимкнено'}
             tone={formState.enabled ? 'success' : 'neutral'}
           />
         </div>
 
         <div className="mt-5 rounded-2xl border border-panelBorder bg-panel px-4 py-4 text-sm text-copy-secondary">
-          Seller or store-owner self-views, self-wishlists, and self-orders do not contribute to HIT metrics. Products only receive the badge when trusted marketplace signals satisfy this rule.
+          Перегляди власником товару чи магазину, додавання у вибране самим продавцем і власні замовлення продавця
+          не впливають на HIT-метрики. Товар отримує бейдж лише тоді, коли надійні сигнали маркетплейсу відповідають цьому правилу.
         </div>
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Minimum views</span>
+              <span className="block text-sm font-medium text-copy-strong">Мінімум переглядів</span>
               <input
                 type="number"
                 min={0}
@@ -204,12 +206,12 @@ function AdminBadgeRuleSettingsCard({
                 className="ui-surface-input"
                 value={formState.minViews}
                 onChange={(event) => handleChange('minViews', event.target.value)}
-                aria-invalid={validationError?.includes('views') ? true : undefined}
+                aria-invalid={validationError?.includes('переглядів') ? true : undefined}
               />
             </label>
 
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Minimum wishlists</span>
+              <span className="block text-sm font-medium text-copy-strong">Мінімум додавань у вибране</span>
               <input
                 type="number"
                 min={0}
@@ -217,12 +219,12 @@ function AdminBadgeRuleSettingsCard({
                 className="ui-surface-input"
                 value={formState.minWishlists}
                 onChange={(event) => handleChange('minWishlists', event.target.value)}
-                aria-invalid={validationError?.includes('wishlists') ? true : undefined}
+                aria-invalid={validationError?.includes('вибране') ? true : undefined}
               />
             </label>
 
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Minimum sold count</span>
+              <span className="block text-sm font-medium text-copy-strong">Мінімум проданих одиниць</span>
               <input
                 type="number"
                 min={0}
@@ -230,21 +232,21 @@ function AdminBadgeRuleSettingsCard({
                 className="ui-surface-input"
                 value={formState.minSoldCount}
                 onChange={(event) => handleChange('minSoldCount', event.target.value)}
-                aria-invalid={validationError?.includes('sold count') ? true : undefined}
+                aria-invalid={validationError?.includes('проданих одиниць') ? true : undefined}
               />
             </label>
 
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Minimum revenue amount</span>
+              <span className="block text-sm font-medium text-copy-strong">Мінімальна сума виторгу</span>
               <input
                 type="text"
                 inputMode="decimal"
                 className="ui-surface-input"
                 value={formState.minRevenueAmount}
                 onChange={(event) => handleChange('minRevenueAmount', event.target.value)}
-                aria-invalid={validationError?.includes('revenue') ? true : undefined}
+                aria-invalid={validationError?.includes('виторг') ? true : undefined}
               />
-              <span className="text-xs text-copy-muted">Use `0` to disable revenue as a qualifying threshold.</span>
+              <span className="text-xs text-copy-muted">Використайте `0`, щоб вимкнути виторг як кваліфікаційний поріг.</span>
             </label>
           </div>
 
@@ -256,16 +258,16 @@ function AdminBadgeRuleSettingsCard({
               onChange={(event) => handleChange('enabled', event.target.checked)}
             />
             <span className="space-y-1 text-sm">
-              <span className="block font-medium text-copy-strong">Enable HIT badge rule</span>
+              <span className="block font-medium text-copy-strong">Увімкнути правило HIT-бейджа</span>
               <span className="block text-copy-secondary">
-                Disable this if the marketplace should stop assigning system HIT badges while keeping existing metrics intact.
+                Вимкніть це, якщо маркетплейс має припинити призначати системні HIT-бейджі, зберігши наявні метрики без змін.
               </span>
             </span>
           </label>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button type="submit" className="ui-primary-button" disabled={isPending}>
-              {isPending ? 'Saving rule...' : 'Save HIT rule'}
+              {isPending ? 'Зберігаємо правило...' : 'Зберегти правило HIT'}
             </button>
             <button
               type="button"
@@ -278,7 +280,7 @@ function AdminBadgeRuleSettingsCard({
                 setMutationErrorMessage(null)
               }}
             >
-              Reset changes
+              Скинути зміни
             </button>
           </div>
         </form>
@@ -297,30 +299,30 @@ function AdminBadgeRuleSettingsCard({
       </section>
 
       <section className="ui-panel p-5 sm:p-6">
-        <h3 className="text-base font-semibold text-copy-strong">Current rule snapshot</h3>
+        <h3 className="text-base font-semibold text-copy-strong">Поточний знімок правила</h3>
         <dl className="mt-4 grid gap-3 text-sm text-copy-secondary sm:grid-cols-2">
           <div>
-            <dt className="text-copy-muted">Badge type</dt>
+            <dt className="text-copy-muted">Тип бейджа</dt>
             <dd className="mt-1 text-copy-primary">{hitRule.badgeType}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Updated</dt>
+            <dt className="text-copy-muted">Оновлено</dt>
             <dd className="mt-1 text-copy-primary">{new Date(hitRule.updatedAt).toLocaleString('uk-UA')}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Views threshold</dt>
+            <dt className="text-copy-muted">Поріг переглядів</dt>
             <dd className="mt-1 text-copy-primary">{hitRule.minViews}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Wishlists threshold</dt>
+            <dt className="text-copy-muted">Поріг додавань у вибране</dt>
             <dd className="mt-1 text-copy-primary">{hitRule.minWishlists}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Sold count threshold</dt>
+            <dt className="text-copy-muted">Поріг проданих одиниць</dt>
             <dd className="mt-1 text-copy-primary">{hitRule.minSoldCount}</dd>
           </div>
           <div>
-            <dt className="text-copy-muted">Revenue threshold</dt>
+            <dt className="text-copy-muted">Поріг виторгу</dt>
             <dd className="mt-1 text-copy-primary">{hitRule.minRevenueAmount}</dd>
           </div>
         </dl>

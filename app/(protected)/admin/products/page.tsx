@@ -12,6 +12,14 @@ import { formatPrice } from '@/utils/formatters/price'
 import { ADMIN_PRODUCT_STATUS_FILTERS, getAdminProductStatusTone } from '@/types/admin'
 import { getAdminProductsPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
 
+const PRODUCT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Чернетка',
+  PENDING_REVIEW: 'Очікує модерації',
+  PUBLISHED: 'Опубліковано',
+  REJECTED: 'Відхилено',
+  ARCHIVED: 'Архівовано',
+}
+
 export default async function AdminProductsPage({
   searchParams,
 }: {
@@ -25,52 +33,52 @@ export default async function AdminProductsPage({
 
   return (
     <AdminSection
-      eyebrow="Products"
-      title="Marketplace product oversight"
-      description="Review catalog-wide product states, store ownership context, and moderation history from a single operational table."
+      eyebrow="Товари"
+      title="Керування товарами маркетплейсу"
+      description="Переглядайте стани товарів у каталозі, контекст власності магазинів і історію модерації в одній операційній таблиці."
     >
       <AdminFilterBar action="/admin/products">
         <SearchInput
           name="search"
-          label="Search products"
+          label="Пошук товарів"
           defaultValue={data.filters.search}
-          placeholder="Search product names"
+          placeholder="Пошук за назвою товару"
         />
         <StatusFilter
           name="status"
-          label="Product status"
+          label="Статус товару"
           defaultValue={data.filters.status}
           options={ADMIN_PRODUCT_STATUS_FILTERS.map((status) => ({
-            label: status.replaceAll('_', ' '),
+            label: PRODUCT_STATUS_LABELS[status] ?? status,
             value: status,
           }))}
         />
         <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Apply filters</button>
+          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>
 
       <AdminDataTable
-        title="Marketplace products"
-        description="Catalog-wide visibility across moderation state, ownership, and action history."
+        title="Товари маркетплейсу"
+        description="Огляд каталогу з урахуванням стану модерації, власності та історії дій."
       >
         {data.items.length === 0 ? (
           <div className="p-6">
             <AdminEmptyState
-              title="No products in this view"
-              description="Adjust the filters or search terms to surface more catalog records."
+              title="У цьому поданні немає товарів"
+              description="Змініть фільтри або пошуковий запит, щоб побачити більше позицій каталогу."
             />
           </div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-panel/60 text-left text-copy-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Product</th>
-                <th className="px-5 py-3 font-medium">Store</th>
-                <th className="px-5 py-3 font-medium">Price</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Moderation</th>
-                <th className="px-5 py-3 font-medium">Actions</th>
+                <th className="px-5 py-3 font-medium">Товар</th>
+                <th className="px-5 py-3 font-medium">Магазин</th>
+                <th className="px-5 py-3 font-medium">Ціна</th>
+                <th className="px-5 py-3 font-medium">Статус</th>
+                <th className="px-5 py-3 font-medium">Модерація</th>
+                <th className="px-5 py-3 font-medium">Дії</th>
               </tr>
             </thead>
             <tbody>
@@ -83,7 +91,10 @@ export default async function AdminProductsPage({
                   <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
                   <td className="px-5 py-4 text-copy-secondary">{formatPrice(product.price)}</td>
                   <td className="px-5 py-4">
-                    <AdminStatusBadge label={product.status} tone={getAdminProductStatusTone(product.status)} />
+                    <AdminStatusBadge
+                      label={PRODUCT_STATUS_LABELS[product.status] ?? product.status}
+                      tone={getAdminProductStatusTone(product.status)}
+                    />
                   </td>
                   <td className="px-5 py-4 text-copy-secondary">
                     {product.moderationReason ? (
@@ -94,7 +105,7 @@ export default async function AdminProductsPage({
                         ) : null}
                       </>
                     ) : (
-                      <p className="text-copy-muted">No moderation note</p>
+                      <p className="text-copy-muted">Немає примітки модерації</p>
                     )}
                   </td>
                   <td className="px-5 py-4">

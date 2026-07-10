@@ -11,12 +11,12 @@ export default function TopCategoriesTable({
   return (
     <AdminDataTable
       title="Топ категорії"
-      description="Категорії, що тягнуть виручку та unit volume у вибраному періоді."
+      description="Категорії, які приносять найбільшу виручку та обсяг проданих одиниць у вибраному періоді."
     >
       {items.length === 0 ? (
         <div className="p-6">
           <AdminEmptyState
-            title="Немає category analytics"
+            title="Немає аналітики категорій"
             description="Категорії з’являться тут, коли бекенд поверне продажі з прив’язкою до каталогу."
           />
         </div>
@@ -25,7 +25,7 @@ export default function TopCategoriesTable({
           <thead className="bg-panel/60 text-left text-copy-muted">
             <tr>
               <th className="px-5 py-3 font-medium">Категорія</th>
-              <th className="px-5 py-3 font-medium">Одиниць</th>
+              <th className="px-5 py-3 font-medium">Продано одиниць</th>
               <th className="px-5 py-3 font-medium">Виручка</th>
             </tr>
           </thead>

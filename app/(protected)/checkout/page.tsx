@@ -3,7 +3,7 @@ import CheckoutClient from '@/components/checkout/CheckoutClient'
 import CheckoutShell from '@/components/checkout/CheckoutShell'
 
 export const metadata: Metadata = {
-  title: 'Checkout — Вайб',
+  title: 'Оформлення замовлення — Вайб',
 }
 
 export default async function CheckoutPage({

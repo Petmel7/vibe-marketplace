@@ -2,10 +2,10 @@ import SellerStatusBadge from '@/components/seller/SellerStatusBadge'
 import type { SellerVerificationStatus } from '@/types/seller'
 
 const VERIFICATION_LABELS: Record<SellerVerificationStatus, string> = {
-  PENDING: 'Pending verification',
-  VERIFIED: 'Verified',
-  REJECTED: 'Rejected',
-  SUSPENDED: 'Suspended',
+  PENDING: 'Очікує верифікації',
+  VERIFIED: 'Верифіковано',
+  REJECTED: 'Відхилено',
+  SUSPENDED: 'Призупинено',
 }
 
 const VERIFICATION_TONES: Record<SellerVerificationStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {

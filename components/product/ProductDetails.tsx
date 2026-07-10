@@ -128,7 +128,7 @@ export default function ProductDetails({ product, currentUser }: Props) {
           )}
 
           {badgeChips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2" aria-label="Marketplace badges">
+            <div className="flex flex-wrap items-center gap-2" aria-label="Бейджі маркетплейсу">
               {badgeChips.map((badge) => (
                 <span
                   key={badge.type}
@@ -177,14 +177,14 @@ export default function ProductDetails({ product, currentUser }: Props) {
               className="rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-copy-primary"
               aria-live="polite"
             >
-              Обраний варіант зараз недоступний для покупки. Товар лишається видимим у каталозі, але додавання в кошик вимкнено, доки запас не з’явиться знову.
+              Обраний варіант зараз недоступний для покупки. Товар залишається видимим у каталозі, але додавання в кошик вимкнено, доки запас не з’явиться знову.
             </p>
           ) : presentation.stockStatus === 'LOW_STOCK' ? (
             <p
               className="rounded-2xl border border-amber-300/40 bg-amber-300/15 px-4 py-3 text-sm text-copy-primary"
               aria-live="polite"
             >
-              Залишилось небагато: доступно {presentation.maxQty} шт.
+              Залишилося небагато: доступно {presentation.maxQty} шт.
             </p>
           ) : null}
 

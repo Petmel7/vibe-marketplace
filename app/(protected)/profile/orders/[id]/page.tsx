@@ -80,10 +80,10 @@ export default async function ProfileOrderDetailPage({
   if (viewState.kind === 'forbidden') {
     return (
       <ProtectedRouteState
-        title="Order access denied"
-        description="This order is not available for the current buyer account."
+        title="Доступ до замовлення заборонено"
+        description="Це замовлення недоступне для поточного акаунта покупця."
         actionHref="/profile/orders"
-        actionLabel="Back to orders"
+        actionLabel="Назад до замовлень"
       />
     )
   }
@@ -92,17 +92,17 @@ export default async function ProfileOrderDetailPage({
 
   return (
     <ProfileSection
-      eyebrow="Order details"
-      title={`Order #${order.id.slice(0, 8)}`}
-      description="Review fulfillment status, item details, and delivery information for this purchase."
+      eyebrow="Деталі замовлення"
+      title={`Замовлення #${order.id.slice(0, 8)}`}
+      description="Переглядайте статус виконання, товари та інформацію про доставку для цієї покупки."
     >
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={order.status} />
         <p className="text-sm text-copy-muted">
-          Created {new Date(order.createdAt).toLocaleDateString('uk-UA')}
+          Створено {new Date(order.createdAt).toLocaleDateString('uk-UA')}
         </p>
         <Link href="/profile/refunds" className="ui-link-muted">
-          Open refunds
+          Відкрити повернення
         </Link>
         <ReportButton
           currentUser={user}
@@ -118,14 +118,14 @@ export default async function ProfileOrderDetailPage({
           triggerLabel="Відкрити суперечку"
         />
         <Link href="/profile/orders" className="ui-link-muted">
-          Back to orders
+          Назад до замовлень
         </Link>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <DashboardCard
-          title="Items in this order"
-          description={`${order.items.length} line items across your marketplace purchase.`}
+          title="Товари в цьому замовленні"
+          description={`${order.items.length} позицій у вашій покупці на маркетплейсі.`}
         >
           <div className="space-y-4">
             {order.items.map((item) => (
@@ -144,7 +144,7 @@ export default async function ProfileOrderDetailPage({
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-xs text-copy-muted">
-                      No image
+                      Немає фото
                     </div>
                   )}
                 </div>
@@ -162,12 +162,12 @@ export default async function ProfileOrderDetailPage({
 
                   <dl className="grid gap-2 text-sm text-copy-secondary sm:grid-cols-2">
                     <div>
-                      <dt className="text-copy-muted">Quantity</dt>
+                      <dt className="text-copy-muted">Кількість</dt>
                       <dd className="mt-1 text-copy-primary">{item.quantity}</dd>
                     </div>
                     <div>
-                      <dt className="text-copy-muted">Variant</dt>
-                      <dd className="mt-1 text-copy-primary">{item.variantSnapshot || 'Standard option'}</dd>
+                      <dt className="text-copy-muted">Варіант</dt>
+                      <dd className="mt-1 text-copy-primary">{item.variantSnapshot || 'Стандартний варіант'}</dd>
                     </div>
                   </dl>
 
@@ -198,24 +198,24 @@ export default async function ProfileOrderDetailPage({
         </DashboardCard>
 
         <div className="space-y-6">
-          <DashboardCard title="Order summary" description="A quick financial and fulfillment snapshot.">
+          <DashboardCard title="Підсумок замовлення" description="Короткий фінансовий та логістичний зріз.">
             <dl className="space-y-3 text-sm text-copy-secondary">
               <div className="flex items-center justify-between gap-4">
-                <dt>Status</dt>
+                <dt>Статус</dt>
                 <dd>
                   <StatusBadge status={order.status} />
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt>Total paid</dt>
+                <dt>Сплачено</dt>
                 <dd className="text-base font-semibold text-copy-strong">{formatPrice(order.totalAmount)}</dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt>Items</dt>
+                <dt>Позиції</dt>
                 <dd className="text-copy-primary">{order.items.length}</dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt>Placed on</dt>
+                <dt>Оформлено</dt>
                 <dd className="text-copy-primary">
                   {new Date(order.createdAt).toLocaleDateString('uk-UA')}
                 </dd>
@@ -224,8 +224,8 @@ export default async function ProfileOrderDetailPage({
           </DashboardCard>
 
           <DashboardCard
-            title="Shipping destination"
-            description="Delivery information captured for this order."
+            title="Адреса доставки"
+            description="Інформація про доставку, зафіксована для цього замовлення."
           >
             {shippingAddress ? (
               <div className="space-y-2 text-sm text-copy-secondary">
@@ -233,7 +233,7 @@ export default async function ProfileOrderDetailPage({
                 <p>{shippingAddress.phone}</p>
                 <p>
                   {shippingAddress.street}, {shippingAddress.building}
-                  {shippingAddress.apartment ? `, apt ${shippingAddress.apartment}` : ''}
+                  {shippingAddress.apartment ? `, кв. ${shippingAddress.apartment}` : ''}
                 </p>
                 <p>
                   {shippingAddress.city}
@@ -243,18 +243,18 @@ export default async function ProfileOrderDetailPage({
               </div>
             ) : (
               <EmptyState
-                title="Shipping address unavailable"
-                description="The original shipping destination is not available in your current address book."
+                title="Адреса доставки недоступна"
+                description="Початковий напрямок доставки недоступний у вашій поточній адресній книзі."
                 actionHref="/profile/addresses"
-                actionLabel="Manage addresses"
+                actionLabel="Керувати адресами"
               />
             )}
           </DashboardCard>
 
           {order.shipments.length > 0 ? (
             <DashboardCard
-              title="Shipment snapshots"
-              description="Per-store delivery snapshots saved during checkout."
+              title="Снапшоти відправлень"
+              description="Окремі снапшоти доставки по магазинах, збережені під час оформлення."
             >
               <div className="grid gap-4">
                 {order.shipments.map((shipment) => (
@@ -265,7 +265,7 @@ export default async function ProfileOrderDetailPage({
           ) : null}
 
           {order.note ? (
-            <DashboardCard title="Order note" description="Additional delivery context attached to this order.">
+            <DashboardCard title="Примітка до замовлення" description="Додатковий контекст доставки для цього замовлення.">
               <p className="text-sm text-copy-secondary">{order.note}</p>
             </DashboardCard>
           ) : null}

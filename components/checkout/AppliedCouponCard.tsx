@@ -20,7 +20,7 @@ export default function AppliedCouponCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-copy-muted">
-            {isAutomatic ? 'Automatic discount' : 'Applied coupon'}
+            {isAutomatic ? 'Автоматична знижка' : 'Застосований промокод'}
           </p>
           <h3 className="text-base font-semibold text-copy-strong">
             {promotion.code}
@@ -40,7 +40,7 @@ export default function AppliedCouponCard({
               disabled={disabled}
               className="ui-secondary-button whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Remove coupon
+              Прибрати промокод
             </button>
           ) : null}
         </div>

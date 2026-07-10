@@ -24,7 +24,7 @@ export default function AuthPageShell({
         <section className="ui-elevated-panel space-y-5 p-6 sm:p-8">
           <div className="space-y-3">
             <span className="inline-flex rounded-full border border-panelBorder bg-panel px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-copy-muted">
-              Marketplace access
+              Доступ до маркетплейсу
             </span>
             <h1 className="ui-heading-page">{title}</h1>
             <p className="ui-body-secondary max-w-xl">{description}</p>
@@ -40,11 +40,11 @@ export default function AuthPageShell({
 
         <aside className="ui-panel flex flex-col justify-between gap-6 p-6 sm:p-8">
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-copy-strong">Why this flow works</h2>
+            <h2 className="text-xl font-semibold text-copy-strong">Чому цей сценарій зручний</h2>
             <ul className="space-y-3 text-sm text-copy-secondary">
-              <li>Server-side session hydration keeps navigation and protected routes consistent.</li>
-              <li>Role-aware entry points are ready for buyer, seller, and admin dashboards.</li>
-              <li>Form actions are prepared for email verification, OAuth, and MFA expansion.</li>
+              <li>Серверна гідратація сесії зберігає навігацію та захищені маршрути узгодженими.</li>
+              <li>Точки входу вже готові для ролей покупця, продавця та адміністратора.</li>
+              <li>Форми підготовлені до розширення підтвердженням email, OAuth та MFA.</li>
             </ul>
           </div>
 

@@ -1,7 +1,7 @@
 import Link from 'next/link'
+import { ArrowDownRight } from 'lucide-react'
 import CategoryCards from '@/components/category/CategoryCards'
 import { fetchCategories } from '@/components/category/category.server'
-import { ArrowDownRight } from 'lucide-react';
 
 export default async function CategorySection() {
   const categories = await fetchCategories()

@@ -9,9 +9,9 @@ export default function AdminEmailPreviewPage() {
 
   return (
     <AdminSection
-      eyebrow="Developer tooling"
-      title="Transactional email preview"
-      description="Preview the current React Email templates with safe sample data. This route is available only in development and never sends real email."
+      eyebrow="Інструменти розробника"
+      title="Попередній перегляд транзакційних листів"
+      description="Переглядайте поточні React Email шаблони на безпечних тестових даних. Цей маршрут доступний лише в development і ніколи не надсилає реальні листи."
     >
       <EmailTemplatePreviewList />
     </AdminSection>

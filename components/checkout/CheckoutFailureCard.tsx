@@ -53,7 +53,7 @@ export default function CheckoutFailureCard({
             Перейти до замовлення
           </Link>
           <Link href="/profile/orders" className="ui-secondary-button">
-            Всі замовлення
+            Усі замовлення
           </Link>
         </div>
       </div>

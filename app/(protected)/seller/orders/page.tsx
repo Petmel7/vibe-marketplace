@@ -29,34 +29,32 @@ export default async function SellerOrdersPage() {
 
   return (
     <SellerSection
-      eyebrow="Orders"
-      title="Seller fulfillment queue"
-      description="Handle seller-scoped line items, shipping summaries, and allowed fulfillment transitions."
+      eyebrow="Замовлення"
+      title="Черга виконання замовлень"
+      description="Керуйте позиціями замовлень вашого магазину, зведеннями доставки та доступними статусами виконання."
     >
-      <SellerVerificationNotice
-        status={sellerProfile.verificationStatus}
-      />
+      <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
       <SellerTable
-        title="Order items"
-        description="Each row represents the seller-owned portion of a marketplace order."
+        title="Позиції замовлень"
+        description="Кожен рядок відображає частину маркетплейс-замовлення, яка належить вашому магазину."
       >
         {data.orderItems.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title="No seller orders yet"
-              description="Fulfillment tasks will appear here once your storefront starts receiving marketplace purchases."
+              title="Замовлень продавця ще немає"
+              description="Щойно ваша вітрина почне отримувати покупки, тут з’являться задачі на виконання."
             />
           </div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-panel/60 text-left text-copy-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Snapshot</th>
-                <th className="px-5 py-3 font-medium">Buyer shipping</th>
-                <th className="px-5 py-3 font-medium">Timeline</th>
-                <th className="px-5 py-3 font-medium">Shipment</th>
-                <th className="px-5 py-3 font-medium">Actions</th>
+                <th className="px-5 py-3 font-medium">Позиція</th>
+                <th className="px-5 py-3 font-medium">Доставка покупця</th>
+                <th className="px-5 py-3 font-medium">Хронологія</th>
+                <th className="px-5 py-3 font-medium">Відправлення</th>
+                <th className="px-5 py-3 font-medium">Дії</th>
               </tr>
             </thead>
             <tbody>
@@ -64,9 +62,9 @@ export default async function SellerOrdersPage() {
                 <tr key={item.id} className="border-t border-panelBorder align-top">
                   <td className="px-5 py-4">
                     <p className="font-semibold text-copy-strong">{item.productNameSnapshot}</p>
-                    <p className="mt-1 text-copy-muted">{item.variantSnapshot || 'Default option'}</p>
+                    <p className="mt-1 text-copy-muted">{item.variantSnapshot || 'Базовий варіант'}</p>
                     <p className="mt-1 text-copy-secondary">
-                      {item.quantity} units · {formatPrice(item.unitPriceSnapshot)}
+                      {item.quantity} шт. · {formatPrice(item.unitPriceSnapshot)}
                     </p>
                     <div className="mt-3">
                       <FulfillmentStatusBadge status={item.fulfillmentStatus as SellerFulfillmentStatus} />
@@ -78,7 +76,7 @@ export default async function SellerOrdersPage() {
                         <p className="font-medium text-copy-primary">{item.shippingAddress.fullName}</p>
                         <p>
                           {item.shippingAddress.street}, {item.shippingAddress.building}
-                          {item.shippingAddress.apartment ? `, apt ${item.shippingAddress.apartment}` : ''}
+                          {item.shippingAddress.apartment ? `, кв. ${item.shippingAddress.apartment}` : ''}
                         </p>
                         <p>
                           {item.shippingAddress.city}, {item.shippingAddress.country}
@@ -86,11 +84,11 @@ export default async function SellerOrdersPage() {
                         </p>
                       </div>
                     ) : (
-                      <p className="text-copy-muted">Shipping summary unavailable</p>
+                      <p className="text-copy-muted">Дані про доставку недоступні</p>
                     )}
                   </td>
                   <td className="px-5 py-4 text-copy-secondary">
-                    <p>Order #{item.orderId.slice(0, 8)}</p>
+                    <p>Замовлення #{item.orderId.slice(0, 8)}</p>
                     <p className="mt-1">{new Date(item.orderCreatedAt).toLocaleDateString('uk-UA')}</p>
                     <p className="mt-1 capitalize">{item.orderStatus}</p>
                   </td>
@@ -108,11 +106,11 @@ export default async function SellerOrdersPage() {
                             : ''}
                         </p>
                         <Link href={`/seller/shipments/${item.shipment.id}`} className="ui-link-muted">
-                          {item.shipment.trackingNumber ? 'Відкрити shipment' : 'Створити ТТН'}
+                          {item.shipment.trackingNumber ? 'Відкрити відправлення' : 'Створити ТТН'}
                         </Link>
                       </div>
                     ) : (
-                      <p className="text-copy-muted">Shipment snapshot unavailable</p>
+                      <p className="text-copy-muted">Дані про відправлення недоступні</p>
                     )}
                   </td>
                   <td className="px-5 py-4">
@@ -132,7 +130,7 @@ export default async function SellerOrdersPage() {
 
       <div className="flex flex-wrap gap-3">
         <Link href="/seller/refunds" className="ui-secondary-button">
-          Open refund center
+          Відкрити центр повернень
         </Link>
       </div>
     </SellerSection>

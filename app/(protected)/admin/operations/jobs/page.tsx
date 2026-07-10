@@ -23,15 +23,15 @@ export default async function AdminOperationsJobsPage({
 
   return (
     <AdminSection
-      eyebrow="Operations"
-      title="Background jobs"
-      description="Inspect job retries, due work, failure pressure, and idempotent async workflows."
+      eyebrow="Операції"
+      title="Фонові задачі"
+      description="Переглядайте повторні спроби задач, роботу за розкладом, тиск помилок і ідемпотентні асинхронні сценарії."
     >
       <OperationsShell currentPath="/admin/operations/jobs">
         <AdminFilterBar action="/admin/operations/jobs">
           <StatusFilter
             name="status"
-            label="Status"
+            label="Статус"
             defaultValue={data.filters.status}
             options={OPERATION_JOB_STATUSES.map((status) => ({
               label: getOperationJobStatusLabel(status),
@@ -40,7 +40,7 @@ export default async function AdminOperationsJobsPage({
           />
           <StatusFilter
             name="type"
-            label="Type"
+            label="Тип"
             defaultValue={data.filters.type}
             options={OPERATION_JOB_TYPES.map((type) => ({
               label: getOperationJobTypeLabel(type),
@@ -48,7 +48,7 @@ export default async function AdminOperationsJobsPage({
             }))}
           />
           <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">From date</span>
+            <span className="block text-sm font-medium text-copy-strong">Від дати</span>
             <input
               type="date"
               name="dateFrom"
@@ -57,7 +57,7 @@ export default async function AdminOperationsJobsPage({
             />
           </label>
           <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">To date</span>
+            <span className="block text-sm font-medium text-copy-strong">До дати</span>
             <input
               type="date"
               name="dateTo"
@@ -66,20 +66,20 @@ export default async function AdminOperationsJobsPage({
             />
           </label>
           <div className="flex gap-2 xl:self-end">
-            <button type="submit" className="ui-secondary-button">Apply filters</button>
+            <button type="submit" className="ui-secondary-button">Застосувати фільтри</button>
             <RunDueJobsButton />
           </div>
         </AdminFilterBar>
 
         <AdminDataTable
-          title="Jobs queue"
-          description="Retry only failed work and cancel only queued jobs. Critical order/payment writes remain synchronous."
+          title="Черга задач"
+          description="Повторюйте лише невдалі задачі та скасовуйте лише ті, що ще в черзі. Критичні записи замовлень і платежів залишаються синхронними."
         >
           {data.status === 'error' ? (
             <div className="p-6">
               <AdminEmptyState
-                title="Jobs diagnostics unavailable"
-                description={data.errorMessage ?? 'Не вдалося завантажити jobs diagnostics.'}
+                title="Діагностика задач недоступна"
+                description={data.errorMessage ?? 'Не вдалося завантажити діагностику задач.'}
               />
             </div>
           ) : data.jobs && data.jobs.items.length > 0 ? (
@@ -87,8 +87,8 @@ export default async function AdminOperationsJobsPage({
           ) : (
             <div className="p-6">
               <AdminEmptyState
-                title="No jobs found"
-                description="Try widening the filters or run due jobs if queued work should be processed now."
+                title="Задач не знайдено"
+                description="Спробуйте розширити фільтри або запустіть задачі за розкладом, якщо чергу потрібно обробити зараз."
               />
             </div>
           )}

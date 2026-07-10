@@ -67,10 +67,10 @@ export default async function CheckoutPendingPage({
         currentLabel="Оплата в очікуванні"
       >
         <ProtectedRouteState
-          title="Order access denied"
-          description="This order is not available for the current buyer account."
+          title="Доступ до замовлення заборонено"
+          description="Це замовлення недоступне для поточного акаунта покупця."
           actionHref="/profile/orders"
-          actionLabel="Back to orders"
+          actionLabel="Назад до замовлень"
         />
       </CheckoutShell>
     )

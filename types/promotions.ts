@@ -109,18 +109,18 @@ export type SellerPromotionStoreContext = {
 export function getPromotionTypeLabel(type: PromotionType) {
   switch (type) {
     case 'COUPON_CODE':
-      return 'Coupon code'
+      return 'Код купона'
     case 'AUTOMATIC_DISCOUNT':
-      return 'Automatic discount'
+      return 'Автоматична знижка'
   }
 }
 
 export function getPromotionDiscountTypeLabel(type: PromotionDiscountType) {
   switch (type) {
     case 'PERCENTAGE':
-      return 'Percentage'
+      return 'Відсоткова'
     case 'FIXED_AMOUNT':
-      return 'Fixed amount'
+      return 'Фіксована сума'
   }
 }
 
@@ -147,33 +147,33 @@ export function getPromotionDisplayStatus(promotion: Pick<PromotionSummary, 'isA
 export function getPromotionDisplayStatusLabel(status: PromotionDisplayStatus) {
   switch (status) {
     case 'ACTIVE':
-      return 'Active'
+      return 'Активна'
     case 'SCHEDULED':
-      return 'Scheduled'
+      return 'Запланована'
     case 'EXPIRED':
-      return 'Expired'
+      return 'Завершено'
     case 'DISABLED':
-      return 'Disabled'
+      return 'Вимкнено'
   }
 }
 
 export function getPromotionOwnerLabel(ownerType: PromotionOwnerType) {
   switch (ownerType) {
     case 'MARKETPLACE':
-      return 'Marketplace coupon'
+      return 'Купон маркетплейсу'
     case 'SELLER':
-      return 'Store coupon'
+      return 'Купон магазину'
   }
 }
 
 export function getPromotionTargetTypeLabel(targetType: PromotionTargetType) {
   switch (targetType) {
     case 'STORE':
-      return 'Whole store'
+      return 'Увесь магазин'
     case 'PRODUCT':
-      return 'Selected products'
+      return 'Вибрані товари'
     case 'CATEGORY':
-      return 'Selected categories'
+      return 'Вибрані категорії'
   }
 }
 

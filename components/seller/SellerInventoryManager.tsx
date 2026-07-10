@@ -68,8 +68,8 @@ export default function SellerInventoryManager({
                   ) : null}
                 </div>
                 <p className="mt-2 text-sm text-copy-muted">
-                  {product.sku ? `Base SKU: ${product.sku} · ` : ''}
-                  {inventoryState.totalStock} units across {product.variants.length} variants
+                  {product.sku ? `Базовий SKU: ${product.sku} · ` : ''}
+                  {inventoryState.totalStock} одиниць у {product.variants.length} варіанті
                 </p>
               </div>
             </div>
@@ -89,7 +89,7 @@ export default function SellerInventoryManager({
                     <div className="space-y-2">
                       <p className="text-sm font-semibold text-copy-strong">{variant.sku}</p>
                       <p className="text-sm text-copy-secondary">
-                        {[variant.size, variant.color].filter(Boolean).join(' · ') || 'Single option'}
+                        {[variant.size, variant.color].filter(Boolean).join(' · ') || 'Єдиний варіант'}
                       </p>
                       {variantInventoryChip ? (
                         variantInventoryChip.dotClassName ? (
@@ -107,7 +107,7 @@ export default function SellerInventoryManager({
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <label className="space-y-2">
-                        <span className="block text-xs uppercase tracking-[0.16em] text-copy-muted">Stock</span>
+                        <span className="block text-xs uppercase tracking-[0.16em] text-copy-muted">Залишок</span>
                         <input
                           type="number"
                           min={0}
@@ -125,17 +125,13 @@ export default function SellerInventoryManager({
                       <button
                         type="button"
                         className="ui-secondary-button h-10 px-4 py-2 text-sm"
-                        disabled={
-                          isReadOnly ||
-                          isPending ||
-                          nextStock === variant.stock
-                        }
+                        disabled={isReadOnly || isPending || nextStock === variant.stock}
                         onClick={async () => {
                           const data = await execute<{ stock: number }>({
                             url: `/api/seller/products/${product.id}/variants/${variant.id}/inventory`,
                             method: 'PATCH',
                             body: { stock: nextStock },
-                            successMessage: 'Inventory updated.',
+                            successMessage: 'Залишки оновлено.',
                           })
 
                           if (!data) {
@@ -158,7 +154,7 @@ export default function SellerInventoryManager({
                           )
                         }}
                       >
-                        Save
+                        Зберегти
                       </button>
                     </div>
                   </div>

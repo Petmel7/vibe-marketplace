@@ -7,14 +7,14 @@ import type { UserProfileDto } from '@/features/profile/profile.dto'
 import { ROLE_VALUES, hasRole } from '@/lib/constants/roles'
 
 const NAV_ITEMS = [
-  { href: '/profile', label: 'Overview' },
-  { href: '/profile/orders', label: 'Orders' },
-  { href: '/profile/refunds', label: 'Refunds' },
-  { href: '/profile/disputes', label: 'Disputes' },
-  { href: '/profile/reports', label: 'Reports' },
-  { href: '/profile/addresses', label: 'Addresses' },
-  { href: '/profile/wishlist', label: 'Wishlist' },
-  { href: '/profile/settings', label: 'Settings' },
+  { href: '/profile', label: 'Огляд' },
+  { href: '/profile/orders', label: 'Замовлення' },
+  { href: '/profile/refunds', label: 'Повернення' },
+  { href: '/profile/disputes', label: 'Суперечки' },
+  { href: '/profile/reports', label: 'Скарги' },
+  { href: '/profile/addresses', label: 'Адреси' },
+  { href: '/profile/wishlist', label: 'Обране' },
+  { href: '/profile/settings', label: 'Налаштування' },
 ] as const
 
 export default function DashboardSidebar({
@@ -31,12 +31,12 @@ export default function DashboardSidebar({
   return (
     <aside className="space-y-4 lg:sticky lg:top-6">
       <section className="ui-elevated-panel p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Buyer dashboard</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Кабінет покупця</p>
         <h2 className="mt-3 text-xl font-semibold text-copy-strong">{displayName}</h2>
         <p className="mt-1 break-all text-sm text-copy-muted">{user.email}</p>
       </section>
 
-      <nav aria-label="Profile navigation" className="ui-elevated-panel p-3">
+      <nav aria-label="Навігація профілю" className="ui-elevated-panel p-3">
         <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href
@@ -60,15 +60,15 @@ export default function DashboardSidebar({
 
       <section className="ui-panel p-5">
         <h3 className="text-base font-semibold text-copy-strong">
-          {sellerEnabled ? 'Seller workspace' : 'Become a seller'}
+          {sellerEnabled ? 'Кабінет продавця' : 'Стати продавцем'}
         </h3>
         <p className="mt-2 text-sm text-copy-muted">
           {sellerEnabled
-            ? 'Your account is already ready for seller tools and storefront management.'
-            : 'Upgrade from buyer to seller with a dedicated onboarding flow, verification awareness, and a future-ready storefront setup path.'}
+            ? 'Ваш акаунт уже готовий до інструментів продавця та керування вітриною магазину.'
+            : 'Перейдіть від покупця до продавця через окремий онбординг, верифікацію та майбутнє налаштування вітрини.'}
         </p>
         <Link href={sellerEnabled ? '/seller' : '/seller/onboarding'} className="ui-secondary-button mt-4 w-full">
-          {sellerEnabled ? 'Open seller area' : 'Start selling'}
+          {sellerEnabled ? 'Відкрити кабінет продавця' : 'Почати продавати'}
         </Link>
       </section>
     </aside>

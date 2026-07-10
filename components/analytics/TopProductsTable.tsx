@@ -24,7 +24,7 @@ export default function TopProductsTable({
         <div className="p-6">
           {variant === 'admin' ? (
             <AdminEmptyState
-              title="Немає product analytics"
+              title="Немає аналітики товарів"
               description="Топ товари з’являться тут, коли маркетплейс поверне продажі за вибраний період."
             />
           ) : (
@@ -39,7 +39,7 @@ export default function TopProductsTable({
           <thead className="bg-panel/60 text-left text-copy-muted">
             <tr>
               <th className="px-5 py-3 font-medium">Товар</th>
-              <th className="px-5 py-3 font-medium">Одиниць</th>
+              <th className="px-5 py-3 font-medium">Продано одиниць</th>
               <th className="px-5 py-3 font-medium">Виручка</th>
             </tr>
           </thead>

@@ -57,7 +57,7 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
           type="button"
           aria-expanded={isOpen}
           aria-haspopup="menu"
-          aria-label="Open account menu"
+          aria-label="Відкрити меню акаунта"
           className="ui-icon-button rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           onClick={() => setIsOpen((current) => !current)}
         >
@@ -70,7 +70,7 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
         </button>
       ) : (
         <Link
-          aria-label={isLoading ? 'Loading account' : 'Open sign in page'}
+          aria-label={isLoading ? 'Завантаження акаунта' : 'Відкрити сторінку входу'}
           aria-busy={isLoading}
           className={`ui-icon-button rounded-full ${isLoading ? 'cursor-not-allowed opacity-70' : ''
             }`}
@@ -97,7 +97,7 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
         >
           <div className="rounded-2xl bg-canvas px-4 py-3">
             <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">
-              Signed in
+              Ви увійшли
             </p>
 
             <p className="mt-2 break-all text-sm font-medium text-copy-strong">
@@ -111,10 +111,10 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
                   className="inline-flex rounded-full bg-panel px-2.5 py-1 text-xs text-copy-primary"
                 >
                   {role === ROLE_VALUES.BUYER
-                    ? 'Buyer'
+                    ? 'Покупець'
                     : role === ROLE_VALUES.SELLER
-                      ? 'Seller'
-                      : 'Admin'}
+                      ? 'Продавець'
+                      : 'Адміністратор'}
                 </span>
               ))}
             </div>
@@ -139,7 +139,7 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
               type="submit"
               className="flex w-full rounded-xl px-3 py-2 text-left text-sm text-copy-primary transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              Sign out
+              Вийти
             </button>
           </form>
         </div>
