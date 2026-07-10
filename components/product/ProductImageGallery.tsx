@@ -98,7 +98,7 @@ export default function ProductImageGallery({
         ) : null}
 
         <div className={hasMultipleImages ? 'order-1 lg:order-2' : 'order-1'}>
-          <div className="relative aspect-square w-full overflow-hidden rounded-[28px] border border-panelBorder bg-panel shadow-sm">
+          <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-panelBorder bg-panel shadow-sm">
             <Image
               key={selectedImage.id}
               src={selectedSrc}

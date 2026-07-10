@@ -109,11 +109,10 @@ export default function CheckoutAddressSelector({
             {addresses.map((address) => (
               <label
                 key={address.id}
-                className={`block cursor-pointer rounded-2xl border px-4 py-4 transition-colors ${
-                  selectedAddressId === address.id
-                    ? 'border-brand bg-brand/10'
-                    : 'border-panelBorder bg-panel hover:bg-panel/80'
-                }`}
+                className={`block cursor-pointer rounded-2xl border px-4 py-4 transition-colors ${selectedAddressId === address.id
+                  ? 'border-brand bg-brand/10'
+                  : 'border-panelBorder bg-panel hover:bg-panel/80'
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <input

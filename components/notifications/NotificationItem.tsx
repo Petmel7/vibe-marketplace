@@ -20,11 +20,10 @@ export default function NotificationItem({
 
   return (
     <article
-      className={`rounded-3xl border px-4 py-4 transition-colors ${
-        notification.readAt
+      className={`rounded-2xl border px-4 py-4 transition-colors ${notification.readAt
           ? 'border-panelBorder bg-panel/70'
           : 'border-brand/20 bg-brand/5'
-      } ${variant === 'dropdown' ? 'shadow-none' : 'shadow-[0_10px_30px_rgba(0,0,0,0.12)]'}`}
+        } ${variant === 'dropdown' ? 'shadow-none' : 'shadow-[0_10px_30px_rgba(0,0,0,0.12)]'}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">

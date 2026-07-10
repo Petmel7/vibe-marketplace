@@ -70,7 +70,7 @@ export default function ProductCard({
     : imageUrl || PRODUCT_CARD_FALLBACK_IMAGE
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-panelBorder bg-panel shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:shadow-lg">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-panelBorder bg-panel shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:shadow-lg">
       <div className="relative">
         <div className="absolute right-3 top-3 z-10">
           <WishlistToggleButton productId={id} variant="card" />

@@ -267,11 +267,13 @@ export default function CheckoutDeliverySection({
               />
             )}
 
-            <DeliveryEstimateCard
-              estimatedCost={deliverySelection.estimatedCost}
-              currency={deliverySelection.currency}
-              isReady={isEstimateReady}
-            />
+            <div className="pt-2 sm:pt-3">
+              <DeliveryEstimateCard
+                estimatedCost={deliverySelection.estimatedCost}
+                currency={deliverySelection.currency}
+                isReady={isEstimateReady}
+              />
+            </div>
           </div>
         ) : null}
       </fieldset>

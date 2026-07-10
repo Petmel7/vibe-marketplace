@@ -22,7 +22,6 @@ export default function CouponInput({
   return (
     <div className="space-y-3">
       <label className="block space-y-2" htmlFor="checkout-coupon-code">
-        <span className="text-sm font-medium text-copy-strong">Промокод</span>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             id="checkout-coupon-code"

@@ -25,14 +25,14 @@ export default function NotificationList({
     return (
       <div
         aria-live="polite"
-        className={`space-y-3 ${compact ? '' : 'rounded-3xl border border-panelBorder bg-panel p-4 sm:p-6'}`}
+        className={`space-y-3 ${compact ? '' : 'rounded-2xl border border-panelBorder bg-panel p-4 sm:p-6'}`}
       >
         <p className="text-sm text-copy-muted">Завантажуємо сповіщення…</p>
         <div className="space-y-3">
           {Array.from({ length: compact ? 3 : 4 }).map((_, index) => (
             <div
               key={index}
-              className="h-28 animate-pulse rounded-3xl border border-panelBorder bg-canvas/70"
+              className="h-28 animate-pulse rounded-2xl border border-panelBorder bg-canvas/70"
             />
           ))}
         </div>

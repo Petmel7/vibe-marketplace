@@ -14,6 +14,10 @@ import CatalogToggleButton from '../ui/CatalogToggleButton'
 import Logo from '../ui/Logo'
 import HeaderIconButton from './HeaderIconButton'
 import MegaMenu from '../mega-menu/MegaMenu'
+import {
+  ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS,
+  ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS,
+} from '../ui/IconWithBadge'
 
 export default function DesktopHeader({
   categories,
@@ -101,9 +105,15 @@ export default function DesktopHeader({
 
         {user ? <NotificationBell /> : null}
 
-        <WishlistIcon />
+        <WishlistIcon
+          badgeClassName={ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS}
+          countTextClassName={ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS}
+        />
 
-        <CartIcon />
+        <CartIcon
+          badgeClassName={ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS}
+          countTextClassName={ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS}
+        />
 
         <AuthUserMenu user={user} />
       </nav>

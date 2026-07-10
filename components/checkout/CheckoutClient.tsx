@@ -248,7 +248,7 @@ export default function CheckoutClient({
         ) : null}
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
         <CouponInput
           value={couponCode}
           onChange={setCouponCode}

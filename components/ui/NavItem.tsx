@@ -4,11 +4,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ComponentType } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import {
+  ICON_BADGE_BOTTOM_NAV_POSITION_CLASS,
+  ICON_BADGE_BOTTOM_NAV_TEXT_OFFSET_CLASS,
+  ICON_BADGE_ROOT_CLASS,
+} from '@/components/ui/IconWithBadge'
 
 type NavItemComponentProps = {
   size?: number
   className?: string
   iconClassName?: string
+  badgeClassName?: string
+  countTextClassName?: string
   ariaLabel?: string
   ariaCurrent?: 'page'
 }
@@ -45,8 +52,10 @@ export default function NavItem({
       <div className={itemClassName}>
         <Component
           size={24}
-          className="relative flex items-center justify-center"
+          className={ICON_BADGE_ROOT_CLASS}
           iconClassName={isActive ? 'text-[#E8E9EA]' : 'text-[#A5A8AD]'}
+          badgeClassName={ICON_BADGE_BOTTOM_NAV_POSITION_CLASS}
+          countTextClassName={ICON_BADGE_BOTTOM_NAV_TEXT_OFFSET_CLASS}
           ariaLabel={label}
           ariaCurrent={isActive ? 'page' : undefined}
         />

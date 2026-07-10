@@ -8,7 +8,7 @@ export default function ProductCardSkeleton({ count = 4 }: Props) {
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="flex h-full flex-col overflow-hidden rounded-[28px] border border-panelBorder bg-panel shadow-sm animate-pulse"
+          className="flex h-full flex-col overflow-hidden rounded-2xl border border-panelBorder bg-panel shadow-sm animate-pulse"
         >
           <div className="aspect-[4/4.6] border-b border-panelBorder bg-panelAlt/60" />
           <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">

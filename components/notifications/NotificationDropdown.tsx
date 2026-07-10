@@ -31,7 +31,7 @@ export default function NotificationDropdown({
     <div
       role="dialog"
       aria-label="Центр сповіщень"
-      className="absolute right-0 top-full z-40 mt-3 w-[min(26rem,calc(100vw-1.5rem))] rounded-[28px] border border-panelBorder bg-panel p-4 shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
+      className="absolute right-0 top-full z-40 mt-3 w-[min(26rem,calc(100vw-1.5rem))] rounded-2xl border border-panelBorder bg-panel p-4 shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -51,7 +51,7 @@ export default function NotificationDropdown({
         ) : null}
       </div>
 
-      <div className="mt-4 max-h-[28rem] overflow-y-auto pr-1">
+      <div className="mt-4 max-h-112 overflow-y-auto pr-1">
         <NotificationList
           compact
           errorMessage={errorMessage}

@@ -3,6 +3,16 @@
 import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
 
+export const ICON_BADGE_ROOT_CLASS = 'relative flex items-center justify-center'
+export const ICON_BADGE_DEFAULT_POSITION_CLASS = '-right-1.5 -top-1.5'
+export const ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS = '-right-1.5 -top-1'
+export const ICON_BADGE_BOTTOM_NAV_POSITION_CLASS = '-right-1.5 -top-2'
+export const ICON_BADGE_DEFAULT_TEXT_OFFSET_CLASS = ''
+export const ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS = 'translate-y-px'
+export const ICON_BADGE_BOTTOM_NAV_TEXT_OFFSET_CLASS = '-translate-y-px'
+export const ICON_BADGE_COUNTER_CLASS = 'ui-badge-counter'
+export const ICON_BADGE_DOT_CLASS = 'ui-badge-dot'
+
 interface Props {
   href: string
   icon: LucideIcon
@@ -11,6 +21,8 @@ interface Props {
   size?: number
   className?: string
   iconClassName?: string
+  badgeClassName?: string
+  countTextClassName?: string
   ariaCurrent?: 'page'
   variant?: 'count' | 'dot'
   showZero?: boolean
@@ -24,6 +36,8 @@ export default function IconWithBadge({
   size = 24,
   className,
   iconClassName,
+  badgeClassName,
+  countTextClassName,
   ariaCurrent,
   variant = 'count',
   showZero = false,
@@ -35,15 +49,23 @@ export default function IconWithBadge({
       href={href}
       aria-label={ariaLabel}
       aria-current={ariaCurrent}
-      className={className ?? 'relative flex items-center justify-center'}
+      className={className ?? ICON_BADGE_ROOT_CLASS}
     >
       <Icon size={size} aria-hidden="true" className={iconClassName} />
       {shouldShowBadge && (
         variant === 'dot' ? (
-          <span className="ui-badge-dot" aria-hidden="true" />
+          <span
+            className={`${ICON_BADGE_DOT_CLASS} ${badgeClassName ?? ICON_BADGE_DEFAULT_POSITION_CLASS}`}
+            aria-hidden="true"
+          />
         ) : (
-          <span className="ui-badge-counter" aria-hidden="true">
-            {count > 99 ? '99+' : count}
+          <span
+            className={`${ICON_BADGE_COUNTER_CLASS} ${badgeClassName ?? ICON_BADGE_DEFAULT_POSITION_CLASS}`}
+            aria-hidden="true"
+          >
+            <span className={countTextClassName ?? ICON_BADGE_DEFAULT_TEXT_OFFSET_CLASS}>
+              {count > 99 ? '99+' : count}
+            </span>
           </span>
         )
       )}

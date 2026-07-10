@@ -27,7 +27,7 @@ export default function NotificationsPageClient() {
 
   return (
     <section className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4 rounded-[32px] border border-panelBorder bg-panel px-6 py-6 shadow-[0_24px_64px_rgba(0,0,0,0.18)] sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-4xl border border-panelBorder bg-panel px-6 py-6 shadow-[0_24px_64px_rgba(0,0,0,0.18)] sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-3">
           <span className="inline-flex rounded-full border border-panelBorder bg-canvas px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-copy-muted">
             Notification Center

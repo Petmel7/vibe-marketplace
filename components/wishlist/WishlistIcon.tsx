@@ -8,6 +8,8 @@ interface Props {
   size?: number
   className?: string
   iconClassName?: string
+  badgeClassName?: string
+  countTextClassName?: string
   ariaLabel?: string
   ariaCurrent?: 'page'
   variant?: 'count' | 'dot'
@@ -18,6 +20,8 @@ export default function WishlistIcon({
   size = 24,
   className,
   iconClassName = 'text-[#E8E9EA]',
+  badgeClassName,
+  countTextClassName,
   ariaLabel,
   ariaCurrent,
   variant = 'count',
@@ -39,6 +43,8 @@ export default function WishlistIcon({
       size={size}
       className={className}
       iconClassName={iconClassName}
+      badgeClassName={badgeClassName}
+      countTextClassName={countTextClassName}
       ariaLabel={ariaLabel ?? fallbackLabel}
       ariaCurrent={ariaCurrent}
       variant={variant}

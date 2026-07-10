@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
 import { useNotifications } from '@/hooks/useNotifications'
+import {
+  ICON_BADGE_COUNTER_CLASS,
+  ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS,
+  ICON_BADGE_ROOT_CLASS,
+  ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS,
+} from '@/components/ui/IconWithBadge'
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
@@ -71,19 +77,24 @@ export default function NotificationBell() {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={label}
-        className="ui-icon-button relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className={`ui-icon-button ${ICON_BADGE_ROOT_CLASS} rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`}
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={24} color="#E8E9EA" aria-hidden="true" />
         {hasRecentRealtimeActivity ? (
           <span
-            className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-panel bg-emerald-400"
+            className={`${ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS} h-3 w-3 rounded-full border-2 border-panel bg-emerald-400`}
             aria-hidden="true"
           />
         ) : null}
         {unreadCount > 0 ? (
-          <span className="ui-badge-counter" aria-hidden="true">
-            {unreadCount > 99 ? '99+' : unreadCount}
+          <span
+            className={`${ICON_BADGE_COUNTER_CLASS} ${ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS}`}
+            aria-hidden="true"
+          >
+            <span className={ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
           </span>
         ) : null}
         <span className="sr-only" aria-live="polite">

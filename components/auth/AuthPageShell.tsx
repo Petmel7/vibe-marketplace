@@ -19,7 +19,7 @@ export default function AuthPageShell({
   children: ReactNode
 }) {
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-13rem)] w-full max-w-6xl items-center px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto flex min-h-[calc(100vh-13rem)] w-full max-w-6xl items-center">
       <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="ui-elevated-panel space-y-5 p-6 sm:p-8">
           <div className="space-y-3">

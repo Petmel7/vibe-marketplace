@@ -12,7 +12,7 @@ export default function ReviewEmptyState({
   actionLabel?: string
 }) {
   return (
-    <div className="rounded-[28px] border border-dashed border-panelBorder bg-panel/60 px-6 py-10 text-center">
+    <div className="rounded-2xl border border-dashed border-panelBorder bg-panel/60 px-6 py-10 text-center">
       <h3 className="text-lg font-semibold text-copy-strong">{title}</h3>
       <p className="mx-auto mt-2 max-w-2xl text-sm text-copy-muted">{description}</p>
       {actionHref && actionLabel ? (

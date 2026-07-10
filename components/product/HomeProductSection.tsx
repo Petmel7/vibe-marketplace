@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowDownRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import ProductCardGrid from '@/components/product/ProductCardGrid'
 import { getHomepageProductSections } from '@/features/products/product.service'
 
@@ -21,7 +21,7 @@ export default async function HomeProductSection({ type, title }: Props) {
           className="flex items-center gap-1 text-sm text-copy-muted transition-colors hover:text-copy-primary"
         >
           <p>Переглянути усі</p>
-          <ArrowDownRight />
+          <ArrowUpRight />
         </Link>
       </div>
 
