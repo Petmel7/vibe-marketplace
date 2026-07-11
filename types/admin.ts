@@ -58,12 +58,44 @@ export function getAdminSellerStatusTone(status: string): 'neutral' | 'success' 
   return 'neutral'
 }
 
+export function getAdminSellerStatusLabel(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return 'Очікує'
+    case 'VERIFIED':
+      return 'Верифіковано'
+    case 'REJECTED':
+      return 'Відхилено'
+    case 'SUSPENDED':
+      return 'Призупинено'
+    default:
+      return status
+  }
+}
+
 export function getAdminProductStatusTone(status: string): 'neutral' | 'success' | 'warning' | 'danger' | 'info' {
   if (status === 'PUBLISHED') return 'success'
   if (status === 'PENDING_REVIEW') return 'warning'
   if (status === 'REJECTED' || status === 'ARCHIVED') return 'danger'
   if (status === 'DRAFT') return 'info'
   return 'neutral'
+}
+
+export function getAdminProductStatusLabel(status: string) {
+  switch (status) {
+    case 'DRAFT':
+      return 'Чернетка'
+    case 'PENDING_REVIEW':
+      return 'Очікує модерації'
+    case 'PUBLISHED':
+      return 'Опубліковано'
+    case 'REJECTED':
+      return 'Відхилено'
+    case 'ARCHIVED':
+      return 'Архівовано'
+    default:
+      return status
+  }
 }
 
 export function getAdminOrderStatusTone(status: string): 'neutral' | 'success' | 'warning' | 'danger' | 'info' {

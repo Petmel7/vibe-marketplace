@@ -23,7 +23,7 @@ export default async function AdminOperationsAuditLogsPage({
     <AdminSection
       eyebrow="Операції"
       title="Журнал аудиту"
-      description="Переглядайте чутливі дії адміністраторів із серверно-редагованими зведеннями metadata для безпечнішого реагування на інциденти."
+      description="Переглядайте чутливі дії адміністраторів із серверно-редагованими зведеннями метаданих для безпечнішого реагування на інциденти."
     >
       <OperationsShell currentPath="/admin/operations/audit-logs">
         <AdminFilterBar action="/admin/operations/audit-logs">
@@ -37,19 +37,19 @@ export default async function AdminOperationsAuditLogsPage({
             name="domain"
             label="Домен"
             defaultValue={data.filters.domain}
-            placeholder="напр. payouts, promotions, refunds"
+            placeholder="напр. виплати, акції, повернення"
           />
           <SearchInput
             name="action"
             label="Дія"
             defaultValue={data.filters.action}
-            placeholder="напр. retry, approve, update"
+            placeholder="напр. повтор, схвалення, оновлення"
           />
           <SearchInput
             name="resourceType"
             label="Тип ресурсу"
             defaultValue={data.filters.resourceType}
-            placeholder="напр. job, payout, promotion"
+            placeholder="напр. задача, виплата, акція"
           />
           <label className="space-y-2 xl:w-56">
             <span className="block text-sm font-medium text-copy-strong">Від дати</span>
@@ -66,7 +66,7 @@ export default async function AdminOperationsAuditLogsPage({
 
         <AdminDataTable
           title="Слід аудиту"
-          description="Metadata вже проходить редагування на бекенді до того, як потрапляє в operations dashboard."
+          description="Метадані вже проходять редагування на бекенді до того, як потрапляють у панель операцій."
         >
           {data.status === 'error' ? (
             <div className="p-6">

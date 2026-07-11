@@ -26,14 +26,13 @@ export default function CategoryTreeSelect({
   allowParentSelection?: boolean
 }) {
   const [query, setQuery] = useState('')
-  const [manualExpandedIds, setManualExpandedIds] = useState<Set<string>>(new Set())
+  const [manualExpandedIds, setManualExpandedIds] = useState<Set<string> | null>(null)
 
   const filteredTree = filterCategoryTreeByQuery(tree, query)
+  const defaultExpandedIds = new Set(tree.map((node) => node.id))
   const expandedIds = query.trim()
     ? new Set(collectExpandedCategoryIds(filteredTree))
-    : manualExpandedIds.size > 0
-      ? manualExpandedIds
-      : new Set(tree.map((node) => node.id))
+    : manualExpandedIds ?? defaultExpandedIds
 
   const hasResults = filteredTree.length > 0
 
@@ -86,7 +85,7 @@ export default function CategoryTreeSelect({
                 allowParentSelection={allowParentSelection}
                 onToggle={(id) =>
                   setManualExpandedIds((current) => {
-                    const next = new Set(current)
+                    const next = new Set(current ?? defaultExpandedIds)
                     if (next.has(id)) {
                       next.delete(id)
                     } else {

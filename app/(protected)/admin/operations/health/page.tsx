@@ -18,7 +18,7 @@ export default async function AdminOperationsHealthPage() {
     <AdminSection
       eyebrow="Операції"
       title="Діагностика стану системи"
-      description="Поточні сигнали стану застосунку, бази даних, конфігурації та готовності провайдерів із platform health-ендпоїнтів."
+      description="Поточні сигнали стану застосунку, бази даних, конфігурації та готовності провайдерів із платформних ендпоїнтів перевірки стану."
     >
       <OperationsShell currentPath="/admin/operations/health">
         <div className="flex justify-end">
@@ -39,7 +39,7 @@ export default async function AdminOperationsHealthPage() {
                 title="Стан застосунку"
                 tone={getOperationsHealthTone(data.snapshot.deep.status)}
                 label={data.snapshot.deep.status === 'ok' ? 'Справно' : 'Деградовано'}
-                description={`Базовий стан: ${data.snapshot.basic.status}. Остання перевірка: ${new Date(data.snapshot.lastCheckedAt).toLocaleString('uk-UA')}.`}
+                description={`Базовий стан: ${data.snapshot.basic.status === 'ok' ? 'справно' : data.snapshot.basic.status}. Остання перевірка: ${new Date(data.snapshot.lastCheckedAt).toLocaleString('uk-UA')}.`}
                 meta={
                   <dl className="grid gap-3 rounded-2xl bg-panel px-4 py-4 text-sm text-copy-secondary">
                     <div className="flex items-center justify-between">
@@ -57,13 +57,13 @@ export default async function AdminOperationsHealthPage() {
                 title="База даних"
                 tone={data.snapshot.deep.database.ok ? 'success' : 'danger'}
                 label={data.snapshot.deep.database.ok ? 'Підключено' : 'Недоступно'}
-                description="Поглиблена перевірка стану системи перевіряє з’єднання з базою даних легким ping-запитом."
+                description="Поглиблена перевірка стану системи перевіряє з’єднання з базою даних легким перевірочним запитом."
               />
               <HealthStatusCard
                 title="Середовище"
                 tone={data.snapshot.deep.env.ok ? 'success' : 'warning'}
                 label={data.snapshot.deep.env.ok ? 'Коректне' : 'Знайдено проблеми'}
-                description="Стан обов’язкових env-змінних і feature flags із централізованої валідації."
+                description="Стан обов’язкових змінних середовища і прапорців функцій із централізованої валідації."
                 meta={
                   data.snapshot.deep.env.issues.length > 0 ? (
                     <ul className="space-y-2 rounded-2xl bg-panel px-4 py-4 text-sm text-copy-secondary">
@@ -74,7 +74,7 @@ export default async function AdminOperationsHealthPage() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="rounded-2xl bg-panel px-4 py-4 text-sm text-copy-secondary">Проблем із env-змінними не виявлено.</p>
+                    <p className="rounded-2xl bg-panel px-4 py-4 text-sm text-copy-secondary">Проблем зі змінними середовища не виявлено.</p>
                   )
                 }
               />
@@ -107,7 +107,7 @@ export default async function AdminOperationsHealthPage() {
                 <h2 className="text-lg font-semibold text-copy-strong">Прапорці функцій</h2>
                 <div className="mt-5 space-y-3 text-sm">
                   <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">
-                    <span>Email</span>
+                    <span>Електронна пошта</span>
                     <ProviderStatusBadge isReady={data.snapshot.deep.featureFlags.emailEnabled} readyLabel="Увімкнено" missingLabel="Вимкнено" />
                   </div>
                   <div className="flex items-center justify-between rounded-2xl bg-panel px-4 py-3">

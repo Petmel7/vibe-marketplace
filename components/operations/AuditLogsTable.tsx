@@ -6,12 +6,12 @@ import { getAdminAuditActorLabel, type AdminAuditLog } from '@/types/operations'
 
 function getMetadataPreview(metadata: AdminAuditLog['metadata']) {
   if (!metadata) {
-    return 'No metadata summary'
+    return 'Немає зведення метаданих'
   }
 
   const keys = Object.keys(metadata)
   if (keys.length === 0) {
-    return 'Empty metadata'
+    return 'Порожні метадані'
   }
 
   return keys.slice(0, 3).join(', ')
@@ -25,12 +25,12 @@ export default function AuditLogsTable({ items }: { items: AdminAuditLog[] }) {
       <table className="min-w-full text-sm">
         <thead className="bg-panel/60 text-left text-copy-muted">
           <tr>
-            <th className="px-5 py-3 font-medium">Actor</th>
-            <th className="px-5 py-3 font-medium">Action</th>
-            <th className="px-5 py-3 font-medium">Resource</th>
-            <th className="px-5 py-3 font-medium">Metadata</th>
-            <th className="px-5 py-3 font-medium">Timestamp</th>
-            <th className="px-5 py-3 font-medium">Detail</th>
+            <th className="px-5 py-3 font-medium">Виконавець</th>
+            <th className="px-5 py-3 font-medium">Дія</th>
+            <th className="px-5 py-3 font-medium">Ресурс</th>
+            <th className="px-5 py-3 font-medium">Метадані</th>
+            <th className="px-5 py-3 font-medium">Час</th>
+            <th className="px-5 py-3 font-medium">Деталі</th>
           </tr>
         </thead>
         <tbody>
@@ -54,7 +54,7 @@ export default function AuditLogsTable({ items }: { items: AdminAuditLog[] }) {
               <td className="px-5 py-4 text-copy-secondary">{new Date(item.createdAt).toLocaleString('uk-UA')}</td>
               <td className="px-5 py-4">
                 <button type="button" className="ui-secondary-button" onClick={() => setSelected(item)}>
-                  View metadata
+                  Переглянути метадані
                 </button>
               </td>
             </tr>

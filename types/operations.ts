@@ -105,7 +105,7 @@ export type AdminAuditLogListResponse = {
 
 function formatAuditActorRole(actorRole: string | null) {
   if (!actorRole) {
-    return 'User'
+    return 'Користувач'
   }
 
   return actorRole
@@ -133,7 +133,7 @@ export function getAdminAuditActorLabel(item: Pick<AdminAuditLog, 'actorEmail' |
     return `${formatAuditActorRole(item.actorRole)} · ${shortenActorId(item.actorId)}`
   }
 
-  return 'Unknown actor'
+  return 'Невідомий виконавець'
 }
 
 export type OperationsJobsFilters = {
@@ -235,34 +235,34 @@ export function buildOperationsAuditSearchParams(filters: OperationsAuditFilters
 export function getOperationJobStatusLabel(status: OperationJobStatus) {
   switch (status) {
     case 'PENDING':
-      return 'Pending'
+      return 'Очікує'
     case 'PROCESSING':
-      return 'Processing'
+      return 'Обробляється'
     case 'SUCCEEDED':
-      return 'Succeeded'
+      return 'Успішно'
     case 'FAILED':
-      return 'Failed'
+      return 'Помилка'
     case 'CANCELLED':
-      return 'Cancelled'
+      return 'Скасовано'
   }
 }
 
 export function getOperationJobTypeLabel(type: OperationJobType) {
   switch (type) {
     case 'SEND_EMAIL':
-      return 'Send email'
+      return 'Надіслати email'
     case 'RECALCULATE_PRODUCT_METRICS':
-      return 'Recalculate product metrics'
+      return 'Перерахувати метрики товарів'
     case 'RECALCULATE_RISK_PROFILE':
-      return 'Recalculate risk profile'
+      return 'Перерахувати ризиковий профіль'
     case 'SYNC_SHIPMENT_STATUS':
-      return 'Sync shipment status'
+      return 'Синхронізувати статус відправлення'
     case 'RELEASE_SELLER_FUNDS':
-      return 'Release seller funds'
+      return 'Розблокувати кошти продавця'
     case 'REFRESH_ANALYTICS':
-      return 'Refresh analytics'
+      return 'Оновити аналітику'
     case 'PROCESS_NOTIFICATION_DIGEST':
-      return 'Process notification digest'
+      return 'Обробити дайджест сповіщень'
   }
 }
 

@@ -8,7 +8,9 @@ import ModerationQueueCard from '@/components/admin/ModerationQueueCard'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
 import {
+  getAdminProductStatusLabel,
   getAdminProductStatusTone,
+  getAdminSellerStatusLabel,
   getAdminSellerStatusTone,
 } from '@/types/admin'
 import { getAdminOverviewData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
@@ -126,7 +128,10 @@ export default async function AdminOverviewPage() {
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{seller.userId.slice(0, 8)}</td>
                     <td className="px-5 py-4">
-                      <AdminStatusBadge label={seller.verificationStatus} tone={getAdminSellerStatusTone(seller.verificationStatus)} />
+                      <AdminStatusBadge
+                        label={getAdminSellerStatusLabel(seller.verificationStatus)}
+                        tone={getAdminSellerStatusTone(seller.verificationStatus)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -138,7 +143,10 @@ export default async function AdminOverviewPage() {
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
                     <td className="px-5 py-4">
-                      <AdminStatusBadge label={product.status} tone={getAdminProductStatusTone(product.status)} />
+                      <AdminStatusBadge
+                        label={getAdminProductStatusLabel(product.status)}
+                        tone={getAdminProductStatusTone(product.status)}
+                      />
                     </td>
                   </tr>
                 ))}

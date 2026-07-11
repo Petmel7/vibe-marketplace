@@ -5,7 +5,12 @@ import AdminSection from '@/components/admin/AdminSection'
 import AdminSellerModerationActions from '@/components/admin/AdminSellerModerationActions'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { getAdminProductStatusTone, getAdminSellerStatusTone } from '@/types/admin'
+import {
+  getAdminProductStatusLabel,
+  getAdminProductStatusTone,
+  getAdminSellerStatusLabel,
+  getAdminSellerStatusTone,
+} from '@/types/admin'
 import { getAdminModerationPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
 
 export default async function AdminModerationPage() {
@@ -51,7 +56,10 @@ export default async function AdminModerationPage() {
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{new Date(seller.createdAt).toLocaleDateString('uk-UA')}</td>
                     <td className="px-5 py-4">
-                      <AdminStatusBadge label={seller.verificationStatus} tone={getAdminSellerStatusTone(seller.verificationStatus)} />
+                      <AdminStatusBadge
+                        label={getAdminSellerStatusLabel(seller.verificationStatus)}
+                        tone={getAdminSellerStatusTone(seller.verificationStatus)}
+                      />
                     </td>
                     <td className="px-5 py-4">
                       <AdminSellerModerationActions sellerId={seller.id} verificationStatus={seller.verificationStatus} />
@@ -93,7 +101,10 @@ export default async function AdminModerationPage() {
                     </td>
                     <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
                     <td className="px-5 py-4">
-                      <AdminStatusBadge label={product.status} tone={getAdminProductStatusTone(product.status)} />
+                      <AdminStatusBadge
+                        label={getAdminProductStatusLabel(product.status)}
+                        tone={getAdminProductStatusTone(product.status)}
+                      />
                     </td>
                     <td className="px-5 py-4">
                       <AdminProductModerationActions productId={product.id} status={product.status} />
@@ -127,7 +138,10 @@ export default async function AdminModerationPage() {
                           <p className="font-semibold text-copy-strong">{product.name}</p>
                           <p className="mt-1 text-sm text-copy-muted">{product.storeName}</p>
                         </div>
-                        <AdminStatusBadge label={product.status} tone={getAdminProductStatusTone(product.status)} />
+                        <AdminStatusBadge
+                          label={getAdminProductStatusLabel(product.status)}
+                          tone={getAdminProductStatusTone(product.status)}
+                        />
                       </div>
                       <p className="text-sm text-copy-secondary">{product.moderationReason || 'Причина відхилення недоступна.'}</p>
                       <AdminProductModerationActions productId={product.id} status={product.status} />
@@ -159,7 +173,10 @@ export default async function AdminModerationPage() {
                           <p className="font-semibold text-copy-strong">{seller.businessName || 'Продавець без назви'}</p>
                           <p className="mt-1 text-sm text-copy-muted">Користувач {seller.userId.slice(0, 8)}</p>
                         </div>
-                        <AdminStatusBadge label={seller.verificationStatus} tone={getAdminSellerStatusTone(seller.verificationStatus)} />
+                        <AdminStatusBadge
+                          label={getAdminSellerStatusLabel(seller.verificationStatus)}
+                          tone={getAdminSellerStatusTone(seller.verificationStatus)}
+                        />
                       </div>
                       <p className="text-sm text-copy-secondary">{seller.moderationReason || 'Причина призупинення недоступна.'}</p>
                       <AdminSellerModerationActions sellerId={seller.id} verificationStatus={seller.verificationStatus} />

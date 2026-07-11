@@ -19,9 +19,9 @@ export default function SellerStatePanel({
 }) {
   return (
     <section className="ui-elevated-panel p-6 sm:p-7">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col items-start gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.24em] text-copy-muted">Seller state</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-copy-muted">Статус продавця</p>
           <h2 className="text-2xl font-semibold text-copy-strong">{title}</h2>
           <p className="max-w-3xl text-sm text-copy-secondary">{description}</p>
           {reason ? (
@@ -35,7 +35,11 @@ export default function SellerStatePanel({
             </Link>
           ) : null}
         </div>
-        {status ? <VerificationStatusBadge status={status} /> : null}
+        {status ? (
+          <div className="order-first shrink-0 self-start lg:order-none">
+            <VerificationStatusBadge status={status} />
+          </div>
+        ) : null}
       </div>
     </section>
   )

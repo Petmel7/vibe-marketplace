@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import DashboardCard from '@/components/profile/DashboardCard'
+import { getStatusLabel } from '@/components/profile/StatusBadge'
 import type { PaymentNextAction } from '@/types/payments'
 import type { CheckoutOrderDetail } from '@/types/orders'
 import { formatPrice } from '@/utils/formatters/price'
@@ -12,9 +13,6 @@ function getItemCount(order: CheckoutOrderDetail) {
   return order.items.reduce((sum, item) => sum + item.quantity, 0)
 }
 
-function getOrderStatusLabel(status: string) {
-  return status.charAt(0).toUpperCase() + status.slice(1)
-}
 
 export default function CheckoutSuccessCard({
   order,
@@ -77,7 +75,7 @@ export default function CheckoutSuccessCard({
             <dt className="text-sm text-copy-muted">Статус замовлення</dt>
             <dd className="mt-2">
               <span className="inline-flex rounded-full border border-panelBorder bg-panel px-3 py-1 text-xs font-medium text-copy-primary">
-                {getOrderStatusLabel(order.status)}
+                {getStatusLabel(order.status)}
               </span>
             </dd>
           </div>

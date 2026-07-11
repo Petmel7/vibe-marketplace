@@ -60,7 +60,7 @@ async function renderAdminOperationsOverviewPage() {
             detail={
               data.health
                 ? `Остання перевірка: ${new Date(data.health.lastCheckedAt).toLocaleString('uk-UA')}`
-                : 'Health-ендпоїнти зараз недоступні.'
+                : 'Ендпоїнти перевірки стану зараз недоступні.'
             }
             href="/admin/operations/health"
           />
@@ -73,7 +73,7 @@ async function renderAdminOperationsOverviewPage() {
           <OperationsMetricCard
             label="Задачі в черзі"
             value={data.jobsOverview?.pendingTotal ?? '—'}
-            detail="Робота в черзі, яка очікує запуску job runner."
+            detail="Робота в черзі, яка очікує запуску виконувача задач."
             href="/admin/operations/jobs?status=PENDING"
           />
           <OperationsMetricCard
@@ -85,7 +85,7 @@ async function renderAdminOperationsOverviewPage() {
           <OperationsMetricCard
             label="Проблеми провайдерів"
             value={data.providerIssues.length}
-            detail="Проблеми конфігурації або готовності, виявлені поглибленою health-перевіркою."
+            detail="Проблеми конфігурації або готовності, виявлені поглибленою перевіркою стану."
             href="/admin/operations/health"
           />
         </div>
@@ -104,7 +104,7 @@ async function renderAdminOperationsOverviewPage() {
               <div className="p-6">
                 <AdminEmptyState
                   title="Активність аудиту тимчасово недоступна"
-                  description="Дані health і jobs завантажилися успішно, але панель останньої аудиторської активності зараз не вдалося відкрити."
+                  description="Дані перевірки стану і задач завантажилися успішно, але панель останньої аудиторської активності зараз не вдалося відкрити."
                 />
               </div>
             ) : !data.recentAuditLogs || data.recentAuditLogs.items.length === 0 ? (
@@ -154,7 +154,7 @@ async function renderAdminOperationsOverviewPage() {
                 <div>
                   <h2 className="text-lg font-semibold text-copy-strong">Готовність провайдерів</h2>
                   <p className="mt-1 text-sm text-copy-muted">
-                    Швидкий сигнал щодо зовнішніх сервісів, які забезпечують email, платежі та доставку.
+                    Швидкий сигнал щодо зовнішніх сервісів, які забезпечують електронну пошту, платежі та доставку.
                   </p>
                 </div>
                 <Link href="/admin/operations/health" className="ui-link-muted">
@@ -187,7 +187,7 @@ async function renderAdminOperationsOverviewPage() {
                 </div>
               ) : (
                 <p className="mt-5 text-sm text-copy-muted">
-                  Дані health зараз недоступні.
+                  Дані перевірки стану зараз недоступні.
                 </p>
               )}
             </section>
@@ -196,7 +196,7 @@ async function renderAdminOperationsOverviewPage() {
               <h2 className="text-lg font-semibold text-copy-strong">Останні проблеми провайдерів</h2>
               {data.providerIssues.length === 0 ? (
                 <p className="mt-4 text-sm text-copy-muted">
-                  Остання поглиблена health-перевірка не виявила проблем готовності провайдерів.
+                  Остання поглиблена перевірка стану не виявила проблем готовності провайдерів.
                 </p>
               ) : (
                 <ul className="mt-4 space-y-3 text-sm text-copy-secondary">

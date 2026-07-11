@@ -5,12 +5,12 @@ const BADGE_COPY: Record<
   SellerOnboardingState,
   { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }
 > = {
-  BUYER: { label: 'Buyer account', tone: 'info' },
-  PENDING_VERIFICATION: { label: 'Pending verification', tone: 'warning' },
-  VERIFIED_NO_STORE: { label: 'Verified, store setup needed', tone: 'warning' },
-  STORE_READY: { label: 'Store ready', tone: 'success' },
-  REJECTED: { label: 'Application rejected', tone: 'danger' },
-  SUSPENDED: { label: 'Seller suspended', tone: 'danger' },
+  BUYER: { label: 'Акаунт покупця', tone: 'info' },
+  PENDING_VERIFICATION: { label: 'Очікує верифікації', tone: 'warning' },
+  VERIFIED_NO_STORE: { label: 'Верифіковано, потрібне налаштування магазину', tone: 'warning' },
+  STORE_READY: { label: 'Магазин готовий', tone: 'success' },
+  REJECTED: { label: 'Заявку відхилено', tone: 'danger' },
+  SUSPENDED: { label: 'Продавця призупинено', tone: 'danger' },
 }
 
 export default function SellerVerificationBadge({

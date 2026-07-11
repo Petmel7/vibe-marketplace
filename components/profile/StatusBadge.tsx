@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
   refunded: 'Повернено',
 }
 
-function humanizeStatus(status: string) {
+export function getStatusLabel(status: string) {
   return STATUS_LABELS[status] ?? status.charAt(0).toUpperCase() + status.slice(1)
 }
 
@@ -29,7 +29,7 @@ export default function StatusBadge({ status }: { status: string }) {
     <span
       className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${STATUS_STYLES[status] ?? 'border-panelBorder bg-panel text-copy-primary'}`}
     >
-      {humanizeStatus(status)}
+      {getStatusLabel(status)}
     </span>
   )
 }

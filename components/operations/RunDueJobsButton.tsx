@@ -12,8 +12,7 @@ export default function RunDueJobsButton({ limit = 10 }: { limit?: number }) {
       disabled={isPending}
       onClick={() => void runDueJobs(limit)}
     >
-      {isPending ? 'Running…' : 'Run due jobs'}
+      {isPending ? 'Запускаємо…' : 'Запустити заплановані задачі'}
     </button>
   )
 }
-
