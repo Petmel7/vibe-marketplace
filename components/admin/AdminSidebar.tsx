@@ -41,18 +41,20 @@ export default function AdminSidebar({
   const pathname = usePathname()
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-6">
+    <aside className="min-w-0 space-y-4 lg:sticky lg:top-6">
       <section className="ui-elevated-panel p-5">
         <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Кабінет адміністратора</p>
-        <h2 className="mt-3 text-xl font-semibold text-copy-strong">{user.email}</h2>
+        <h2 className="mt-3 truncate text-xl font-semibold text-copy-strong" title={user.email}>
+          {user.email}
+        </h2>
         <p className="mt-1 text-sm text-copy-muted">Керування маркетплейсом та операційний контроль</p>
         <div className="mt-4">
           <AdminStatusBadge label="Адміністратор" tone="info" />
         </div>
       </section>
 
-      <nav aria-label="Навігація адміністратора" className="ui-elevated-panel p-3">
-        <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
+      <nav aria-label="Навігація адміністратора" className="ui-elevated-panel max-w-full p-3">
+        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:overflow-visible">
           {NAV_ITEMS.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -62,7 +64,7 @@ export default function AdminSidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+                className={`shrink-0 whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-medium transition-colors lg:whitespace-normal ${
                   isActive
                     ? 'bg-brand text-white'
                     : 'bg-panel text-copy-secondary hover:bg-panelAlt hover:text-copy-strong'

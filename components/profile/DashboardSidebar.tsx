@@ -29,22 +29,26 @@ export default function DashboardSidebar({
   const sellerEnabled = hasRole(user.roles, ROLE_VALUES.SELLER)
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-6">
+    <aside className="min-w-0 space-y-4 lg:sticky lg:top-6">
       <section className="ui-elevated-panel p-5">
         <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Кабінет покупця</p>
-        <h2 className="mt-3 text-xl font-semibold text-copy-strong">{displayName}</h2>
-        <p className="mt-1 break-all text-sm text-copy-muted">{user.email}</p>
+        <h2 className="mt-3 truncate text-xl font-semibold text-copy-strong" title={displayName}>
+          {displayName}
+        </h2>
+        <p className="mt-1 truncate text-sm text-copy-muted" title={user.email}>
+          {user.email}
+        </p>
       </section>
 
-      <nav aria-label="Навігація профілю" className="ui-elevated-panel p-3">
-        <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col">
+      <nav aria-label="Навігація профілю" className="ui-elevated-panel max-w-full p-3">
+        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:overflow-visible">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+                className={`shrink-0 whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-medium transition-colors lg:whitespace-normal ${
                   isActive
                     ? 'bg-brand text-white'
                     : 'bg-panel text-copy-secondary hover:bg-panelAlt hover:text-copy-strong'
@@ -67,7 +71,10 @@ export default function DashboardSidebar({
             ? 'Ваш акаунт уже готовий до інструментів продавця та керування вітриною магазину.'
             : 'Перейдіть від покупця до продавця через окремий онбординг, верифікацію та майбутнє налаштування вітрини.'}
         </p>
-        <Link href={sellerEnabled ? '/seller' : '/seller/onboarding'} className="ui-secondary-button mt-4 w-full">
+        <Link
+          href={sellerEnabled ? '/seller' : '/seller/onboarding'}
+          className="ui-secondary-button mt-4 w-full"
+        >
           {sellerEnabled ? 'Відкрити кабінет продавця' : 'Почати продавати'}
         </Link>
       </section>
