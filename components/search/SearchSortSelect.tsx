@@ -19,7 +19,7 @@ export default function SearchSortSelect({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-full border border-panelBorder bg-panel px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand focus:ring-1 focus:ring-brand"
+        className="ui-native-select rounded-full border border-panelBorder bg-panel px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand focus:ring-1 focus:ring-brand"
         aria-label="Сортування результатів"
       >
         {options.map((option) => (

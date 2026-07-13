@@ -36,7 +36,7 @@ export default function SellerStatePanel({
           ) : null}
         </div>
         {status ? (
-          <div className="order-first shrink-0 self-start lg:order-none">
+          <div className="order-first shrink-0 self-start lg:order-0">
             <VerificationStatusBadge status={status} />
           </div>
         ) : null}

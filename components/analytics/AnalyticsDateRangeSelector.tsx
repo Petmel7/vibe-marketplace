@@ -36,7 +36,7 @@ export default function AnalyticsDateRangeSelector({
           <label className="space-y-2 text-sm">
             <span className="font-medium text-copy-strong">Період</span>
             <select
-              className="w-full rounded-2xl border border-panelBorder bg-panel px-3 py-2 text-copy-strong"
+              className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panel px-3 py-2 text-copy-strong"
               value={draft.range}
               onChange={(event) => setRange(event.target.value as AnalyticsUrlState['range'])}
             >
@@ -51,7 +51,7 @@ export default function AnalyticsDateRangeSelector({
           <label className="space-y-2 text-sm">
             <span className="font-medium text-copy-strong">Інтервал</span>
             <select
-              className="w-full rounded-2xl border border-panelBorder bg-panel px-3 py-2 text-copy-strong"
+              className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panel px-3 py-2 text-copy-strong"
               value={draft.interval}
               onChange={(event) => setInterval(event.target.value as AnalyticsUrlState['interval'])}
             >

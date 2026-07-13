@@ -29,7 +29,7 @@ export default function ReportReasonSelect({
       id={id}
       value={value}
       onChange={(event) => onChange(event.target.value as AbuseReportReason)}
-      className="w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-3 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+      className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-3 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
     >
       {REASON_OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>

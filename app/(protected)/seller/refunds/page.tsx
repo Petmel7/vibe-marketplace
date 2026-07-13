@@ -47,7 +47,7 @@ export default async function SellerRefundsPage({
               <select
                 name="status"
                 defaultValue={data.filters.status ?? ''}
-                className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                className="ui-native-select rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
                 <option value="">Усі</option>
                 {REFUND_REQUEST_STATUSES.map((status) => (
