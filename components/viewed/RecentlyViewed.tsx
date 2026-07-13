@@ -12,7 +12,7 @@ export default function RecentlyViewed({ currentProductId }: Props) {
 
   if (isLoading) {
     return (
-      <section className="mt-10">
+      <section>
         <h2 className="ui-heading-section">Недавно переглянуті товари</h2>
         <div className="ui-scroll-row">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -26,7 +26,7 @@ export default function RecentlyViewed({ currentProductId }: Props) {
   if (items.length === 0) return null
 
   return (
-    <section className="mt-10">
+    <section>
       <h2 className="ui-heading-section">Недавно переглянуті товари</h2>
       <div className="ui-scroll-row-snap">
         {items.map((item) => (

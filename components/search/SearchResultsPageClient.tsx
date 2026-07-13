@@ -115,7 +115,7 @@ export default function SearchResultsPageClient({
   const hasSearchQuery = Boolean(state.q)
 
   return (
-    <main className="pb-24 pt-4 md:pb-12">
+    <main>
       <section className="space-y-6">
         <div className="space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">

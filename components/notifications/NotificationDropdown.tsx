@@ -31,7 +31,7 @@ export default function NotificationDropdown({
     <div
       role="dialog"
       aria-label="Центр сповіщень"
-      className="absolute right-0 top-full z-40 mt-3 w-[min(26rem,calc(100vw-1.5rem))] rounded-2xl border border-panelBorder bg-panel p-4 shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
+      className="fixed left-1/2 top-20 z-40 mt-0 w-[min(26rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border border-panelBorder bg-panel p-4 shadow-[0_24px_64px_rgba(0,0,0,0.45)] min-[541px]:absolute min-[541px]:left-auto min-[541px]:right-0 min-[541px]:top-full min-[541px]:mt-3 min-[541px]:translate-x-0"
     >
       <div className="flex items-start justify-between gap-3">
         <div>

@@ -84,6 +84,14 @@ export default function ProductDetails({ product, currentUser }: Props) {
                   triggerClassName="rounded-full border border-panelBorder bg-copy-base px-3 py-1 text-xs font-medium text-copy-muted transition hover:border-brand-accent/40 hover:text-copy-strong"
                   title="Поскаржитися на магазин"
                 />
+                <ReportButton
+                  currentUser={resolvedCurrentUser}
+                  targetType="PRODUCT"
+                  targetId={product.id}
+                  triggerLabel="Поскаржитися на товар"
+                  triggerClassName="rounded-full border border-panelBorder bg-copy-base px-3 py-1 text-xs font-medium text-copy-muted transition hover:border-brand-accent/40 hover:text-copy-strong"
+                  title="Поскаржитися на товар"
+                />
               </div>
 
               <h1 className="ui-heading-product">{product.name}</h1>
@@ -91,14 +99,6 @@ export default function ProductDetails({ product, currentUser }: Props) {
 
             <div className="shrink-0 pt-1">
               <div className="flex items-center gap-3">
-                <ReportButton
-                  currentUser={resolvedCurrentUser}
-                  targetType="PRODUCT"
-                  targetId={product.id}
-                  triggerLabel="Поскаржитися"
-                  triggerClassName="ui-secondary-button"
-                  title="Поскаржитися на товар"
-                />
                 <WishlistToggleButton productId={product.id} />
                 <button aria-label="Поділитися" className="ui-icon-button">
                   <Share2 size={24} color="#A5A8AD" />
