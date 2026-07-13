@@ -31,8 +31,8 @@ describe('auth navigation helpers', () => {
 
   it('builds role-aware navigation links', () => {
     expect(getRoleAwareNavLinks(makeUser([ROLE_VALUES.BUYER, ROLE_VALUES.SELLER]))).toEqual([
-      { href: '/profile', label: 'Account' },
-      { href: '/seller', label: 'Seller' },
+      { href: '/profile', label: 'Акаунт' },
+      { href: '/seller', label: 'Продавець' },
     ])
   })
 })

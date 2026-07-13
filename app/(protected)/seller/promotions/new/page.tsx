@@ -25,9 +25,9 @@ export default async function SellerNewPromotionPage() {
 
   return (
     <SellerSection
-      eyebrow="New promotion"
-      title="Create seller promotion"
-      description="Define a store-scoped coupon and let the backend validate ownership, target scope, and checkout eligibility."
+      eyebrow="Нова акція"
+      title="Створити акцію продавця"
+      description="Створіть купон для магазину, а бекенд перевірить право власності, область застосування та доступність у checkout."
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
       <SellerPromotionForm

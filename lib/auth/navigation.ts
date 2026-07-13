@@ -13,14 +13,14 @@ export function getDefaultAuthenticatedHref(user: SessionUser): string {
 }
 
 export function getRoleAwareNavLinks(user: SessionUser): RoleAwareNavLink[] {
-  const links: RoleAwareNavLink[] = [{ href: '/profile', label: 'Account' }]
+  const links: RoleAwareNavLink[] = [{ href: '/profile', label: 'Акаунт' }]
 
   if (hasRole(user.roles, ROLE_VALUES.SELLER)) {
-    links.push({ href: '/seller', label: 'Seller' })
+    links.push({ href: '/seller', label: 'Продавець' })
   }
 
   if (hasRole(user.roles, ROLE_VALUES.ADMIN)) {
-    links.push({ href: '/admin', label: 'Admin' })
+    links.push({ href: '/admin', label: 'Адміністратор' })
   }
 
   return links

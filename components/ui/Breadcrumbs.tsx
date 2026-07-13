@@ -33,7 +33,7 @@ export function Breadcrumbs({
                     return (
                         <li
                             key={`${item.label}-${index}`}
-                            className="flex items-center gap-1.5"
+                            className="flex items-center gap-1.5 truncate"
                             itemProp="itemListElement"
                             itemScope
                             itemType="https://schema.org/ListItem"

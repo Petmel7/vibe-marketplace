@@ -55,9 +55,9 @@ export default function PromotionTargetSelector({
 
   return (
     <fieldset className="space-y-4">
-      <legend className="text-sm font-medium text-copy-strong">Promotion scope</legend>
+      <legend className="text-sm font-medium text-copy-strong">Область дії акції</legend>
       <p className="text-sm text-copy-muted">
-        Seller coupons can target your whole store, specific products, or categories used by your catalog.
+        Купони продавця можуть застосовуватися до всього магазину, окремих товарів або категорій, які використовуються у вашому каталозі.
       </p>
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -97,10 +97,10 @@ export default function PromotionTargetSelector({
               </span>
               <span className="mt-1 block text-sm text-copy-muted">
                 {targetType === 'STORE'
-                  ? `Apply to all eligible items from ${store.name}.`
+                  ? `Застосовується до всіх доступних товарів магазину ${store.name}.`
                   : targetType === 'PRODUCT'
-                    ? 'Choose individual products from your catalog.'
-                    : 'Choose categories that your store already uses.'}
+                    ? 'Виберіть окремі товари з вашого каталогу.'
+                    : 'Виберіть категорії, які вже використовує ваш магазин.'}
               </span>
             </label>
           )
@@ -110,13 +110,13 @@ export default function PromotionTargetSelector({
       {scope === 'STORE' ? (
         <div className="rounded-2xl border border-panelBorder bg-panel/60 px-4 py-4">
           <p className="text-sm font-medium text-copy-strong">{store.name}</p>
-          <p className="mt-1 text-sm text-copy-muted">The coupon applies to every eligible item from this store.</p>
+          <p className="mt-1 text-sm text-copy-muted">Купон застосовується до кожного доступного товару цього магазину.</p>
         </div>
       ) : null}
 
       {scope === 'PRODUCT' ? (
         <div className="space-y-3">
-          <p className="text-sm text-copy-secondary">Select one or more products from your storefront.</p>
+          <p className="text-sm text-copy-secondary">Виберіть один або кілька товарів зі своєї вітрини.</p>
           {canSelectProducts ? (
             <div className="max-h-80 space-y-2 overflow-y-auto rounded-2xl border border-panelBorder bg-panel/40 p-3">
               {products.map((product) => {
@@ -147,7 +147,7 @@ export default function PromotionTargetSelector({
             </div>
           ) : (
             <div className="rounded-2xl border border-panelBorder bg-panel/60 px-4 py-4 text-sm text-copy-muted">
-              Add products to your catalog before creating a product-scoped coupon.
+              Додайте товари до каталогу, перш ніж створювати купон для окремих товарів.
             </div>
           )}
         </div>
@@ -156,7 +156,7 @@ export default function PromotionTargetSelector({
       {scope === 'CATEGORY' ? (
         <div className="space-y-3">
           <p className="text-sm text-copy-secondary">
-            Select one or more categories. The backend will still validate that the chosen categories match your store catalog.
+            Виберіть одну або кілька категорій. Бекенд однаково перевірить, що вибрані категорії відповідають каталогу вашого магазину.
           </p>
           {canSelectCategories ? (
             <div className="max-h-80 space-y-2 overflow-y-auto rounded-2xl border border-panelBorder bg-panel/40 p-3">
@@ -188,7 +188,7 @@ export default function PromotionTargetSelector({
             </div>
           ) : (
             <div className="rounded-2xl border border-panelBorder bg-panel/60 px-4 py-4 text-sm text-copy-muted">
-              No active categories are available for category-scoped promotions right now.
+              Зараз немає активних категорій, доступних для акцій на рівні категорій.
             </div>
           )}
         </div>
