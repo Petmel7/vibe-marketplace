@@ -30,7 +30,7 @@ export default function BulkCreateTtnDialog({
     <>
       <button
         type="button"
-        className="ui-primary-button"
+        className="ui-primary-button max-[499px]:w-full"
         disabled={selectedShipmentIds.length === 0}
         onClick={() => setIsOpen(true)}
       >

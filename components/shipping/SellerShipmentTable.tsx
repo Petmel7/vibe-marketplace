@@ -44,18 +44,20 @@ export default function SellerShipmentTable({
 
   return (
     <div className="space-y-4 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-4 max-[499px]:items-stretch min-[1131px]:flex-row min-[1131px]:items-center min-[1131px]:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-copy-strong">Масове створення ТТН</p>
           <p className="text-sm text-copy-muted">
             Виберіть кілька відправлень, готових до оформлення. Часткові помилки не зупиняють решту пакета.
           </p>
         </div>
-        <BulkCreateTtnDialog
-          shipments={shipments.items.filter((shipment) => eligibleShipmentIds.includes(shipment.id))}
-          selectedShipmentIds={selectedShipmentIds}
-          onSelectionChange={setSelectedShipmentIds}
-        />
+        <div className="max-[499px]:w-full">
+          <BulkCreateTtnDialog
+            shipments={shipments.items.filter((shipment) => eligibleShipmentIds.includes(shipment.id))}
+            selectedShipmentIds={selectedShipmentIds}
+            onSelectionChange={setSelectedShipmentIds}
+          />
+        </div>
       </div>
 
       <table className="min-w-full text-sm">

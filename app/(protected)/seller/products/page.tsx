@@ -46,7 +46,7 @@ export default async function SellerProductsPage({
         status={sellerProfile.verificationStatus}
       />
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 max-[1151px]:items-stretch min-[1152px]:flex-row min-[1152px]:items-center min-[1152px]:justify-between">
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((filter) => {
             const isActive = (status ?? undefined) === filter.value
@@ -56,20 +56,21 @@ export default async function SellerProductsPage({
               <Link
                 key={filter.label}
                 href={href}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive
                     ? 'bg-brand text-white'
                     : 'border border-panelBorder bg-panel text-copy-secondary hover:bg-panelAlt hover:text-copy-strong'
-                }`}
+                  }`}
               >
                 {filter.label}
               </Link>
             )
           })}
         </div>
-        <Link href="/seller/products/new" className="ui-primary-button">
+        <div className="max-[499px]:w-full">
+          <Link href="/seller/products/new" className="ui-primary-button max-[499px]:w-full">
           Новий товар
-        </Link>
+          </Link>
+        </div>
       </div>
 
       <SellerTable

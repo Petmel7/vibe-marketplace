@@ -186,7 +186,7 @@ export default function AdminCategoryTree() {
   return (
     <div className="space-y-6">
       <section className="ui-elevated-panel p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 max-[1239px]:items-stretch min-[1240px]:flex-row min-[1240px]:items-start min-[1240px]:justify-between">
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-copy-strong">Таксономія маркетплейсу</h2>
             <p className="max-w-3xl text-sm text-copy-secondary">
@@ -194,16 +194,18 @@ export default function AdminCategoryTree() {
               кореневих і дочірніх категорій лишається передбачуваним завдяки явним елементам керування позиціями.
             </p>
           </div>
-          <button
-            type="button"
-            className="ui-primary-button"
-            onClick={() => {
-              setErrorMessage(null)
-              setDialogState({ mode: 'create', parentId: null })
-            }}
-          >
+          <div className="max-[499px]:w-full">
+            <button
+              type="button"
+              className="ui-primary-button max-[499px]:w-full"
+              onClick={() => {
+                setErrorMessage(null)
+                setDialogState({ mode: 'create', parentId: null })
+              }}
+            >
             Створити кореневу категорію
-          </button>
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 text-sm text-copy-secondary">
