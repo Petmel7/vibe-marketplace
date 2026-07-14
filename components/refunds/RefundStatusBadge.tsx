@@ -14,5 +14,9 @@ const STATUS_TONES: Record<RefundRequestStatus, 'neutral' | 'success' | 'warning
 }
 
 export default function RefundStatusBadge({ status }: { status: RefundRequestStatus }) {
-  return <AdminStatusBadge label={getRefundStatusLabel(status)} tone={STATUS_TONES[status]} />
+  return (
+    <span className="inline-flex w-fit whitespace-nowrap">
+      <AdminStatusBadge label={getRefundStatusLabel(status)} tone={STATUS_TONES[status]} />
+    </span>
+  )
 }

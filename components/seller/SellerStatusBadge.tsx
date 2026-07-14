@@ -18,7 +18,7 @@ export default function SellerStatusBadge({
   }[tone]
 
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${toneClassName}`}>
+    <span className={`inline-flex w-fit whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${toneClassName}`}>
       {children ?? label}
     </span>
   )

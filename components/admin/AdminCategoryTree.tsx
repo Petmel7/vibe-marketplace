@@ -313,9 +313,8 @@ function AdminCategoryBranch({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-copy-strong">{node.name}</h3>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                node.isActive ? 'bg-brand-success/15 text-copy-strong' : 'bg-panelAlt text-copy-secondary'
-              }`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${node.isActive ? 'bg-brand-success/15 text-copy-strong' : 'bg-panelAlt text-copy-secondary'
+                }`}
             >
               {node.isActive ? 'Активна' : 'Неактивна'}
             </span>
@@ -331,7 +330,7 @@ function AdminCategoryBranch({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+        <div className="ml-auto grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-start justify-items-end gap-3 max-[638px]:ml-0 max-[638px]:flex max-[638px]:flex-col">
           <ReorderControls
             label={node.name}
             canMoveUp={index > 0}
@@ -340,15 +339,27 @@ function AdminCategoryBranch({
             onMoveUp={() => void onReorder(siblings, node.id, 'up')}
             onMoveDown={() => void onReorder(siblings, node.id, 'down')}
           />
-          <button type="button" className="ui-secondary-button" onClick={() => onCreateChild(node.id)} disabled={isPending}>
-            Додати дочірню
+          <button
+            type="button"
+            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border border-brand bg-transparent px-4 py-2 text-sm text-brand transition-colors hover:bg-brand/10 active:bg-brand/15 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+            onClick={() => onCreateChild(node.id)}
+            disabled={isPending}
+          >
+            <span className="truncate">
+              Додати дочірню
+            </span>
           </button>
-          <button type="button" className="ui-secondary-button" onClick={() => onEdit(node.id)} disabled={isPending}>
+          <button
+            type="button"
+            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border border-brand bg-transparent px-4 py-2 text-sm text-brand transition-colors hover:bg-brand/10 active:bg-brand/15 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+            onClick={() => onEdit(node.id)}
+            disabled={isPending}
+          >
             Редагувати
           </button>
           <button
             type="button"
-            className="rounded-full border border-panelBorder px-4 py-2 text-sm text-copy-secondary transition-colors hover:bg-panelAlt hover:text-copy-strong"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-panelBorder px-4 py-2 text-sm text-copy-secondary transition-colors hover:bg-panelAlt hover:text-copy-strong col-start-2 max-[638px]:col-auto max-[638px]:w-full"
             onClick={() => void onToggleActive(node)}
             disabled={isPending}
           >
@@ -356,7 +367,7 @@ function AdminCategoryBranch({
           </button>
           <button
             type="button"
-            className="rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10 disabled:cursor-not-allowed disabled:opacity-50 col-start-3 max-[638px]:col-auto max-[638px]:w-full"
             onClick={() => void onDelete(node)}
             disabled={isPending || subtreeProductCount > 0}
             title={subtreeProductCount > 0 ? 'Деактивуйте категорії з товарами замість їх видалення.' : undefined}

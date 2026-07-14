@@ -56,7 +56,7 @@ export default function ProfileSettingsForm({
     <div className="space-y-6">
       <section className="ui-elevated-panel p-5 sm:p-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-panelBorder bg-panel text-xl font-semibold text-copy-strong">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-panelBorder bg-panel text-xl font-semibold text-copy-strong">
             {formState.displayName?.trim().charAt(0) || user.email.charAt(0).toUpperCase()}
           </div>
           <div>
