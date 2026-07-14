@@ -52,7 +52,7 @@ export default async function AdminCommissionRulesPage({
           }
           options={[...COMMISSION_ACTIVE_FILTERS]}
         />
-        <div className="flex gap-2 xl:self-end">
+        <div className="flex gap-2 max-[499px]:flex-col max-[499px]:gap-3 max-[499px]:[&>*]:w-full xl:self-end">
           <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
           <Link href="/admin/commission-rules/new" className="ui-secondary-button">
             Нове правило

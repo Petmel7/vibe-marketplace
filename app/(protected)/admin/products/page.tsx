@@ -53,7 +53,7 @@ export default async function AdminProductsPage({
             value: status,
           }))}
         />
-        <div className="flex gap-2 xl:self-end">
+        <div className="flex gap-2 max-[479px]:[&>*]:w-full xl:self-end">
           <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>

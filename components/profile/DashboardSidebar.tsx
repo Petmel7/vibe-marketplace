@@ -73,7 +73,7 @@ export default function DashboardSidebar({
         </p>
         <Link
           href={sellerEnabled ? '/seller' : '/seller/onboarding'}
-          className="ui-secondary-button mt-4 w-full"
+          className="ui-secondary-button mt-4 w-fit max-[502px]:w-full"
         >
           {sellerEnabled ? 'Відкрити кабінет продавця' : 'Почати продавати'}
         </Link>

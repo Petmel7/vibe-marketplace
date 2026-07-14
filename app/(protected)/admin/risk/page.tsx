@@ -46,7 +46,7 @@ export default async function AdminRiskOverviewPage() {
         />
       </div>
 
-      <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:p-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-copy-strong">Ручний перерахунок</h2>
           <p className="text-sm text-copy-secondary">

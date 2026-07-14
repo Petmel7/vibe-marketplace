@@ -60,7 +60,7 @@ export default async function AdminEmailsPage({
             value: template,
           }))}
         />
-        <div className="flex flex-wrap gap-2 xl:self-end">
+        <div className="flex flex-wrap gap-2 max-[699px]:flex-col max-[699px]:gap-3 max-[699px]:[&>*]:w-full xl:self-end">
           <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
           {process.env.NODE_ENV === 'development' ? (
             <Link href="/admin/emails/preview" className="ui-secondary-button">

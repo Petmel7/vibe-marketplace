@@ -104,7 +104,7 @@ export default function CommissionPreviewCard({
           </select>
         </label>
 
-        <button type="submit" className="ui-primary-button mt-3" disabled={isPreviewPending}>
+        <button type="submit" className="ui-primary-button mt-3 max-[499px]:w-full" disabled={isPreviewPending}>
           {isPreviewPending ? 'Рахуємо попередній перегляд...' : 'Переглянути комісію'}
         </button>
 

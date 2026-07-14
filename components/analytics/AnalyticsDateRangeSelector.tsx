@@ -91,7 +91,7 @@ export default function AnalyticsDateRangeSelector({
           </div>
         )}
 
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 max-[479px]:flex-col max-[479px]:items-stretch max-[479px]:gap-3 max-[479px]:[&>*]:w-full">
           <button
             type="button"
             className="ui-primary-button"

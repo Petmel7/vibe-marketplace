@@ -88,7 +88,7 @@ export default async function SellerFinancePage({
         )}
       </SellerTable>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 max-[502px]:flex-col max-[502px]:[&>*]:w-full">
         <Link href="/seller/finance/ledger" className="ui-secondary-button">Відкрити книгу операцій</Link>
         <Link href="/seller/finance/payouts" className="ui-secondary-button">Відкрити виплати</Link>
       </div>

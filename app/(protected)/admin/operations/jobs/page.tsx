@@ -65,7 +65,7 @@ export default async function AdminOperationsJobsPage({
               className="ui-surface-input"
             />
           </label>
-          <div className="flex gap-2 xl:self-end">
+          <div className="flex gap-2 max-[599px]:flex-col max-[599px]:gap-3 max-[599px]:[&>*]:w-full xl:self-end">
             <button type="submit" className="ui-secondary-button">Застосувати фільтри</button>
             <RunDueJobsButton />
           </div>
