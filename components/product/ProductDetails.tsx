@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useContext, useState } from 'react'
 import { Share2 } from 'lucide-react'
+import { toast } from 'sonner'
 import ProductVariantSelector from './ProductVariantSelector'
 import WishlistToggleButton from '../wishlist/WishlistToggleButton'
 import ProductQuantitySelector from './ProductQuantitySelector'
@@ -60,6 +61,32 @@ export default function ProductDetails({ product, currentUser }: Props) {
 
   useRecordViewedProduct(product.id)
 
+  async function handleShare() {
+    const shareUrl = window.location.href
+    const shareData = {
+      title: product.name,
+      url: shareUrl,
+    }
+
+    if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+      try {
+        await navigator.share(shareData)
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success('Посилання на товар скопійовано')
+    } catch {
+      toast.error('Не вдалося поділитися товаром. Спробуйте ще раз.')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <ProductPurchasePanel>
@@ -100,7 +127,12 @@ export default function ProductDetails({ product, currentUser }: Props) {
             <div className="shrink-0 pt-1">
               <div className="flex items-center gap-3">
                 <WishlistToggleButton productId={product.id} />
-                <button aria-label="Поділитися" className="ui-icon-button">
+                <button
+                  type="button"
+                  aria-label="Поділитися"
+                  className="ui-icon-button"
+                  onClick={handleShare}
+                >
                   <Share2 size={24} color="#A5A8AD" />
                 </button>
               </div>

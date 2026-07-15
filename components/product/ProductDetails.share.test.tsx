@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { shareMock, writeTextMock, toastSuccessMock, toastErrorMock } = vi.hoisted(() => ({
@@ -115,19 +114,7 @@ const product = {
     rating4Count: 2,
     rating5Count: 4,
   },
-  promotionSummary: {
-    id: 'promo-1',
-    name: 'Store 10%',
-    code: 'STORE10',
-    ownerType: 'SELLER' as const,
-    storeId: 'store-1',
-    type: 'COUPON_CODE' as const,
-    discountType: 'PERCENTAGE' as const,
-    discountValue: '10.00',
-    endsAt: '2026-07-31T00:00:00.000Z',
-    targetType: 'PRODUCT' as const,
-    targetId: 'prod-1',
-  },
+  promotionSummary: null,
   createdAt: '2026-06-01T00:00:00.000Z',
   variants: [
     {
@@ -146,15 +133,93 @@ const product = {
   categorySlug: 'outerwear',
 }
 
-describe('ProductDetails', () => {
-  it('renders the promotion block with name, code, and discount summary', () => {
-    const markup = renderToStaticMarkup(
-      <ProductDetails product={product} currentUser={null} />,
-    )
+describe('ProductDetails share action', () => {
+  let container: HTMLDivElement
+  let root: ReturnType<typeof createRoot> | null
 
-    expect(markup).toContain('Акція')
-    expect(markup).toContain('Store 10%')
-    expect(markup).toContain('Промокод: STORE10')
-    expect(markup).toContain('Знижка: 10.00%')
+  beforeEach(() => {
+    vi.clearAllMocks()
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    window.history.replaceState({}, '', '/products/prod-1')
+
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      writable: true,
+      value: shareMock,
+    })
+
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: writeTextMock,
+      },
+    })
+  })
+
+  afterEach(() => {
+    if (root) {
+      act(() => {
+        root?.unmount()
+      })
+    }
+    container.remove()
+  })
+
+  it('uses the native share flow when the browser supports it', async () => {
+    shareMock.mockResolvedValue(undefined)
+
+    act(() => {
+      root!.render(<ProductDetails product={product} currentUser={null} />)
+    })
+
+    const button = container.querySelector('button[aria-label="Поділитися"]')
+
+    await act(async () => {
+      button?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await Promise.resolve()
+    })
+
+    expect(shareMock).toHaveBeenCalledWith({
+      title: 'Reviewed Product',
+      url: 'http://localhost:3000/products/prod-1',
+    })
+    expect(writeTextMock).not.toHaveBeenCalled()
+    expect(toastSuccessMock).not.toHaveBeenCalled()
+  })
+
+  it('copies the product URL and shows a success toast when native sharing is unavailable', async () => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    })
+    writeTextMock.mockResolvedValue(undefined)
+
+    act(() => {
+      root!.render(<ProductDetails product={product} currentUser={null} />)
+    })
+
+    const button = container.querySelector('button[aria-label="Поділитися"]')
+
+    await act(async () => {
+      button?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await Promise.resolve()
+    })
+
+    expect(writeTextMock).toHaveBeenCalledWith('http://localhost:3000/products/prod-1')
+    expect(toastSuccessMock).toHaveBeenCalledWith('Посилання на товар скопійовано')
+    expect(toastErrorMock).not.toHaveBeenCalled()
   })
 })
