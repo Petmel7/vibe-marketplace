@@ -8,8 +8,14 @@ vi.mock('@/features/store/store.service')
 vi.mock('@/features/media/media.service')
 vi.mock('@/lib/auth/guards')
 vi.mock('@/lib/auth/sellerGuards')
+vi.mock('@/features/notifications/notifications.service', () => ({
+  createAdminNotification: vi.fn(),
+}))
 vi.mock('@/features/products/product-metrics.jobs', () => ({
   scheduleProductMetricsRecalculation: vi.fn(),
+}))
+vi.mock('@/utils/logger', () => ({
+  logError: vi.fn(),
 }))
 
 import * as productRepo from '@/features/seller/products/seller-product.repository'
@@ -17,7 +23,9 @@ import * as storeService from '@/features/store/store.service'
 import * as mediaService from '@/features/media/media.service'
 import * as guards from '@/lib/auth/guards'
 import * as sellerGuards from '@/lib/auth/sellerGuards'
+import * as notificationsService from '@/features/notifications/notifications.service'
 import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
+import * as logger from '@/utils/logger'
 import {
   archiveProduct,
   createProduct,
@@ -43,7 +51,9 @@ const mockStoreService = vi.mocked(storeService)
 const mockMediaService = vi.mocked(mediaService)
 const mockGuards = vi.mocked(guards)
 const mockSellerGuards = vi.mocked(sellerGuards)
+const mockNotifications = vi.mocked(notificationsService)
 const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
+const mockLogger = vi.mocked(logger)
 
 const mockUser: SessionUser = {
   id: 'user-uuid-001',
@@ -128,6 +138,7 @@ beforeEach(() => {
   mockProductRepo.findVariantBySku.mockResolvedValue(null)
   mockProductRepo.listProductImages.mockResolvedValue([])
   mockProductRepo.findProductById.mockResolvedValue(makeProduct() as never)
+  mockNotifications.createAdminNotification.mockResolvedValue([] as never)
 })
 
 describe('createProduct', () => {
@@ -200,6 +211,23 @@ describe('createProduct', () => {
       price: '29.99',
     })
 
+    expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith({
+      title: 'Новий товар очікує модерації',
+      message: 'Продавець seller@example.com надіслав товар "Test Product" з магазину "Test Store" на модерацію.',
+      actionUrl: '/admin/moderation',
+      metadata: {
+        productId: 'product-uuid-001',
+        productName: 'Test Product',
+        storeId: 'store-uuid-001',
+        storeName: 'Test Store',
+        sellerId: 'user-uuid-001',
+        sellerEmail: 'seller@example.com',
+        status: ProductStatus.PENDING_REVIEW,
+        source: 'create',
+        roleTarget: 'admin',
+        actorRole: 'SELLER',
+      },
+    })
     expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
   })
 
@@ -228,6 +256,32 @@ describe('createProduct', () => {
       expect.objectContaining({ name: 'Second Store Product' }),
     )
   })
+
+  it('does not fail product creation when admin notification creation fails', async () => {
+    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
+    const notificationError = new Error('admin notify down')
+    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+    mockNotifications.createAdminNotification.mockRejectedValue(notificationError)
+
+    const result = await createProduct(mockUser, {
+      name: 'Test Product',
+      price: '29.99',
+    })
+    await Promise.resolve()
+
+    expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
+    expect(mockLogger.logError).toHaveBeenCalledWith(
+      'seller-product:pending-review:admin-notification',
+      notificationError,
+      expect.objectContaining({
+        productId: 'product-uuid-001',
+        sellerId: 'user-uuid-001',
+        storeId: 'store-uuid-001',
+        source: 'create',
+      }),
+    )
+  })
 })
 
 describe('submitForReview', () => {
@@ -243,6 +297,23 @@ describe('submitForReview', () => {
       'product-uuid-001',
       ProductStatus.PENDING_REVIEW,
     )
+    expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith({
+      title: 'Новий товар очікує модерації',
+      message: 'Продавець seller@example.com надіслав товар "Test Product" з магазину "Test Store" на модерацію.',
+      actionUrl: '/admin/moderation',
+      metadata: {
+        productId: 'product-uuid-001',
+        productName: 'Test Product',
+        storeId: 'store-uuid-001',
+        storeName: 'Test Store',
+        sellerId: 'user-uuid-001',
+        sellerEmail: 'seller@example.com',
+        status: ProductStatus.PENDING_REVIEW,
+        source: 'submit',
+        roleTarget: 'admin',
+        actorRole: 'SELLER',
+      },
+    })
     expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
   })
 
@@ -252,6 +323,30 @@ describe('submitForReview', () => {
 
     await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
       InvalidModerationTransitionError,
+    )
+  })
+
+  it('does not fail submitForReview when admin notification creation fails', async () => {
+    const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
+    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
+    const notificationError = new Error('admin notify down')
+    mockProductRepo.findProductById.mockResolvedValue(draftProduct)
+    mockProductRepo.updateProductStatus.mockResolvedValue(pendingProduct)
+    mockNotifications.createAdminNotification.mockRejectedValue(notificationError)
+
+    const result = await submitForReview(mockUser, 'product-uuid-001')
+    await Promise.resolve()
+
+    expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
+    expect(mockLogger.logError).toHaveBeenCalledWith(
+      'seller-product:pending-review:admin-notification',
+      notificationError,
+      expect.objectContaining({
+        productId: 'product-uuid-001',
+        sellerId: 'user-uuid-001',
+        storeId: 'store-uuid-001',
+        source: 'submit',
+      }),
     )
   })
 })

@@ -15,7 +15,9 @@ import {
 } from '@/features/store/store.service'
 import { uploadProductImageBinary, deleteProductImageBinary } from '@/features/media/media.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { createAdminNotification } from '@/features/notifications/notifications.service'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
+import { logError } from '@/utils/logger'
 import type {
   SellerProductDto,
   SellerProductSummaryDto,
@@ -57,6 +59,38 @@ import {
 import { generateBaseSku, generateVariantSku, normalizeSku } from './seller-product.utils'
 
 const MAX_PRODUCT_IMAGES = 10
+
+function notifyAdminsAboutPendingReviewProduct(input: {
+  product: Pick<SellerProductDto, 'id' | 'name' | 'status'>
+  seller: Pick<SessionUser, 'id' | 'email'>
+  store: { id: string; name: string }
+  source: 'create' | 'submit'
+}) {
+  void createAdminNotification({
+    title: 'Новий товар очікує модерації',
+    message: `Продавець ${input.seller.email} надіслав товар "${input.product.name}" з магазину "${input.store.name}" на модерацію.`,
+    actionUrl: '/admin/moderation',
+    metadata: {
+      productId: input.product.id,
+      productName: input.product.name,
+      storeId: input.store.id,
+      storeName: input.store.name,
+      sellerId: input.seller.id,
+      sellerEmail: input.seller.email,
+      status: input.product.status,
+      source: input.source,
+      roleTarget: 'admin',
+      actorRole: 'SELLER',
+    },
+  }).catch((error) => {
+    logError('seller-product:pending-review:admin-notification', error, {
+      productId: input.product.id,
+      sellerId: input.seller.id,
+      storeId: input.store.id,
+      source: input.source,
+    })
+  })
+}
 
 function toSellerVariantDto(variant: {
   id: string
@@ -375,6 +409,12 @@ export async function createProduct(
 
   const refreshed = await findProductByIdAndStoreId(product.id, store.id)
   if (!refreshed) throw new ProductNotFoundError()
+  notifyAdminsAboutPendingReviewProduct({
+    product: refreshed,
+    seller: user,
+    store,
+    source: 'create',
+  })
   return toSellerProductDto(refreshed)
 }
 
@@ -422,6 +462,12 @@ export async function submitForReview(
   }
 
   const updated = await updateProductStatus(productId, ProductStatus.PENDING_REVIEW)
+  notifyAdminsAboutPendingReviewProduct({
+    product: updated,
+    seller: user,
+    store,
+    source: 'submit',
+  })
   return toSellerProductDto(updated)
 }
 
