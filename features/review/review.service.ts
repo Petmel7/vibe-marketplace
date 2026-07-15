@@ -1,6 +1,7 @@
-import { ReviewStatus, UserRole } from '@/app/generated/prisma/client'
+import { NotificationType, ReviewStatus, UserRole } from '@/app/generated/prisma/client'
 import { requireAdmin, requireBuyer, requireSeller } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { createAdminNotification, notifyUser } from '@/features/notifications/notifications.service'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
 import { recordReviewHiddenRiskSignal } from '@/features/risk/risk.service'
 import {
@@ -52,6 +53,12 @@ import {
 import { logError } from '@/utils/logger'
 
 const DEFAULT_CREATE_REVIEW_STATUS = ReviewStatus.PENDING
+
+function runNonBlocking(label: string, task: Promise<unknown>) {
+  void task.catch((error) => {
+    logError(label, error)
+  })
+}
 
 function resolveUserDisplayName(
   review: Pick<ReviewRecord, 'user'> | Pick<PublishedReviewRecord, 'user'>,
@@ -320,6 +327,48 @@ export async function createReview(
     reason: 'review-created',
     dedupeKey: `product-metrics:review-created:${review.id}`,
   })
+
+  runNonBlocking(
+    'review:create:admin-notification',
+    createAdminNotification({
+      title: 'Новий відгук очікує перевірки',
+      message: `Покупець залишив відгук до товару "${review.product.name}".`,
+      actionUrl: '/admin/reviews',
+      metadata: {
+        reviewId: review.id,
+        productId: review.productId,
+        storeId: review.product.store.id,
+        sellerId: review.product.store.ownerId,
+        buyerId: review.userId,
+        status: review.status,
+        rating: review.rating,
+        roleTarget: 'admin',
+        actorRole: 'BUYER',
+      },
+    }),
+  )
+
+  runNonBlocking(
+    'review:create:seller-notification',
+    notifyUser({
+      userId: review.product.store.ownerId,
+      type: NotificationType.ADMIN_ALERT,
+      title: 'Новий відгук до вашого товару',
+      message: `Покупець залишив відгук до товару "${review.product.name}".`,
+      actionUrl: '/seller/reviews',
+      metadata: {
+        reviewId: review.id,
+        productId: review.productId,
+        storeId: review.product.store.id,
+        buyerId: review.userId,
+        status: review.status,
+        rating: review.rating,
+        roleTarget: 'seller',
+        actorRole: 'BUYER',
+      },
+    }),
+  )
+
   return toReviewDto(review)
 }
 
@@ -383,8 +432,32 @@ export async function replyToReview(
 
   const review = await findReviewById(reviewId)
   assertSellerOwnsReviewProduct(review, user.id)
+  const isFirstSellerReply = !review.sellerReply?.trim()
 
   const updated = await updateSellerReply(reviewId, input)
+
+  if (isFirstSellerReply) {
+    runNonBlocking(
+      'review:reply:first-reply-notification',
+      notifyUser({
+        userId: updated.userId,
+        type: NotificationType.ADMIN_ALERT,
+        title: 'Продавець відповів на ваш відгук',
+        message: `Продавець залишив відповідь до відгуку про товар "${updated.product.name}".`,
+        actionUrl: `/products/${updated.productId}`,
+        metadata: {
+          reviewId: updated.id,
+          productId: updated.productId,
+          storeId: updated.product.store.id,
+          sellerId: updated.product.store.ownerId,
+          buyerId: updated.userId,
+          roleTarget: 'buyer',
+          actorRole: 'SELLER',
+        },
+      }),
+    )
+  }
+
   return toReviewDto(updated)
 }
 
@@ -435,6 +508,48 @@ export async function moderateReview(
     reason: 'review-moderated',
     dedupeKey: `product-metrics:review-moderated:${updated.id}:${updated.updatedAt.toISOString()}`,
   })
+
+  if (updated.status === ReviewStatus.PUBLISHED) {
+    runNonBlocking(
+      'review:moderate:published-notification',
+      notifyUser({
+        userId: updated.userId,
+        type: NotificationType.ADMIN_ALERT,
+        title: 'Ваш відгук опубліковано',
+        message: `Відгук до товару "${updated.product.name}" тепер опубліковано.`,
+        actionUrl: `/products/${updated.productId}`,
+        metadata: {
+          reviewId: updated.id,
+          productId: updated.productId,
+          status: updated.status,
+          roleTarget: 'buyer',
+          actorRole: 'ADMIN',
+        },
+      }),
+    )
+  }
+
+  if (updated.status === ReviewStatus.REJECTED) {
+    runNonBlocking(
+      'review:moderate:rejected-notification',
+      notifyUser({
+        userId: updated.userId,
+        type: NotificationType.ADMIN_ALERT,
+        title: 'Ваш відгук відхилено',
+        message: `Відгук до товару "${updated.product.name}" не пройшов модерацію.`,
+        actionUrl: `/products/${updated.productId}`,
+        metadata: {
+          reviewId: updated.id,
+          productId: updated.productId,
+          status: updated.status,
+          moderationReason: updated.moderationReason,
+          roleTarget: 'buyer',
+          actorRole: 'ADMIN',
+        },
+      }),
+    )
+  }
+
   if (updated.status === ReviewStatus.HIDDEN) {
     void recordReviewHiddenRiskSignal({
       reviewId: updated.id,

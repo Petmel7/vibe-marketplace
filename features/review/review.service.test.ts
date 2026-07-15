@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ReviewStatus, UserRole } from '@/app/generated/prisma/client'
+import { NotificationType, ReviewStatus, UserRole } from '@/app/generated/prisma/client'
 import {
   ReviewAlreadyExistsError,
   ReviewModerationReasonRequiredError,
@@ -9,8 +9,10 @@ import {
 } from '@/lib/errors/review'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
+import * as notificationsService from '@/features/notifications/notifications.service'
 import * as reviewRepository from './review.repository'
 import * as riskService from '@/features/risk/risk.service'
+import * as logger from '@/utils/logger'
 import {
   createReview,
   deleteMyReview,
@@ -26,6 +28,10 @@ import {
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('./review.repository')
 vi.mock('@/features/risk/risk.service')
+vi.mock('@/features/notifications/notifications.service', () => ({
+  createAdminNotification: vi.fn(),
+  notifyUser: vi.fn(),
+}))
 vi.mock('@/features/products/product-metrics.jobs', () => ({
   scheduleProductMetricsRecalculation: vi.fn(),
 }))
@@ -34,10 +40,15 @@ vi.mock('@/lib/auth/guards', () => ({
   requireSeller: vi.fn(),
   requireAdmin: vi.fn(),
 }))
+vi.mock('@/utils/logger', () => ({
+  logError: vi.fn(),
+}))
 
 const mockRepository = vi.mocked(reviewRepository)
 const mockRiskService = vi.mocked(riskService)
 const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
+const mockNotifications = vi.mocked(notificationsService)
+const mockLogger = vi.mocked(logger)
 
 const buyerUser: SessionUser = {
   id: 'buyer-1',
@@ -312,6 +323,8 @@ describe('review.service', () => {
       makeReviewRecord({ status: ReviewStatus.PENDING }) as never,
     )
     mockRepository.recalculateProductRatingSummary.mockResolvedValue(makeRatingSummary() as never)
+    mockNotifications.createAdminNotification.mockResolvedValue([] as never)
+    mockNotifications.notifyUser.mockResolvedValue({} as never)
 
     const result = await createReview(buyerUser, 'product-1', {
       rating: 5,
@@ -335,8 +348,75 @@ describe('review.service', () => {
       reason: 'review-created',
       dedupeKey: 'product-metrics:review-created:review-1',
     })
+    expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith({
+      title: 'Новий відгук очікує перевірки',
+      message: 'Покупець залишив відгук до товару "Summer Dress".',
+      actionUrl: '/admin/reviews',
+      metadata: {
+        reviewId: 'review-1',
+        productId: 'product-1',
+        storeId: 'store-1',
+        sellerId: sellerUser.id,
+        buyerId: buyerUser.id,
+        status: ReviewStatus.PENDING,
+        rating: 5,
+        roleTarget: 'admin',
+        actorRole: 'BUYER',
+      },
+    })
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith({
+      userId: sellerUser.id,
+      type: NotificationType.ADMIN_ALERT,
+      title: 'Новий відгук до вашого товару',
+      message: 'Покупець залишив відгук до товару "Summer Dress".',
+      actionUrl: '/seller/reviews',
+      metadata: {
+        reviewId: 'review-1',
+        productId: 'product-1',
+        storeId: 'store-1',
+        buyerId: buyerUser.id,
+        status: ReviewStatus.PENDING,
+        rating: 5,
+        roleTarget: 'seller',
+        actorRole: 'BUYER',
+      },
+    })
     expect(result.status).toBe('PENDING')
     expect(result.isVerifiedPurchase).toBe(true)
+  })
+
+  it('does not fail review creation when admin or seller notification dispatch fails', async () => {
+    const notificationError = new Error('notifications down')
+    mockRepository.findProductReviewContext.mockResolvedValue({
+      id: 'product-1',
+      name: 'Summer Dress',
+      store: {
+        id: 'store-1',
+        name: 'Dress Store',
+        ownerId: sellerUser.id,
+      },
+    } as never)
+    mockRepository.findReviewByProductAndUser.mockResolvedValue(null)
+    mockRepository.findEligiblePurchasedOrderItem.mockResolvedValue({ id: 'order-item-1' })
+    mockRepository.createReviewRecord.mockResolvedValue(
+      makeReviewRecord({ status: ReviewStatus.PENDING }) as never,
+    )
+    mockRepository.recalculateProductRatingSummary.mockResolvedValue(makeRatingSummary() as never)
+    mockNotifications.createAdminNotification.mockRejectedValue(notificationError)
+    mockNotifications.notifyUser.mockRejectedValue(notificationError)
+
+    const result = await createReview(buyerUser, 'product-1', { rating: 5, comment: 'Nice' })
+    await Promise.resolve()
+
+    expect(result.status).toBe('PENDING')
+    expect(mockLogger.logError).toHaveBeenCalledWith(
+      'review:create:admin-notification',
+      notificationError,
+    )
+    expect(mockLogger.logError).toHaveBeenCalledWith(
+      'review:create:seller-notification',
+      notificationError,
+    )
   })
 
   it('updates own review, resets moderation state, and recalculates summary', async () => {
@@ -424,7 +504,68 @@ describe('review.service', () => {
     expect(mockRepository.updateSellerReply).toHaveBeenCalledWith('review-1', {
       sellerReply: 'Thanks for the feedback',
     })
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith({
+      userId: buyerUser.id,
+      type: NotificationType.ADMIN_ALERT,
+      title: 'Продавець відповів на ваш відгук',
+      message: 'Продавець залишив відповідь до відгуку про товар "Summer Dress".',
+      actionUrl: '/products/product-1',
+      metadata: {
+        reviewId: 'review-1',
+        productId: 'product-1',
+        storeId: 'store-1',
+        sellerId: sellerUser.id,
+        buyerId: buyerUser.id,
+        roleTarget: 'buyer',
+        actorRole: 'SELLER',
+      },
+    })
     expect(result.sellerReply).toBe('Thanks for the feedback')
+  })
+
+  it('does not notify the buyer when the seller edits an existing reply', async () => {
+    mockRepository.findReviewById.mockResolvedValue(
+      makeReviewRecord({
+        sellerReply: 'Old seller reply',
+        sellerRepliedAt: new Date('2026-06-01T14:00:00.000Z'),
+      }) as never,
+    )
+    mockRepository.updateSellerReply.mockResolvedValue(
+      makeReviewRecord({
+        sellerReply: 'Updated seller reply',
+        sellerRepliedAt: new Date('2026-06-01T15:00:00.000Z'),
+      }) as never,
+    )
+
+    const result = await replyToReview(sellerUser, 'review-1', {
+      sellerReply: 'Updated seller reply',
+    })
+
+    expect(mockNotifications.notifyUser).not.toHaveBeenCalled()
+    expect(result.sellerReply).toBe('Updated seller reply')
+  })
+
+  it('does not fail seller reply when first-reply notification dispatch fails', async () => {
+    const notificationError = new Error('reply notification down')
+    mockRepository.findReviewById.mockResolvedValue(makeReviewRecord() as never)
+    mockRepository.updateSellerReply.mockResolvedValue(
+      makeReviewRecord({
+        sellerReply: 'Thanks for the feedback',
+        sellerRepliedAt: new Date('2026-06-01T15:00:00.000Z'),
+      }) as never,
+    )
+    mockNotifications.notifyUser.mockRejectedValue(notificationError)
+
+    const result = await replyToReview(sellerUser, 'review-1', {
+      sellerReply: 'Thanks for the feedback',
+    })
+    await Promise.resolve()
+
+    expect(result.sellerReply).toBe('Thanks for the feedback')
+    expect(mockLogger.logError).toHaveBeenCalledWith(
+      'review:reply:first-reply-notification',
+      notificationError,
+    )
   })
 
   it('returns paginated admin reviews', async () => {
@@ -523,6 +664,7 @@ describe('review.service', () => {
       }) as never,
     )
     mockRepository.recalculateProductRatingSummary.mockResolvedValue(makeRatingSummary() as never)
+    mockNotifications.notifyUser.mockResolvedValue({} as never)
 
     const result = await moderateReview(adminUser, 'review-1', {
       action: 'approve',
@@ -536,7 +678,86 @@ describe('review.service', () => {
       }),
     )
     expect(mockRepository.recalculateProductRatingSummary).toHaveBeenCalledWith('product-1')
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith({
+      userId: buyerUser.id,
+      type: NotificationType.ADMIN_ALERT,
+      title: 'Ваш відгук опубліковано',
+      message: 'Відгук до товару "Summer Dress" тепер опубліковано.',
+      actionUrl: '/products/product-1',
+      metadata: {
+        reviewId: 'review-1',
+        productId: 'product-1',
+        status: ReviewStatus.PUBLISHED,
+        roleTarget: 'buyer',
+        actorRole: 'ADMIN',
+      },
+    })
     expect(result.status).toBe('PUBLISHED')
+  })
+
+  it('notifies the buyer when a review is rejected', async () => {
+    mockRepository.findReviewById.mockResolvedValue(
+      makeReviewRecord({ status: ReviewStatus.PENDING }) as never,
+    )
+    mockRepository.updateReviewRecord.mockResolvedValue(
+      makeReviewRecord({
+        status: ReviewStatus.REJECTED,
+        moderatedAt: new Date('2026-06-01T16:00:00.000Z'),
+        moderatedBy: adminUser.id,
+        moderationReason: 'Needs clearer feedback',
+      }) as never,
+    )
+    mockRepository.recalculateProductRatingSummary.mockResolvedValue(makeRatingSummary() as never)
+    mockNotifications.notifyUser.mockResolvedValue({} as never)
+
+    const result = await moderateReview(adminUser, 'review-1', {
+      action: 'reject',
+      moderationReason: 'Needs clearer feedback',
+    })
+
+    expect(mockNotifications.notifyUser).toHaveBeenCalledWith({
+      userId: buyerUser.id,
+      type: NotificationType.ADMIN_ALERT,
+      title: 'Ваш відгук відхилено',
+      message: 'Відгук до товару "Summer Dress" не пройшов модерацію.',
+      actionUrl: '/products/product-1',
+      metadata: {
+        reviewId: 'review-1',
+        productId: 'product-1',
+        status: ReviewStatus.REJECTED,
+        moderationReason: 'Needs clearer feedback',
+        roleTarget: 'buyer',
+        actorRole: 'ADMIN',
+      },
+    })
+    expect(result.status).toBe('REJECTED')
+  })
+
+  it('does not fail moderation when buyer notification dispatch fails', async () => {
+    const notificationError = new Error('buyer notify down')
+    mockRepository.findReviewById.mockResolvedValue(
+      makeReviewRecord({ status: ReviewStatus.PENDING }) as never,
+    )
+    mockRepository.updateReviewRecord.mockResolvedValue(
+      makeReviewRecord({
+        status: ReviewStatus.PUBLISHED,
+        moderatedAt: new Date('2026-06-01T16:00:00.000Z'),
+        moderatedBy: adminUser.id,
+      }) as never,
+    )
+    mockRepository.recalculateProductRatingSummary.mockResolvedValue(makeRatingSummary() as never)
+    mockNotifications.notifyUser.mockRejectedValue(notificationError)
+
+    const result = await moderateReview(adminUser, 'review-1', {
+      action: 'approve',
+    })
+    await Promise.resolve()
+
+    expect(result.status).toBe('PUBLISHED')
+    expect(mockLogger.logError).toHaveBeenCalledWith(
+      'review:moderate:published-notification',
+      notificationError,
+    )
   })
 
   it('records a review-hidden risk signal when admin hides a review', async () => {
