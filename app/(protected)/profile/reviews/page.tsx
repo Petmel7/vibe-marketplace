@@ -11,7 +11,17 @@ export default async function ProfileReviewsPage() {
   if (!user) return null
 
   const data = await getProfileOverviewData(user)
-  const reviewProducts = [...data.viewed.items, ...data.wishlist.items].slice(0, 8)
+  const seenProductIds = new Set<string>()
+  const reviewProducts = [...data.viewed.items, ...data.wishlist.items]
+    .filter((item) => {
+      if (seenProductIds.has(item.productId)) {
+        return false
+      }
+
+      seenProductIds.add(item.productId)
+      return true
+    })
+    .slice(0, 8)
 
   return (
     <ProfileSection
