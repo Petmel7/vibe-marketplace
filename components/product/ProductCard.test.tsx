@@ -6,6 +6,10 @@ import { describe, expect, it, vi } from 'vitest'
 import type { VisibleProductPromotionDto } from '@/features/promotions/promotions.dto'
 import type { ReviewRatingSummaryDto } from '@/features/review/review.dto'
 
+const { productCardAddToCartButtonMock } = vi.hoisted(() => ({
+  productCardAddToCartButtonMock: vi.fn(),
+}))
+
 vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => {
     const { alt, src } = props
@@ -31,11 +35,21 @@ vi.mock('@/components/wishlist/WishlistToggleButton', () => ({
 }))
 
 vi.mock('@/components/product/ProductCardAddToCartButton', () => ({
-  default: () => (
-    <button type="button" aria-label="add-to-cart-button">
-      add-to-cart
-    </button>
-  ),
+  default: (props: Record<string, unknown>) => {
+    productCardAddToCartButtonMock(props)
+
+    return (
+      <button
+        type="button"
+        aria-label="add-to-cart-button"
+        data-variant-id={String(props.variantId ?? '')}
+        data-product-href={String(props.productHref ?? '')}
+        data-requires-selection={String(Boolean(props.requiresVariantSelection))}
+      >
+        add-to-cart
+      </button>
+    )
+  },
 }))
 
 vi.mock('@/components/product/ProductStockBadge', () => ({
@@ -44,7 +58,21 @@ vi.mock('@/components/product/ProductStockBadge', () => ({
 
 import ProductCard from '@/components/product/ProductCard'
 
-const baseProduct = {
+const baseProduct: {
+  price: string
+  sku: string
+  inStock: boolean
+  totalStock: number
+  stockStatus: 'IN_STOCK'
+  variants: Array<{
+    id: string
+    sku: string
+    size: string | null
+    color: string | null
+    price: string | null
+    stock: number
+  }>
+} = {
   price: '99.99',
   sku: 'SKU-001',
   inStock: true,
@@ -79,6 +107,7 @@ const basePromotion: VisibleProductPromotionDto = {
 function renderProductCard(
   ratingSummary?: ReviewRatingSummaryDto,
   promotionSummary?: VisibleProductPromotionDto | null,
+  product = baseProduct,
 ) {
   return renderToStaticMarkup(
     <ProductCard
@@ -89,7 +118,7 @@ function renderProductCard(
       stockStatus="IN_STOCK"
       ratingSummary={ratingSummary}
       promotionSummary={promotionSummary}
-      product={baseProduct}
+      product={product}
     />,
   )
 }
@@ -97,9 +126,10 @@ function renderProductCard(
 function renderProductCardDom(
   ratingSummary?: ReviewRatingSummaryDto,
   promotionSummary?: VisibleProductPromotionDto | null,
+  product = baseProduct,
 ) {
   const container = document.createElement('div')
-  container.innerHTML = renderProductCard(ratingSummary, promotionSummary)
+  container.innerHTML = renderProductCard(ratingSummary, promotionSummary, product)
   return container
 }
 
@@ -185,5 +215,64 @@ describe('ProductCard', () => {
     expect(markup).toContain('Акція')
     expect(markup).toContain('10.00%')
     expect(markup).toContain('STORE10')
+  })
+
+  it('passes the single purchasable variant for direct add-to-cart', () => {
+    const container = renderProductCardDom(undefined, undefined, {
+      ...baseProduct,
+      variants: [
+        {
+          id: 'variant-1',
+          sku: 'SKU-001',
+          size: 'M',
+          color: 'Black',
+          price: '99.99',
+          stock: 3,
+        },
+        {
+          id: 'variant-2',
+          sku: 'SKU-002',
+          size: 'L',
+          color: 'Black',
+          price: '99.99',
+          stock: 0,
+        },
+      ],
+    })
+
+    const addToCartButton = container.querySelector('button[aria-label="add-to-cart-button"]')
+
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-1')
+    expect(addToCartButton?.getAttribute('data-requires-selection')).toBe('false')
+  })
+
+  it('requires product details navigation when multiple purchasable variants exist', () => {
+    const container = renderProductCardDom(undefined, undefined, {
+      ...baseProduct,
+      variants: [
+        {
+          id: 'variant-1',
+          sku: 'SKU-001',
+          size: 'M',
+          color: 'Black',
+          price: '99.99',
+          stock: 3,
+        },
+        {
+          id: 'variant-2',
+          sku: 'SKU-002',
+          size: 'L',
+          color: 'Black',
+          price: '99.99',
+          stock: 2,
+        },
+      ],
+    })
+
+    const addToCartButton = container.querySelector('button[aria-label="add-to-cart-button"]')
+
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('')
+    expect(addToCartButton?.getAttribute('data-product-href')).toBe('/products/prod-1')
+    expect(addToCartButton?.getAttribute('data-requires-selection')).toBe('true')
   })
 })

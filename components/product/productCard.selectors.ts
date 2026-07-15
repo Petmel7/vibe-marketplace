@@ -32,48 +32,76 @@ function toNumber(value: string | number): number {
   return typeof value === 'number' ? value : Number(value)
 }
 
+function getPurchasableVariants(product: ProductPresentationProductLike) {
+  return product.variants?.filter((variant) => Math.max(variant.stock ?? 0, 0) > 0) ?? []
+}
+
+function getPreferredDisplayVariant(product: ProductPresentationProductLike) {
+  return getPurchasableVariants(product)[0] ?? product.variants?.[0] ?? null
+}
+
+export function requiresExplicitVariantSelection(
+  product: ProductPresentationProductLike,
+): boolean {
+  return getPurchasableVariants(product).length > 1
+}
+
 export function getDefaultProductVariantId(
-  product: ProductPresentationProductLike
+  product: ProductPresentationProductLike,
 ): string | null {
-  const firstAvailableVariant = product.variants?.find((variant) => (variant.stock ?? 0) > 0)
-  return firstAvailableVariant?.id ?? product.variants?.[0]?.id ?? null
+  const purchasableVariants = getPurchasableVariants(product)
+
+  return purchasableVariants.length === 1 ? purchasableVariants[0]?.id ?? null : null
 }
 
 export function getProductPresentationState(
   product: ProductPresentationProductLike,
-  selectedVariantId?: string | null
+  selectedVariantId?: string | null,
 ): ProductPresentationState {
   const defaultVariantId = getDefaultProductVariantId(product)
-  const resolvedVariantId = selectedVariantId ?? defaultVariantId
+  const resolvedSelectedVariantId = selectedVariantId ?? defaultVariantId
   const selectedVariant =
-    product.variants?.find((variant) => variant.id === resolvedVariantId) ??
-    product.variants?.[0] ??
-    null
+    product.variants?.find((variant) => variant.id === resolvedSelectedVariantId) ?? null
+  const displayVariant = selectedVariant ?? getPreferredDisplayVariant(product)
   const hasVariants = (product.variants?.length ?? 0) > 0
   const totalStock =
     hasVariants
       ? product.variants!.reduce((sum, variant) => sum + Math.max(variant.stock ?? 0, 0), 0)
-      : (product.totalStock ?? 0)
+      : Math.max(product.totalStock ?? 0, 0)
   const selectedVariantStock = Math.max(selectedVariant?.stock ?? 0, 0)
-  const isAvailable = hasVariants ? selectedVariantStock > 0 : (product.inStock ?? (product.isActive ?? true))
-  const stockStatus: ProductStockStatus =
-    hasVariants
+  const displayVariantStock = Math.max(displayVariant?.stock ?? 0, 0)
+  const isAvailable = hasVariants
+    ? selectedVariant
+      ? selectedVariantStock > 0
+      : totalStock > 0
+    : (product.inStock ?? (product.isActive ?? true))
+  const stockStatus: ProductStockStatus = hasVariants
+    ? selectedVariant
       ? selectedVariantStock <= 0
         ? 'OUT_OF_STOCK'
         : selectedVariantStock <= 3
           ? 'LOW_STOCK'
           : 'IN_STOCK'
-      : (product.stockStatus ?? ((product.inStock ?? true) ? 'IN_STOCK' : 'OUT_OF_STOCK'))
+      : displayVariantStock <= 0
+        ? 'OUT_OF_STOCK'
+        : displayVariantStock <= 3
+          ? 'LOW_STOCK'
+          : 'IN_STOCK'
+    : (product.stockStatus ?? ((product.inStock ?? true) ? 'IN_STOCK' : 'OUT_OF_STOCK'))
 
   return {
     defaultVariantId,
     selectedVariantId: selectedVariant?.id ?? defaultVariantId,
-    price: toNumber(selectedVariant?.price ?? product.price),
-    sku: selectedVariant?.sku ?? product.sku ?? undefined,
+    price: toNumber(displayVariant?.price ?? product.price),
+    sku: displayVariant?.sku ?? product.sku ?? undefined,
     isAvailable,
     totalStock,
     stockStatus,
-    maxQty: hasVariants ? selectedVariantStock : Math.max(product.totalStock ?? 0, 0),
+    maxQty: hasVariants
+      ? selectedVariant
+        ? selectedVariantStock
+        : displayVariantStock
+      : Math.max(product.totalStock ?? 0, 0),
   }
 }
 

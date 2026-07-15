@@ -43,8 +43,10 @@ export default function ProductVariantSelector({ variants, selectedVariantId, on
               return (
                 <button
                   key={variant.id}
+                  type="button"
                   onClick={() => !isOutOfStock && onSelect(variant.id)}
                   disabled={isOutOfStock}
+                  aria-pressed={isSelected}
                   className={chipClass}
                 >
                   {variant.size}

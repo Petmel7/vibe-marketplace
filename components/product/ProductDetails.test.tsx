@@ -6,9 +6,14 @@ import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { shareMock, writeTextMock, toastSuccessMock, toastErrorMock } = vi.hoisted(() => ({
-  shareMock: vi.fn(),
-  writeTextMock: vi.fn(),
+const {
+  addToCartButtonMock,
+  productVariantSelectorMock,
+  toastErrorMock,
+  toastSuccessMock,
+} = vi.hoisted(() => ({
+  addToCartButtonMock: vi.fn(),
+  productVariantSelectorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   toastErrorMock: vi.fn(),
 }))
@@ -40,7 +45,32 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/components/product/ProductVariantSelector', () => ({
-  default: () => <div>variant-selector</div>,
+  default: ({
+    selectedVariantId,
+    variants,
+    onSelect,
+  }: {
+    selectedVariantId: string | null
+    variants: Array<{ id: string; size: string | null }>
+    onSelect: (variantId: string) => void
+  }) => {
+    productVariantSelectorMock({ selectedVariantId, variants })
+
+    return (
+      <div>
+        <span data-testid="selected-variant">{selectedVariantId ?? 'none'}</span>
+        {variants.map((variant) => (
+          <button
+            key={variant.id}
+            type="button"
+            onClick={() => onSelect(variant.id)}
+          >
+            {variant.size ?? variant.id}
+          </button>
+        ))}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/wishlist/WishlistToggleButton', () => ({
@@ -52,7 +82,19 @@ vi.mock('@/components/product/ProductQuantitySelector', () => ({
 }))
 
 vi.mock('@/components/cart/AddToCartButton', () => ({
-  default: () => <button type="button">add-to-cart</button>,
+  default: ({ variantId, disabled }: { variantId: string | null; disabled?: boolean }) => {
+    addToCartButtonMock({ variantId, disabled })
+    return (
+      <button
+        type="button"
+        data-testid="add-to-cart"
+        data-variant-id={variantId ?? ''}
+        data-disabled={String(Boolean(disabled || !variantId))}
+      >
+        add-to-cart
+      </button>
+    )
+  },
 }))
 
 vi.mock('@/components/product/ProductDescription', () => ({
@@ -147,6 +189,25 @@ const product = {
 }
 
 describe('ProductDetails', () => {
+  let container: HTMLDivElement
+  let root: ReturnType<typeof createRoot> | null
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(() => {
+    if (root) {
+      act(() => {
+        root?.unmount()
+      })
+    }
+    container.remove()
+  })
+
   it('renders the promotion block with name, code, and discount summary', () => {
     const markup = renderToStaticMarkup(
       <ProductDetails product={product} currentUser={null} />,
@@ -156,5 +217,108 @@ describe('ProductDetails', () => {
     expect(markup).toContain('Store 10%')
     expect(markup).toContain('Промокод: STORE10')
     expect(markup).toContain('Знижка: 10.00%')
+  })
+
+  it('starts without a selected variant for products with multiple purchasable variants', () => {
+    act(() => {
+      root!.render(
+        <ProductDetails
+          currentUser={null}
+          product={{
+            ...product,
+            variants: [
+              {
+                id: 'variant-1',
+                sku: 'SKU-001',
+                size: 'M',
+                color: 'Black',
+                price: '99.99',
+                stock: 2,
+              },
+              {
+                id: 'variant-2',
+                sku: 'SKU-002',
+                size: 'L',
+                color: 'Black',
+                price: '109.99',
+                stock: 3,
+              },
+            ],
+          }}
+        />,
+      )
+    })
+
+    const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
+    const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
+
+    expect(selectedVariant?.textContent).toBe('none')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('true')
+  })
+
+  it('auto-selects the only purchasable variant for single-variant products', () => {
+    act(() => {
+      root!.render(<ProductDetails product={product} currentUser={null} />)
+    })
+
+    const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
+    const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
+
+    expect(selectedVariant?.textContent).toBe('variant-1')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-1')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
+  })
+
+  it('enables add-to-cart after explicit variant selection on multi-variant products', async () => {
+    act(() => {
+      root!.render(
+        <ProductDetails
+          currentUser={null}
+          product={{
+            ...product,
+            variants: [
+              {
+                id: 'variant-1',
+                sku: 'SKU-001',
+                size: 'M',
+                color: 'Black',
+                price: '99.99',
+                stock: 2,
+              },
+              {
+                id: 'variant-2',
+                sku: 'SKU-002',
+                size: 'L',
+                color: 'Black',
+                price: '109.99',
+                stock: 3,
+              },
+            ],
+          }}
+        />,
+      )
+    })
+
+    const selectLargeButton = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'L',
+    )
+
+    await act(async () => {
+      selectLargeButton?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await Promise.resolve()
+    })
+
+    const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
+    const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
+
+    expect(selectedVariant?.textContent).toBe('variant-2')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-2')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
   })
 })

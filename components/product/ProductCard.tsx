@@ -9,6 +9,7 @@ import ProductStockBadge from './ProductStockBadge'
 import {
   getDefaultProductVariantId,
   getProductCardDisplayState,
+  requiresExplicitVariantSelection,
   type ProductCardProductLike,
 } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
@@ -65,6 +66,7 @@ export default function ProductCard({
     badgeContext,
   })
   const defaultVariantId = getDefaultProductVariantId(product)
+  const shouldSelectVariantOnDetails = requiresExplicitVariantSelection(product)
   const resolvedImageUrl = imageFailed
     ? PRODUCT_CARD_FALLBACK_IMAGE
     : imageUrl || PRODUCT_CARD_FALLBACK_IMAGE
@@ -172,14 +174,14 @@ export default function ProductCard({
             ) : null}
           </div>
 
-          {defaultVariantId ? (
-            <ProductCardAddToCartButton
-              variantId={defaultVariantId}
-              productName={name}
-              disabled={!isAvailable}
-              disabledLabel="Немає в наявності"
-            />
-          ) : null}
+          <ProductCardAddToCartButton
+            variantId={defaultVariantId}
+            productHref={`/products/${id}`}
+            productName={name}
+            requiresVariantSelection={shouldSelectVariantOnDetails}
+            disabled={!isAvailable}
+            disabledLabel="Немає в наявності"
+          />
         </div>
       </div>
     </article>

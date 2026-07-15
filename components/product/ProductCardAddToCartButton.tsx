@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -10,16 +11,21 @@ import { useCartStore } from '@/store/cartStore'
 interface ProductCardAddToCartButtonProps {
   disabled?: boolean
   disabledLabel?: string
+  productHref: string
   productName: string
+  requiresVariantSelection?: boolean
   variantId: string | null
 }
 
 export default function ProductCardAddToCartButton({
   disabled = false,
   disabledLabel = 'Немає в наявності',
+  productHref,
   productName,
+  requiresVariantSelection = false,
   variantId,
 }: ProductCardAddToCartButtonProps) {
+  const router = useRouter()
   const { isAuthenticated } = useCurrentUser()
   const [isAdding, setIsAdding] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -27,6 +33,11 @@ export default function ProductCardAddToCartButton({
   async function handleAddToCart(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
     event.stopPropagation()
+
+    if (requiresVariantSelection) {
+      router.push(productHref)
+      return
+    }
 
     if (!variantId || isAdding || disabled) return
 
@@ -61,17 +72,25 @@ export default function ProductCardAddToCartButton({
     }
   }
 
+  const isButtonDisabled =
+    !requiresVariantSelection && (!variantId || disabled || isAdding)
+  const ariaLabel = disabled
+    ? `${disabledLabel}: ${productName}`
+    : requiresVariantSelection
+      ? `Відкрити товар ${productName} для вибору варіанта`
+      : `Додати ${productName} до кошика`
+
   return (
     <div className="space-y-2">
       <button
         type="button"
         onClick={handleAddToCart}
-        disabled={!variantId || disabled || isAdding}
-        aria-label={disabled ? `${disabledLabel}: ${productName}` : `Додати ${productName} до кошика`}
+        disabled={isButtonDisabled}
+        aria-label={ariaLabel}
         className={[
           'inline-flex h-11 w-full items-center justify-center gap-2 rounded-4xl border px-4 text-sm font-medium transition',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-copy-base',
-          !variantId || disabled || isAdding
+          isButtonDisabled
             ? 'cursor-not-allowed border-panelBorder bg-panelAlt text-copy-muted opacity-70'
             : 'border-brand-accent bg-brand-accent text-copy-base hover:brightness-110',
         ].join(' ')}

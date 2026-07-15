@@ -13,10 +13,12 @@ import {
 
 const {
   addItemMock,
+  pushMock,
   toastSuccessMock,
   useCurrentUserMock,
 } = vi.hoisted(() => ({
   addItemMock: vi.fn(),
+  pushMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   useCurrentUserMock: vi.fn(),
 }))
@@ -34,6 +36,12 @@ vi.mock('sonner', () => ({
   toast: {
     success: toastSuccessMock,
   },
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
 }))
 
 vi.mock('@/components/cart/api/cart.api', () => ({
@@ -97,6 +105,7 @@ describe('ProductCardAddToCartButton', () => {
         <ProductCardAddToCartButton
           variantId="variant-1"
           productName="Футболка"
+          productHref="/products/product-1"
         />,
       )
     })
@@ -119,5 +128,34 @@ describe('ProductCardAddToCartButton', () => {
       1,
     )
     expect(toastSuccessMock).toHaveBeenCalledWith('Товар додано в кошик')
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('navigates to product details instead of adding to cart when variant selection is required', async () => {
+    act(() => {
+      root!.render(
+        <ProductCardAddToCartButton
+          variantId={null}
+          productName="Футболка"
+          productHref="/products/product-1"
+          requiresVariantSelection
+        />,
+      )
+    })
+
+    const button = container.querySelector('button')
+
+    await act(async () => {
+      button?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await Promise.resolve()
+    })
+
+    expect(pushMock).toHaveBeenCalledWith('/products/product-1')
+    expect(addItemMock).not.toHaveBeenCalled()
   })
 })

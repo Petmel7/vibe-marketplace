@@ -17,6 +17,7 @@ import ReportButton from '@/components/abuse-reports/ReportButton'
 import {
   getDefaultProductVariantId,
   getProductPresentationState,
+  requiresExplicitVariantSelection,
 } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
@@ -49,6 +50,8 @@ function getPromotionDiscountLabel(product: ProductDetailDto) {
 export default function ProductDetails({ product, currentUser }: Props) {
   const authSession = useContext(AuthSessionContext)
   const resolvedCurrentUser = currentUser ?? authSession?.user ?? null
+  const shouldRequireExplicitVariantSelection =
+    requiresExplicitVariantSelection(product)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
     getDefaultProductVariantId(product),
   )
@@ -222,7 +225,7 @@ export default function ProductDetails({ product, currentUser }: Props) {
 
           <ProductVariantSelector
             variants={product.variants}
-            selectedVariantId={presentation.selectedVariantId}
+            selectedVariantId={selectedVariantId}
             onSelect={setSelectedVariantId}
           />
 
@@ -235,7 +238,10 @@ export default function ProductDetails({ product, currentUser }: Props) {
           <AddToCartButton
             variantId={presentation.selectedVariantId}
             quantity={quantity}
-            disabled={!presentation.isAvailable}
+            disabled={
+              !presentation.isAvailable ||
+              (shouldRequireExplicitVariantSelection && !presentation.selectedVariantId)
+            }
             disabledLabel="Немає в наявності"
           />
         </div>
