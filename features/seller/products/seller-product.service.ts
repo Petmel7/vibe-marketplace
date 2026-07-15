@@ -6,6 +6,7 @@ import {
   InvalidModerationTransitionError,
   InvalidInventoryError,
   InvalidSkuError,
+  InvalidVariantConfigurationError,
   CategoryNotFoundError,
   ProductImageLimitExceededError,
 } from '@/lib/errors/seller'
@@ -57,8 +58,69 @@ import {
   setPrimaryProductImage as repoSetPrimaryProductImage,
 } from './seller-product.repository'
 import { generateBaseSku, generateVariantSku, normalizeSku } from './seller-product.utils'
+import { isAllowedProductSize } from './seller-product.sizes'
 
 const MAX_PRODUCT_IMAGES = 10
+
+function normalizeVariantIdentityColor(color: string | null | undefined) {
+  return color?.trim().toUpperCase() ?? ''
+}
+
+function getVariantCombinationKey(variant: {
+  size?: string | null
+  color?: string | null
+}) {
+  const normalizedSize = variant.size ?? ''
+  const normalizedColor = normalizeVariantIdentityColor(variant.color)
+  return `${normalizedSize}::${normalizedColor}`
+}
+
+function assertAllowedVariantSize(size: string | null | undefined) {
+  if (size == null) {
+    return
+  }
+
+  if (!isAllowedProductSize(size)) {
+    throw new InvalidVariantConfigurationError(`Unsupported variant size "${size}"`)
+  }
+}
+
+function assertNoDuplicateVariantCombinations(
+  variants: Array<{
+    size?: string | null
+    color?: string | null
+  }>,
+  opts?: {
+    existing?: Array<{
+      id?: string
+      size?: string | null
+      color?: string | null
+    }>
+    excludeVariantId?: string
+  },
+) {
+  const seen = new Set<string>()
+
+  for (const existingVariant of opts?.existing ?? []) {
+    if (opts?.excludeVariantId && existingVariant.id === opts.excludeVariantId) {
+      continue
+    }
+
+    seen.add(getVariantCombinationKey(existingVariant))
+  }
+
+  for (const variant of variants) {
+    assertAllowedVariantSize(variant.size ?? null)
+    const key = getVariantCombinationKey(variant)
+    if (seen.has(key)) {
+      throw new InvalidVariantConfigurationError(
+        'Variant size and color combinations must be unique within a product',
+      )
+    }
+
+    seen.add(key)
+  }
+}
 
 function notifyAdminsAboutPendingReviewProduct(input: {
   product: Pick<SellerProductDto, 'id' | 'name' | 'status'>
@@ -381,6 +443,7 @@ export async function createProduct(
   if (normalizedImages.length > MAX_PRODUCT_IMAGES) {
     throw new ProductImageLimitExceededError(`A product can have at most ${MAX_PRODUCT_IMAGES} images`)
   }
+  assertNoDuplicateVariantCombinations(data.variants ?? [])
 
   const product = await repoCreateProduct(store.id, {
     ...data,
@@ -499,6 +562,7 @@ export async function addVariant(
   requireSeller(user)
   const { store, product } = await getOwnedProduct(user, productId)
   assertSellerOwnsProduct(product, store.id)
+  assertNoDuplicateVariantCombinations([data], { existing: product.variants })
 
   const resolvedSku = await resolveVariantSku({
     baseSku: product.sku ?? generateBaseSku(product.name, store.slug),
@@ -522,6 +586,17 @@ export async function updateVariant(
   if (!variant) throw new ProductNotFoundError('Variant not found')
   const store = await assertStoreOwnership(user.id, variant.product.storeId)
   assertSellerOwnsProduct(variant.product, store.id)
+  const product = await findProductById(variant.productId)
+  if (!product) throw new ProductNotFoundError()
+  assertNoDuplicateVariantCombinations([
+    {
+      size: data.size ?? variant.size,
+      color: data.color ?? variant.color,
+    },
+  ], {
+    existing: product.variants,
+    excludeVariantId: variant.id,
+  })
 
   const resolvedSku = data.sku !== undefined
     ? await resolveVariantSku({

@@ -27,11 +27,13 @@ import * as notificationsService from '@/features/notifications/notifications.se
 import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import * as logger from '@/utils/logger'
 import {
+  addVariant,
   archiveProduct,
   createProduct,
   getMyProductById,
   setPrimaryProductImage,
   submitForReview,
+  updateVariant,
   updateInventory,
   uploadProductImage,
 } from '@/features/seller/products/seller-product.service'
@@ -40,6 +42,7 @@ import {
   InvalidInventoryError,
   InvalidModerationTransitionError,
   InvalidSkuError,
+  InvalidVariantConfigurationError,
   ProductImageLimitExceededError,
   ProductNotFoundError,
 } from '@/lib/errors/seller'
@@ -156,6 +159,22 @@ describe('createProduct', () => {
     expect(updateResult.success).toBe(false)
   })
 
+  it('accepts only canonical predefined variant sizes at the validation boundary', () => {
+    const invalidResult = createSellerProductSchema.safeParse({
+      name: 'Test Product',
+      price: '29.99',
+      variants: [{ size: 'Medium', stock: 1 }],
+    })
+    const validResult = createSellerProductSchema.safeParse({
+      name: 'Test Product',
+      price: '29.99',
+      variants: [{ size: 'M', stock: 1 }],
+    })
+
+    expect(invalidResult.success).toBe(false)
+    expect(validResult.success).toBe(true)
+  })
+
   it('normalizes a manual product SKU before persisting', async () => {
     const product = makeProduct()
     mockProductRepo.createProduct.mockResolvedValue(product)
@@ -197,6 +216,21 @@ describe('createProduct', () => {
         categoryId: 'missing-category',
       }),
     ).rejects.toThrow(CategoryNotFoundError)
+
+    expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
+  })
+
+  it('rejects duplicate size and color combinations when creating a product', async () => {
+    await expect(
+      createProduct(mockUser, {
+        name: 'Test Product',
+        price: '29.99',
+        variants: [
+          { size: 'M', color: 'Black', stock: 1 },
+          { size: 'M', color: 'black', stock: 2 },
+        ],
+      }),
+    ).rejects.toThrow(InvalidVariantConfigurationError)
 
     expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
   })
@@ -374,6 +408,86 @@ describe('updateInventory', () => {
     await expect(updateInventory(mockUser, 'variant-uuid-001', -1)).rejects.toThrow(
       InvalidInventoryError,
     )
+  })
+})
+
+describe('variant combination protection', () => {
+  it('rejects adding a duplicate size and color combination to an existing product', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(makeProduct({
+      variants: [
+        {
+          id: 'variant-uuid-001',
+          productId: 'product-uuid-001',
+          sku: 'SKU-001',
+          size: 'M',
+          color: 'Black',
+          price: null,
+          stock: 2,
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+        },
+      ],
+    }) as never)
+
+    await expect(
+      addVariant(mockUser, 'product-uuid-001', {
+        size: 'M',
+        color: 'black',
+        stock: 1,
+      }),
+    ).rejects.toThrow(InvalidVariantConfigurationError)
+
+    expect(mockProductRepo.createVariant).not.toHaveBeenCalled()
+  })
+
+  it('rejects updating a variant into a duplicate size and color combination', async () => {
+    mockProductRepo.findVariantByIdWithProduct.mockResolvedValue({
+      id: 'variant-uuid-002',
+      productId: 'product-uuid-001',
+      sku: 'SKU-002',
+      size: 'L',
+      color: 'Blue',
+      price: null,
+      stock: 1,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+      product: makeProduct(),
+    } as never)
+    mockProductRepo.findProductById.mockResolvedValue(makeProduct({
+      variants: [
+        {
+          id: 'variant-uuid-001',
+          productId: 'product-uuid-001',
+          sku: 'SKU-001',
+          size: 'M',
+          color: 'Black',
+          price: null,
+          stock: 2,
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+        },
+        {
+          id: 'variant-uuid-002',
+          productId: 'product-uuid-001',
+          sku: 'SKU-002',
+          size: 'L',
+          color: 'Blue',
+          price: null,
+          stock: 1,
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+        },
+      ],
+    }) as never)
+
+    await expect(
+      updateVariant(mockUser, 'variant-uuid-002', {
+        size: 'M',
+        color: 'black',
+      }),
+    ).rejects.toThrow(InvalidVariantConfigurationError)
+
+    expect(mockProductRepo.updateVariant).not.toHaveBeenCalled()
   })
 })
 

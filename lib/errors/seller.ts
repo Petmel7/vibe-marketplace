@@ -189,6 +189,15 @@ export class InvalidSkuError extends Error {
   }
 }
 
+export class InvalidVariantConfigurationError extends Error {
+  readonly code = 'INVALID_VARIANT_CONFIGURATION'
+  readonly statusCode = 400
+  constructor(msg = 'Variant configuration is invalid') {
+    super(msg)
+    this.name = 'InvalidVariantConfigurationError'
+  }
+}
+
 export class CategoryNotFoundError extends Error {
   readonly code = 'CATEGORY_NOT_FOUND'
   readonly statusCode = 404

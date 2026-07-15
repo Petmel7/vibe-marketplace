@@ -46,6 +46,7 @@ import {
   StoragePathConflictError,
   SlugAlreadyTakenError,
   InvalidSkuError,
+  InvalidVariantConfigurationError,
   CategoryNotFoundError,
   ProductImageLimitExceededError,
 } from './seller'
@@ -365,6 +366,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidStoreSlugError ||
     err instanceof InvalidImageFileError ||
     err instanceof InvalidSkuError ||
+    err instanceof InvalidVariantConfigurationError ||
     err instanceof ProductImageLimitExceededError ||
     err instanceof InvalidBadgeTransitionError ||
     err instanceof InvalidSearchQueryError ||

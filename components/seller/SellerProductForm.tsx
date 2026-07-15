@@ -13,6 +13,11 @@ import {
   updateVariantSchema,
   updateSellerProductSchema,
 } from '@/features/seller/products/seller-product.schema'
+import {
+  PRODUCT_SIZE_OPTIONS,
+  type AllowedProductSize,
+  isAllowedProductSize,
+} from '@/features/seller/products/seller-product.sizes'
 import { useProductImageUpload, type ProductImageDraft } from '@/hooks/useProductImageUpload'
 import { useSellerCategories } from '@/hooks/useSellerCategories'
 import { useSellerMutation } from '@/hooks/useSellerMutation'
@@ -105,6 +110,34 @@ function syncVariantList(baseSku: string, variants: VariantState[]) {
   return variants.map((variant, index) => syncVariantSku(baseSku, variant, index))
 }
 
+function dedupeSelectedSizes(sizes: AllowedProductSize[]) {
+  return Array.from(new Set(sizes))
+}
+
+function buildCreateVariantsFromSizes(
+  selectedSizes: AllowedProductSize[],
+  currentVariants: VariantState[],
+  baseSku: string,
+) {
+  if (selectedSizes.length === 0) {
+    const fallbackVariant = currentVariants.find((variant) => !variant.size) ?? createVariantState()
+    return syncVariantList(baseSku, [{ ...fallbackVariant, size: '' }])
+  }
+
+  const variants = selectedSizes.map((size) => {
+    const existingVariant = currentVariants.find((variant) => variant.size === size)
+    return existingVariant
+      ? { ...existingVariant, size }
+      : { ...createVariantState(), size }
+  })
+
+  return syncVariantList(baseSku, variants)
+}
+
+function renderSizeValueLabel(size: string) {
+  return size || 'Без розміру'
+}
+
 export default function SellerProductForm({
   mode,
   storeSlug,
@@ -155,6 +188,15 @@ export default function SellerProductForm({
       })) ?? [createVariantState()]
       : [],
   )
+  const [selectedCreateSizes, setSelectedCreateSizes] = useState<AllowedProductSize[]>(
+    mode === 'create'
+      ? dedupeSelectedSizes(
+        initialProduct?.variants
+          .map((variant) => variant.size)
+          .filter((size): size is AllowedProductSize => isAllowedProductSize(size)) ?? [],
+      )
+      : [],
+  )
   const [editVariants, setEditVariants] = useState<VariantState[]>(
     initialProduct?.variants.map((variant) => ({
       id: variant.id,
@@ -194,9 +236,20 @@ export default function SellerProductForm({
     setIsBaseSkuManual(manual)
     setFormState((current) => ({ ...current, sku: nextSku }))
     if (mode === 'create') {
-      setCreateVariants((current) => syncVariantList(nextSku, current))
+      setCreateVariants((current) => buildCreateVariantsFromSizes(selectedCreateSizes, current, nextSku))
     }
     setNewVariant((current) => syncVariantSku(nextSku, current, editVariants.length))
+  }
+
+  function toggleCreateSize(size: AllowedProductSize) {
+    setSelectedCreateSizes((current) => {
+      const next = current.includes(size)
+        ? current.filter((entry) => entry !== size)
+        : [...current, size]
+
+      setCreateVariants((variants) => buildCreateVariantsFromSizes(next, variants, formState.sku))
+      return next
+    })
   }
 
   function setCreateVariantField(index: number, field: keyof VariantState, value: string | number | boolean) {
@@ -220,6 +273,28 @@ export default function SellerProductForm({
           ? updated
           : { ...updated, sku: generateVariantSkuDraft(formState.sku, updated, currentIndex) }
       }),
+    )
+  }
+
+  function renderVariantSizeSelect(params: {
+    value: string
+    onChange: (value: string) => void
+    disabled?: boolean
+  }) {
+    return (
+      <select
+        className="ui-surface-input"
+        value={params.value}
+        onChange={(event) => params.onChange(event.target.value)}
+        disabled={params.disabled}
+      >
+        <option value="">Без розміру</option>
+        {PRODUCT_SIZE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     )
   }
 
@@ -697,18 +772,43 @@ export default function SellerProductForm({
                 </p>
               </div>
 
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <span className="block text-sm font-medium text-copy-strong">Розміри</span>
+                  <div className="flex flex-wrap gap-2">
+                    {PRODUCT_SIZE_OPTIONS.map((option) => {
+                      const isSelected = selectedCreateSizes.includes(option.value)
+                      const chipClass = isSelected
+                        ? 'ui-filter-chip ui-filter-chip-selected'
+                        : 'ui-filter-chip ui-filter-chip-default'
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={chipClass}
+                          onClick={() => toggleCreateSize(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <p className="text-sm text-copy-muted">
+                  Оберіть доступні розміри, щоб автоматично створити варіанти. Якщо розмір не потрібен, залиште список порожнім.
+                </p>
+              </div>
+
               <div className="space-y-4">
                 {createVariants.map((variant, index) => (
                   <div key={`create-variant-${index}`} className="grid gap-3 rounded-2xl border border-panelBorder bg-panel p-4">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                       <label className="space-y-2">
                         <span className="block text-sm font-medium text-copy-strong">Розмір</span>
-                        <input
-                          className="ui-surface-input"
-                          value={variant.size}
-                          onChange={(event) => setCreateVariantField(index, 'size', event.target.value)}
-                          placeholder="M"
-                        />
+                        <div className="ui-surface-input flex items-center">
+                          {renderSizeValueLabel(variant.size)}
+                        </div>
                       </label>
                       <label className="space-y-2">
                         <span className="block text-sm font-medium text-copy-strong">Колір</span>
@@ -777,7 +877,7 @@ export default function SellerProductForm({
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="hidden">
                       <button
                         type="button"
                         className="rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10"
@@ -800,7 +900,7 @@ export default function SellerProductForm({
                 ))}
               </div>
 
-              <div className="flex justify-start">
+              <div className="hidden">
                 <button
                   type="button"
                   className="ui-secondary-button"
@@ -841,12 +941,11 @@ export default function SellerProductForm({
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                       <label className="space-y-2">
                         <span className="block text-sm font-medium text-copy-strong">Розмір</span>
-                        <input
-                          className="ui-surface-input"
-                          value={variant.size}
-                          onChange={(event) => setEditVariantField(index, 'size', event.target.value)}
-                          placeholder="M"
-                        />
+                        {renderVariantSizeSelect({
+                          value: variant.size,
+                          onChange: (value) => setEditVariantField(index, 'size', value),
+                          disabled: isBusy,
+                        })}
                       </label>
                       <label className="space-y-2">
                         <span className="block text-sm font-medium text-copy-strong">Колір</span>
@@ -948,19 +1047,17 @@ export default function SellerProductForm({
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   <label className="space-y-2">
                     <span className="block text-sm font-medium text-copy-strong">Розмір</span>
-                    <input
-                      className="ui-surface-input"
-                      value={newVariant.size}
-                      onChange={(event) =>
+                    {renderVariantSizeSelect({
+                      value: newVariant.size,
+                      onChange: (value) =>
                         setNewVariant((current) => {
-                          const updated = { ...current, size: event.target.value }
+                          const updated = { ...current, size: value }
                           return current.isSkuManual
                             ? updated
                             : syncVariantSku(formState.sku, updated, editVariants.length)
-                        })
-                      }
-                      placeholder="M"
-                    />
+                        }),
+                      disabled: isBusy,
+                    })}
                   </label>
                   <label className="space-y-2">
                     <span className="block text-sm font-medium text-copy-strong">Колір</span>

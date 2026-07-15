@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ALLOWED_PRODUCT_SIZES } from './seller-product.sizes'
 
 const priceString = z
   .string()
@@ -24,7 +25,7 @@ export const sellerProductListQuerySchema = z.object({
 
 export const createVariantSchema = z.object({
   sku: skuString.optional(),
-  size: z.string().max(50).nullable().optional(),
+  size: z.enum(ALLOWED_PRODUCT_SIZES).nullable().optional(),
   color: z.string().max(50).nullable().optional(),
   price: priceString.nullable().optional(),
   stock: z.number().int().min(0).optional(),
