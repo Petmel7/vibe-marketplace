@@ -188,12 +188,13 @@ export default async function ProductPage({ params }: Props) {
         <ProductDetailsShell
           gallery={<ProductImageGallery images={product.images} productName={product.name} />}
           purchasePanel={<ProductDetails product={product} />}
-        />
-
-        <ProductReviewsClientSection
-          productId={product.id}
-          productName={product.name}
-          ratingSummary={product.ratingSummary}
+          reviews={
+            <ProductReviewsClientSection
+              productId={product.id}
+              productName={product.name}
+              ratingSummary={product.ratingSummary}
+            />
+          }
         />
       </div>
 
