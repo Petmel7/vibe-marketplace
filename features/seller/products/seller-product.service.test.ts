@@ -46,6 +46,7 @@ import {
   InvalidVariantConfigurationError,
   ProductImageLimitExceededError,
   ProductNotFoundError,
+  SellerProductValidationError,
 } from '@/lib/errors/seller'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { createSellerProductSchema, updateSellerProductSchema } from './seller-product.schema'
@@ -78,6 +79,37 @@ const mockStore = {
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
 }
+
+const mockSellerCategories = [
+  {
+    id: 'cat-root-clothing-shoes',
+    name: 'Одяг та взуття',
+    slug: 'clothing-shoes',
+    parentId: null,
+    level: 0,
+  },
+  {
+    id: 'cat-leaf-womens-dresses',
+    name: 'Жіночі сукні',
+    slug: 'womens-dresses',
+    parentId: 'cat-root-clothing-shoes',
+    level: 1,
+  },
+  {
+    id: 'cat-root-accessories',
+    name: 'Аксесуари',
+    slug: 'accessories',
+    parentId: null,
+    level: 0,
+  },
+  {
+    id: 'cat-leaf-backpacks',
+    name: 'Рюкзаки',
+    slug: 'backpacks',
+    parentId: 'cat-root-accessories',
+    level: 1,
+  },
+]
 
 function makeProduct(overrides: Record<string, unknown> = {}) {
   return {
@@ -131,6 +163,31 @@ function makeImage(overrides: Partial<{
   }
 }
 
+function makeModerationReadyProduct(overrides: Record<string, unknown> = {}) {
+  return makeProduct({
+    name: 'Validated seller product',
+    description: 'Дуже детальний опис товару для перевірки модераційної готовності.',
+    price: new Decimal('1299.00'),
+    categoryId: 'cat-leaf-womens-dresses',
+    imageUrl: 'https://cdn.example.com/product.png',
+    images: [makeImage()],
+    variants: [
+      {
+        id: 'variant-uuid-001',
+        productId: 'product-uuid-001',
+        sku: 'VAR-READY-001',
+        size: 'M',
+        color: 'Black',
+        price: new Decimal('1299.00'),
+        stock: 3,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+      },
+    ],
+    ...overrides,
+  })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mockGuards.requireSeller.mockReturnValue(undefined)
@@ -142,6 +199,7 @@ beforeEach(() => {
   mockProductRepo.findVariantBySku.mockResolvedValue(null)
   mockProductRepo.listProductImages.mockResolvedValue([])
   mockProductRepo.findProductById.mockResolvedValue(makeProduct() as never)
+  mockProductRepo.listActiveCategories.mockResolvedValue(mockSellerCategories as never)
   mockNotifications.createAdminNotification.mockResolvedValue([] as never)
 })
 
@@ -240,7 +298,7 @@ describe('createProduct', () => {
   })
 
   it('validates that category exists before creating a product', async () => {
-    mockProductRepo.findCategoryById.mockResolvedValue(null)
+    mockProductRepo.listActiveCategories.mockResolvedValue([] as never)
 
     await expect(
       createProduct(mockUser, {
@@ -249,6 +307,18 @@ describe('createProduct', () => {
         categoryId: 'missing-category',
       }),
     ).rejects.toThrow(CategoryNotFoundError)
+
+    expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
+  })
+
+  it('rejects non-leaf categories during draft creation when category is provided', async () => {
+    await expect(
+      createProduct(mockUser, {
+        name: 'Test Product',
+        price: '29.99',
+        categoryId: 'cat-root-clothing-shoes',
+      }),
+    ).rejects.toThrow(SellerProductValidationError)
 
     expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
   })
@@ -268,46 +338,30 @@ describe('createProduct', () => {
     expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
   })
 
-  it('creates new seller products in PENDING_REVIEW for the MVP moderation flow', async () => {
-    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
-    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+  it('creates new seller products in DRAFT state', async () => {
+    const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
+    mockProductRepo.createProduct.mockResolvedValue(draftProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(draftProduct)
 
     const result = await createProduct(mockUser, {
       name: 'Test Product',
       price: '29.99',
     })
 
-    expect(mockNotifications.createAdminNotification).toHaveBeenCalledWith({
-      title: 'Новий товар очікує модерації',
-      message: 'Продавець seller@example.com надіслав товар "Test Product" з магазину "Test Store" на модерацію.',
-      actionUrl: '/admin/moderation',
-      metadata: {
-        productId: 'product-uuid-001',
-        productName: 'Test Product',
-        storeId: 'store-uuid-001',
-        storeName: 'Test Store',
-        sellerId: 'user-uuid-001',
-        sellerEmail: 'seller@example.com',
-        status: ProductStatus.PENDING_REVIEW,
-        source: 'create',
-        roleTarget: 'admin',
-        actorRole: 'SELLER',
-      },
-    })
-    expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
+    expect(mockNotifications.createAdminNotification).not.toHaveBeenCalled()
+    expect(result.status).toBe(ProductStatus.DRAFT)
   })
 
   it('generates an automatic variant SKU when the variant payload omits sku', async () => {
     const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('11111111-1111-1111-1111-111111111111')
       .mockReturnValueOnce('22222222-2222-2222-2222-222222222222')
-    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW, sku: 'PRD-TEST-PRODUCT-11111111' })
-    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+    const draftProduct = makeProduct({ status: ProductStatus.DRAFT, sku: 'PRD-TEST-PRODUCT-11111111' })
+    mockProductRepo.createProduct.mockResolvedValue(draftProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(draftProduct)
     mockProductRepo.createVariant.mockResolvedValue({
       id: 'variant-uuid-001',
-      productId: pendingProduct.id,
+      productId: draftProduct.id,
       sku: 'VAR-TEST-PRODUCT-M-22222222',
       size: 'M',
       color: null,
@@ -324,7 +378,7 @@ describe('createProduct', () => {
     })
 
     expect(mockProductRepo.createVariant).toHaveBeenCalledWith(
-      pendingProduct.id,
+      draftProduct.id,
       expect.objectContaining({ generatedSku: 'VAR-TEST-PRODUCT-M-22222222' }),
     )
 
@@ -332,14 +386,14 @@ describe('createProduct', () => {
   })
 
   it('uses explicit store context when creating a product for one of multiple owned stores', async () => {
-    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW, storeId: 'store-uuid-002' })
+    const draftProduct = makeProduct({ status: ProductStatus.DRAFT, storeId: 'store-uuid-002' })
     mockStoreService.resolveSellerStoreContext.mockResolvedValueOnce({
       ...mockStore,
       id: 'store-uuid-002',
       slug: 'second-store',
     } as never)
-    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+    mockProductRepo.createProduct.mockResolvedValue(draftProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(draftProduct)
 
     await createProduct(mockUser, {
       storeId: 'store-uuid-002',
@@ -356,37 +410,11 @@ describe('createProduct', () => {
       expect.objectContaining({ name: 'Second Store Product' }),
     )
   })
-
-  it('does not fail product creation when admin notification creation fails', async () => {
-    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
-    const notificationError = new Error('admin notify down')
-    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
-    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
-    mockNotifications.createAdminNotification.mockRejectedValue(notificationError)
-
-    const result = await createProduct(mockUser, {
-      name: 'Test Product',
-      price: '29.99',
-    })
-    await Promise.resolve()
-
-    expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
-    expect(mockLogger.logError).toHaveBeenCalledWith(
-      'seller-product:pending-review:admin-notification',
-      notificationError,
-      expect.objectContaining({
-        productId: 'product-uuid-001',
-        sellerId: 'user-uuid-001',
-        storeId: 'store-uuid-001',
-        source: 'create',
-      }),
-    )
-  })
 })
 
 describe('submitForReview', () => {
-  it('transitions DRAFT product to PENDING_REVIEW', async () => {
-    const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
+  it('transitions a complete DRAFT product to PENDING_REVIEW', async () => {
+    const draftProduct = makeModerationReadyProduct({ status: ProductStatus.DRAFT })
     const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
     mockProductRepo.findProductById.mockResolvedValue(draftProduct)
     mockProductRepo.updateProductStatus.mockResolvedValue(pendingProduct)
@@ -417,6 +445,143 @@ describe('submitForReview', () => {
     expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
   })
 
+  it('fails when category is missing', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({ status: ProductStatus.DRAFT, categoryId: null }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+
+    expect(mockProductRepo.updateProductStatus).not.toHaveBeenCalled()
+    expect(mockNotifications.createAdminNotification).not.toHaveBeenCalled()
+  })
+
+  it('fails for a non-leaf category', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({ status: ProductStatus.DRAFT, categoryId: 'cat-root-clothing-shoes' }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+
+    expect(mockProductRepo.updateProductStatus).not.toHaveBeenCalled()
+  })
+
+  it('fails without description', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({ status: ProductStatus.DRAFT, description: null }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+  })
+
+  it('fails without images', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({
+        status: ProductStatus.DRAFT,
+        images: [],
+        imageUrl: null,
+      }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+  })
+
+  it('fails without a resolved primary image', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({
+        status: ProductStatus.DRAFT,
+        imageUrl: 'https://cdn.example.com/other.png',
+        images: [makeImage({ isPrimary: true })],
+      }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+  })
+
+  it('fails without variants', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({ status: ProductStatus.DRAFT, variants: [] }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+  })
+
+  it('fails when all variants have zero stock', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({
+        status: ProductStatus.DRAFT,
+        variants: [
+          {
+            id: 'variant-uuid-001',
+            productId: 'product-uuid-001',
+            sku: 'VAR-READY-001',
+            size: 'M',
+            color: 'Black',
+            price: new Decimal('1299.00'),
+            stock: 0,
+            createdAt: new Date('2024-01-01'),
+            updatedAt: new Date('2024-01-01'),
+          },
+        ],
+      }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+  })
+
+  it('fails when a required-size category has a variant without size', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(
+      makeModerationReadyProduct({
+        status: ProductStatus.DRAFT,
+        variants: [
+          {
+            id: 'variant-uuid-001',
+            productId: 'product-uuid-001',
+            sku: 'VAR-READY-001',
+            size: null,
+            color: 'Black',
+            price: new Decimal('1299.00'),
+            stock: 2,
+            createdAt: new Date('2024-01-01'),
+            updatedAt: new Date('2024-01-01'),
+          },
+        ],
+      }) as never,
+    )
+
+    await expect(submitForReview(mockUser, 'product-uuid-001')).rejects.toThrow(
+      SellerProductValidationError,
+    )
+  })
+
+  it('keeps the product in DRAFT when readiness validation fails', async () => {
+    const draftProduct = makeModerationReadyProduct({
+      status: ProductStatus.DRAFT,
+      description: 'Коротко',
+    })
+    mockProductRepo.findProductById.mockResolvedValue(draftProduct as never)
+
+    await expect(submitForReview(mockUser, draftProduct.id)).rejects.toThrow(
+      SellerProductValidationError,
+    )
+
+    expect(mockProductRepo.updateProductStatus).not.toHaveBeenCalled()
+  })
+
   it('throws InvalidModerationTransitionError for PUBLISHED product', async () => {
     const publishedProduct = makeProduct({ status: ProductStatus.PUBLISHED })
     mockProductRepo.findProductById.mockResolvedValue(publishedProduct)
@@ -427,7 +592,7 @@ describe('submitForReview', () => {
   })
 
   it('does not fail submitForReview when admin notification creation fails', async () => {
-    const draftProduct = makeProduct({ status: ProductStatus.DRAFT })
+    const draftProduct = makeModerationReadyProduct({ status: ProductStatus.DRAFT })
     const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW })
     const notificationError = new Error('admin notify down')
     mockProductRepo.findProductById.mockResolvedValue(draftProduct)

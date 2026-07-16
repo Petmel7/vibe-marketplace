@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 type ApiSuccess<T> = { success: true; data: T }
-type ApiError = { success: false; error?: { message?: string; code?: string } }
+type ApiError = {
+  success: false
+  error?: {
+    message?: string
+    code?: string
+    details?: Record<string, string[]>
+  }
+}
 
 type ExecuteOptions<T> = {
   url: string
@@ -21,6 +28,7 @@ export function useSellerMutation() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<Record<string, string[]> | null>(null)
 
   const execute = <T,>({
     url,
@@ -33,6 +41,7 @@ export function useSellerMutation() {
   }: ExecuteOptions<T>) =>
     new Promise<T | null>((resolve) => {
       setErrorMessage(null)
+      setErrorDetails(null)
 
       startTransition(async () => {
         try {
@@ -47,6 +56,7 @@ export function useSellerMutation() {
           if (!response.ok || !json.success) {
             const message = json.success ? fallbackErrorMessage : json.error?.message || fallbackErrorMessage
             setErrorMessage(message)
+            setErrorDetails(json.success ? null : json.error?.details ?? null)
             toast.error(message)
             resolve(null)
             return
@@ -67,6 +77,7 @@ export function useSellerMutation() {
           resolve(json.data)
         } catch {
           setErrorMessage(fallbackErrorMessage)
+          setErrorDetails(null)
           toast.error(fallbackErrorMessage)
           resolve(null)
         }
@@ -77,6 +88,8 @@ export function useSellerMutation() {
     isPending,
     errorMessage,
     setErrorMessage,
+    errorDetails,
+    setErrorDetails,
     execute,
   }
 }

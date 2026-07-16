@@ -60,7 +60,7 @@ export async function createProduct(storeId: string, data: CreateSellerProductDt
       imageUrl: data.imageUrl ?? null,
       sku: data.sku ?? null,
       categoryId: data.categoryId ?? null,
-      status: ProductStatus.PENDING_REVIEW,
+      status: ProductStatus.DRAFT,
       updatedAt: new Date(),
     },
     include: {

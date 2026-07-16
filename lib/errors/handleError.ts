@@ -49,6 +49,7 @@ import {
   InvalidVariantConfigurationError,
   CategoryNotFoundError,
   ProductImageLimitExceededError,
+  SellerProductValidationError,
 } from './seller'
 import {
   AdminAccessError,
@@ -368,6 +369,7 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidSkuError ||
     err instanceof InvalidVariantConfigurationError ||
     err instanceof ProductImageLimitExceededError ||
+    err instanceof SellerProductValidationError ||
     err instanceof InvalidBadgeTransitionError ||
     err instanceof InvalidSearchQueryError ||
     err instanceof InvalidFilterError ||
@@ -421,7 +423,14 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof InvalidSeoMetadataError
   )
     return Response.json(
-      { success: false, error: { message: err.message, code: err.code } },
+      {
+        success: false,
+        error: {
+          message: err.message,
+          code: err.code,
+          ...(err instanceof SellerProductValidationError ? { details: err.details } : {}),
+        },
+      },
       { status: 400 },
     )
   if (

@@ -7,6 +7,7 @@ import CategoryTreeSelect from '@/components/seller/CategoryTreeSelect'
 import MultiImageUploadField from '@/components/seller/MultiImageUploadField'
 import ProductStatusBadge from '@/components/seller/ProductStatusBadge'
 import UploadProgress from '@/components/seller/UploadProgress'
+import { hasUnsavedSellerProductChanges } from '@/components/seller/seller-product-form.helpers'
 import {
   createVariantSchema,
   createSellerProductSchema,
@@ -18,6 +19,16 @@ import {
   type AllowedProductSize,
   isAllowedProductSize,
 } from '@/features/seller/products/seller-product.sizes'
+import {
+  PRODUCT_DESCRIPTION_MAX_LENGTH,
+  PRODUCT_DESCRIPTION_MODERATION_MIN_LENGTH,
+  PRODUCT_NAME_MAX_LENGTH,
+  PRODUCT_NAME_MODERATION_MIN_LENGTH,
+  PRODUCT_PRICE_MAX,
+  PRODUCT_PRICE_MIN,
+  PRODUCT_VARIANT_STOCK_MAX,
+  categoryRequiresSize,
+} from '@/features/seller/products/seller-product.validation'
 import { useProductImageUpload, type ProductImageDraft } from '@/hooks/useProductImageUpload'
 import { useSellerCategories } from '@/hooks/useSellerCategories'
 import { useSellerMutation } from '@/hooks/useSellerMutation'
@@ -68,6 +79,8 @@ type ProductEditorValue = {
     stock: number
   }>
 }
+
+type SellerProductFieldErrors = Record<string, string[]>
 
 function createVariantState(): VariantState {
   return { sku: '', size: '', color: '', price: '', stock: 0, isSkuManual: false }
@@ -140,6 +153,233 @@ function renderSizeValueLabel(size: string) {
   return size || 'Без розміру'
 }
 
+function toVariantPayload(variant: VariantState) {
+  return {
+    sku: getCreateSkuPayloadValue(variant.sku, variant.isSkuManual),
+    size: variant.size || null,
+    color: variant.color || null,
+    price: variant.price || null,
+    stock: variant.stock,
+  }
+}
+
+function hasMeaningfulVariantData(variant: VariantState) {
+  return Boolean(
+    variant.size
+    || variant.color.trim()
+    || variant.price.trim()
+    || variant.stock > 0
+    || (variant.isSkuManual && variant.sku.trim()),
+  )
+}
+
+function serializeFormState(state: {
+  name: string
+  description: string
+  price: string
+  sku: string
+  categoryId: string
+}, isManual: boolean) {
+  return JSON.stringify({
+    ...state,
+    isManual,
+  })
+}
+
+function serializeVariantState(variant: VariantState) {
+  return JSON.stringify({
+    sku: variant.sku,
+    size: variant.size,
+    color: variant.color,
+    price: variant.price,
+    stock: variant.stock,
+    isSkuManual: variant.isSkuManual,
+  })
+}
+
+function serializeVariants(variants: VariantState[]) {
+  return JSON.stringify(
+    variants.map((variant) => ({
+      id: variant.id ?? null,
+      sku: variant.sku,
+      size: variant.size,
+      color: variant.color,
+      price: variant.price,
+      stock: variant.stock,
+      isSkuManual: variant.isSkuManual,
+    })),
+  )
+}
+
+function serializeImageDrafts(images: ProductImageDraft[]) {
+  return JSON.stringify(
+    normalizeImageDrafts(images).map((image) => ({
+      id: image.id,
+      source: image.source,
+      url: image.url,
+      storagePath: image.storagePath ?? null,
+      altText: image.altText,
+      isPrimary: image.isPrimary,
+      position: image.position,
+      fileName: image.file?.name ?? null,
+    })),
+  )
+}
+
+function addFieldError(fieldErrors: SellerProductFieldErrors, field: string, message: string) {
+  fieldErrors[field] = [...(fieldErrors[field] ?? []), message]
+}
+
+function mapSchemaIssuesToFieldErrors(
+  issues: Array<{ path: PropertyKey[]; message: string }>,
+): SellerProductFieldErrors {
+  const fieldErrors: SellerProductFieldErrors = {}
+
+  for (const issue of issues) {
+    const firstPath = issue.path[0]
+    const nestedField = typeof issue.path[1] === 'number'
+      ? issue.path[2]
+      : issue.path[1]
+
+    if (firstPath === 'variants') {
+      if (nestedField === 'size') {
+        addFieldError(fieldErrors, 'variantSize', issue.message)
+        continue
+      }
+      if (nestedField === 'stock') {
+        addFieldError(fieldErrors, 'variantStock', issue.message)
+        continue
+      }
+      if (nestedField === 'price') {
+        addFieldError(fieldErrors, 'variantPrice', issue.message)
+        continue
+      }
+      addFieldError(fieldErrors, 'variants', issue.message)
+      continue
+    }
+
+    if (firstPath === 'images') {
+      addFieldError(fieldErrors, 'images', issue.message)
+      continue
+    }
+
+    addFieldError(fieldErrors, typeof firstPath === 'string' ? firstPath : 'form', issue.message)
+  }
+
+  return fieldErrors
+}
+
+function collectFieldMessages(
+  localErrors: SellerProductFieldErrors,
+  remoteErrors: Record<string, string[]> | null,
+  field: string,
+) {
+  return [...(localErrors[field] ?? []), ...(remoteErrors?.[field] ?? [])]
+}
+
+function validateModerationFormState(params: {
+  formState: {
+    name: string
+    description: string
+    price: string
+    categoryId: string
+  }
+  productImages: ProductImageDraft[]
+  variants: VariantState[]
+  categoryPathSlugs: string[]
+  selectedCategoryIsValid: boolean
+}): SellerProductFieldErrors {
+  const fieldErrors: SellerProductFieldErrors = {}
+  const trimmedName = params.formState.name.trim()
+  const trimmedDescription = params.formState.description.trim()
+  const normalizedImages = normalizeImageDrafts(params.productImages)
+  const meaningfulVariants = params.variants.filter(hasMeaningfulVariantData)
+  const requiresSize = categoryRequiresSize(params.categoryPathSlugs)
+
+  if (
+    trimmedName.length < PRODUCT_NAME_MODERATION_MIN_LENGTH
+    || trimmedName.length > PRODUCT_NAME_MAX_LENGTH
+  ) {
+    addFieldError(
+      fieldErrors,
+      'name',
+      `Назва має містити від ${PRODUCT_NAME_MODERATION_MIN_LENGTH} до ${PRODUCT_NAME_MAX_LENGTH} символів.`,
+    )
+  }
+
+  if (
+    trimmedDescription.length < PRODUCT_DESCRIPTION_MODERATION_MIN_LENGTH
+    || trimmedDescription.length > PRODUCT_DESCRIPTION_MAX_LENGTH
+  ) {
+    addFieldError(
+      fieldErrors,
+      'description',
+      `Опис має містити від ${PRODUCT_DESCRIPTION_MODERATION_MIN_LENGTH} до ${PRODUCT_DESCRIPTION_MAX_LENGTH} символів.`,
+    )
+  }
+
+  const parsedPrice = Number(params.formState.price)
+  if (!Number.isFinite(parsedPrice) || parsedPrice < PRODUCT_PRICE_MIN || parsedPrice > PRODUCT_PRICE_MAX) {
+    addFieldError(fieldErrors, 'price', `Базова ціна має бути в межах ${PRODUCT_PRICE_MIN}–${PRODUCT_PRICE_MAX}.`)
+  }
+
+  if (!params.formState.categoryId) {
+    addFieldError(fieldErrors, 'categoryId', 'Оберіть категорію товару.')
+  } else if (!params.selectedCategoryIsValid) {
+    addFieldError(fieldErrors, 'categoryId', 'Категорія має бути фінальною підкатегорією без дочірніх елементів.')
+  }
+
+  if (normalizedImages.length === 0) {
+    addFieldError(fieldErrors, 'images', 'Додайте щонайменше одне зображення товару.')
+  }
+
+  const primaryImage = normalizedImages.find((image) => image.isPrimary) ?? null
+  if (normalizedImages.length > 0 && !primaryImage) {
+    addFieldError(fieldErrors, 'primaryImage', 'Позначте головне фото товару.')
+  }
+
+  if (meaningfulVariants.length === 0) {
+    addFieldError(fieldErrors, 'variants', 'Додайте щонайменше один варіант товару.')
+  } else {
+    let hasStock = false
+
+    for (const variant of meaningfulVariants) {
+      if (variant.stock > 0) {
+        hasStock = true
+      }
+
+      if (!Number.isInteger(variant.stock) || variant.stock < 0 || variant.stock > PRODUCT_VARIANT_STOCK_MAX) {
+        addFieldError(
+          fieldErrors,
+          'variantStock',
+          `Залишок варіанта має бути цілим числом у межах 0–${PRODUCT_VARIANT_STOCK_MAX}.`,
+        )
+      }
+
+      if (variant.price.trim()) {
+        const parsedVariantPrice = Number(variant.price)
+        if (
+          !Number.isFinite(parsedVariantPrice)
+          || parsedVariantPrice < PRODUCT_PRICE_MIN
+          || parsedVariantPrice > PRODUCT_PRICE_MAX
+        ) {
+          addFieldError(fieldErrors, 'variantPrice', `Ціна варіанта має бути в межах ${PRODUCT_PRICE_MIN}–${PRODUCT_PRICE_MAX}.`)
+        }
+      }
+
+      if (requiresSize && !variant.size) {
+        addFieldError(fieldErrors, 'variantSize', 'Для цієї категорії кожен варіант повинен мати розмір.')
+      }
+    }
+
+    if (!hasStock) {
+      addFieldError(fieldErrors, 'variantStock', 'Щонайменше один варіант має бути в наявності.')
+    }
+  }
+
+  return fieldErrors
+}
+
 export default function SellerProductForm({
   mode,
   storeSlug,
@@ -150,44 +390,53 @@ export default function SellerProductForm({
   initialProduct?: ProductEditorValue | null
 }) {
   const router = useRouter()
-  const { execute, isPending, errorMessage, setErrorMessage } = useSellerMutation()
+  const {
+    execute,
+    isPending,
+    errorMessage,
+    setErrorMessage,
+    errorDetails,
+    setErrorDetails,
+  } = useSellerMutation()
   const { uploadImages, removeImage, reorderImages, setPrimaryImage, progress, isUploading } = useProductImageUpload()
   const { categories, isLoading: isLoadingCategories, errorMessage: categoryError } = useSellerCategories()
-  const [formState, setFormState] = useState({
+  const initialFormState = {
     name: initialProduct?.name ?? '',
     description: initialProduct?.description ?? '',
     price: initialProduct?.price ?? '',
     sku: initialProduct?.sku ?? '',
     categoryId: initialProduct?.categoryId ?? '',
-  })
-  const [isBaseSkuManual, setIsBaseSkuManual] = useState(mode === 'edit' || Boolean(initialProduct?.sku))
-  const [productImages, setProductImages] = useState<ProductImageDraft[]>(
-    normalizeImageDrafts(
-      initialProduct?.images.map((image) => ({
-        id: image.id,
-        url: image.url,
-        previewUrl: null,
-        storagePath: image.storagePath,
-        altText: image.altText ?? '',
-        isPrimary: image.isPrimary,
-        position: image.position,
-        source: 'server',
-      })) ?? [],
-    ),
+  }
+  const initialImageDrafts = normalizeImageDrafts(
+    initialProduct?.images.map((image) => ({
+      id: image.id,
+      url: image.url,
+      previewUrl: null,
+      storagePath: image.storagePath,
+      altText: image.altText ?? '',
+      isPrimary: image.isPrimary,
+      position: image.position,
+      source: 'server' as const,
+    })) ?? [],
   )
+  const initialEditVariantState = initialProduct?.variants.map((variant) => ({
+    id: variant.id,
+    sku: variant.sku,
+    size: variant.size ?? '',
+    color: variant.color ?? '',
+    price: variant.price ?? '',
+    stock: variant.stock,
+    isSkuManual: true,
+  })) ?? []
+  const [formState, setFormState] = useState(initialFormState)
+  const [isBaseSkuManual, setIsBaseSkuManual] = useState(mode === 'edit' || Boolean(initialProduct?.sku))
+  const [productImages, setProductImages] = useState<ProductImageDraft[]>(initialImageDrafts)
   const [persistedImageIds, setPersistedImageIds] = useState<string[]>(initialProduct?.images.map((image) => image.id) ?? [])
   const [productImageError, setProductImageError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<SellerProductFieldErrors>({})
   const [createVariants, setCreateVariants] = useState<VariantState[]>(
     mode === 'create'
-      ? initialProduct?.variants.map((variant) => ({
-        id: variant.id,
-        sku: variant.sku,
-        size: variant.size ?? '',
-        color: variant.color ?? '',
-        price: variant.price ?? '',
-        stock: variant.stock,
-        isSkuManual: true,
-      })) ?? [createVariantState()]
+      ? initialEditVariantState.length > 0 ? initialEditVariantState : [createVariantState()]
       : [],
   )
   const [selectedCreateSizes, setSelectedCreateSizes] = useState<AllowedProductSize[]>(
@@ -200,21 +449,23 @@ export default function SellerProductForm({
       : [],
   )
   const [editVariants, setEditVariants] = useState<VariantState[]>(
-    initialProduct?.variants.map((variant) => ({
-      id: variant.id,
-      sku: variant.sku,
-      size: variant.size ?? '',
-      color: variant.color ?? '',
-      price: variant.price ?? '',
-      stock: variant.stock,
-      isSkuManual: true,
-    })) ?? [],
+    initialEditVariantState,
   )
   const [newVariant, setNewVariant] = useState<VariantState>(() =>
     syncVariantSku(initialProduct?.sku ?? '', createVariantState(), initialProduct?.variants.length ?? 0),
   )
+  const [savedFormSnapshot, setSavedFormSnapshot] = useState(() =>
+    serializeFormState(initialFormState, mode === 'edit' || Boolean(initialProduct?.sku)),
+  )
+  const [savedImageSnapshot, setSavedImageSnapshot] = useState(() => serializeImageDrafts(initialImageDrafts))
+  const [savedEditVariantsSnapshot, setSavedEditVariantsSnapshot] = useState(() => serializeVariants(initialEditVariantState))
+  const [isCreateFlowActive, setIsCreateFlowActive] = useState(false)
+  const [isSubmitFlowActive, setIsSubmitFlowActive] = useState(false)
   const isBusy = isPending || isUploading
   const productImagesRef = useRef(productImages)
+  const isDraftSaveInFlightRef = useRef(false)
+  const isSubmitForReviewInFlightRef = useRef(false)
+  const createdDraftIdRef = useRef<string | null>(initialProduct?.id ?? null)
 
   useEffect(() => {
     productImagesRef.current = productImages
@@ -233,6 +484,63 @@ export default function SellerProductForm({
   const selectedCategoryPath = findCategoryPathById(categories, formState.categoryId || null)
   const selectedCategoryIsValid =
     !formState.categoryId || leafCategories.some((category) => category.id === formState.categoryId)
+  const createDraftVariants = createVariants.filter(hasMeaningfulVariantData)
+  const moderationVariants = mode === 'create' ? createVariants : editVariants
+  const isProductDirty = serializeFormState(formState, isBaseSkuManual) !== savedFormSnapshot
+  const isGalleryDirty = serializeImageDrafts(productImages) !== savedImageSnapshot
+  const isExistingVariantsDirty = serializeVariants(editVariants) !== savedEditVariantsSnapshot
+  const isNewVariantDirty = hasMeaningfulVariantData(newVariant)
+  const isActionLocked = isBusy || isCreateFlowActive || isSubmitFlowActive
+
+  function clearValidationState() {
+    setErrorMessage(null)
+    setErrorDetails(null)
+    setFieldErrors({})
+    setProductImageError(null)
+  }
+
+  function applyFieldErrors(nextErrors: SellerProductFieldErrors, fallbackMessage: string) {
+    setFieldErrors(nextErrors)
+    setErrorMessage(fallbackMessage)
+  }
+
+  function getMessages(field: string) {
+    return collectFieldMessages(fieldErrors, errorDetails, field)
+  }
+
+  function renderFieldErrors(field: string) {
+    const messages = getMessages(field)
+    if (messages.length === 0) {
+      return null
+    }
+
+    return (
+      <div className="space-y-1">
+        {messages.map((message, index) => (
+          <p key={`${field}-${index}`} className="text-sm text-brand-danger" role="alert">
+            {message}
+          </p>
+        ))}
+      </div>
+    )
+  }
+
+  function validateModerationSubmission() {
+    const nextFieldErrors = validateModerationFormState({
+      formState,
+      productImages,
+      variants: moderationVariants,
+      categoryPathSlugs: selectedCategoryPath.map((category) => category.slug),
+      selectedCategoryIsValid,
+    })
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      applyFieldErrors(nextFieldErrors, 'Товар ще не готовий до модерації. Виправте позначені поля.')
+      return false
+    }
+
+    return true
+  }
 
   function updateBaseSku(nextSku: string, manual: boolean) {
     setIsBaseSkuManual(manual)
@@ -367,6 +675,7 @@ export default function SellerProductForm({
       }
       setProductImages([])
       setPersistedImageIds([])
+      setSavedImageSnapshot(serializeImageDrafts([]))
       return true
     }
 
@@ -382,15 +691,22 @@ export default function SellerProductForm({
 
     setProductImages(withPrimary)
     setPersistedImageIds(withPrimary.map((image) => image.id))
+    setSavedImageSnapshot(serializeImageDrafts(withPrimary))
     return true
   }
 
   async function submitBaseForm() {
-    setErrorMessage(null)
-    setProductImageError(null)
+    if (isDraftSaveInFlightRef.current) {
+      return
+    }
+
+    clearValidationState()
 
     if (!selectedCategoryIsValid) {
-      setErrorMessage('Оберіть коректну категорію.')
+      applyFieldErrors(
+        { categoryId: ['Категорія має бути фінальною підкатегорією без дочірніх елементів.'] },
+        'Оберіть коректну категорію.',
+      )
       return
     }
 
@@ -401,32 +717,55 @@ export default function SellerProductForm({
         price: formState.price,
         sku: getCreateSkuPayloadValue(formState.sku, isBaseSkuManual),
         categoryId: formState.categoryId || null,
-        variants: createVariants.map((variant) => ({
-          sku: getCreateSkuPayloadValue(variant.sku, variant.isSkuManual),
-          size: variant.size || null,
-          color: variant.color || null,
-          price: variant.price || null,
-          stock: variant.stock,
-        })),
+        variants: createDraftVariants.map(toVariantPayload),
       })
 
       if (!parsed.success) {
-        setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля товару.')
+        applyFieldErrors(
+          mapSchemaIssuesToFieldErrors(parsed.error.issues),
+          parsed.error.issues[0]?.message ?? 'Перевірте поля товару.',
+        )
         return
       }
 
-      const data = await execute<{ id: string }>({
-        url: '/api/seller/products',
-        method: 'POST',
-        body: parsed.data,
-        successMessage: 'Чернетку товару створено.',
-        refresh: false,
-      })
+      let navigationStarted = false
+      isDraftSaveInFlightRef.current = true
+      setIsCreateFlowActive(true)
+      try {
+        const draftId = createdDraftIdRef.current
 
-      if (!data) return
-      await persistProductGallery(data.id)
-      router.push(`/seller/products/${data.id}`)
-      return
+        if (draftId) {
+          const gallerySaved = await persistProductGallery(draftId)
+          if (!gallerySaved) return
+
+          navigationStarted = true
+          router.replace(`/seller/products/${draftId}`)
+          return
+        }
+
+        const data = await execute<{ id: string }>({
+          url: '/api/seller/products',
+          method: 'POST',
+          body: parsed.data,
+          successMessage: 'Чернетку товару створено.',
+          refresh: false,
+        })
+
+        if (!data) return
+        createdDraftIdRef.current = data.id
+
+        const gallerySaved = await persistProductGallery(data.id)
+        if (!gallerySaved) return
+
+        navigationStarted = true
+        router.replace(`/seller/products/${data.id}`)
+        return
+      } finally {
+        if (!navigationStarted) {
+          isDraftSaveInFlightRef.current = false
+          setIsCreateFlowActive(false)
+        }
+      }
     }
 
     if (!initialProduct) return
@@ -440,26 +779,36 @@ export default function SellerProductForm({
     })
 
     if (!parsed.success) {
-      setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля товару.')
+      applyFieldErrors(
+        mapSchemaIssuesToFieldErrors(parsed.error.issues),
+        parsed.error.issues[0]?.message ?? 'Перевірте поля товару.',
+      )
       return
     }
 
-    const saved = await execute({
-      url: `/api/seller/products/${initialProduct.id}`,
-      method: 'PATCH',
-      body: parsed.data,
-      successMessage: 'Товар оновлено.',
-      refresh: false,
-    })
+    isDraftSaveInFlightRef.current = true
+    try {
+      const saved = await execute({
+        url: `/api/seller/products/${initialProduct.id}`,
+        method: 'PATCH',
+        body: parsed.data,
+        successMessage: 'Товар оновлено.',
+        refresh: false,
+      })
 
-    if (!saved) return
-    const gallerySaved = await persistProductGallery(initialProduct.id)
-    if (!gallerySaved) return
-    router.refresh()
+      if (!saved) return
+      setSavedFormSnapshot(serializeFormState(formState, isBaseSkuManual))
+      const gallerySaved = await persistProductGallery(initialProduct.id)
+      if (!gallerySaved) return
+      router.refresh()
+    } finally {
+      isDraftSaveInFlightRef.current = false
+    }
   }
 
   async function saveExistingVariant(index: number) {
     if (!initialProduct) return
+    clearValidationState()
 
     const variant = editVariants[index]
     if (!variant?.id) return
@@ -473,7 +822,10 @@ export default function SellerProductForm({
     })
 
     if (!parsed.success) {
-      setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля варіанта.')
+      applyFieldErrors(
+        mapSchemaIssuesToFieldErrors(parsed.error.issues),
+        parsed.error.issues[0]?.message ?? 'Перевірте поля варіанта.',
+      )
       return
     }
 
@@ -494,8 +846,7 @@ export default function SellerProductForm({
 
     if (!saved) return
 
-    setEditVariants((current) =>
-      current.map((entry, currentIndex) =>
+    const nextVariants = editVariants.map((entry, currentIndex) =>
         currentIndex === index
           ? {
             id: saved.id,
@@ -507,14 +858,16 @@ export default function SellerProductForm({
             isSkuManual: true,
           }
           : entry,
-      ),
-    )
+      )
+    setEditVariants(nextVariants)
+    setSavedEditVariantsSnapshot(serializeVariants(nextVariants))
     setNewVariant((current) => syncVariantSku(formState.sku, current, editVariants.length))
     router.refresh()
   }
 
   async function removeExistingVariant(index: number) {
     if (!initialProduct) return
+    clearValidationState()
 
     const variant = editVariants[index]
     if (!variant?.id) return
@@ -528,13 +881,16 @@ export default function SellerProductForm({
 
     if (removed === null) return
 
-    setEditVariants((current) => current.filter((_, currentIndex) => currentIndex !== index))
+    const nextVariants = editVariants.filter((_, currentIndex) => currentIndex !== index)
+    setEditVariants(nextVariants)
+    setSavedEditVariantsSnapshot(serializeVariants(nextVariants))
     setNewVariant((current) => syncVariantSku(formState.sku, current, Math.max(editVariants.length - 1, 0)))
     router.refresh()
   }
 
   async function addNewVariant() {
     if (!initialProduct) return
+    clearValidationState()
 
     const parsed = createVariantSchema.safeParse({
       sku: getCreateSkuPayloadValue(newVariant.sku, newVariant.isSkuManual),
@@ -545,7 +901,10 @@ export default function SellerProductForm({
     })
 
     if (!parsed.success) {
-      setErrorMessage(parsed.error.issues[0]?.message ?? 'Перевірте поля нового варіанта.')
+      applyFieldErrors(
+        mapSchemaIssuesToFieldErrors(parsed.error.issues),
+        parsed.error.issues[0]?.message ?? 'Перевірте поля нового варіанта.',
+      )
       return
     }
 
@@ -566,8 +925,8 @@ export default function SellerProductForm({
 
     if (!created) return
 
-    setEditVariants((current) => [
-      ...current,
+    const nextVariants = [
+      ...editVariants,
       {
         id: created.id,
         sku: created.sku,
@@ -577,23 +936,54 @@ export default function SellerProductForm({
         stock: created.stock,
         isSkuManual: true,
       },
-    ])
+    ]
+    setEditVariants(nextVariants)
+    setSavedEditVariantsSnapshot(serializeVariants(nextVariants))
     setNewVariant(syncVariantSku(formState.sku, createVariantState(), editVariants.length + 1))
     router.refresh()
   }
 
   async function submitForReview() {
+    if (isSubmitForReviewInFlightRef.current || mode === 'create') {
+      return
+    }
+
+    clearValidationState()
+
+    if (!validateModerationSubmission()) {
+      return
+    }
+
     if (!initialProduct) return
 
-    const submitted = await execute({
-      url: `/api/seller/products/${initialProduct.id}/submit`,
-      method: 'POST',
-      successMessage: 'Товар відправлено на перевірку.',
-      refresh: false,
-    })
+    if (
+      hasUnsavedSellerProductChanges({
+        isProductDirty,
+        isGalleryDirty,
+        isExistingVariantsDirty,
+        isNewVariantDirty,
+      })
+    ) {
+      setErrorMessage('Спочатку збережіть незбережені зміни в полях, галереї та варіантах.')
+      return
+    }
 
-    if (!submitted) return
-    router.refresh()
+    isSubmitForReviewInFlightRef.current = true
+    setIsSubmitFlowActive(true)
+    try {
+      const submitted = await execute({
+        url: `/api/seller/products/${initialProduct.id}/submit`,
+        method: 'POST',
+        successMessage: 'Товар відправлено на перевірку.',
+        refresh: false,
+      })
+
+      if (!submitted) return
+      router.refresh()
+    } finally {
+      isSubmitForReviewInFlightRef.current = false
+      setIsSubmitFlowActive(false)
+    }
   }
 
   async function archiveProduct() {
@@ -659,6 +1049,7 @@ export default function SellerProductForm({
                 }}
                 required
               />
+              {renderFieldErrors('name')}
             </label>
             <label className="space-y-2 sm:col-span-2">
               <span className="block text-sm font-medium text-copy-strong">Опис</span>
@@ -667,6 +1058,7 @@ export default function SellerProductForm({
                 value={formState.description}
                 onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
               />
+              {renderFieldErrors('description')}
             </label>
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Базова ціна</span>
@@ -677,6 +1069,7 @@ export default function SellerProductForm({
                 placeholder="1299.00"
                 required
               />
+              {renderFieldErrors('price')}
             </label>
             <div className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Базовий SKU</span>
@@ -715,6 +1108,7 @@ export default function SellerProductForm({
               {!selectedCategoryIsValid ? (
                 <p className="text-sm text-brand-danger">Оберіть коректну фінальну категорію.</p>
               ) : null}
+              {renderFieldErrors('categoryId')}
             </label>
             <div className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Контекст магазину</span>
@@ -732,7 +1126,7 @@ export default function SellerProductForm({
             description="Завантажте кілька зображень товару, виберіть головне фото, задайте доступний alt-текст і впорядкуйте галерею."
             items={productImages}
             disabled={isBusy}
-            errorMessage={productImageError ?? progress.errorMessage}
+            errorMessage={productImageError ?? progress.errorMessage ?? getMessages('images')[0] ?? getMessages('primaryImage')[0] ?? null}
             onFilesSelected={handleFilesSelected}
             onRemove={(id) => {
               setProductImages((current) => {
@@ -755,6 +1149,8 @@ export default function SellerProductForm({
               )
             }}
           />
+          {renderFieldErrors('images')}
+          {renderFieldErrors('primaryImage')}
 
           {progress.label ? (
             <UploadProgress
@@ -800,6 +1196,10 @@ export default function SellerProductForm({
                 <p className="text-sm text-copy-muted">
                   Оберіть доступні розміри, щоб автоматично створити варіанти. Якщо розмір не потрібен, залиште список порожнім.
                 </p>
+                {renderFieldErrors('variants')}
+                {renderFieldErrors('variantSize')}
+                {renderFieldErrors('variantPrice')}
+                {renderFieldErrors('variantStock')}
               </div>
 
               <div className="space-y-4">
@@ -937,6 +1337,10 @@ export default function SellerProductForm({
                     Варіантів ще немає. Додайте перший нижче.
                   </div>
                 ) : null}
+                {renderFieldErrors('variants')}
+                {renderFieldErrors('variantSize')}
+                {renderFieldErrors('variantPrice')}
+                {renderFieldErrors('variantStock')}
 
                 {editVariants.map((variant, index) => (
                   <div key={variant.id ?? `variant-${index}`} className="grid gap-3 rounded-2xl border border-panelBorder bg-panel p-4">
@@ -1152,7 +1556,7 @@ export default function SellerProductForm({
               <button
                 type="button"
                 className="rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10"
-                disabled={isBusy}
+                disabled={isActionLocked}
                 onClick={() => void archiveProduct()}
               >
                 Архівувати товар
@@ -1162,14 +1566,14 @@ export default function SellerProductForm({
               <button
                 type="button"
                 className="ui-secondary-button"
-                disabled={isBusy}
+                disabled={isActionLocked}
                 onClick={() => void submitForReview()}
               >
-                Відправити на перевірку
+                Надіслати на модерацію
               </button>
             ) : null}
-            <button type="submit" className="ui-primary-button" disabled={isBusy}>
-              {mode === 'create' ? 'Створити чернетку товару' : 'Зберегти зміни'}
+            <button type="submit" className="ui-primary-button" disabled={isActionLocked}>
+              {mode === 'create' || initialProduct?.status === 'DRAFT' ? 'Зберегти чернетку' : 'Зберегти зміни'}
             </button>
           </div>
         </form>

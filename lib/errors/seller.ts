@@ -198,6 +198,18 @@ export class InvalidVariantConfigurationError extends Error {
   }
 }
 
+export class SellerProductValidationError extends Error {
+  readonly code = 'SELLER_PRODUCT_VALIDATION_ERROR'
+  readonly statusCode = 400
+  readonly details: Record<string, string[]>
+
+  constructor(message = 'Seller product validation failed', details: Record<string, string[]> = {}) {
+    super(message)
+    this.name = 'SellerProductValidationError'
+    this.details = details
+  }
+}
+
 export class CategoryNotFoundError extends Error {
   readonly code = 'CATEGORY_NOT_FOUND'
   readonly statusCode = 404

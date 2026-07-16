@@ -42,7 +42,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
 /**
  * POST /api/seller/products
- * Creates a new product under the seller's store (status: PENDING_REVIEW).
+ * Creates a new product draft under the seller's store (status: DRAFT).
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {

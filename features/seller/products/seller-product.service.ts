@@ -9,6 +9,7 @@ import {
   InvalidVariantConfigurationError,
   CategoryNotFoundError,
   ProductImageLimitExceededError,
+  SellerProductValidationError,
 } from '@/lib/errors/seller'
 import {
   assertStoreOwnership,
@@ -43,7 +44,6 @@ import {
   deleteVariant as repoDeleteVariant,
   updateVariantStock as repoUpdateVariantStock,
   archiveProduct as repoArchiveProduct,
-  findCategoryById,
   listActiveCategories,
   findProductBySkuInStore,
   findVariantBySku,
@@ -59,22 +59,22 @@ import {
 } from './seller-product.repository'
 import { generateBaseSku, generateVariantSku, normalizeSku } from './seller-product.utils'
 import { isAllowedProductSize } from './seller-product.sizes'
+import {
+  PRODUCT_DESCRIPTION_MAX_LENGTH,
+  PRODUCT_DESCRIPTION_MODERATION_MIN_LENGTH,
+  PRODUCT_IMAGE_LIMIT,
+  PRODUCT_NAME_MAX_LENGTH,
+  PRODUCT_NAME_MODERATION_MIN_LENGTH,
+  PRODUCT_PRICE_MAX,
+  PRODUCT_PRICE_MIN,
+  PRODUCT_VARIANT_LIMIT,
+  PRODUCT_VARIANT_STOCK_MAX,
+  categoryRequiresSize,
+  createVariantCombinationKey,
+  isMoneyValueInRange,
+} from './seller-product.validation'
 
-const MAX_PRODUCT_IMAGES = 10
 const MAX_AUTO_SKU_GENERATION_ATTEMPTS = 5
-
-function normalizeVariantIdentityColor(color: string | null | undefined) {
-  return color?.trim().toUpperCase() ?? ''
-}
-
-function getVariantCombinationKey(variant: {
-  size?: string | null
-  color?: string | null
-}) {
-  const normalizedSize = variant.size ?? ''
-  const normalizedColor = normalizeVariantIdentityColor(variant.color)
-  return `${normalizedSize}::${normalizedColor}`
-}
 
 function assertAllowedVariantSize(size: string | null | undefined) {
   if (size == null) {
@@ -107,12 +107,12 @@ function assertNoDuplicateVariantCombinations(
       continue
     }
 
-    seen.add(getVariantCombinationKey(existingVariant))
+    seen.add(createVariantCombinationKey(existingVariant))
   }
 
   for (const variant of variants) {
     assertAllowedVariantSize(variant.size ?? null)
-    const key = getVariantCombinationKey(variant)
+    const key = createVariantCombinationKey(variant)
     if (seen.has(key)) {
       throw new InvalidVariantConfigurationError(
         'Variant size and color combinations must be unique within a product',
@@ -120,6 +120,178 @@ function assertNoDuplicateVariantCombinations(
     }
 
     seen.add(key)
+  }
+}
+
+type SellerProductFieldErrors = Record<string, string[]>
+
+function addFieldError(
+  fieldErrors: SellerProductFieldErrors,
+  field: string,
+  message: string,
+) {
+  fieldErrors[field] = [...(fieldErrors[field] ?? []), message]
+}
+
+type SellerCategoryContext = {
+  selected: SellerCategoryOptionDto
+  path: SellerCategoryOptionDto[]
+  isLeaf: boolean
+}
+
+async function getSellerCategoryContext(
+  categoryId: string | null | undefined,
+): Promise<SellerCategoryContext | null> {
+  if (!categoryId) {
+    return null
+  }
+
+  const categories = await listActiveCategories()
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  const selected = byId.get(categoryId)
+
+  if (!selected) {
+    throw new CategoryNotFoundError()
+  }
+
+  const path: SellerCategoryOptionDto[] = []
+  let current: SellerCategoryOptionDto | undefined = selected
+
+  while (current) {
+    path.unshift(current)
+    current = current.parentId ? byId.get(current.parentId) : undefined
+  }
+
+  const isLeaf = !categories.some((category) => category.parentId === selected.id)
+
+  return {
+    selected,
+    path,
+    isLeaf,
+  }
+}
+
+async function ensureLeafCategorySelection(categoryId: string | null | undefined) {
+  const context = await getSellerCategoryContext(categoryId)
+  if (!context) {
+    return null
+  }
+
+  if (!context.isLeaf) {
+    throw new SellerProductValidationError(
+      'Оберіть фінальну категорію товару.',
+      { categoryId: ['Категорія має бути фінальною підкатегорією без дочірніх елементів.'] },
+    )
+  }
+
+  return context
+}
+
+function validateModerationReadiness(product: SellerProductDto, categoryContext: SellerCategoryContext | null) {
+  const fieldErrors: SellerProductFieldErrors = {}
+  const trimmedName = product.name.trim()
+  const trimmedDescription = product.description?.trim() ?? ''
+
+  if (trimmedName.length < PRODUCT_NAME_MODERATION_MIN_LENGTH || trimmedName.length > PRODUCT_NAME_MAX_LENGTH) {
+    addFieldError(
+      fieldErrors,
+      'name',
+      `Назва має містити від ${PRODUCT_NAME_MODERATION_MIN_LENGTH} до ${PRODUCT_NAME_MAX_LENGTH} символів.`,
+    )
+  }
+
+  if (
+    trimmedDescription.length < PRODUCT_DESCRIPTION_MODERATION_MIN_LENGTH
+    || trimmedDescription.length > PRODUCT_DESCRIPTION_MAX_LENGTH
+  ) {
+    addFieldError(
+      fieldErrors,
+      'description',
+      `Опис має містити від ${PRODUCT_DESCRIPTION_MODERATION_MIN_LENGTH} до ${PRODUCT_DESCRIPTION_MAX_LENGTH} символів.`,
+    )
+  }
+
+  if (!isMoneyValueInRange(product.price)) {
+    addFieldError(
+      fieldErrors,
+      'price',
+      `Базова ціна має бути в межах ${PRODUCT_PRICE_MIN}–${PRODUCT_PRICE_MAX}.`,
+    )
+  }
+
+  if (!categoryContext) {
+    addFieldError(fieldErrors, 'categoryId', 'Оберіть категорію товару.')
+  } else if (!categoryContext.isLeaf) {
+    addFieldError(
+      fieldErrors,
+      'categoryId',
+      'Категорія має бути фінальною підкатегорією без дочірніх елементів.',
+    )
+  }
+
+  if (product.images.length === 0) {
+    addFieldError(fieldErrors, 'images', 'Додайте щонайменше одне зображення товару.')
+  } else {
+    const primaryImage = product.images.find((image) => image.isPrimary) ?? null
+    if (!primaryImage) {
+      addFieldError(fieldErrors, 'primaryImage', 'Позначте головне фото товару.')
+    } else if (!product.imageUrl || product.imageUrl !== primaryImage.url) {
+      addFieldError(fieldErrors, 'primaryImage', 'Головне фото товару має бути коректно збережене.')
+    }
+  }
+
+  if (product.variants.length === 0) {
+    addFieldError(fieldErrors, 'variants', 'Додайте щонайменше один варіант товару.')
+  } else {
+    if (product.variants.length > PRODUCT_VARIANT_LIMIT) {
+      addFieldError(fieldErrors, 'variants', `Максимальна кількість варіантів: ${PRODUCT_VARIANT_LIMIT}.`)
+    }
+
+    try {
+      assertNoDuplicateVariantCombinations(product.variants)
+    } catch {
+      addFieldError(fieldErrors, 'variants', 'Комбінації розміру та кольору мають бути унікальними.')
+    }
+
+    const requiresSize = categoryRequiresSize(categoryContext?.path.map((category) => category.slug) ?? [])
+    let hasVariantWithStock = false
+
+    for (const variant of product.variants) {
+      if (variant.stock > 0) {
+        hasVariantWithStock = true
+      }
+
+      if (!Number.isInteger(variant.stock) || variant.stock < 0 || variant.stock > PRODUCT_VARIANT_STOCK_MAX) {
+        addFieldError(
+          fieldErrors,
+          'variantStock',
+          `Залишок варіанта має бути цілим числом у межах 0–${PRODUCT_VARIANT_STOCK_MAX}.`,
+        )
+      }
+
+      if (variant.price !== null && !isMoneyValueInRange(variant.price)) {
+        addFieldError(
+          fieldErrors,
+          'variantPrice',
+          `Ціна варіанта має бути в межах ${PRODUCT_PRICE_MIN}–${PRODUCT_PRICE_MAX}.`,
+        )
+      }
+
+      if (requiresSize && !variant.size) {
+        addFieldError(fieldErrors, 'variantSize', 'Для цієї категорії кожен варіант повинен мати розмір.')
+      }
+    }
+
+    if (!hasVariantWithStock) {
+      addFieldError(fieldErrors, 'variantStock', 'Щонайменше один варіант має бути в наявності.')
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new SellerProductValidationError(
+      'Товар ще не готовий до модерації. Виправте позначені поля.',
+      fieldErrors,
+    )
   }
 }
 
@@ -276,17 +448,6 @@ async function getOwnedProduct(user: SessionUser, productId: string) {
   const store = await assertStoreOwnership(user.id, product.storeId)
   assertSellerOwnsProduct(product, store.id)
   return { store, product }
-}
-
-async function ensureCategoryExists(categoryId: string | null | undefined) {
-  if (!categoryId) {
-    return
-  }
-
-  const category = await findCategoryById(categoryId)
-  if (!category) {
-    throw new CategoryNotFoundError()
-  }
 }
 
 async function resolveProductSku(params: {
@@ -490,7 +651,7 @@ export async function createProduct(
 ): Promise<SellerProductDto> {
   requireSeller(user)
   const store = await getOwnedStore(user, data.storeId)
-  await ensureCategoryExists(data.categoryId)
+  await ensureLeafCategorySelection(data.categoryId)
 
   const productSku = await resolveProductSku({
     storeId: store.id,
@@ -500,8 +661,8 @@ export async function createProduct(
   })
 
   const normalizedImages = data.images ? normalizeImagePayload(data.images) : []
-  if (normalizedImages.length > MAX_PRODUCT_IMAGES) {
-    throw new ProductImageLimitExceededError(`A product can have at most ${MAX_PRODUCT_IMAGES} images`)
+  if (normalizedImages.length > PRODUCT_IMAGE_LIMIT) {
+    throw new ProductImageLimitExceededError(`A product can have at most ${PRODUCT_IMAGE_LIMIT} images`)
   }
   assertNoDuplicateVariantCombinations(data.variants ?? [])
 
@@ -532,12 +693,6 @@ export async function createProduct(
 
   const refreshed = await findProductByIdAndStoreId(product.id, store.id)
   if (!refreshed) throw new ProductNotFoundError()
-  notifyAdminsAboutPendingReviewProduct({
-    product: refreshed,
-    seller: user,
-    store,
-    source: 'create',
-  })
   return toSellerProductDto(refreshed)
 }
 
@@ -550,7 +705,7 @@ export async function updateProduct(
   const { store, product } = await getOwnedProduct(user, productId)
 
   if (data.categoryId !== undefined) {
-    await ensureCategoryExists(data.categoryId)
+    await ensureLeafCategorySelection(data.categoryId)
   }
 
   const resolvedSku = data.sku !== undefined
@@ -583,6 +738,10 @@ export async function submitForReview(
   if (product.status !== ProductStatus.DRAFT) {
     throw new InvalidModerationTransitionError(product.status, 'PENDING_REVIEW')
   }
+
+  const productDto = toSellerProductDto(product)
+  const categoryContext = await ensureLeafCategorySelection(product.categoryId)
+  validateModerationReadiness(productDto, categoryContext)
 
   const updated = await updateProductStatus(productId, ProductStatus.PENDING_REVIEW)
   notifyAdminsAboutPendingReviewProduct({
@@ -726,8 +885,8 @@ export async function uploadProductImage(
   await getOwnedProduct(user, productId)
 
   const existingCount = await countProductImages(productId)
-  if (existingCount >= MAX_PRODUCT_IMAGES) {
-    throw new ProductImageLimitExceededError(`A product can have at most ${MAX_PRODUCT_IMAGES} images`)
+  if (existingCount >= PRODUCT_IMAGE_LIMIT) {
+    throw new ProductImageLimitExceededError(`A product can have at most ${PRODUCT_IMAGE_LIMIT} images`)
   }
 
   const uploaded = await uploadProductImageBinary({ productId, file: params.file })
