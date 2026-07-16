@@ -186,17 +186,6 @@ function serializeFormState(state: {
   })
 }
 
-function serializeVariantState(variant: VariantState) {
-  return JSON.stringify({
-    sku: variant.sku,
-    size: variant.size,
-    color: variant.color,
-    price: variant.price,
-    stock: variant.stock,
-    isSkuManual: variant.isSkuManual,
-  })
-}
-
 function serializeVariants(variants: VariantState[]) {
   return JSON.stringify(
     variants.map((variant) => ({
@@ -847,18 +836,18 @@ export default function SellerProductForm({
     if (!saved) return
 
     const nextVariants = editVariants.map((entry, currentIndex) =>
-        currentIndex === index
-          ? {
-            id: saved.id,
-            sku: saved.sku,
-            size: saved.size ?? '',
-            color: saved.color ?? '',
-            price: saved.price ?? '',
-            stock: saved.stock,
-            isSkuManual: true,
-          }
-          : entry,
-      )
+      currentIndex === index
+        ? {
+          id: saved.id,
+          sku: saved.sku,
+          size: saved.size ?? '',
+          color: saved.color ?? '',
+          price: saved.price ?? '',
+          stock: saved.stock,
+          isSkuManual: true,
+        }
+        : entry,
+    )
     setEditVariants(nextVariants)
     setSavedEditVariantsSnapshot(serializeVariants(nextVariants))
     setNewVariant((current) => syncVariantSku(formState.sku, current, editVariants.length))
@@ -1087,9 +1076,6 @@ export default function SellerProductForm({
                   Авто
                 </button>
               </div>
-              <p className="text-sm text-copy-muted">
-                Чернетки SKU формуються з назви товару та контексту магазину, доки ви не перевизначите їх вручну.
-              </p>
             </div>
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Категорія</span>
@@ -1110,12 +1096,6 @@ export default function SellerProductForm({
               ) : null}
               {renderFieldErrors('categoryId')}
             </label>
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Контекст магазину</span>
-              <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
-                Чернетки використовують <span className="font-medium text-copy-strong">{storeSlug}</span> для формування підказок SKU.
-              </div>
-            </div>
           </div>
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
             Бейджі маркетплейсу призначаються автоматично на основі дати публікації, продажів і аналітики платформи.

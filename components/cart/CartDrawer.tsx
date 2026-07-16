@@ -53,7 +53,7 @@ export default function CartDrawer() {
     handleRemoveItem,
   } = useCart()
 
-  if (isLoading) return <Loading />
+  if (isLoading && !cart) return <Loading />
   if (!cart || cart.items.length === 0) {
     return <CartEmpty />
   }

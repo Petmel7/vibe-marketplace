@@ -164,4 +164,111 @@ describe('useCart', () => {
       'loaded',
     )
   })
+
+  it('keeps existing cart data rendered while auth sync is in progress', async () => {
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    expect(container.querySelector('[data-testid="cart-count"]')?.textContent).toBe('2')
+    expect(container.querySelector('[data-testid="cart-loading"]')?.textContent).toBe('loaded')
+
+    useCurrentUserMock.mockReturnValue({
+      isAuthenticated: false,
+      hasCompletedInitialSync: true,
+      isSyncingUser: true,
+    })
+
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    expect(container.querySelector('[data-testid="cart-count"]')?.textContent).toBe('2')
+    expect(container.querySelector('[data-testid="cart-loading"]')?.textContent).toBe('loaded')
+    expect(cartGetMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes the cart in the background after auth sync completes when cart data already exists', async () => {
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    useCurrentUserMock.mockReturnValue({
+      isAuthenticated: false,
+      hasCompletedInitialSync: true,
+      isSyncingUser: true,
+    })
+
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    cartGetMock.mockResolvedValueOnce({
+      id: 'cart-1',
+      itemCount: 3,
+      totalAmount: '150.00',
+      items: [],
+    })
+
+    useCurrentUserMock.mockReturnValue({
+      isAuthenticated: false,
+      hasCompletedInitialSync: true,
+      isSyncingUser: false,
+    })
+
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    expect(cartGetMock).toHaveBeenCalledTimes(2)
+    expect(container.querySelector('[data-testid="cart-loading"]')?.textContent).toBe('loaded')
+    expect(container.querySelector('[data-testid="cart-count"]')?.textContent).toBe('3')
+  })
+
+  it('refreshes the cart after an explicit refreshKey change without blocking the existing cart', async () => {
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    cartGetMock.mockResolvedValueOnce({
+      id: 'cart-1',
+      itemCount: 4,
+      totalAmount: '200.00',
+      items: [],
+    })
+    mockCartStoreState.refreshKey += 1
+
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    expect(cartGetMock).toHaveBeenCalledTimes(2)
+    expect(container.querySelector('[data-testid="cart-loading"]')?.textContent).toBe('loaded')
+    expect(container.querySelector('[data-testid="cart-count"]')?.textContent).toBe('4')
+  })
+
+  it('preserves the existing cart when a background refresh fails', async () => {
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    cartGetMock.mockRejectedValueOnce(new Error('background refresh failed'))
+    mockCartStoreState.refreshKey += 1
+
+    await act(async () => {
+      root.render(<CartProbe />)
+      await flushAsyncWork()
+    })
+
+    expect(container.querySelector('[data-testid="cart-loading"]')?.textContent).toBe('loaded')
+    expect(container.querySelector('[data-testid="cart-count"]')?.textContent).toBe('2')
+  })
 })

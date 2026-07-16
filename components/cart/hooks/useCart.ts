@@ -25,14 +25,27 @@ export function useCart() {
     const [loadingItemIds, setLoadingItemIds] = useState<Set<string>>(new Set())
 
     const sessionIdRef = useRef('')
+    const cartRef = useRef<CartDto | null>(null)
+
+    cartRef.current = cart
 
     useEffect(() => {
-        if (!hasCompletedInitialSync || isSyncingUser) {
+        const hasCartData = cartRef.current !== null
+
+        if (!hasCompletedInitialSync || (!hasCartData && isSyncingUser)) {
             setIsLoading(true)
             return
         }
 
+        if (isSyncingUser) {
+            return
+        }
+
         sessionIdRef.current = useCartStore.getState().ensureSessionId()
+
+        if (!hasCartData) {
+            setIsLoading(true)
+        }
 
         let cancelled = false
 
@@ -45,6 +58,7 @@ export function useCart() {
                 )
 
                 if (!cancelled && json) {
+                    cartRef.current = json
                     setCart(json)
                     setItemCount(json.itemCount)
                 }
@@ -55,7 +69,11 @@ export function useCart() {
             }
         }
 
-        loadCart()
+        void loadCart().catch(() => {
+            if (!cancelled) {
+                setIsLoading(false)
+            }
+        })
 
         return () => {
             cancelled = true
