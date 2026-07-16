@@ -113,13 +113,13 @@ describe('NovaPoshtaProvider directory cache', () => {
     mockFetchSuccess({
       success: true,
       data: [
-        { Ref: 'dup-ref', Description: 'РљРёС—РІ' },
-        { Ref: 'dup-ref', Description: 'РљРёС—РІ дубль' },
-        { Ref: 'unique-ref', Description: 'Р‘СЂРѕРІР°СЂРё' },
+        { Ref: 'dup-ref', Description: 'Київ' },
+        { Ref: 'dup-ref', Description: 'Київ дубль' },
+        { Ref: 'unique-ref', Description: 'Бровари' },
       ],
     })
 
-    const cities = await provider.searchCities('РљРё')
+    const cities = await provider.searchCities('Ки')
 
     expect(cities).toHaveLength(2)
     expect(cities[0]?.ref).toBe('dup-ref')
@@ -154,15 +154,15 @@ describe('NovaPoshtaProvider directory cache', () => {
       data: [
         {
           Ref: 'warehouse-ref',
-          Description: 'Р’С–РґРґС–Р»РµРЅРЅСЏ 1',
+          Description: 'Відділення 1',
           CityRef: 'city-ref',
-          CityDescription: 'РљРёС—РІ',
+          CityDescription: 'Київ',
         },
         {
           Ref: 'warehouse-ref',
-          Description: 'Р’С–РґРґС–Р»РµРЅРЅСЏ 1 дубль',
+          Description: 'Відділення 1 дубль',
           CityRef: 'city-ref',
-          CityDescription: 'РљРёС—РІ',
+          CityDescription: 'Київ',
         },
       ],
     })

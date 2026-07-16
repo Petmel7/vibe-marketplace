@@ -1,4 +1,4 @@
-import { ProductStatus } from '@/app/generated/prisma/client'
+import { Prisma, ProductStatus } from '@/app/generated/prisma/client'
 import { requireSeller } from '@/lib/auth/guards'
 import { assertSellerOwnsStore, assertSellerOwnsProduct } from '@/lib/auth/sellerGuards'
 import {
@@ -61,6 +61,7 @@ import { generateBaseSku, generateVariantSku, normalizeSku } from './seller-prod
 import { isAllowedProductSize } from './seller-product.sizes'
 
 const MAX_PRODUCT_IMAGES = 10
+const MAX_AUTO_SKU_GENERATION_ATTEMPTS = 5
 
 function normalizeVariantIdentityColor(color: string | null | undefined) {
   return color?.trim().toUpperCase() ?? ''
@@ -295,36 +296,69 @@ async function resolveProductSku(params: {
   manualSku?: string | null
   excludeProductId?: string
 }) {
-  const baseSku = params.manualSku
+  const normalizedManualSku = params.manualSku?.trim()
     ? normalizeSku(params.manualSku)
-    : generateBaseSku(params.productName, params.storeSlug)
+    : null
 
-  if (!baseSku) {
-    throw new InvalidSkuError('Product SKU cannot be empty after normalization')
+  if (normalizedManualSku) {
+    const existing = await findProductBySkuInStore(params.storeId, normalizedManualSku, params.excludeProductId)
+    if (existing) {
+      throw new InvalidSkuError('Product SKU is already used in this store')
+    }
+
+    return normalizedManualSku
   }
 
-  const existing = await findProductBySkuInStore(params.storeId, baseSku, params.excludeProductId)
-  if (!existing) {
-    return baseSku
-  }
-
-  if (params.manualSku) {
-    throw new InvalidSkuError('Product SKU is already used in this store')
-  }
-
-  for (let index = 2; index <= 99; index += 1) {
-    const candidate = normalizeSku(`${baseSku}-${index}`)
-    if (!candidate) {
+  for (let attempt = 0; attempt < MAX_AUTO_SKU_GENERATION_ATTEMPTS; attempt += 1) {
+    const generatedSku = generateBaseSku(params.productName, params.storeSlug)
+    if (!generatedSku) {
       continue
     }
 
-    const conflict = await findProductBySkuInStore(params.storeId, candidate, params.excludeProductId)
+    const conflict = await findProductBySkuInStore(params.storeId, generatedSku, params.excludeProductId)
     if (!conflict) {
-      return candidate
+      return generatedSku
     }
   }
 
   throw new InvalidSkuError('Unable to generate a unique product SKU')
+}
+
+function isPrismaUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError
+    || (typeof error === 'object' && error !== null && 'code' in error)
+  ) && (error as { code?: string }).code === 'P2002'
+}
+
+async function createVariantWithSafeSku(
+  productId: string,
+  data: CreateVariantDto & { generatedSku: string },
+) {
+  try {
+    return await repoCreateVariant(productId, data)
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new InvalidSkuError('Variant SKU is already in use')
+    }
+
+    throw error
+  }
+}
+
+async function updateVariantWithSafeSku(
+  variantId: string,
+  data: UpdateVariantDto,
+) {
+  try {
+    return await repoUpdateVariant(variantId, data)
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new InvalidSkuError('Variant SKU is already in use')
+    }
+
+    throw error
+  }
 }
 
 async function resolveVariantSku(params: {
@@ -334,32 +368,28 @@ async function resolveVariantSku(params: {
   manualSku?: string
   excludeVariantId?: string
 }) {
-  const baseCandidate = params.manualSku
+  const normalizedManualSku = params.manualSku?.trim()
     ? normalizeSku(params.manualSku)
-    : generateVariantSku(params.baseSku, params.variant, params.index)
+    : null
 
-  if (!baseCandidate) {
-    throw new InvalidSkuError('Variant SKU cannot be empty after normalization')
+  if (normalizedManualSku) {
+    const existing = await findVariantBySku(normalizedManualSku, params.excludeVariantId)
+    if (existing) {
+      throw new InvalidSkuError('Variant SKU is already in use')
+    }
+
+    return normalizedManualSku
   }
 
-  const existing = await findVariantBySku(baseCandidate, params.excludeVariantId)
-  if (!existing) {
-    return baseCandidate
-  }
-
-  if (params.manualSku) {
-    throw new InvalidSkuError('Variant SKU is already in use')
-  }
-
-  for (let index = 2; index <= 99; index += 1) {
-    const candidate = normalizeSku(`${baseCandidate}-${index}`)
-    if (!candidate) {
+  for (let attempt = 0; attempt < MAX_AUTO_SKU_GENERATION_ATTEMPTS; attempt += 1) {
+    const generatedSku = generateVariantSku(params.baseSku, params.variant, params.index)
+    if (!generatedSku) {
       continue
     }
 
-    const conflict = await findVariantBySku(candidate, params.excludeVariantId)
+    const conflict = await findVariantBySku(generatedSku, params.excludeVariantId)
     if (!conflict) {
-      return candidate
+      return generatedSku
     }
   }
 
@@ -461,7 +491,7 @@ export async function createProduct(
         manualSku: variant.sku,
       })
 
-      await repoCreateVariant(product.id, { ...variant, generatedSku: resolvedSku })
+      await createVariantWithSafeSku(product.id, { ...variant, generatedSku: resolvedSku })
     }
   }
 
@@ -571,7 +601,7 @@ export async function addVariant(
     manualSku: data.sku,
   })
 
-  const variant = await repoCreateVariant(productId, { ...data, generatedSku: resolvedSku })
+  const variant = await createVariantWithSafeSku(productId, { ...data, generatedSku: resolvedSku })
   return toSellerVariantDto(variant)
 }
 
@@ -613,7 +643,7 @@ export async function updateVariant(
       })
     : undefined
 
-  const updated = await repoUpdateVariant(variantId, {
+  const updated = await updateVariantWithSafeSku(variantId, {
     ...data,
     ...(resolvedSku !== undefined ? { sku: resolvedSku } : {}),
   })

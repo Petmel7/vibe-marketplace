@@ -33,6 +33,7 @@ import {
   getMyProductById,
   setPrimaryProductImage,
   submitForReview,
+  updateProduct,
   updateVariant,
   updateInventory,
   uploadProductImage,
@@ -192,6 +193,26 @@ describe('createProduct', () => {
     )
   })
 
+  it('generates an automatic product SKU when the payload omits sku', async () => {
+    const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValue('11111111-1111-1111-1111-111111111111')
+    const product = makeProduct({ sku: 'PRD-TEST-PRODUCT-11111111' })
+    mockProductRepo.createProduct.mockResolvedValue(product)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+
+    await createProduct(mockUser, {
+      name: 'Test Product',
+      price: '29.99',
+    })
+
+    expect(mockProductRepo.createProduct).toHaveBeenCalledWith(
+      mockStore.id,
+      expect.objectContaining({ sku: 'PRD-TEST-PRODUCT-11111111' }),
+    )
+
+    randomUuidSpy.mockRestore()
+  })
+
   it('rejects duplicate manual product SKUs in the same store', async () => {
     mockProductRepo.findProductBySkuInStore.mockResolvedValue({ id: 'other-product' })
 
@@ -263,6 +284,39 @@ describe('createProduct', () => {
       },
     })
     expect(result.status).toBe(ProductStatus.PENDING_REVIEW)
+  })
+
+  it('generates an automatic variant SKU when the variant payload omits sku', async () => {
+    const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('11111111-1111-1111-1111-111111111111')
+      .mockReturnValueOnce('22222222-2222-2222-2222-222222222222')
+    const pendingProduct = makeProduct({ status: ProductStatus.PENDING_REVIEW, sku: 'PRD-TEST-PRODUCT-11111111' })
+    mockProductRepo.createProduct.mockResolvedValue(pendingProduct)
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(pendingProduct)
+    mockProductRepo.createVariant.mockResolvedValue({
+      id: 'variant-uuid-001',
+      productId: pendingProduct.id,
+      sku: 'VAR-TEST-PRODUCT-M-22222222',
+      size: 'M',
+      color: null,
+      price: null,
+      stock: 3,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+    } as never)
+
+    await createProduct(mockUser, {
+      name: 'Test Product',
+      price: '29.99',
+      variants: [{ size: 'M', stock: 3 }],
+    })
+
+    expect(mockProductRepo.createVariant).toHaveBeenCalledWith(
+      pendingProduct.id,
+      expect.objectContaining({ generatedSku: 'VAR-TEST-PRODUCT-M-22222222' }),
+    )
+
+    randomUuidSpy.mockRestore()
   })
 
   it('uses explicit store context when creating a product for one of multiple owned stores', async () => {
@@ -403,6 +457,42 @@ describe('archiveProduct', () => {
   })
 })
 
+describe('updateProduct', () => {
+  it('does not regenerate an existing SKU when the product name changes', async () => {
+    const existingProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345', name: 'Old product name' })
+    const updatedProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345', name: 'New product name' })
+    mockProductRepo.findProductById.mockResolvedValue(existingProduct)
+    mockProductRepo.updateProduct.mockResolvedValue(updatedProduct)
+
+    await updateProduct(mockUser, existingProduct.id, {
+      name: 'New product name',
+    })
+
+    const updatePayload = mockProductRepo.updateProduct.mock.calls[0]?.[1]
+    expect(updatePayload).toBeDefined()
+    expect('sku' in (updatePayload ?? {})).toBe(false)
+  })
+
+  it('does not regenerate an existing SKU when the store slug changes', async () => {
+    const existingProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345' })
+    const updatedProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345' })
+    mockProductRepo.findProductById.mockResolvedValue(existingProduct)
+    mockProductRepo.updateProduct.mockResolvedValue(updatedProduct)
+    mockStoreService.assertStoreOwnership.mockResolvedValueOnce({
+      ...mockStore,
+      slug: 'renamed-store',
+    } as never)
+
+    await updateProduct(mockUser, existingProduct.id, {
+      price: '31.99',
+    })
+
+    const updatePayload = mockProductRepo.updateProduct.mock.calls[0]?.[1]
+    expect(updatePayload).toBeDefined()
+    expect('sku' in (updatePayload ?? {})).toBe(false)
+  })
+})
+
 describe('updateInventory', () => {
   it('throws InvalidInventoryError for negative stock', async () => {
     await expect(updateInventory(mockUser, 'variant-uuid-001', -1)).rejects.toThrow(
@@ -488,6 +578,18 @@ describe('variant combination protection', () => {
     ).rejects.toThrow(InvalidVariantConfigurationError)
 
     expect(mockProductRepo.updateVariant).not.toHaveBeenCalled()
+  })
+
+  it('returns a safe domain error when a variant SKU hits a unique constraint during write', async () => {
+    mockProductRepo.findProductById.mockResolvedValue(makeProduct() as never)
+    mockProductRepo.createVariant.mockRejectedValue({ code: 'P2002' })
+
+    await expect(
+      addVariant(mockUser, 'product-uuid-001', {
+        size: 'M',
+        stock: 1,
+      }),
+    ).rejects.toThrow(InvalidSkuError)
   })
 })
 

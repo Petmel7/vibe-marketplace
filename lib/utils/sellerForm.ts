@@ -17,10 +17,22 @@ function normalizeSkuToken(value: string) {
     .slice(0, 100)
 }
 
-export function generateBaseSkuDraft(name: string, storeSlug: string) {
-  const storePart = normalizeSkuToken(storeSlug).slice(0, 12)
-  const productPart = normalizeSkuToken(generateSlug(name)).slice(0, 32)
-  return normalizeSkuToken([storePart, productPart].filter(Boolean).join('-'))
+function buildReadableSkuDraftToken(value: string, fallback = 'ITEM') {
+  return normalizeSkuToken(generateSlug(value)).slice(0, 24) || fallback
+}
+
+function getVariantReadableSkuDraftToken(baseSku: string) {
+  const normalizedBaseSku = normalizeSkuToken(baseSku)
+  const strippedBaseSku = normalizedBaseSku
+    .replace(/^PRD-/, '')
+    .replace(/-AUTO$/, '')
+
+  return strippedBaseSku || 'ITEM'
+}
+
+export function generateBaseSkuDraft(name: string, _storeSlug: string) {
+  const productPart = buildReadableSkuDraftToken(name)
+  return normalizeSkuToken(`PRD-${productPart}-AUTO`)
 }
 
 export function generateVariantSkuDraft(
@@ -28,7 +40,7 @@ export function generateVariantSkuDraft(
   variant: { size?: string | null; color?: string | null },
   index: number,
 ) {
-  const fragments = [normalizeSkuToken(baseSku)]
+  const fragments = ['VAR', getVariantReadableSkuDraftToken(baseSku)]
 
   if (variant.size) {
     fragments.push(normalizeSkuToken(variant.size).slice(0, 12))
@@ -38,9 +50,23 @@ export function generateVariantSkuDraft(
     fragments.push(normalizeSkuToken(variant.color).slice(0, 12))
   }
 
-  fragments.push(String(index + 1).padStart(2, '0'))
+  fragments.push(variant.size || variant.color ? 'AUTO' : String(index + 1).padStart(2, '0'))
 
   return normalizeSkuToken(fragments.filter(Boolean).join('-'))
+}
+
+export function getCreateSkuPayloadValue(sku: string, isManual: boolean) {
+  const trimmedSku = sku.trim()
+  return isManual && trimmedSku ? trimmedSku : undefined
+}
+
+export function getUpdateSkuPayloadValue(sku: string, isManual: boolean) {
+  if (!isManual) {
+    return undefined
+  }
+
+  const trimmedSku = sku.trim()
+  return trimmedSku ? trimmedSku : null
 }
 
 type FileValidationOptions = {

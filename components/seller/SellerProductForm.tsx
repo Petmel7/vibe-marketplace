@@ -22,6 +22,8 @@ import { useProductImageUpload, type ProductImageDraft } from '@/hooks/useProduc
 import { useSellerCategories } from '@/hooks/useSellerCategories'
 import { useSellerMutation } from '@/hooks/useSellerMutation'
 import {
+  getCreateSkuPayloadValue,
+  getUpdateSkuPayloadValue,
   generateBaseSkuDraft,
   generateVariantSkuDraft,
   validateProductImageFile,
@@ -397,10 +399,10 @@ export default function SellerProductForm({
         name: formState.name,
         description: formState.description || null,
         price: formState.price,
-        sku: formState.sku || null,
+        sku: getCreateSkuPayloadValue(formState.sku, isBaseSkuManual),
         categoryId: formState.categoryId || null,
         variants: createVariants.map((variant) => ({
-          sku: variant.sku || undefined,
+          sku: getCreateSkuPayloadValue(variant.sku, variant.isSkuManual),
           size: variant.size || null,
           color: variant.color || null,
           price: variant.price || null,
@@ -433,7 +435,7 @@ export default function SellerProductForm({
       name: formState.name,
       description: formState.description || null,
       price: formState.price,
-      sku: formState.sku || null,
+      sku: getUpdateSkuPayloadValue(formState.sku, isBaseSkuManual),
       categoryId: formState.categoryId || null,
     })
 
@@ -463,7 +465,7 @@ export default function SellerProductForm({
     if (!variant?.id) return
 
     const parsed = updateVariantSchema.safeParse({
-      sku: variant.sku || undefined,
+      sku: getCreateSkuPayloadValue(variant.sku, variant.isSkuManual),
       size: variant.size || null,
       color: variant.color || null,
       price: variant.price || null,
@@ -535,7 +537,7 @@ export default function SellerProductForm({
     if (!initialProduct) return
 
     const parsed = createVariantSchema.safeParse({
-      sku: newVariant.sku || undefined,
+      sku: getCreateSkuPayloadValue(newVariant.sku, newVariant.isSkuManual),
       size: newVariant.size || null,
       color: newVariant.color || null,
       price: newVariant.price || null,
@@ -687,7 +689,7 @@ export default function SellerProductForm({
                 <button
                   type="button"
                   className="ui-secondary-button h-12 px-4 py-2 text-sm"
-                  onClick={() => updateBaseSku(generateBaseSkuDraft(formState.name, storeSlug), false)}
+                  onClick={() => updateBaseSku(generateBaseSkuDraft(formState.name, storeSlug), mode !== 'create')}
                 >
                   Авто
                 </button>
@@ -1000,7 +1002,7 @@ export default function SellerProductForm({
                                   currentIndex === index
                                     ? {
                                       ...entry,
-                                      isSkuManual: false,
+                                      isSkuManual: true,
                                       sku: generateVariantSkuDraft(formState.sku, entry, currentIndex),
                                     }
                                     : entry,
