@@ -303,3 +303,15 @@ Before finishing, verify:
 - No obvious architecture violations were introduced
 - Changes are scoped to the user request
 
+## File encoding rules
+
+- All source files must remain UTF-8 without BOM.
+- Never change file encoding.
+- Preserve all Ukrainian and Cyrillic text exactly.
+- Do not rewrite entire files when a small patch is sufficient.
+- Prefer apply_patch or targeted edits.
+- Do not use Windows PowerShell 5.1 for file modifications.
+- Do not use `Set-Content`, `Out-File`, `>` or `>>` to rewrite source files.
+- If PowerShell file writing is unavoidable, use PowerShell 7 and explicitly specify UTF-8 without BOM.
+- After editing files containing Cyrillic, inspect `git diff` and verify that unrelated Cyrillic strings were not modified.
+- Stop immediately if mojibake sequences such as `Р`, `С`, `Ð`, `Ñ`, `â€™` or `Ã` appear.
