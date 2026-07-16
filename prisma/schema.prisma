@@ -135,7 +135,7 @@ model Product {
   price            Decimal                  @db.Decimal(10, 2)
   imageUrl         String?                  @map("image_url")
   isActive         Boolean                  @default(true) @map("is_active")
-  sku              String?
+  sku              String?                  @unique
   isHit            Boolean                  @default(false) @map("is_hit")
   isNew            Boolean                  @default(false) @map("is_new")
   createdAt        DateTime                 @default(now()) @map("created_at")

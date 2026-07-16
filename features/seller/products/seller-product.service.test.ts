@@ -227,6 +227,18 @@ describe('createProduct', () => {
     expect(mockProductRepo.createProduct).not.toHaveBeenCalled()
   })
 
+  it('returns a safe domain error when product SKU hits a unique constraint during create', async () => {
+    mockProductRepo.createProduct.mockRejectedValue({ code: 'P2002' })
+
+    await expect(
+      createProduct(mockUser, {
+        name: 'Test Product',
+        price: '29.99',
+        sku: 'shared-global-sku',
+      }),
+    ).rejects.toThrow(InvalidSkuError)
+  })
+
   it('validates that category exists before creating a product', async () => {
     mockProductRepo.findCategoryById.mockResolvedValue(null)
 
@@ -458,6 +470,29 @@ describe('archiveProduct', () => {
 })
 
 describe('updateProduct', () => {
+  it('allows updating a product while keeping its own SKU unchanged', async () => {
+    const existingProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345' })
+    const updatedProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345', price: new Decimal('31.99') })
+    mockProductRepo.findProductById.mockResolvedValue(existingProduct)
+    mockProductRepo.updateProduct.mockResolvedValue(updatedProduct)
+
+    await expect(
+      updateProduct(mockUser, existingProduct.id, {
+        sku: 'PRD-LOCKED-ABC12345',
+        price: '31.99',
+      }),
+    ).resolves.toMatchObject({
+      id: existingProduct.id,
+      sku: 'PRD-LOCKED-ABC12345',
+    })
+
+    expect(mockProductRepo.findProductBySkuInStore).toHaveBeenCalledWith(
+      mockStore.id,
+      'PRD-LOCKED-ABC12345',
+      existingProduct.id,
+    )
+  })
+
   it('does not regenerate an existing SKU when the product name changes', async () => {
     const existingProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345', name: 'Old product name' })
     const updatedProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345', name: 'New product name' })
@@ -490,6 +525,18 @@ describe('updateProduct', () => {
     const updatePayload = mockProductRepo.updateProduct.mock.calls[0]?.[1]
     expect(updatePayload).toBeDefined()
     expect('sku' in (updatePayload ?? {})).toBe(false)
+  })
+
+  it('returns a safe domain error when product SKU hits a unique constraint during update', async () => {
+    const existingProduct = makeProduct({ sku: 'PRD-LOCKED-ABC12345' })
+    mockProductRepo.findProductById.mockResolvedValue(existingProduct)
+    mockProductRepo.updateProduct.mockRejectedValue({ code: 'P2002' })
+
+    await expect(
+      updateProduct(mockUser, existingProduct.id, {
+        sku: 'MANUAL-DUPLICATE-SKU',
+      }),
+    ).rejects.toThrow(InvalidSkuError)
   })
 })
 

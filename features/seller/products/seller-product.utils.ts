@@ -4,6 +4,7 @@ const PRODUCT_SKU_PREFIX = 'PRD'
 const VARIANT_SKU_PREFIX = 'VAR'
 const SKU_FALLBACK_TOKEN = 'ITEM'
 const SKU_UNIQUE_TAIL_LENGTH = 8
+const PRODUCT_SKU_TAIL_PATTERN = /-[A-F0-9]{8}$/
 
 function normalizeSkuToken(value: string) {
   return value
@@ -17,6 +18,16 @@ function normalizeSkuToken(value: string) {
 
 export function normalizeSku(value: string) {
   return normalizeSkuToken(value)
+}
+
+export function isCanonicalProductSku(value: string) {
+  const normalized = normalizeSku(value)
+
+  return (
+    normalized === value
+    && normalized.startsWith(`${PRODUCT_SKU_PREFIX}-`)
+    && PRODUCT_SKU_TAIL_PATTERN.test(normalized)
+  )
 }
 
 function buildReadableSkuToken(value: string, maxLength: number) {

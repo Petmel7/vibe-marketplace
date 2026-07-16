@@ -12,7 +12,9 @@
     "lint": "eslint",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "sku:audit": "tsx scripts/product-sku-backfill.ts",
+    "sku:backfill": "tsx scripts/product-sku-backfill.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"

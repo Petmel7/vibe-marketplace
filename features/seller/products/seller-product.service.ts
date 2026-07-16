@@ -346,6 +346,36 @@ async function createVariantWithSafeSku(
   }
 }
 
+async function createProductWithSafeSku(
+  storeId: string,
+  data: CreateSellerProductDto,
+) {
+  try {
+    return await repoCreateProduct(storeId, data)
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new InvalidSkuError('Product SKU is already in use')
+    }
+
+    throw error
+  }
+}
+
+async function updateProductWithSafeSku(
+  productId: string,
+  data: UpdateSellerProductDto,
+) {
+  try {
+    return await repoUpdateProduct(productId, data)
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new InvalidSkuError('Product SKU is already in use')
+    }
+
+    throw error
+  }
+}
+
 async function updateVariantWithSafeSku(
   variantId: string,
   data: UpdateVariantDto,
@@ -475,7 +505,7 @@ export async function createProduct(
   }
   assertNoDuplicateVariantCombinations(data.variants ?? [])
 
-  const product = await repoCreateProduct(store.id, {
+  const product = await createProductWithSafeSku(store.id, {
     ...data,
     sku: productSku,
     imageUrl: normalizedImages.find((image) => image.isPrimary)?.url ?? data.imageUrl ?? null,
@@ -535,7 +565,7 @@ export async function updateProduct(
         })
     : undefined
 
-  const updated = await repoUpdateProduct(productId, {
+  const updated = await updateProductWithSafeSku(productId, {
     ...data,
     ...(resolvedSku !== undefined ? { sku: resolvedSku } : {}),
   })
