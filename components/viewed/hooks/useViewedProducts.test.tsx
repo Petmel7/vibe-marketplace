@@ -100,4 +100,19 @@ describe('useViewedProducts', () => {
     expect(container.querySelector('[data-testid="items"]')?.textContent).toBe('prod-d,prod-a,prod-b')
     expect(container.querySelector('[data-testid="loading"]')?.textContent).toBe('false')
   })
+
+  it('does not exclude any item when no current product id is provided', async () => {
+    viewedApiMock.fetchViewedProducts.mockResolvedValueOnce({
+      items: [
+        { id: '1', productId: 'prod-a', name: 'A', price: '10.00', imageUrl: null, viewedAt: '2026-07-17T10:00:00.000Z' },
+        { id: '2', productId: 'prod-b', name: 'B', price: '20.00', imageUrl: null, viewedAt: '2026-07-17T09:00:00.000Z' },
+      ],
+    })
+
+    await act(async () => {
+      root.render(<TestComponent currentProductId={undefined} />)
+    })
+
+    expect(container.querySelector('[data-testid="items"]')?.textContent).toBe('prod-a,prod-b')
+  })
 })

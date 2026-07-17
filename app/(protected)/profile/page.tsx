@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import ProductCard from '@/components/product/ProductCard'
 import DashboardCard from '@/components/profile/DashboardCard'
 import EmptyState from '@/components/profile/EmptyState'
 import ProfileSection from '@/components/profile/ProfileSection'
+import RecentlyViewed from '@/components/viewed/RecentlyViewed'
 import StatusBadge from '@/components/profile/StatusBadge'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
@@ -185,26 +185,17 @@ export default async function ProfileOverviewPage() {
         description="Швидкий спосіб повернутися до товарів, які ви нещодавно переглядали."
         action={<Link href="/profile/wishlist" className="ui-link-muted">Переглянути обране</Link>}
       >
-        {data.viewed.items.length === 0 ? (
-          <EmptyState
-            title="Поки що нічого не переглянуто"
-            description="Переглядайте каталог, і тут з’являтимуться нещодавно переглянуті товари."
-            actionHref="/catalog"
-            actionLabel="Почати перегляд"
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {data.viewed.items.slice(0, 4).map((item) => (
-              <ProductCard
-                key={item.id}
-                id={item.productId}
-                name={item.name}
-                imageUrl={item.imageUrl ?? ''}
-                product={{ price: item.price, sku: null, variants: [] }}
-              />
-            ))}
-          </div>
-        )}
+        <RecentlyViewed
+          showHeading={false}
+          emptyState={
+            <EmptyState
+              title="Поки що нічого не переглянуто"
+              description="Переглядайте каталог, і тут з’являтимуться нещодавно переглянуті товари."
+              actionHref="/catalog"
+              actionLabel="Почати перегляд"
+            />
+          }
+        />
       </DashboardCard>
     </ProfileSection>
   )

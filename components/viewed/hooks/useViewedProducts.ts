@@ -20,7 +20,7 @@ interface UseViewedProductsResult {
 }
 
 export function useViewedProducts(
-  currentProductId: string,
+  currentProductId?: string,
 ): UseViewedProductsResult {
   const [items, setItems] = useState<
     ViewedProductDto[]
@@ -61,8 +61,9 @@ export function useViewedProducts(
         const filtered = json.items
           .filter(
             (item) =>
+              !currentProductId ||
               item.productId !==
-              currentProductId,
+                currentProductId,
           )
           .slice(0, 10)
 
