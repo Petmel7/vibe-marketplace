@@ -71,12 +71,14 @@ export default function DashboardSidebar({
             ? 'Ваш акаунт уже готовий до інструментів продавця та керування вітриною магазину.'
             : 'Перейдіть від покупця до продавця через окремий онбординг, верифікацію та майбутнє налаштування вітрини.'}
         </p>
-        <Link
-          href={sellerEnabled ? '/seller' : '/seller/onboarding'}
-          className="ui-secondary-button mt-4 w-fit max-[499px]:w-full"
-        >
-          {sellerEnabled ? 'Відкрити кабінет продавця' : 'Почати продавати'}
-        </Link>
+        <div className="mt-4 flex min-[501px]:justify-center min-[1026px]:justify-start">
+          <Link
+            href={sellerEnabled ? '/seller' : '/seller/onboarding'}
+            className="ui-secondary-button w-fit max-[499px]:w-full"
+          >
+            {sellerEnabled ? 'Відкрити кабінет продавця' : 'Почати продавати'}
+          </Link>
+        </div>
       </section>
     </aside>
   )

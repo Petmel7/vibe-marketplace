@@ -1531,30 +1531,62 @@ export default function SellerProductForm({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-col gap-3 min-[501px]:items-center">
             {initialProduct && canArchiveProduct(initialProduct.status) ? (
               <button
                 type="button"
-                className="rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10"
+                className="w-full rounded-full border border-brand-danger/30 px-4 py-2 text-sm text-brand-danger transition-colors hover:bg-brand-danger/10 min-[501px]:w-fit"
                 disabled={isActionLocked}
                 onClick={() => void archiveProduct()}
               >
                 Архівувати товар
               </button>
             ) : null}
-            {initialProduct && canSubmitProductForReview(initialProduct.status) ? (
+            {/* <div className="flex w-full flex-wrap justify-center gap-3">
+              {initialProduct && canSubmitProductForReview(initialProduct.status) ? (
+                <button
+                  type="button"
+                  className="ui-secondary-button min-w-0 flex-1 basis-64"
+                  disabled={isActionLocked}
+                  onClick={() => void submitForReview()}
+                >
+                  Надіслати на модерацію
+                </button>
+              ) : null}
+
               <button
-                type="button"
-                className="ui-secondary-button"
+                type="submit"
+                className="ui-primary-button min-w-0 flex-1 basis-64"
                 disabled={isActionLocked}
-                onClick={() => void submitForReview()}
               >
-                Надіслати на модерацію
+                {mode === 'create' || initialProduct?.status === 'DRAFT'
+                  ? 'Зберегти чернетку'
+                  : 'Зберегти зміни'}
               </button>
-            ) : null}
-            <button type="submit" className="ui-primary-button" disabled={isActionLocked}>
-              {mode === 'create' || initialProduct?.status === 'DRAFT' ? 'Зберегти чернетку' : 'Зберегти зміни'}
-            </button>
+            </div> */}
+
+            <div className="flex w-full flex-col gap-3 min-[501px]:w-auto min-[501px]:flex-row min-[501px]:justify-center">
+              {initialProduct && canSubmitProductForReview(initialProduct.status) ? (
+                <button
+                  type="button"
+                  className="ui-secondary-button w-full min-[501px]:w-64"
+                  disabled={isActionLocked}
+                  onClick={() => void submitForReview()}
+                >
+                  Надіслати на модерацію
+                </button>
+              ) : null}
+
+              <button
+                type="submit"
+                className="ui-primary-button w-full min-[501px]:w-64"
+                disabled={isActionLocked}
+              >
+                {mode === 'create' || initialProduct?.status === 'DRAFT'
+                  ? 'Зберегти чернетку'
+                  : 'Зберегти зміни'}
+              </button>
+            </div>
           </div>
         </form>
       </section>
