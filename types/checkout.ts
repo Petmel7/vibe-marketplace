@@ -31,6 +31,7 @@ export type CheckoutPreviewItem = {
   id: string
   productId: string
   variantId: string
+  sku: string | null
   storeId: string
   storeName: string
   storeSlug: string

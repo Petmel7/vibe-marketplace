@@ -354,6 +354,7 @@ describe('checkout preview', () => {
     expect(preview.items[0].storeName).toBe('Test Store')
     expect(preview.items[0].storeSlug).toBe('test-store')
     expect(preview.items[0].imageUrl).toBe('/img/shirt-primary.jpg')
+    expect(preview.items[0].sku).toBe('SKU-001')
   })
 
   it('returns blocking issues for empty carts without throwing', async () => {

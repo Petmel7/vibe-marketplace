@@ -67,6 +67,7 @@ type PreparedCheckoutItem = {
   productId: string
   categoryId: string | null
   variantId: string
+  sku: string | null
   storeId: string
   productName: string
   storeName: string
@@ -121,6 +122,7 @@ function prepareCheckoutItem(item: CheckoutCartItem): PreparedCheckoutItem {
     productId: item.variant.product.id,
     categoryId: item.variant.product.categoryId ?? null,
     variantId: item.variant.id,
+    sku: item.variant.sku ?? null,
     storeId: item.variant.product.store.id,
     productName: item.variant.product.name,
     storeName: item.variant.product.store.name,
@@ -160,6 +162,7 @@ function toPreviewItemDto(item: PreparedCheckoutItem): CheckoutPreviewItemDto {
     id: item.cartItemId,
     productId: item.productId,
     variantId: item.variantId,
+    sku: item.sku,
     storeId: item.storeId,
     storeName: item.storeName,
     storeSlug: item.storeSlug,
