@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
 import { Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import ProductVariantSelector from './ProductVariantSelector'
@@ -16,9 +16,9 @@ import ProductStockBadge from './ProductStockBadge'
 import ReportButton from '@/components/abuse-reports/ReportButton'
 import {
   getFirstPurchasableVariantId,
-  getDefaultProductVariantId,
   getProductPresentationState,
   requiresExplicitVariantSelection,
+  resolveSelectedProductVariantId,
 } from './productCard.selectors'
 import { resolveProductBadgeChips } from './productBadges'
 import { useRecordViewedProduct } from '../viewed/hooks/useRecordViewedProduct'
@@ -53,9 +53,10 @@ export default function ProductDetails({ product, currentUser }: Props) {
   const resolvedCurrentUser = currentUser ?? authSession?.user ?? null
   const shouldRequireExplicitVariantSelection =
     requiresExplicitVariantSelection(product)
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
-    getFirstPurchasableVariantId(product) ?? getDefaultProductVariantId(product),
+  const [selectedVariantPreference, setSelectedVariantPreference] = useState<string | null>(() =>
+    getFirstPurchasableVariantId(product),
   )
+  const selectedVariantId = resolveSelectedProductVariantId(product, selectedVariantPreference)
   const [quantity, setQuantity] = useState(1)
   const presentation = getProductPresentationState(product, selectedVariantId)
   const badgeChips = resolveProductBadgeChips({
@@ -64,30 +65,6 @@ export default function ProductDetails({ product, currentUser }: Props) {
   })
 
   useRecordViewedProduct(product.id)
-
-  useEffect(() => {
-    const firstPurchasableVariantId =
-      getFirstPurchasableVariantId(product)
-
-    if (!selectedVariantId) {
-      if (firstPurchasableVariantId) {
-        setSelectedVariantId(firstPurchasableVariantId)
-      }
-      return
-    }
-
-    const selectedVariant = product.variants.find(
-      (variant) => variant.id === selectedVariantId,
-    )
-
-    if (selectedVariant && selectedVariant.stock > 0) {
-      return
-    }
-
-    if (firstPurchasableVariantId !== selectedVariantId) {
-      setSelectedVariantId(firstPurchasableVariantId)
-    }
-  }, [product, selectedVariantId])
 
   async function handleShare() {
     const shareUrl = window.location.href
@@ -251,7 +228,7 @@ export default function ProductDetails({ product, currentUser }: Props) {
           <ProductVariantSelector
             variants={product.variants}
             selectedVariantId={selectedVariantId}
-            onSelect={setSelectedVariantId}
+            onSelect={setSelectedVariantPreference}
           />
 
           <ProductQuantitySelector

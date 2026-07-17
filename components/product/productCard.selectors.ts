@@ -60,12 +60,30 @@ export function getDefaultProductVariantId(
   return purchasableVariants.length === 1 ? purchasableVariants[0]?.id ?? null : null
 }
 
+export function resolveSelectedProductVariantId(
+  product: ProductPresentationProductLike,
+  selectedVariantId?: string | null,
+): string | null {
+  if (!selectedVariantId) {
+    return getFirstPurchasableVariantId(product) ?? getDefaultProductVariantId(product)
+  }
+
+  const selectedVariant =
+    product.variants?.find((variant) => variant.id === selectedVariantId) ?? null
+
+  if (selectedVariant && Math.max(selectedVariant.stock ?? 0, 0) > 0) {
+    return selectedVariant.id
+  }
+
+  return getFirstPurchasableVariantId(product) ?? getDefaultProductVariantId(product)
+}
+
 export function getProductPresentationState(
   product: ProductPresentationProductLike,
   selectedVariantId?: string | null,
 ): ProductPresentationState {
   const defaultVariantId = getDefaultProductVariantId(product)
-  const resolvedSelectedVariantId = selectedVariantId ?? defaultVariantId
+  const resolvedSelectedVariantId = resolveSelectedProductVariantId(product, selectedVariantId)
   const selectedVariant =
     product.variants?.find((variant) => variant.id === resolvedSelectedVariantId) ?? null
   const displayVariant = selectedVariant ?? getPreferredDisplayVariant(product)
