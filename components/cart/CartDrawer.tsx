@@ -90,7 +90,7 @@ export default function CartDrawer() {
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+      <div className="grid gap-6 min-[1025px]:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="space-y-6">
           {blockingIssues.length > 0 ? (
             <section
@@ -154,7 +154,7 @@ export default function CartDrawer() {
           </DashboardCard>
         </div>
 
-        <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+        <div className="space-y-6 min-[1025px]:sticky min-[1025px]:top-24 min-[1025px]:self-start">
           <DashboardCard
             title="Підсумок замовлення"
             description="Сума в кошику і попередній підсумок перед переходом до оформлення замовлення."
@@ -191,7 +191,7 @@ export default function CartDrawer() {
                 <button
                   type="button"
                   disabled
-                  className="ui-primary-button w-full cursor-not-allowed opacity-60"
+                  className="ui-primary-button mx-auto flex w-full justify-center cursor-not-allowed opacity-60 min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-[22rem]"
                   aria-disabled="true"
                 >
                   Оформити замовлення
@@ -199,7 +199,7 @@ export default function CartDrawer() {
               ) : (
                 <Link
                   href={checkoutHref}
-                  className="ui-primary-button block w-full text-center"
+                  className="ui-primary-button mx-auto flex w-full justify-center text-center min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-[22rem]"
                 >
                   Оформити замовлення
                 </Link>

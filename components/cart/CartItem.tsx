@@ -142,14 +142,14 @@ export default function CartItem({
 
   return (
     <article className="rounded-2xl border border-panelBorder bg-panel px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <div className="flex flex-col gap-4 min-[501px]:grid min-[501px]:grid-cols-[96px_minmax(0,1fr)] min-[501px]:items-start min-[501px]:gap-x-4 min-[501px]:gap-y-3 min-[641px]:flex min-[641px]:flex-row min-[641px]:items-start">
         <ProductImage
           src={item.variant.product.imageUrl}
           alt={item.variant.product.name}
         />
 
-        <div className="min-w-0 flex-1 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-4 min-[501px]:space-y-3 min-[501px]:self-start">
+          <div className="flex flex-col gap-3 min-[641px]:flex-row min-[641px]:items-start min-[641px]:justify-between">
             <div className="min-w-0 space-y-1">
               <h2 className="truncate text-base font-semibold text-copy-strong">
                 {item.variant.product.name}
@@ -159,7 +159,7 @@ export default function CartItem({
               </p>
             </div>
 
-            <div className="text-left sm:text-right">
+            <div className="text-left min-[641px]:text-right">
               <p className="text-base font-semibold text-copy-strong">
                 {formatPrice(item.lineTotal)}
               </p>
@@ -169,10 +169,10 @@ export default function CartItem({
             </div>
           </div>
 
-          <dl className="grid gap-2 text-sm text-copy-secondary sm:grid-cols-3">
+          <dl className="grid gap-2 text-sm text-copy-secondary min-[641px]:grid-cols-3">
             <div>
               <dt className="text-copy-muted">Артикул</dt>
-              <dd className="mt-1 text-copy-primary">{item.variant.sku}</dd>
+              <dd className="mt-1 break-words text-copy-primary">{item.variant.sku}</dd>
             </div>
             <div>
               <dt className="text-copy-muted">У кошику</dt>
@@ -184,8 +184,8 @@ export default function CartItem({
             </div>
           </dl>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 min-[501px]:col-span-2 min-[501px]:grid min-[501px]:grid-cols-[minmax(0,1fr)_auto] min-[501px]:items-center min-[501px]:gap-3 min-[641px]:flex min-[641px]:flex-row min-[641px]:flex-wrap min-[641px]:items-center min-[641px]:justify-between">
+            <div className="flex flex-wrap items-center gap-3 min-[501px]:min-w-0">
               {inventoryChip?.dotClassName ? (
                 <span className={inventoryChip.className}>
                   <span className={inventoryChip.dotClassName} />
@@ -204,15 +204,17 @@ export default function CartItem({
               />
             </div>
 
-            <RemoveButton
-              onClick={() => onRemove(item.id)}
-              disabled={isLoading}
-            />
+            <div className="flex items-center justify-start min-[501px]:justify-end">
+              <RemoveButton
+                onClick={() => onRemove(item.id)}
+                disabled={isLoading}
+              />
+            </div>
           </div>
 
           {stockWarning ? (
             <p
-              className={`rounded-2xl px-4 py-3 text-sm ${item.variant.stock <= 0 || item.quantity > item.variant.stock
+              className={`rounded-2xl px-4 py-3 text-sm min-[501px]:col-span-2 ${item.variant.stock <= 0 || item.quantity > item.variant.stock
                 ? 'border border-brand-danger/30 bg-brand-danger/10 text-copy-primary'
                 : 'border border-amber-300/40 bg-amber-300/15 text-copy-primary'
                 }`}

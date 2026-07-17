@@ -21,7 +21,7 @@ export default function CheckoutSubmitButton({
       type="button"
       onClick={onSubmit}
       disabled={disabled || isSubmitting}
-      className="ui-primary-button w-full disabled:cursor-not-allowed disabled:opacity-60"
+      className="ui-primary-button mx-auto flex w-full justify-center disabled:cursor-not-allowed disabled:opacity-60 min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-[22rem]"
       aria-disabled={disabled || isSubmitting}
     >
       {isSubmitting ? loadingLabel : idleLabel}

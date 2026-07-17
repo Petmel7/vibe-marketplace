@@ -142,7 +142,7 @@ export default function CheckoutClient({
   ) {
     return (
       <div
-        className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]"
+        className="grid gap-6 min-[1025px]:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]"
         aria-busy="true"
         data-testid="checkout-loading-state"
       >
@@ -193,7 +193,7 @@ export default function CheckoutClient({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+    <div className="grid gap-6 min-[1025px]:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
       <div className="space-y-6">
         <CheckoutBlockingIssues issues={blockingIssues} />
         <CheckoutItemList items={preview.items} />
@@ -248,7 +248,7 @@ export default function CheckoutClient({
         ) : null}
       </div>
 
-      <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+      <div className="space-y-6 min-[1025px]:sticky min-[1025px]:top-6 min-[1025px]:self-start">
         <CouponInput
           value={couponCode}
           onChange={setCouponCode}

@@ -11,7 +11,8 @@ export default function CheckoutItemCard({
   const inventoryChip = getInventoryStatusChip(item.stockStatus)
 
   return (
-    <article className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 sm:flex-row sm:items-start">
+    <article className="rounded-2xl border border-panelBorder bg-panel px-4 py-4">
+      <div className="flex flex-col gap-4 min-[501px]:grid min-[501px]:grid-cols-[96px_minmax(0,1fr)] min-[501px]:items-start min-[501px]:gap-x-4 min-[501px]:gap-y-3 min-[641px]:flex min-[641px]:flex-row min-[641px]:items-start">
       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-panelBorder">
         {item.imageUrl ? (
           <Image
@@ -28,17 +29,26 @@ export default function CheckoutItemCard({
         )}
       </div>
 
-      <div className="min-w-0 flex-1 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+      <div className="min-w-0 flex-1 space-y-3 min-[501px]:space-y-3 min-[501px]:self-start">
+        <div className="flex flex-col gap-3 min-[641px]:flex-row min-[641px]:items-start min-[641px]:justify-between">
+          <div className="min-w-0 space-y-1">
             <h3 className="text-base font-semibold text-copy-strong">{item.productName}</h3>
             <p className="text-sm text-copy-muted">{item.variantLabel ?? 'Стандартний варіант'}</p>
             {item.storeName ? <p className="text-sm text-copy-muted">{item.storeName}</p> : null}
           </div>
-          <p className="text-base font-semibold text-copy-strong">{formatPrice(item.lineTotal)}</p>
+          <div className="space-y-1 text-left min-[641px]:text-right">
+            <p className="text-base font-semibold text-copy-strong">{formatPrice(item.lineTotal)}</p>
+            <p className="text-xs text-copy-muted">
+              {formatPrice(item.unitPrice)} за {item.quantity} шт.
+            </p>
+          </div>
         </div>
 
-        <dl className="grid gap-2 text-sm text-copy-secondary sm:grid-cols-2 xl:grid-cols-4">
+        <dl className="grid gap-2 text-sm text-copy-secondary min-[641px]:grid-cols-2 xl:grid-cols-4">
+          <div className="min-[501px]:col-span-2 min-[641px]:col-span-1">
+            <dt className="text-copy-muted">Артикул</dt>
+            <dd className="mt-1 break-words text-copy-primary">{item.sku}</dd>
+          </div>
           <div>
             <dt className="text-copy-muted">Ціна за одиницю</dt>
             <dd className="mt-1 text-copy-primary">{formatPrice(item.unitPrice)}</dd>
@@ -47,6 +57,9 @@ export default function CheckoutItemCard({
             <dt className="text-copy-muted">Кількість</dt>
             <dd className="mt-1 text-copy-primary">{item.quantity}</dd>
           </div>
+        </dl>
+
+        <dl className="grid gap-2 text-sm text-copy-secondary min-[501px]:col-span-2 min-[501px]:grid-cols-2 min-[641px]:grid-cols-2 xl:grid-cols-2">
           <div>
             <dt className="text-copy-muted">Доступний залишок</dt>
             <dd className="mt-1 text-copy-primary">{item.availableStock}</dd>
@@ -67,6 +80,7 @@ export default function CheckoutItemCard({
             </dd>
           </div>
         </dl>
+      </div>
       </div>
     </article>
   )
