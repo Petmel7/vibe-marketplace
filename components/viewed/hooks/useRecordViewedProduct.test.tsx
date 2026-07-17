@@ -24,10 +24,16 @@ describe('useRecordViewedProduct', () => {
   let root: ReturnType<typeof createRoot>
 
   beforeEach(() => {
+    ;(
+      globalThis as typeof globalThis & {
+        IS_REACT_ACT_ENVIRONMENT?: boolean
+      }
+    ).IS_REACT_ACT_ENVIRONMENT = true
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-17T12:00:00.000Z'))
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
-    window.sessionStorage.clear()
     recordViewedProduct.mockReset()
     recordViewedProduct.mockResolvedValue({ recorded: true })
   })
@@ -37,10 +43,10 @@ describe('useRecordViewedProduct', () => {
       root.unmount()
     })
     container.remove()
-    window.sessionStorage.clear()
+    vi.useRealTimers()
   })
 
-  it('records a viewed product only once across remounts in the same session', async () => {
+  it('debounces rapid remounts for the same product', async () => {
     await act(async () => {
       root.render(<TestComponent productId="prod-1" />)
     })
@@ -58,13 +64,25 @@ describe('useRecordViewedProduct', () => {
     expect(recordViewedProduct).toHaveBeenCalledTimes(1)
   })
 
-  it('skips the API call when the product was already recorded in sessionStorage', async () => {
-    window.sessionStorage.setItem('viewed:recorded:prod-2', '1')
+  it('records the same product again after the debounce window passes', async () => {
+    await act(async () => {
+      root.render(<TestComponent productId="prod-2" />)
+    })
+
+    expect(recordViewedProduct).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      root.render(<></>)
+    })
+
+    await act(async () => {
+      vi.advanceTimersByTime(3001)
+    })
 
     await act(async () => {
       root.render(<TestComponent productId="prod-2" />)
     })
 
-    expect(recordViewedProduct).not.toHaveBeenCalled()
+    expect(recordViewedProduct).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { ProductStatus } from '@/app/generated/prisma/client'
 import type { ViewedProduct, Product } from '@/app/generated/prisma/client'
 import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
 
@@ -14,7 +15,8 @@ type ViewedProductPreview = Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'>
 export type ViewedProductWithProduct = ViewedProduct & { product: ViewedProductPreview }
 
 /** Maximum number of recently viewed products retained per identifier. */
-const MAX_VIEWED = 20
+const MAX_VIEWED = 12
+const VIEWED_RETENTION_DAYS = 30
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -22,6 +24,33 @@ const MAX_VIEWED = 20
 
 function isUser(id: ViewedIdentifier): id is { userId: string } {
   return 'userId' in id
+}
+
+function getViewedRetentionCutoff() {
+  const cutoff = new Date()
+  cutoff.setDate(
+    cutoff.getDate() -
+      VIEWED_RETENTION_DAYS,
+  )
+
+  return cutoff
+}
+
+async function deleteExpiredViewedProducts(
+  identifier: ViewedIdentifier,
+) {
+  const where = isUser(identifier)
+    ? { userId: identifier.userId }
+    : { sessionId: identifier.sessionId }
+
+  await prisma.viewedProduct.deleteMany({
+    where: {
+      ...where,
+      viewedAt: {
+        lt: getViewedRetentionCutoff(),
+      },
+    },
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -36,12 +65,30 @@ function isUser(id: ViewedIdentifier): id is { userId: string } {
 export async function findRecentlyViewed(
   identifier: ViewedIdentifier,
 ): Promise<ViewedProductWithProduct[]> {
+  await deleteExpiredViewedProducts(
+    identifier,
+  )
+
   const where = isUser(identifier)
     ? { userId: identifier.userId }
     : { sessionId: identifier.sessionId }
 
   return prisma.viewedProduct.findMany({
-    where,
+    where: {
+      ...where,
+      viewedAt: {
+        gte: getViewedRetentionCutoff(),
+      },
+      product: {
+        is: {
+          isActive: true,
+          status: ProductStatus.PUBLISHED,
+          store: {
+            isActive: true,
+          },
+        },
+      },
+    },
     include: {
       product: {
         select: {
@@ -79,6 +126,10 @@ export async function upsertViewedProduct(
   productId: string,
 ): Promise<void> {
   const now = new Date()
+
+  await deleteExpiredViewedProducts(
+    identifier,
+  )
 
   if (isUser(identifier)) {
     const userId = identifier.userId
@@ -151,8 +202,16 @@ export async function mergeGuestViewedProducts(
   sessionId: string,
   userId: string,
 ): Promise<void> {
+  await deleteExpiredViewedProducts({ sessionId })
+  await deleteExpiredViewedProducts({ userId })
+
   const guestViews = await prisma.viewedProduct.findMany({
-    where: { sessionId },
+    where: {
+      sessionId,
+      viewedAt: {
+        gte: getViewedRetentionCutoff(),
+      },
+    },
     orderBy: { viewedAt: 'desc' },
   })
 

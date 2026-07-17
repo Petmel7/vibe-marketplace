@@ -11,6 +11,8 @@ import type { ViewedProductDto }
 
 import { fetchViewedProducts }
   from '../api/viewed.api'
+import { subscribeToViewedProductsUpdated }
+  from '../api/viewed.api'
 
 interface UseViewedProductsResult {
   items: ViewedProductDto[]
@@ -26,6 +28,14 @@ export function useViewedProducts(
 
   const [isLoading, setIsLoading] =
     useState(true)
+  const [refreshKey, setRefreshKey] =
+    useState(0)
+
+  useEffect(() => {
+    return subscribeToViewedProductsUpdated(() => {
+      setRefreshKey((current) => current + 1)
+    })
+  }, [])
 
   useEffect(() => {
     const controller =
@@ -73,7 +83,7 @@ export function useViewedProducts(
     loadViewedProducts()
 
     return () => controller.abort()
-  }, [currentProductId])
+  }, [currentProductId, refreshKey])
 
   return {
     items,

@@ -6,39 +6,24 @@ import { useEffect } from 'react'
 import { recordViewedProduct }
   from '../api/viewed.api'
 
-const recordedProductIds = new Set<string>()
 const inFlightProductIds = new Set<string>()
-const SESSION_STORAGE_PREFIX =
-  'viewed:recorded:'
+const lastRecordedAtByProductId =
+  new Map<string, number>()
+const RECORD_DEBOUNCE_WINDOW_MS = 3000
 
-function getSessionStorageKey(
+function wasProductRecordedRecently(
   productId: string,
 ) {
-  return `${SESSION_STORAGE_PREFIX}${productId}`
-}
+  const lastRecordedAt =
+    lastRecordedAtByProductId.get(productId)
 
-function hasRecordedProductInSession(
-  productId: string,
-) {
-  if (typeof window === 'undefined') {
+  if (!lastRecordedAt) {
     return false
   }
 
-  return window.sessionStorage.getItem(
-    getSessionStorageKey(productId),
-  ) === '1'
-}
-
-function markProductRecordedInSession(
-  productId: string,
-) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.sessionStorage.setItem(
-    getSessionStorageKey(productId),
-    '1',
+  return (
+    Date.now() - lastRecordedAt <
+    RECORD_DEBOUNCE_WINDOW_MS
   )
 }
 
@@ -47,11 +32,9 @@ export function useRecordViewedProduct(
 ) {
   useEffect(() => {
     if (
-      recordedProductIds.has(productId) ||
       inFlightProductIds.has(productId) ||
-      hasRecordedProductInSession(productId)
+      wasProductRecordedRecently(productId)
     ) {
-      recordedProductIds.add(productId)
       return
     }
 
@@ -69,8 +52,10 @@ export function useRecordViewedProduct(
           return
         }
 
-        recordedProductIds.add(productId)
-        markProductRecordedInSession(productId)
+        lastRecordedAtByProductId.set(
+          productId,
+          Date.now(),
+        )
       })
       .catch(() => { })
       .finally(() => {
