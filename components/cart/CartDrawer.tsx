@@ -191,7 +191,7 @@ export default function CartDrawer() {
                 <button
                   type="button"
                   disabled
-                  className="ui-primary-button mx-auto flex w-full justify-center cursor-not-allowed opacity-60 min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-[22rem]"
+                  className="ui-primary-button mx-auto flex w-full justify-center cursor-not-allowed opacity-60 min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-88"
                   aria-disabled="true"
                 >
                   Оформити замовлення
@@ -199,7 +199,7 @@ export default function CartDrawer() {
               ) : (
                 <Link
                   href={checkoutHref}
-                  className="ui-primary-button mx-auto flex w-full justify-center text-center min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-[22rem]"
+                  className="ui-primary-button mx-auto flex w-full justify-center text-center min-[501px]:w-auto min-[501px]:min-w-[18rem] min-[501px]:max-w-88"
                 >
                   Оформити замовлення
                 </Link>

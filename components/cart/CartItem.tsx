@@ -172,7 +172,7 @@ export default function CartItem({
           <dl className="grid gap-2 text-sm text-copy-secondary min-[641px]:grid-cols-3">
             <div>
               <dt className="text-copy-muted">Артикул</dt>
-              <dd className="mt-1 break-words text-copy-primary">{item.variant.sku}</dd>
+              <dd className="mt-1 wrap-break-word text-copy-primary">{item.variant.sku}</dd>
             </div>
             <div>
               <dt className="text-copy-muted">У кошику</dt>
