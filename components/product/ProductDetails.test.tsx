@@ -219,7 +219,7 @@ describe('ProductDetails', () => {
     expect(markup).toContain('Знижка: 10.00%')
   })
 
-  it('starts without a selected variant for products with multiple purchasable variants', () => {
+  it('selects the first in-stock variant by default for products with multiple purchasable variants', () => {
     act(() => {
       root!.render(
         <ProductDetails
@@ -252,9 +252,9 @@ describe('ProductDetails', () => {
     const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
     const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
 
-    expect(selectedVariant?.textContent).toBe('none')
-    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('')
-    expect(addToCartButton?.getAttribute('data-disabled')).toBe('true')
+    expect(selectedVariant?.textContent).toBe('variant-1')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-1')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
   })
 
   it('auto-selects the only purchasable variant for single-variant products', () => {
@@ -270,7 +270,83 @@ describe('ProductDetails', () => {
     expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
   })
 
-  it('enables add-to-cart after explicit variant selection on multi-variant products', async () => {
+  it('skips an out-of-stock first variant and selects the first purchasable size', () => {
+    act(() => {
+      root!.render(
+        <ProductDetails
+          currentUser={null}
+          product={{
+            ...product,
+            variants: [
+              {
+                id: 'variant-1',
+                sku: 'SKU-001',
+                size: 'M',
+                color: 'Black',
+                price: '99.99',
+                stock: 0,
+              },
+              {
+                id: 'variant-2',
+                sku: 'SKU-002',
+                size: 'L',
+                color: 'Black',
+                price: '109.99',
+                stock: 3,
+              },
+            ],
+          }}
+        />,
+      )
+    })
+
+    const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
+    const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
+
+    expect(selectedVariant?.textContent).toBe('variant-2')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-2')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
+  })
+
+  it('keeps add-to-cart disabled when all variants are out of stock', () => {
+    act(() => {
+      root!.render(
+        <ProductDetails
+          currentUser={null}
+          product={{
+            ...product,
+            variants: [
+              {
+                id: 'variant-1',
+                sku: 'SKU-001',
+                size: 'M',
+                color: 'Black',
+                price: '99.99',
+                stock: 0,
+              },
+              {
+                id: 'variant-2',
+                sku: 'SKU-002',
+                size: 'L',
+                color: 'Black',
+                price: '109.99',
+                stock: 0,
+              },
+            ],
+          }}
+        />,
+      )
+    })
+
+    const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
+    const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
+
+    expect(selectedVariant?.textContent).toBe('none')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('true')
+  })
+
+  it('preserves explicit user selection on multi-variant products', async () => {
     act(() => {
       root!.render(
         <ProductDetails
@@ -319,6 +395,87 @@ describe('ProductDetails', () => {
 
     expect(selectedVariant?.textContent).toBe('variant-2')
     expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-2')
+    expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
+  })
+
+  it('falls back to the first purchasable variant when the selected size becomes unavailable after product data changes', async () => {
+    act(() => {
+      root!.render(
+        <ProductDetails
+          currentUser={null}
+          product={{
+            ...product,
+            variants: [
+              {
+                id: 'variant-1',
+                sku: 'SKU-001',
+                size: 'M',
+                color: 'Black',
+                price: '99.99',
+                stock: 2,
+              },
+              {
+                id: 'variant-2',
+                sku: 'SKU-002',
+                size: 'L',
+                color: 'Black',
+                price: '109.99',
+                stock: 3,
+              },
+            ],
+          }}
+        />,
+      )
+    })
+
+    const selectLargeButton = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'L',
+    )
+
+    await act(async () => {
+      selectLargeButton?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await Promise.resolve()
+    })
+
+    act(() => {
+      root!.render(
+        <ProductDetails
+          currentUser={null}
+          product={{
+            ...product,
+            variants: [
+              {
+                id: 'variant-1',
+                sku: 'SKU-001',
+                size: 'M',
+                color: 'Black',
+                price: '99.99',
+                stock: 2,
+              },
+              {
+                id: 'variant-2',
+                sku: 'SKU-002',
+                size: 'L',
+                color: 'Black',
+                price: '109.99',
+                stock: 0,
+              },
+            ],
+          }}
+        />,
+      )
+    })
+
+    const addToCartButton = container.querySelector('[data-testid="add-to-cart"]')
+    const selectedVariant = container.querySelector('[data-testid="selected-variant"]')
+
+    expect(selectedVariant?.textContent).toBe('variant-1')
+    expect(addToCartButton?.getAttribute('data-variant-id')).toBe('variant-1')
     expect(addToCartButton?.getAttribute('data-disabled')).toBe('false')
   })
 })

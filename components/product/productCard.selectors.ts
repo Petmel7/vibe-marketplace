@@ -36,6 +36,12 @@ function getPurchasableVariants(product: ProductPresentationProductLike) {
   return product.variants?.filter((variant) => Math.max(variant.stock ?? 0, 0) > 0) ?? []
 }
 
+export function getFirstPurchasableVariantId(
+  product: ProductPresentationProductLike,
+): string | null {
+  return getPurchasableVariants(product)[0]?.id ?? null
+}
+
 function getPreferredDisplayVariant(product: ProductPresentationProductLike) {
   return getPurchasableVariants(product)[0] ?? product.variants?.[0] ?? null
 }
