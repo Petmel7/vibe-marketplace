@@ -95,13 +95,15 @@ export default function AdminReviewModerationForm({ review }: { review: ProductR
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="ui-secondary-button disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isPending ? 'Оновлюємо...' : 'Застосувати дію'}
-      </button>
+      <div className="flex justify-center max-[500px]:block">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="ui-secondary-button disabled:cursor-not-allowed disabled:opacity-60 max-[500px]:w-full"
+        >
+          {isPending ? 'Оновлюємо...' : 'Застосувати дію'}
+        </button>
+      </div>
     </form>
   )
 }

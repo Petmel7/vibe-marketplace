@@ -4,7 +4,6 @@ import AdminFilterBar from '@/components/admin/AdminFilterBar'
 import AdminSection from '@/components/admin/AdminSection'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import PaginationControls from '@/components/admin/PaginationControls'
-import StatusFilter from '@/components/admin/StatusFilter'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
 import { ADMIN_ORDER_STATUS_FILTERS, getAdminOrderStatusTone } from '@/types/admin'
@@ -39,22 +38,31 @@ export default async function AdminOrdersPage({
       description="Відстежуйте рух замовлень покупців і продавців, загальні суми виторгу маркетплейсу та контекст виконання між магазинами."
     >
       <AdminFilterBar action="/admin/orders">
-        <StatusFilter
-          name="status"
-          label="Статус замовлення"
-          defaultValue={data.filters.status}
-          options={ADMIN_ORDER_STATUS_FILTERS.map((status) => ({ label: ORDER_STATUS_LABELS[status] ?? status, value: status }))}
-        />
-        <label className="space-y-2 xl:w-52">
-          <span className="block text-sm font-medium text-copy-strong">Дата від</span>
-          <input type="date" name="dateFrom" defaultValue={data.filters.dateFrom} className="ui-surface-input" />
-        </label>
-        <label className="space-y-2 xl:w-52">
-          <span className="block text-sm font-medium text-copy-strong">Дата до</span>
-          <input type="date" name="dateTo" defaultValue={data.filters.dateTo} className="ui-surface-input" />
-        </label>
-        <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="grid w-full max-w-md gap-3 max-[500px]:max-w-none min-[1146px]:max-w-none min-[1146px]:grid-cols-3">
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Статус замовлення</span>
+              <select name="status" defaultValue={data.filters.status ?? ''} className="ui-surface-input w-full">
+                <option value="">Усі</option>
+                {ADMIN_ORDER_STATUS_FILTERS.map((status) => (
+                  <option key={status} value={status}>
+                    {ORDER_STATUS_LABELS[status] ?? status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Дата від</span>
+              <input type="date" name="dateFrom" defaultValue={data.filters.dateFrom} className="ui-surface-input w-full" />
+            </label>
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Дата до</span>
+              <input type="date" name="dateTo" defaultValue={data.filters.dateTo} className="ui-surface-input w-full" />
+            </label>
+          </div>
+          <button type="submit" className="ui-primary-button max-[500px]:w-full">
+            Застосувати фільтри
+          </button>
         </div>
       </AdminFilterBar>
 

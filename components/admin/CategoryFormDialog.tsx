@@ -71,7 +71,7 @@ export default function CategoryFormDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/70 px-4 py-8 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-4xl border border-panelBorder bg-surface p-6 shadow-soft">
+      <div className="w-full max-w-2xl rounded-4xl border border-panelBorder bg-[#1d2533] p-6 shadow-soft">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-copy-strong">{title}</h2>
@@ -139,7 +139,7 @@ export default function CategoryFormDialog({
             </select>
           </label>
 
-          <label className="flex items-start gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-4">
+          <label className="mt-2 flex items-start gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-4">
             <input
               type="checkbox"
               className="mt-1 h-4 w-4 accent-brand"
@@ -160,11 +160,16 @@ export default function CategoryFormDialog({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" className="ui-secondary-button" onClick={onClose} disabled={isPending}>
+          <div className="flex flex-col gap-3 max-[500px]:items-stretch min-[501px]:flex-row min-[501px]:justify-center">
+            <button
+              type="button"
+              className="ui-secondary-button max-[500px]:w-full"
+              onClick={onClose}
+              disabled={isPending}
+            >
               Скасувати
             </button>
-            <button type="submit" className="ui-primary-button" disabled={isPending}>
+            <button type="submit" className="ui-primary-button max-[500px]:w-full" disabled={isPending}>
               {isPending ? 'Зберігаємо…' : mode === 'create' ? 'Створити категорію' : 'Зберегти зміни'}
             </button>
           </div>

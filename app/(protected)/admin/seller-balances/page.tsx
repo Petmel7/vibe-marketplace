@@ -25,31 +25,43 @@ export default async function AdminSellerBalancesPage({
       title="Баланси продавців"
       description="Переглядайте баланси в очікуванні, доступні та вже виплачені суми перед створенням ручних виплат."
     >
-      <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:p-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-copy-strong">Перерахунок балансів</h2>
           <p className="text-sm text-copy-secondary">
             Використовуйте цей ручний запуск, коли утримані кошти вже мають стати доступними, а фоновий воркер ще не працює.
           </p>
         </div>
-        <RecalculateSellerBalancesButton />
+        <div className="flex justify-center max-[500px]:block">
+          <div className="max-[500px]:w-full max-[500px]:[&>*]:w-full">
+            <RecalculateSellerBalancesButton />
+          </div>
+        </div>
       </div>
 
       <AdminFilterBar action="/admin/seller-balances">
-        <SearchInput
-          name="sellerId"
-          label="ID продавця"
-          defaultValue={data.filters.sellerId}
-          placeholder="Фільтр за UUID продавця"
-        />
-        <SearchInput
-          name="storeId"
-          label="ID магазину"
-          defaultValue={data.filters.storeId}
-          placeholder="Фільтр за UUID магазину"
-        />
-        <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch min-[1146px]:flex-row min-[1146px]:justify-center min-[1146px]:items-end">
+            <div className="w-full max-w-md max-[500px]:max-w-none">
+              <SearchInput
+                name="sellerId"
+                label="ID продавця"
+                defaultValue={data.filters.sellerId}
+                placeholder="Фільтр за UUID продавця"
+              />
+            </div>
+            <div className="w-full max-w-md max-[500px]:max-w-none">
+              <SearchInput
+                name="storeId"
+                label="ID магазину"
+                defaultValue={data.filters.storeId}
+                placeholder="Фільтр за UUID магазину"
+              />
+            </div>
+          </div>
+          <button type="submit" className="ui-primary-button max-[500px]:w-full">
+            Застосувати фільтри
+          </button>
         </div>
       </AdminFilterBar>
 

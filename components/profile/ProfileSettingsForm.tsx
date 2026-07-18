@@ -103,8 +103,8 @@ export default function ProfileSettingsForm({
             />
           </label>
 
-          <div className="sm:col-span-2 flex flex-col gap-3 sm:flex-row">
-            <button type="submit" className="ui-primary-button" disabled={isPending}>
+          <div className="sm:col-span-2 flex flex-col gap-3 min-[501px]:items-center">
+            <button type="submit" className="ui-primary-button w-full min-[501px]:w-56" disabled={isPending}>
               {isPending ? 'Зберігаємо...' : 'Зберегти профіль'}
             </button>
           </div>
@@ -147,8 +147,8 @@ export default function ProfileSettingsForm({
           </div>
         </dl>
 
-        <form action={signOutAction} className="mt-5">
-          <button type="submit" className="ui-secondary-button w-full sm:w-auto">
+        <form action={signOutAction} className="mt-5 flex justify-center max-[500px]:block">
+          <button type="submit" className="ui-secondary-button w-full min-[501px]:w-56">
             Вийти
           </button>
         </form>

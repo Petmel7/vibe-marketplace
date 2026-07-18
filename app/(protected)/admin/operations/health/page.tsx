@@ -21,7 +21,7 @@ export default async function AdminOperationsHealthPage() {
       description="Поточні сигнали стану застосунку, бази даних, конфігурації та готовності провайдерів із платформних ендпоїнтів перевірки стану."
     >
       <OperationsShell currentPath="/admin/operations/health">
-        <div className="flex justify-end">
+        <div className="flex justify-center max-[500px]:block max-[500px]:[&>*]:w-full">
           <RefreshPageButton label="Оновити стан системи" />
         </div>
 

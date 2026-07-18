@@ -652,13 +652,13 @@ export default function SellerStoreSettingsForm({
             isActive={assetProgress.active}
           />
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="submit" className="ui-primary-button" disabled={isBusy}>
+          <div className="flex w-full flex-col items-stretch justify-center gap-3 min-[501px]:items-center min-[501px]:max-[859px]:flex-col min-[860px]:flex-row min-[860px]:flex-wrap min-[860px]:justify-center">
+            <button type="submit" className="ui-primary-button w-full min-[501px]:w-64" disabled={isBusy}>
               {isBusy ? 'Зберігаємо...' : 'Зберегти магазин'}
             </button>
             <button
               type="button"
-              className="ui-secondary-button"
+              className="ui-secondary-button w-full min-[501px]:w-64"
               disabled={isBusy || !isVerified || store.isActive}
               onClick={() =>
                 execute({
@@ -671,7 +671,7 @@ export default function SellerStoreSettingsForm({
             </button>
             <button
               type="button"
-              className="ui-secondary-button"
+              className="ui-secondary-button w-full min-[501px]:w-64"
               disabled={isBusy || !store.isActive}
               onClick={() =>
                 execute({

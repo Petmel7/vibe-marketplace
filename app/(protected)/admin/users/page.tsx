@@ -34,20 +34,28 @@ export default async function AdminUsersPage({
       description="Шукайте акаунти маркетплейсу, перевіряйте призначені ролі та переглядайте метадані акаунтів, не залишаючи адмін-простір."
     >
       <AdminFilterBar action="/admin/users">
-        <SearchInput
-          name="search"
-          label="Пошук користувачів"
-          defaultValue={data.filters.search}
-          placeholder="Пошук за email або іменем"
-        />
-        <StatusFilter
-          name="role"
-          label="Роль"
-          defaultValue={data.filters.role}
-          options={ADMIN_USER_ROLE_FILTERS.map((role) => ({ label: ROLE_LABELS[role] ?? role, value: role }))}
-        />
-        <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch min-[1146px]:flex-row min-[1146px]:justify-center min-[1146px]:items-end">
+            <div className="w-full max-w-md max-[500px]:max-w-none">
+              <SearchInput
+                name="search"
+                label="Пошук користувачів"
+                defaultValue={data.filters.search}
+                placeholder="Пошук за email або іменем"
+              />
+            </div>
+            <div className="w-full max-w-md max-[500px]:max-w-none">
+              <StatusFilter
+                name="role"
+                label="Роль"
+                defaultValue={data.filters.role}
+                options={ADMIN_USER_ROLE_FILTERS.map((role) => ({ label: ROLE_LABELS[role] ?? role, value: role }))}
+              />
+            </div>
+          </div>
+          <button type="submit" className="ui-primary-button max-[500px]:w-full">
+            Застосувати фільтри
+          </button>
         </div>
       </AdminFilterBar>
 

@@ -56,57 +56,59 @@ export default function CommissionPreviewCard({
       description="Запустіть server-side попередній перегляд, щоб перевірити, яке правило спрацює до публікації зміни ставки."
     >
       <form className="space-y-4" onSubmit={handlePreview}>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Валова сума</span>
-            <input
-              required
-              min="0"
-              step="0.01"
-              type="number"
-              value={grossAmount}
-              onChange={(event) => setGrossAmount(event.target.value)}
-              className="ui-surface-input"
-            />
-          </label>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="grid w-full max-w-md gap-3 max-[500px]:max-w-none min-[1146px]:max-w-none min-[1146px]:grid-cols-3">
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Валова сума</span>
+              <input
+                required
+                min="0"
+                step="0.01"
+                type="number"
+                value={grossAmount}
+                onChange={(event) => setGrossAmount(event.target.value)}
+                className="ui-surface-input"
+              />
+            </label>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Магазин</span>
-            <select
-              value={storeId}
-              onChange={(event) => setStoreId(event.target.value)}
-              className="ui-surface-input"
-            >
-              <option value="">Будь-який магазин</option>
-              {stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Магазин</span>
+              <select
+                value={storeId}
+                onChange={(event) => setStoreId(event.target.value)}
+                className="ui-surface-input"
+              >
+                <option value="">Будь-який магазин</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Категорія</span>
+              <select
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
+                className="ui-surface-input"
+              >
+                <option value="">Будь-яка категорія</option>
+                {sortedCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {'— '.repeat(category.level)}
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <button type="submit" className="ui-primary-button max-[500px]:w-full" disabled={isPreviewPending}>
+            {isPreviewPending ? 'Рахуємо попередній перегляд...' : 'Переглянути комісію'}
+          </button>
         </div>
-
-        <label className="space-y-2">
-          <span className="block text-sm font-medium text-copy-strong">Категорія</span>
-          <select
-            value={categoryId}
-            onChange={(event) => setCategoryId(event.target.value)}
-            className="ui-surface-input"
-          >
-            <option value="">Будь-яка категорія</option>
-            {sortedCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {'— '.repeat(category.level)}
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button type="submit" className="ui-primary-button mt-3 max-[499px]:w-full" disabled={isPreviewPending}>
-          {isPreviewPending ? 'Рахуємо попередній перегляд...' : 'Переглянути комісію'}
-        </button>
 
         {previewErrorMessage ? <p className="text-sm text-brand-danger">{previewErrorMessage}</p> : null}
       </form>

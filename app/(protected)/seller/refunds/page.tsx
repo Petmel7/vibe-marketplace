@@ -41,13 +41,13 @@ export default async function SellerRefundsPage({
         description="Це режим лише для перегляду: рішення, схвалення та фінальні зміни статусу виконує лише адміністрація."
       >
         <div className="space-y-5 p-5 sm:p-6">
-          <form method="GET" className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
+          <form method="GET" className="flex flex-wrap items-end justify-center gap-3 max-[500px]:flex-col max-[500px]:items-stretch">
+            <label className="flex w-full max-w-64 flex-col gap-2 text-sm text-copy-secondary max-[500px]:max-w-none">
               <span>Статус</span>
               <select
                 name="status"
                 defaultValue={data.filters.status ?? ''}
-                className="ui-native-select rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
               >
                 <option value="">Усі</option>
                 {REFUND_REQUEST_STATUSES.map((status) => (
@@ -57,7 +57,7 @@ export default async function SellerRefundsPage({
                 ))}
               </select>
             </label>
-            <button type="submit" className="ui-secondary-button">
+            <button type="submit" className="ui-secondary-button max-[500px]:w-full">
               Застосувати
             </button>
           </form>

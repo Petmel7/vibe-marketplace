@@ -128,7 +128,7 @@ export default async function SellerOrdersPage() {
         )}
       </SellerTable>
 
-      <div className="flex flex-wrap gap-3 max-[499px]:flex-col max-[499px]:[&>*]:w-full">
+      <div className="flex flex-wrap gap-3 min-[500px]:justify-center max-[499px]:flex-col max-[499px]:[&>*]:w-full">
         <Link href="/seller/refunds" className="ui-secondary-button">
           Відкрити центр повернень
         </Link>

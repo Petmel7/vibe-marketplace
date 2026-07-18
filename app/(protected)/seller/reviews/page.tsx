@@ -46,7 +46,7 @@ export default async function SellerReviewsPage() {
               />
             }
             renderAction={(review) => (
-              <div className="w-full max-w-md">
+              <div className="w-full sm:max-w-md">
                 <SellerReviewReplyForm reviewId={review.id} initialValue={review.sellerReply} />
               </div>
             )}

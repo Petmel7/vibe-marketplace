@@ -51,7 +51,7 @@ export default function SellerShipmentTable({
             Виберіть кілька відправлень, готових до оформлення. Часткові помилки не зупиняють решту пакета.
           </p>
         </div>
-        <div className="max-[499px]:w-full">
+        <div className="max-[499px]:w-full min-[501px]:max-[1130px]:flex min-[501px]:max-[1130px]:justify-center">
           <BulkCreateTtnDialog
             shipments={shipments.items.filter((shipment) => eligibleShipmentIds.includes(shipment.id))}
             selectedShipmentIds={selectedShipmentIds}

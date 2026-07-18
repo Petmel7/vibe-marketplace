@@ -64,13 +64,15 @@ export default function SellerReviewReplyForm({
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isPending || !reply.trim()}
-        className="ui-secondary-button disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isPending ? 'Зберігаємо...' : initialValue ? 'Оновити відповідь' : 'Додати відповідь'}
-      </button>
+      <div className="flex justify-center max-[500px]:block">
+        <button
+          type="submit"
+          disabled={isPending || !reply.trim()}
+          className="ui-secondary-button w-full max-[500px]:w-full min-[501px]:w-fit disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isPending ? 'Зберігаємо...' : initialValue ? 'Оновити відповідь' : 'Додати відповідь'}
+        </button>
+      </div>
     </form>
   )
 }

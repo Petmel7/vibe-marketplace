@@ -194,7 +194,7 @@ export default function AdminCategoryTree() {
               кореневих і дочірніх категорій лишається передбачуваним завдяки явним елементам керування позиціями.
             </p>
           </div>
-          <div className="max-[499px]:w-full">
+          <div className="max-[499px]:w-full max-[1240px]:flex max-[1240px]:justify-center">
             <button
               type="button"
               className="ui-primary-button max-[499px]:w-full"

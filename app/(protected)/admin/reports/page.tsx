@@ -24,79 +24,90 @@ export default async function AdminReportsPage({
       <AdminDataTable
         title="Скарги"
         description="Використовуйте фільтри, щоб звузити чергу за статусом, типом цілі, причиною та датою."
+        stackActionsOnTablet
         actions={
-          <form method="GET" className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Статус</span>
-              <select
-                name="status"
-                defaultValue={data.filters.status ?? ''}
-                className="ui-native-select rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-              >
-                <option value="">Усі</option>
-                <option value="PENDING">Очікує</option>
-                <option value="UNDER_REVIEW">На розгляді</option>
-                <option value="RESOLVED">Вирішено</option>
-                <option value="DISMISSED">Відхилено</option>
-                <option value="ESCALATED">Ескальовано</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Ціль</span>
-              <select
-                name="targetType"
-                defaultValue={data.filters.targetType ?? ''}
-                className="ui-native-select rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-              >
-                <option value="">Усі</option>
-                <option value="PRODUCT">Товар</option>
-                <option value="REVIEW">Відгук</option>
-                <option value="STORE">Магазин</option>
-                <option value="USER">Користувач</option>
-                <option value="ORDER">Замовлення</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Причина</span>
-              <select
-                name="reason"
-                defaultValue={data.filters.reason ?? ''}
-                className="ui-native-select rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-              >
-                <option value="">Усі</option>
-                <option value="SPAM">Спам</option>
-                <option value="SCAM">Шахрайство</option>
-                <option value="COUNTERFEIT">Підробка</option>
-                <option value="PROHIBITED_ITEM">Заборонений товар</option>
-                <option value="INAPPROPRIATE_CONTENT">Неприйнятний контент</option>
-                <option value="HARASSMENT">Домагання</option>
-                <option value="MISLEADING_INFO">Оманлива інформація</option>
-                <option value="PAYMENT_ISSUE">Проблема з оплатою</option>
-                <option value="DELIVERY_ISSUE">Проблема з доставкою</option>
-                <option value="OTHER">Інше</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Від</span>
-              <input
-                type="date"
-                name="dateFrom"
-                defaultValue={data.filters.dateFrom?.slice(0, 10) ?? ''}
-                className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>До</span>
-              <input
-                type="date"
-                name="dateTo"
-                defaultValue={data.filters.dateTo?.slice(0, 10) ?? ''}
-                className="rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-              />
-            </label>
-            <button type="submit" className="ui-secondary-button">
-              Застосувати
-            </button>
+          <form method="GET" className="w-full xl:w-[min(100%,52rem)]">
+            <div className="space-y-3">
+              <div className="grid gap-3 min-[501px]:grid-cols-2 xl:grid-cols-3">
+                <label className="space-y-2 text-sm text-copy-secondary">
+                  <span className="block font-medium text-copy-strong">Статус</span>
+                  <select
+                    name="status"
+                    defaultValue={data.filters.status ?? ''}
+                    className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                  >
+                    <option value="">Усі</option>
+                    <option value="PENDING">Очікує</option>
+                    <option value="UNDER_REVIEW">На розгляді</option>
+                    <option value="RESOLVED">Вирішено</option>
+                    <option value="DISMISSED">Відхилено</option>
+                    <option value="ESCALATED">Ескальовано</option>
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm text-copy-secondary">
+                  <span className="block font-medium text-copy-strong">Ціль</span>
+                  <select
+                    name="targetType"
+                    defaultValue={data.filters.targetType ?? ''}
+                    className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                  >
+                    <option value="">Усі</option>
+                    <option value="PRODUCT">Товар</option>
+                    <option value="REVIEW">Відгук</option>
+                    <option value="STORE">Магазин</option>
+                    <option value="USER">Користувач</option>
+                    <option value="ORDER">Замовлення</option>
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm text-copy-secondary min-[501px]:col-span-2 xl:col-span-1">
+                  <span className="block font-medium text-copy-strong">Причина</span>
+                  <select
+                    name="reason"
+                    defaultValue={data.filters.reason ?? ''}
+                    className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                  >
+                    <option value="">Усі</option>
+                    <option value="SPAM">Спам</option>
+                    <option value="SCAM">Шахрайство</option>
+                    <option value="COUNTERFEIT">Підробка</option>
+                    <option value="PROHIBITED_ITEM">Заборонений товар</option>
+                    <option value="INAPPROPRIATE_CONTENT">Неприйнятний контент</option>
+                    <option value="HARASSMENT">Домагання</option>
+                    <option value="MISLEADING_INFO">Оманлива інформація</option>
+                    <option value="PAYMENT_ISSUE">Проблема з оплатою</option>
+                    <option value="DELIVERY_ISSUE">Проблема з доставкою</option>
+                    <option value="OTHER">Інше</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid gap-3 min-[501px]:grid-cols-2">
+                <label className="space-y-2 text-sm text-copy-secondary">
+                  <span className="block font-medium text-copy-strong">Від</span>
+                  <input
+                    type="date"
+                    name="dateFrom"
+                    defaultValue={data.filters.dateFrom?.slice(0, 10) ?? ''}
+                    className="w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-copy-secondary">
+                  <span className="block font-medium text-copy-strong">До</span>
+                  <input
+                    type="date"
+                    name="dateTo"
+                    defaultValue={data.filters.dateTo?.slice(0, 10) ?? ''}
+                    className="w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-center max-[500px]:block max-[500px]:[&>*]:w-full">
+                <button type="submit" className="ui-secondary-button">
+                  Застосувати
+                </button>
+              </div>
+            </div>
           </form>
         }
       >

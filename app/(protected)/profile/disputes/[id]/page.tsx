@@ -76,7 +76,7 @@ export default async function ProfileDisputeDetailPage({
             title="Листування"
             description="Уточнюйте деталі проблеми прямо в потоці суперечки."
           >
-            <div className="space-y-5 p-5 sm:p-6">
+            <div className="space-y-5">
               <DisputeMessageList messages={dispute.messages} currentUserId={user.id} />
               <DisputeMessageComposer disputeId={dispute.id} />
             </div>

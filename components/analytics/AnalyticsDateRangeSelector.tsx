@@ -31,7 +31,7 @@ export default function AnalyticsDateRangeSelector({
 
   return (
     <section className="ui-elevated-panel p-4 sm:p-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_auto]">
+      <div className="flex flex-col gap-4 min-[1201px]:grid min-[1201px]:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_auto] min-[1201px]:items-end">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-2 text-sm">
             <span className="font-medium text-copy-strong">Період</span>
@@ -91,7 +91,7 @@ export default function AnalyticsDateRangeSelector({
           </div>
         )}
 
-        <div className="flex items-end gap-2 max-[479px]:flex-col max-[479px]:items-stretch max-[479px]:gap-3 max-[479px]:[&>*]:w-full">
+        <div className="flex items-center justify-center gap-2 max-[479px]:flex-col max-[479px]:items-stretch max-[479px]:gap-3 max-[479px]:[&>*]:w-full min-[1201px]:justify-end min-[1201px]:self-end">
           <button
             type="button"
             className="ui-primary-button"

@@ -84,10 +84,10 @@ export default function SellerInventoryManager({
                 return (
                   <div
                     key={variant.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 lg:flex-row lg:items-center lg:justify-between"
+                    className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 min-[501px]:max-[1025px]:grid min-[501px]:max-[1025px]:grid-cols-[minmax(0,1fr)_auto] min-[501px]:max-[1025px]:items-start min-[501px]:max-[1025px]:gap-x-5 min-[1026px]:flex-row min-[1026px]:items-center min-[1026px]:justify-between"
                   >
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold text-copy-strong">{variant.sku}</p>
+                    <div className="min-w-0 space-y-2">
+                      <p className="break-words text-sm font-semibold text-copy-strong">{variant.sku}</p>
                       <p className="text-sm text-copy-secondary">
                         {[variant.size, variant.color].filter(Boolean).join(' · ') || 'Єдиний варіант'}
                       </p>
@@ -105,13 +105,13 @@ export default function SellerInventoryManager({
                       ) : null}
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <label className="space-y-2">
+                    <div className="flex flex-col gap-3 min-[501px]:max-[1025px]:items-center min-[501px]:max-[1025px]:justify-center min-[1026px]:flex-row min-[1026px]:items-center">
+                      <label className="space-y-2 max-[500px]:w-full">
                         <span className="block text-xs uppercase tracking-[0.16em] text-copy-muted">Залишок</span>
                         <input
                           type="number"
                           min={0}
-                          className="ui-surface-input w-28"
+                          className="ui-surface-input h-10 w-28 max-[500px]:w-full"
                           value={nextStock}
                           onChange={(event) =>
                             setDraftStocks((current) => ({
@@ -124,7 +124,7 @@ export default function SellerInventoryManager({
                       </label>
                       <button
                         type="button"
-                        className="ui-secondary-button h-10 px-4 py-2 text-sm"
+                        className="ui-secondary-button h-10 px-4 py-2 text-sm max-[500px]:w-full"
                         disabled={isReadOnly || isPending || nextStock === variant.stock}
                         onClick={async () => {
                           const data = await execute<{ stock: number }>({

@@ -22,7 +22,7 @@ export default async function AdminShipmentsPage() {
             </p>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-5 flex justify-center">
             <ShipmentSyncButton label="Синхронізувати відправлення в очікуванні" />
           </div>
         </section>

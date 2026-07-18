@@ -66,7 +66,7 @@ export default async function SellerProductsPage({
             )
           })}
         </div>
-        <div className="max-[499px]:w-full">
+        <div className="max-[499px]:w-full min-[501px]:max-[1151px]:flex min-[501px]:max-[1151px]:justify-center">
           <Link href="/seller/products/new" className="ui-primary-button max-[499px]:w-full">
           Новий товар
           </Link>

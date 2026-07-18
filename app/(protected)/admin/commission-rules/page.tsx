@@ -35,28 +35,36 @@ export default async function AdminCommissionRulesPage({
       description="Керуйте глобальними, категорійними та магазинними ставками комісії, зберігаючи історичні знімки платформної комісії незмінними."
     >
       <AdminFilterBar action="/admin/commission-rules">
-        <StatusFilter
-          name="scope"
-          label="Область дії"
-          defaultValue={data.filters.scope}
-          options={COMMISSION_RULE_SCOPES.map((scope) => ({
-            label: getCommissionRuleScopeLabel(scope),
-            value: scope,
-          }))}
-        />
-        <StatusFilter
-          name="isActive"
-          label="Доступність"
-          defaultValue={
-            typeof data.filters.isActive === 'boolean' ? String(data.filters.isActive) : undefined
-          }
-          options={[...COMMISSION_ACTIVE_FILTERS]}
-        />
-        <div className="flex gap-2 max-[499px]:flex-col max-[499px]:gap-3 max-[499px]:[&>*]:w-full xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
-          <Link href="/admin/commission-rules/new" className="ui-secondary-button">
-            Нове правило
-          </Link>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="grid w-full max-w-md gap-3 max-[500px]:max-w-none min-[1146px]:max-w-none min-[1146px]:grid-cols-2">
+            <div>
+              <StatusFilter
+                name="scope"
+                label="Область дії"
+                defaultValue={data.filters.scope}
+                options={COMMISSION_RULE_SCOPES.map((scope) => ({
+                  label: getCommissionRuleScopeLabel(scope),
+                  value: scope,
+                }))}
+              />
+            </div>
+            <div>
+              <StatusFilter
+                name="isActive"
+                label="Доступність"
+                defaultValue={
+                  typeof data.filters.isActive === 'boolean' ? String(data.filters.isActive) : undefined
+                }
+                options={[...COMMISSION_ACTIVE_FILTERS]}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 max-[500px]:items-stretch min-[501px]:flex-row min-[501px]:justify-center">
+            <button type="submit" className="ui-primary-button max-[500px]:w-full">Застосувати фільтри</button>
+            <Link href="/admin/commission-rules/new" className="ui-secondary-button max-[500px]:w-full">
+              Нове правило
+            </Link>
+          </div>
         </div>
       </AdminFilterBar>
 

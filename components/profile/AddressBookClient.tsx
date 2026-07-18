@@ -196,14 +196,16 @@ export default function AddressBookClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-lg font-semibold text-copy-strong">Адреси доставки</h2>
           <p className="text-sm text-copy-muted">Керуйте адресами доставки для майбутніх замовлень.</p>
         </div>
-        <button type="button" className="ui-primary-button" onClick={openCreate}>
-          Додати адресу
-        </button>
+        <div className="flex justify-center max-[500px]:justify-stretch">
+          <button type="button" className="ui-primary-button w-fit max-[500px]:w-full" onClick={openCreate}>
+            Додати адресу
+          </button>
+        </div>
       </div>
 
       {errorMessage ? (

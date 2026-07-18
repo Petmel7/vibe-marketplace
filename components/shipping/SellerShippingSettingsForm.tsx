@@ -136,8 +136,8 @@ function SellerShippingSettingsFields({
         </p>
       ) : null}
 
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button type="submit" className="ui-primary-button" disabled={isSaving}>
+      <div className="mt-2 flex flex-col gap-3 min-[501px]:items-center">
+        <button type="submit" className="ui-primary-button w-full min-[501px]:w-fit" disabled={isSaving}>
           {isSaving ? 'Зберігаємо...' : 'Зберегти дані відправника'}
         </button>
         {settings?.updatedAt ? (

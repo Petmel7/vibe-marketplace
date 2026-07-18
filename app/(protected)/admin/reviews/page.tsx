@@ -25,25 +25,28 @@ export default async function AdminReviewsPage({
       <AdminDataTable
         title="Черга відгуків"
         description="Фільтруйте за статусом модерації та реагуйте без публічного показу інструментів модерації."
+        stackActionsOnTablet
         actions={
-          <form method="GET" className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-copy-secondary">
-              <span>Статус</span>
-              <select
-                name="status"
-                defaultValue={data.filters.status ?? ''}
-                className="ui-native-select rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
-              >
-                <option value="">Усі</option>
-                <option value="PENDING">Очікує</option>
-                <option value="PUBLISHED">Опубліковано</option>
-                <option value="REJECTED">Відхилено</option>
-                <option value="HIDDEN">Приховано</option>
-              </select>
-            </label>
-            <button type="submit" className="ui-secondary-button">
-              Застосувати
-            </button>
+          <form method="GET" className="w-full xl:w-[min(100%,20rem)]">
+            <div className="flex flex-col items-center gap-3 max-[500px]:items-stretch">
+              <label className="w-full space-y-2 text-sm text-copy-secondary">
+                <span className="block font-medium text-copy-strong">Статус</span>
+                <select
+                  name="status"
+                  defaultValue={data.filters.status ?? ''}
+                  className="ui-native-select w-full rounded-2xl border border-panelBorder bg-panelAlt px-4 py-2 text-sm text-copy-primary outline-none transition focus:border-brand-accent"
+                >
+                  <option value="">Усі</option>
+                  <option value="PENDING">Очікує</option>
+                  <option value="PUBLISHED">Опубліковано</option>
+                  <option value="REJECTED">Відхилено</option>
+                  <option value="HIDDEN">Приховано</option>
+                </select>
+              </label>
+              <button type="submit" className="ui-secondary-button max-[500px]:w-full">
+                Застосувати
+              </button>
+            </div>
           </form>
         }
       >
@@ -58,7 +61,7 @@ export default async function AdminReviewsPage({
               />
             }
             renderAction={(review) => (
-              <div className="w-full max-w-md">
+              <div className="w-full min-[641px]:mx-auto min-[641px]:max-w-md">
                 <AdminReviewModerationForm review={review} />
               </div>
             )}

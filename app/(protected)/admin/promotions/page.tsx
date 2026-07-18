@@ -38,31 +38,41 @@ export default async function AdminPromotionsPage({
       description="Створюйте купони для всього маркетплейсу та автоматичні знижки, зберігаючи валідацію знижок і облік використання повністю під контролем бекенду."
     >
       <AdminFilterBar action="/admin/promotions">
-        <SearchInput
-          name="code"
-          label="Код купона"
-          defaultValue={data.filters.code}
-          placeholder="Фільтр за кодом"
-        />
-        <StatusFilter
-          name="type"
-          label="Тип акції"
-          defaultValue={data.filters.type}
-          options={PROMOTION_TYPES.map((type) => ({
-            label: getPromotionTypeLabel(type),
-            value: type,
-          }))}
-        />
-        <StatusFilter
-          name="isActive"
-          label="Доступність"
-          defaultValue={
-            typeof data.filters.isActive === 'boolean' ? String(data.filters.isActive) : undefined
-          }
-          options={[...PROMOTION_ACTIVE_FILTERS]}
-        />
-        <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="grid w-full max-w-md gap-3 max-[500px]:max-w-none min-[1146px]:max-w-none min-[1146px]:grid-cols-3">
+            <div>
+              <SearchInput
+                name="code"
+                label="Код купона"
+                defaultValue={data.filters.code}
+                placeholder="Фільтр за кодом"
+              />
+            </div>
+            <div>
+              <StatusFilter
+                name="type"
+                label="Тип акції"
+                defaultValue={data.filters.type}
+                options={PROMOTION_TYPES.map((type) => ({
+                  label: getPromotionTypeLabel(type),
+                  value: type,
+                }))}
+              />
+            </div>
+            <div>
+              <StatusFilter
+                name="isActive"
+                label="Доступність"
+                defaultValue={
+                  typeof data.filters.isActive === 'boolean' ? String(data.filters.isActive) : undefined
+                }
+                options={[...PROMOTION_ACTIVE_FILTERS]}
+              />
+            </div>
+          </div>
+          <button type="submit" className="ui-primary-button max-[500px]:w-full">
+            Застосувати фільтри
+          </button>
         </div>
       </AdminFilterBar>
 

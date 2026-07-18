@@ -14,7 +14,7 @@ import { getAdminProductsPageData } from '@/app/(protected)/admin/_lib/admin-das
 
 const PRODUCT_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Чернетка',
-  PENDING_REVIEW: 'Очікує модерації',
+  PENDING_REVIEW: 'Очікує',
   PUBLISHED: 'Опубліковано',
   REJECTED: 'Відхилено',
   ARCHIVED: 'Архівовано',
@@ -53,7 +53,7 @@ export default async function AdminProductsPage({
             value: status,
           }))}
         />
-        <div className="flex gap-2 max-[479px]:[&>*]:w-full xl:self-end">
+        <div className="flex w-full justify-center gap-2 max-[479px]:[&>*]:w-full min-[1281px]:w-auto min-[1281px]:justify-start min-[1281px]:self-end">
           <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
         </div>
       </AdminFilterBar>

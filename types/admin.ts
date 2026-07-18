@@ -86,7 +86,7 @@ export function getAdminProductStatusLabel(status: string) {
     case 'DRAFT':
       return 'Чернетка'
     case 'PENDING_REVIEW':
-      return 'Очікує модерації'
+      return 'Очікує'
     case 'PUBLISHED':
       return 'Опубліковано'
     case 'REJECTED':

@@ -53,7 +53,9 @@ export default async function AdminRiskOverviewPage() {
             Перебудуйте advisory-оцінки зі збережених сигналів, коли потрібен свіжий операційний знімок.
           </p>
         </div>
-        <RiskRecalculateButton targetType="ALL" label="Перерахувати всі профілі ризику" />
+        <div className="flex justify-center max-[500px]:block max-[500px]:[&>*]:w-full">
+          <RiskRecalculateButton targetType="ALL" label="Перерахувати всі профілі ризику" />
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

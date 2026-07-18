@@ -89,9 +89,11 @@ export default function SellerSidebar({
             ? `Вашу вітрину підключено за адресою /${store.slug}, і вона зараз ${store.isActive ? 'активна' : 'призупинена'}.`
             : 'Вашу верифікацію продавця завершено, але підключення вітрини ще потрібно завершити, перш ніж стануть доступними товари, замовлення та складські процеси.'}
         </p>
-        <Link href="/seller/store" className="ui-secondary-button mt-4 w-fit max-[499px]:w-full">
-          Відкрити налаштування магазину
-        </Link>
+        <div className="mt-4 min-[501px]:max-[1025px]:flex min-[501px]:max-[1025px]:justify-center">
+          <Link href="/seller/store" className="ui-secondary-button w-fit max-[500px]:w-full">
+            Відкрити налаштування магазину
+          </Link>
+        </div>
       </section>
     </aside>
   )

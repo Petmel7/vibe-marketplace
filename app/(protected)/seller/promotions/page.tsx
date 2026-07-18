@@ -36,16 +36,18 @@ export default async function SellerPromotionsPage({
     >
       <SellerVerificationNotice status={sellerProfile.verificationStatus} />
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel/60 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel/60 px-5 py-5 min-[1204px]:flex-row min-[1204px]:items-center min-[1204px]:justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-copy-strong">Огляд промоакцій</h2>
           <p className="text-sm text-copy-muted">
             Купони продавця можуть діяти на весь магазин, вибрані товари або вибрані категорії.
           </p>
         </div>
-        <Link href="/seller/promotions/new" className="ui-primary-button">
-          Нова промоакція
-        </Link>
+        <div className="max-[500px]:w-full min-[501px]:max-[1203px]:flex min-[501px]:max-[1203px]:justify-center">
+          <Link href="/seller/promotions/new" className="ui-primary-button max-[500px]:w-full">
+            Нова промоакція
+          </Link>
+        </div>
       </div>
 
       <SellerTable

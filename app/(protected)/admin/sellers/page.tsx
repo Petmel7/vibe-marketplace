@@ -6,7 +6,6 @@ import AdminSection from '@/components/admin/AdminSection'
 import AdminSellerModerationActions from '@/components/admin/AdminSellerModerationActions'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import PaginationControls from '@/components/admin/PaginationControls'
-import StatusFilter from '@/components/admin/StatusFilter'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { ADMIN_SELLER_STATUS_FILTERS, getAdminSellerStatusTone } from '@/types/admin'
 import { getAdminSellersPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
@@ -59,17 +58,21 @@ export default async function AdminSellersPage({
       </div>
 
       <AdminFilterBar action="/admin/sellers">
-        <StatusFilter
-          name="status"
-          label="Статус верифікації"
-          defaultValue={data.filters.status}
-          options={ADMIN_SELLER_STATUS_FILTERS.map((status) => ({
-            label: SELLER_STATUS_LABELS[status] ?? status,
-            value: status,
-          }))}
-        />
-        <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+        <div className="flex flex-wrap items-end justify-center gap-3 max-[500px]:flex-col max-[500px]:items-stretch">
+          <label className="flex w-full max-w-64 flex-col gap-2 text-sm text-copy-secondary max-[500px]:max-w-none">
+            <span className="font-medium text-copy-strong">Статус верифікації</span>
+            <select name="status" defaultValue={data.filters.status ?? ''} className="ui-surface-input w-full">
+              <option value="">Усі</option>
+              {ADMIN_SELLER_STATUS_FILTERS.map((status) => (
+                <option key={status} value={status}>
+                  {SELLER_STATUS_LABELS[status] ?? status}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="ui-primary-button max-[500px]:w-full">
+            Застосувати фільтри
+          </button>
         </div>
       </AdminFilterBar>
 

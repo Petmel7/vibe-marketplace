@@ -27,44 +27,54 @@ export default async function AdminPayoutsPage({
       description="Переглядайте пакети виплат, перевіряйте їхній стан і оновлюйте статус життєвого циклу без розкриття деталей розрахунків на стороні провайдера."
     >
       <AdminFilterBar action="/admin/payouts">
-        <StatusFilter
-          name="status"
-          label="Статус"
-          defaultValue={data.filters.status}
-          options={PAYOUT_STATUSES.map((status) => ({ label: getPayoutStatusLabel(status), value: status }))}
-        />
-        <SearchInput
-          name="sellerId"
-          label="ID продавця"
-          defaultValue={data.filters.sellerId}
-          placeholder="Фільтр за UUID продавця"
-        />
-        <SearchInput
-          name="storeId"
-          label="ID магазину"
-          defaultValue={data.filters.storeId}
-          placeholder="Фільтр за UUID магазину"
-        />
-        <label className="space-y-2 xl:w-56">
-          <span className="block text-sm font-medium text-copy-strong">Дата від</span>
-          <input
-            type="date"
-            name="dateFrom"
-            defaultValue={data.filters.dateFrom ? data.filters.dateFrom.slice(0, 10) : ''}
-            className="ui-surface-input"
-          />
-        </label>
-        <label className="space-y-2 xl:w-56">
-          <span className="block text-sm font-medium text-copy-strong">Дата до</span>
-          <input
-            type="date"
-            name="dateTo"
-            defaultValue={data.filters.dateTo ? data.filters.dateTo.slice(0, 10) : ''}
-            className="ui-surface-input"
-          />
-        </label>
-        <div className="flex gap-2 xl:self-end">
-          <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+        <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+          <div className="grid w-full gap-3 max-[500px]:max-w-none min-[501px]:grid-cols-2 min-[1146px]:grid-cols-3">
+            <div>
+              <StatusFilter
+                name="status"
+                label="Статус"
+                defaultValue={data.filters.status}
+                options={PAYOUT_STATUSES.map((status) => ({ label: getPayoutStatusLabel(status), value: status }))}
+              />
+            </div>
+            <div>
+              <SearchInput
+                name="sellerId"
+                label="ID продавця"
+                defaultValue={data.filters.sellerId}
+                placeholder="Фільтр за UUID продавця"
+              />
+            </div>
+            <div className="min-[501px]:col-span-2 min-[1146px]:col-span-1">
+              <SearchInput
+                name="storeId"
+                label="ID магазину"
+                defaultValue={data.filters.storeId}
+                placeholder="Фільтр за UUID магазину"
+              />
+            </div>
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Дата від</span>
+              <input
+                type="date"
+                name="dateFrom"
+                defaultValue={data.filters.dateFrom ? data.filters.dateFrom.slice(0, 10) : ''}
+                className="ui-surface-input w-full"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="block text-sm font-medium text-copy-strong">Дата до</span>
+              <input
+                type="date"
+                name="dateTo"
+                defaultValue={data.filters.dateTo ? data.filters.dateTo.slice(0, 10) : ''}
+                className="ui-surface-input w-full"
+              />
+            </label>
+          </div>
+          <div className="flex justify-center max-[500px]:block max-[500px]:[&>*]:w-full">
+            <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+          </div>
         </div>
       </AdminFilterBar>
 

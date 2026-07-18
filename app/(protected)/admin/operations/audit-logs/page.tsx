@@ -27,40 +27,54 @@ export default async function AdminOperationsAuditLogsPage({
     >
       <OperationsShell currentPath="/admin/operations/audit-logs">
         <AdminFilterBar action="/admin/operations/audit-logs">
-          <SearchInput
-            name="actorId"
-            label="ID виконавця"
-            defaultValue={data.filters.actorId}
-            placeholder="Фільтр за UUID адміністратора"
-          />
-          <SearchInput
-            name="domain"
-            label="Домен"
-            defaultValue={data.filters.domain}
-            placeholder="напр. виплати, акції, повернення"
-          />
-          <SearchInput
-            name="action"
-            label="Дія"
-            defaultValue={data.filters.action}
-            placeholder="напр. повтор, схвалення, оновлення"
-          />
-          <SearchInput
-            name="resourceType"
-            label="Тип ресурсу"
-            defaultValue={data.filters.resourceType}
-            placeholder="напр. задача, виплата, акція"
-          />
-          <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">Від дати</span>
-            <input type="date" name="dateFrom" defaultValue={data.filters.dateFrom} className="ui-surface-input" />
-          </label>
-          <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">До дати</span>
-            <input type="date" name="dateTo" defaultValue={data.filters.dateTo} className="ui-surface-input" />
-          </label>
-          <div className="flex gap-2 xl:self-end">
-            <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+          <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+            <div className="grid w-full gap-3 max-[500px]:max-w-none min-[501px]:grid-cols-2 xl:grid-cols-3">
+              <SearchInput
+                name="actorId"
+                label="ID виконавця"
+                defaultValue={data.filters.actorId}
+                placeholder="Фільтр за UUID адміністратора"
+              />
+              <SearchInput
+                name="domain"
+                label="Домен"
+                defaultValue={data.filters.domain}
+                placeholder="напр. виплати, акції, повернення"
+              />
+              <SearchInput
+                name="action"
+                label="Дія"
+                defaultValue={data.filters.action}
+                placeholder="напр. повтор, схвалення, оновлення"
+              />
+              <SearchInput
+                name="resourceType"
+                label="Тип ресурсу"
+                defaultValue={data.filters.resourceType}
+                placeholder="напр. задача, виплата, акція"
+              />
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-copy-strong">Від дати</span>
+                <input
+                  type="date"
+                  name="dateFrom"
+                  defaultValue={data.filters.dateFrom}
+                  className="ui-surface-input w-full"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-copy-strong">До дати</span>
+                <input
+                  type="date"
+                  name="dateTo"
+                  defaultValue={data.filters.dateTo}
+                  className="ui-surface-input w-full"
+                />
+              </label>
+            </div>
+            <div className="flex justify-center max-[500px]:block max-[500px]:[&>*]:w-full">
+              <button type="submit" className="ui-primary-button">Застосувати фільтри</button>
+            </div>
           </div>
         </AdminFilterBar>
 

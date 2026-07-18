@@ -29,45 +29,53 @@ export default async function AdminOperationsJobsPage({
     >
       <OperationsShell currentPath="/admin/operations/jobs">
         <AdminFilterBar action="/admin/operations/jobs">
-          <StatusFilter
-            name="status"
-            label="Статус"
-            defaultValue={data.filters.status}
-            options={OPERATION_JOB_STATUSES.map((status) => ({
-              label: getOperationJobStatusLabel(status),
-              value: status,
-            }))}
-          />
-          <StatusFilter
-            name="type"
-            label="Тип"
-            defaultValue={data.filters.type}
-            options={OPERATION_JOB_TYPES.map((type) => ({
-              label: getOperationJobTypeLabel(type),
-              value: type,
-            }))}
-          />
-          <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">Від дати</span>
-            <input
-              type="date"
-              name="dateFrom"
-              defaultValue={data.filters.dateFrom}
-              className="ui-surface-input"
-            />
-          </label>
-          <label className="space-y-2 xl:w-56">
-            <span className="block text-sm font-medium text-copy-strong">До дати</span>
-            <input
-              type="date"
-              name="dateTo"
-              defaultValue={data.filters.dateTo}
-              className="ui-surface-input"
-            />
-          </label>
-          <div className="flex gap-2 max-[599px]:flex-col max-[599px]:gap-3 max-[599px]:[&>*]:w-full xl:self-end">
-            <button type="submit" className="ui-secondary-button">Застосувати фільтри</button>
-            <RunDueJobsButton />
+          <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
+            <div className="grid w-full gap-3 max-[500px]:max-w-none min-[501px]:grid-cols-2 min-[1146px]:grid-cols-4">
+              <div>
+                <StatusFilter
+                  name="status"
+                  label="Статус"
+                  defaultValue={data.filters.status}
+                  options={OPERATION_JOB_STATUSES.map((status) => ({
+                    label: getOperationJobStatusLabel(status),
+                    value: status,
+                  }))}
+                />
+              </div>
+              <div>
+                <StatusFilter
+                  name="type"
+                  label="Тип"
+                  defaultValue={data.filters.type}
+                  options={OPERATION_JOB_TYPES.map((type) => ({
+                    label: getOperationJobTypeLabel(type),
+                    value: type,
+                  }))}
+                />
+              </div>
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-copy-strong">Від дати</span>
+                <input
+                  type="date"
+                  name="dateFrom"
+                  defaultValue={data.filters.dateFrom}
+                  className="ui-surface-input w-full"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-copy-strong">До дати</span>
+                <input
+                  type="date"
+                  name="dateTo"
+                  defaultValue={data.filters.dateTo}
+                  className="ui-surface-input w-full"
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 max-[500px]:flex-col max-[500px]:gap-3 max-[500px]:[&>*]:w-full">
+              <button type="submit" className="ui-secondary-button">Застосувати фільтри</button>
+              <RunDueJobsButton />
+            </div>
           </div>
         </AdminFilterBar>
 

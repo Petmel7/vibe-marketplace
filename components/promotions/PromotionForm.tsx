@@ -338,12 +338,12 @@ export default function PromotionForm({
           </p>
         ) : null}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
+        <div className={`flex flex-col gap-3 ${mode === 'create' ? 'items-center' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
+          <div className={`flex flex-wrap gap-2 ${mode === 'create' ? 'justify-center max-[500px]:w-full' : ''}`}>
             <button
               type="submit"
               disabled={isPending}
-              className="ui-primary-button disabled:cursor-not-allowed disabled:opacity-60"
+              className={`ui-primary-button disabled:cursor-not-allowed disabled:opacity-60 ${mode === 'create' ? 'max-[500px]:w-full' : ''}`}
             >
               {isPending ? 'Збереження...' : submitLabel}
             </button>
