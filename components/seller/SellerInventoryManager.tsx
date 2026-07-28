@@ -87,7 +87,7 @@ export default function SellerInventoryManager({
                     className="flex flex-col gap-4 rounded-2xl border border-panelBorder bg-panel px-4 py-4 min-[501px]:max-[1025px]:grid min-[501px]:max-[1025px]:grid-cols-[minmax(0,1fr)_auto] min-[501px]:max-[1025px]:items-start min-[501px]:max-[1025px]:gap-x-5 min-[1026px]:flex-row min-[1026px]:items-center min-[1026px]:justify-between"
                   >
                     <div className="min-w-0 space-y-2">
-                      <p className="break-words text-sm font-semibold text-copy-strong">{variant.sku}</p>
+                      <p className="wrap-break-word text-sm font-semibold text-copy-strong">{variant.sku}</p>
                       <p className="text-sm text-copy-secondary">
                         {[variant.size, variant.color].filter(Boolean).join(' · ') || 'Єдиний варіант'}
                       </p>
