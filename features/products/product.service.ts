@@ -783,17 +783,7 @@ const getHomepageProductSectionsRequestCached = cache(
       route: '/',
       count: strictHitItems.length,
     })
-    const dedupedStrictHitItems = strictHitItems.filter((item) => !newItemIds.has(item.id))
-    let hitItems = dedupedStrictHitItems.slice(0, limit)
-
-    if (hitItems.length < limit) {
-      const fallbackHitCandidates = selectFallbackProducts(
-        await getFallbackCandidates(),
-        [...newItemIds, ...hitItems.map((item) => item.id)],
-        limit - hitItems.length,
-      )
-      hitItems = [...hitItems, ...fallbackHitCandidates]
-    }
+    const hitItems = strictHitItems.filter((item) => !newItemIds.has(item.id)).slice(0, limit)
 
     const badgeCandidates = new Map<string, Product | ProductListProduct>()
     for (const item of [...newItems, ...hitItems]) {

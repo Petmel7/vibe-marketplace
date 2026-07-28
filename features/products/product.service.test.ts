@@ -810,7 +810,7 @@ describe('filtered product listings', () => {
     })
   })
 
-  it('falls back to latest published products when strict hit homepage query is empty', async () => {
+  it('does not fall back to latest published products when strict hit homepage query is empty', async () => {
     mockedRepository.findProductCards
       .mockResolvedValueOnce([
         makeListProduct(
@@ -819,40 +819,17 @@ describe('filtered product listings', () => {
         ),
       ])
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        makeListProduct(
-          { id: 'prod-hit-fallback', createdAt: new Date('2026-06-02T00:00:00.000Z') },
-          [makeVariant({ productId: 'prod-hit-fallback' })],
-        ),
-        makeListProduct(
-          { id: 'prod-new', createdAt: new Date('2026-06-01T00:00:00.000Z') },
-          [makeVariant({ productId: 'prod-new' })],
-        ),
-      ])
 
     const result = await getHomepageProductSections()
 
-    expect(mockedRepository.findProductCards).toHaveBeenNthCalledWith(3, {
-      where: {
-        isActive: true,
-        status: 'PUBLISHED',
-        store: {
-          isActive: true,
-        },
-        AND: [{ OR: [{ categoryId: null }, { category: { isActive: true } }] }],
-      },
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-      limit: 8,
-    })
     expect(result.newProducts[0]).toMatchObject({
       id: 'prod-new',
     })
-    expect(result.hitProducts[0]).toMatchObject({
-      id: 'prod-hit-fallback',
-    })
+    expect(result.hitProducts).toEqual([])
+    expect(mockedRepository.findProductCards).toHaveBeenCalledTimes(2)
   })
 
-  it('falls back for both homepage sections when published products exist but strict sections are empty', async () => {
+  it('does not populate the homepage hit section from published fallback products', async () => {
     mockedRepository.findProductCards
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
@@ -867,13 +844,12 @@ describe('filtered product listings', () => {
     const result = await getHomepageProductSections()
 
     expect(result.newProducts).toHaveLength(4)
-    expect(result.hitProducts).toHaveLength(1)
+    expect(result.hitProducts).toHaveLength(0)
     expect(result.newProducts[0]?.id).toBe('prod-published-a')
-    expect(result.hitProducts[0]?.id).toBe('prod-published-e')
     expect(mockedRepository.findProductCards).toHaveBeenCalledTimes(3)
   })
 
-  it('avoids duplicate products between homepage sections by supplementing from fallback candidates', async () => {
+  it('avoids duplicate products between homepage sections without supplementing hit products from fallback candidates', async () => {
     mockedRepository.findProductCards
       .mockResolvedValueOnce([
         makeListProduct({ id: 'prod-shared', isNew: true }, [makeVariant({ productId: 'prod-shared' })]),
@@ -881,15 +857,12 @@ describe('filtered product listings', () => {
       .mockResolvedValueOnce([
         makeListProduct({ id: 'prod-shared', isHit: true }, [makeVariant({ productId: 'prod-shared' })]),
       ])
-      .mockResolvedValueOnce([
-        makeListProduct({ id: 'prod-shared' }, [makeVariant({ productId: 'prod-shared' })]),
-        makeListProduct({ id: 'prod-hit-fallback' }, [makeVariant({ productId: 'prod-hit-fallback' })]),
-      ])
 
     const result = await getHomepageProductSections()
 
     expect(result.newProducts[0]?.id).toBe('prod-shared')
-    expect(result.hitProducts[0]?.id).toBe('prod-hit-fallback')
+    expect(result.hitProducts).toEqual([])
+    expect(mockedRepository.findProductCards).toHaveBeenCalledTimes(2)
   })
 
   it('builds the initial New Products page via limit+1 card query without count', async () => {
