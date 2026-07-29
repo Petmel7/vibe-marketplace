@@ -29,6 +29,8 @@ export const API_ROUTES = {
   adminDisputes: '/api/admin/disputes',
   adminBadgeRules: '/api/admin/badge-rules',
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
+  heroBanners: '/api/hero-banners',
+  adminHeroBanners: '/api/admin/hero-banners',
   adminPromotions: '/api/admin/promotions',
   adminCommissionRules: '/api/admin/commission-rules',
   adminCommissionRulesPreview: '/api/admin/commission-rules/preview',

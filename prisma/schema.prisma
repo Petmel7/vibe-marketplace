@@ -52,6 +52,8 @@ model User {
   createdPayouts          Payout[]              @relation("PayoutCreatedBy")
   createdCommissionRules  CommissionRule[]      @relation("CommissionRuleCreatedBy")
   createdPromotions       Promotion[]           @relation("PromotionCreatedBy")
+  createdHeroBanners      HeroBanner[]          @relation("HeroBannerCreatedBy")
+  updatedHeroBanners      HeroBanner[]          @relation("HeroBannerUpdatedBy")
   promotionUsages         PromotionUsage[]
   requestedRefundRequests RefundRequest[]       @relation("RefundRequestRequestedBy")
   resolvedRefundRequests  RefundRequest[]       @relation("RefundRequestResolvedBy")
@@ -88,6 +90,7 @@ model Store {
     payouts             Payout[]
     commissionRules     CommissionRule[]
     promotions          Promotion[]
+    heroBanners         HeroBanner[]         @relation("HeroBannerStoreDestination")
     shippingSettings    StoreShippingSettings?
     shipments           Shipment[]
 
@@ -117,6 +120,7 @@ model Category {
     children   Category[] @relation("CategoryHierarchy")
     commissionRules CommissionRule[]
     products   Product[]
+    heroBanners HeroBanner[] @relation("HeroBannerCategoryDestination")
 
   @@index([parentId], map: "categories_parentId_idx")
   @@index([isActive], map: "categories_isActive_idx")
@@ -149,6 +153,7 @@ model Product {
   moderatedBy      String?                  @map("moderated_by")
   moderationReason String?                  @map("moderation_reason")
   badges           ProductBadge[]
+  heroBanners      HeroBanner[]              @relation("HeroBannerProductDestination")
   metrics          ProductMetrics?
   ratingSummary    ProductRatingSummary?
   variants         ProductVariant[]
@@ -726,6 +731,7 @@ model Promotion {
   usages            PromotionUsage[]
   orderPromotions   OrderPromotion[]
   targets           PromotionTarget[]
+  heroBanners       HeroBanner[]            @relation("HeroBannerPromotionDestination")
 
   @@index([ownerType], map: "promotions_owner_type_idx")
   @@index([storeId], map: "promotions_store_id_idx")
@@ -734,6 +740,60 @@ model Promotion {
   @@index([endsAt], map: "promotions_ends_at_idx")
   @@index([createdById], map: "promotions_created_by_id_idx")
   @@map("promotions")
+}
+
+model HeroBanner {
+  id                        String                    @id @default(uuid()) @db.Uuid
+  eyebrow                   String?
+  title                     String
+  subtitle                  String?
+  description               String?
+  desktopImageUrl           String?                   @map("desktop_image_url")
+  desktopImageStoragePath   String?                   @map("desktop_image_storage_path")
+  tabletImageUrl            String?                   @map("tablet_image_url")
+  tabletImageStoragePath    String?                   @map("tablet_image_storage_path")
+  mobileImageUrl            String?                   @map("mobile_image_url")
+  mobileImageStoragePath    String?                   @map("mobile_image_storage_path")
+  imageAlt                  String?                   @map("image_alt")
+  backgroundColor           String?                   @map("background_color")
+  textColor                 String?                   @map("text_color")
+  overlayOpacity            Decimal                   @default(0.35) @map("overlay_opacity") @db.Decimal(3, 2)
+  ctaText                   String?                   @map("cta_text")
+  destinationType           HeroBannerDestinationType @default(NONE) @map("destination_type")
+  categoryId                String?                   @map("category_id")
+  productId                 String?                   @map("product_id") @db.Uuid
+  storeId                   String?                   @map("store_id") @db.Uuid
+  promotionId               String?                   @map("promotion_id") @db.Uuid
+  searchQuery               String?                   @map("search_query")
+  customUrl                 String?                   @map("custom_url")
+  sortOrder                 Int                       @default(0) @map("sort_order")
+  status                    HeroBannerStatus          @default(DRAFT)
+  autoplay                  Boolean                   @default(false)
+  autoplayDelay             Int?                      @map("autoplay_delay")
+  openInNewTab              Boolean                   @default(false) @map("open_in_new_tab")
+  publishStartAt            DateTime                  @default(now()) @map("publish_start_at")
+  publishEndAt              DateTime?                 @map("publish_end_at")
+  createdById               String                    @map("created_by_id") @db.Uuid
+  updatedById               String?                   @map("updated_by_id") @db.Uuid
+  createdAt                 DateTime                  @default(now()) @map("created_at")
+  updatedAt                 DateTime                  @updatedAt @map("updated_at")
+  createdBy                 User                      @relation("HeroBannerCreatedBy", fields: [createdById], references: [id])
+  updatedBy                 User?                     @relation("HeroBannerUpdatedBy", fields: [updatedById], references: [id])
+  category                  Category?                 @relation("HeroBannerCategoryDestination", fields: [categoryId], references: [id])
+  product                   Product?                  @relation("HeroBannerProductDestination", fields: [productId], references: [id])
+  store                     Store?                    @relation("HeroBannerStoreDestination", fields: [storeId], references: [id])
+  promotion                 Promotion?                @relation("HeroBannerPromotionDestination", fields: [promotionId], references: [id])
+
+  @@index([status, sortOrder], map: "hero_banners_status_sort_order_idx")
+  @@index([publishStartAt, publishEndAt], map: "hero_banners_publish_window_idx")
+  @@index([destinationType], map: "hero_banners_destination_type_idx")
+  @@index([categoryId], map: "hero_banners_category_id_idx")
+  @@index([productId], map: "hero_banners_product_id_idx")
+  @@index([storeId], map: "hero_banners_store_id_idx")
+  @@index([promotionId], map: "hero_banners_promotion_id_idx")
+  @@index([createdById], map: "hero_banners_created_by_id_idx")
+  @@index([updatedById], map: "hero_banners_updated_by_id_idx")
+  @@map("hero_banners")
 }
 
 model PromotionTarget {
@@ -1340,6 +1400,23 @@ enum ProductBadgeType {
 enum ProductBadgeSource {
   SYSTEM
   ADMIN
+}
+
+enum HeroBannerStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum HeroBannerDestinationType {
+  NONE
+  CATEGORY
+  PRODUCT
+  STORE
+  PROMOTION
+  SEARCH
+  CUSTOM_URL
 }
 
 enum ItemFulfillmentStatus {

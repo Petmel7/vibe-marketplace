@@ -166,6 +166,11 @@ import {
   PromotionUserLimitReachedError,
 } from './promotion'
 import {
+  HeroBannerNotFoundError,
+  InvalidHeroBannerDestinationError,
+  InvalidHeroBannerError,
+} from './hero'
+import {
   DuplicateRefundRequestError,
   InvalidRefundTransitionError,
   RefundAmountExceededError,
@@ -315,7 +320,8 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof JobNotFoundError ||
     err instanceof AuditLogNotFoundError ||
     err instanceof SeoMetadataNotFoundError ||
-    err instanceof SeoEntityNotFoundError
+    err instanceof SeoEntityNotFoundError ||
+    err instanceof HeroBannerNotFoundError
   )
     return Response.json(
       { success: false, error: { message: err.message, code: err.code } },
@@ -420,7 +426,9 @@ export function toErrorResponse(label: string, err: unknown): Response {
     err instanceof JobRetryLimitExceededError ||
     err instanceof JobInvalidStateError ||
     err instanceof InvalidJobTransitionError ||
-    err instanceof InvalidSeoMetadataError
+    err instanceof InvalidSeoMetadataError ||
+    err instanceof InvalidHeroBannerError ||
+    err instanceof InvalidHeroBannerDestinationError
   )
     return Response.json(
       {

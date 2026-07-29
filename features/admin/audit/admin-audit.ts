@@ -18,6 +18,7 @@ export type AdminAuditDomain =
   | 'refunds'
   | 'commission-rules'
   | 'promotions'
+  | 'hero-banners'
   | 'seo'
   | 'risk'
   | 'jobs'
