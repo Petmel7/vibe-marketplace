@@ -1,7 +1,7 @@
 import { getServerEnvDiagnostics } from '@/config/env'
 import { ABUSE_REPORT_EVIDENCE_BUCKET } from '@/features/abuse-reports/abuse-report-evidence.dto'
 import { DISPUTE_EVIDENCE_BUCKET } from '@/features/disputes/disputes.dto'
-import { PRODUCT_IMAGE_BUCKET, STORE_ASSET_BUCKET } from './media.dto'
+import { HERO_BANNER_BUCKET, PRODUCT_IMAGE_BUCKET, STORE_ASSET_BUCKET } from './media.dto'
 
 export type StorageBucketVisibility = 'public' | 'private'
 
@@ -31,6 +31,13 @@ const STORAGE_BUCKETS: StorageBucketConfigDto[] = [
     bucket: STORE_ASSET_BUCKET,
     visibility: 'public',
     uploadActors: ['server-admin-on-behalf-of-seller'],
+    readActors: ['public'],
+    usesSignedUrls: false,
+  },
+  {
+    bucket: HERO_BANNER_BUCKET,
+    visibility: 'public',
+    uploadActors: ['server-admin-on-behalf-of-admin'],
     readActors: ['public'],
     usesSignedUrls: false,
   },
@@ -84,6 +91,7 @@ export function getStorageReadinessDiagnostics(): StorageReadinessDiagnosticsDto
   issues.push(
     `Verify public bucket "${PRODUCT_IMAGE_BUCKET}" exists and is intentionally public`,
     `Verify public bucket "${STORE_ASSET_BUCKET}" exists and is intentionally public`,
+    `Verify public bucket "${HERO_BANNER_BUCKET}" exists and is intentionally public`,
     `Verify private bucket "${ABUSE_REPORT_EVIDENCE_BUCKET}" exists and is not publicly readable`,
     `Verify private bucket "${DISPUTE_EVIDENCE_BUCKET}" exists and is not publicly readable`,
   )

@@ -31,6 +31,8 @@ export const API_ROUTES = {
   adminHitBadgeRule: '/api/admin/badge-rules/hit',
   heroBanners: '/api/hero-banners',
   adminHeroBanners: '/api/admin/hero-banners',
+  adminHeroBannerImages: '/api/admin/hero-banners/images',
+  adminHeroBannerReorder: '/api/admin/hero-banners/reorder',
   adminPromotions: '/api/admin/promotions',
   adminCommissionRules: '/api/admin/commission-rules',
   adminCommissionRulesPreview: '/api/admin/commission-rules/preview',
@@ -169,6 +171,22 @@ export function getAdminPromotionDetailRoute(id: string) {
 
 export function getAdminPromotionStatusRoute(id: string) {
   return `${getAdminPromotionDetailRoute(id)}/status`
+}
+
+export function getAdminHeroBannerRoute(id: string) {
+  return `${API_ROUTES.adminHeroBanners}/${id}`
+}
+
+export function getAdminHeroBannerPublishRoute(id: string) {
+  return `${getAdminHeroBannerRoute(id)}/publish`
+}
+
+export function getAdminHeroBannerPauseRoute(id: string) {
+  return `${getAdminHeroBannerRoute(id)}/pause`
+}
+
+export function getAdminHeroBannerArchiveRoute(id: string) {
+  return `${getAdminHeroBannerRoute(id)}/archive`
 }
 
 export function getAdminCommissionRuleDetailRoute(id: string) {

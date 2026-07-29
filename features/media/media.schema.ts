@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const storeAssetKindSchema = z.enum(['logo', 'banner'])
+export const heroBannerImageSlotSchema = z.enum(['desktop', 'tablet', 'mobile'])
 
 const formBoolean = z.preprocess((value) => {
   if (typeof value === 'boolean') {
@@ -40,5 +41,6 @@ export const setPrimaryProductImageSchema = z.object({
 })
 
 export type ProductImageUploadMetadataInput = z.infer<typeof productImageUploadMetadataSchema>
+export type HeroBannerImageSlotInput = z.infer<typeof heroBannerImageSlotSchema>
 export type ReorderProductImagesInput = z.infer<typeof reorderProductImagesSchema>
 export type SetPrimaryProductImageInput = z.infer<typeof setPrimaryProductImageSchema>

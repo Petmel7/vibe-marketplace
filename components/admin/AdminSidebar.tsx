@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/admin/orders', label: 'Замовлення' },
   { href: '/admin/shipments', label: 'Відправлення' },
   { href: '/admin/promotions', label: 'Акції' },
+  { href: '/admin/hero-banners', label: 'Hero-банери' },
   { href: '/admin/commission-rules', label: 'Правила комісій' },
   { href: '/admin/payouts', label: 'Виплати' },
   { href: '/admin/refunds', label: 'Повернення' },
