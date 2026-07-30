@@ -45,7 +45,7 @@ export default async function Home() {
   })
   return (
     <main>
-      <div className="space-y-10">
+      <div className="space-y-5">
         <HomeHeroSection />
 
         <Suspense fallback={<HomeSectionSkeleton title="Новинки" />}>

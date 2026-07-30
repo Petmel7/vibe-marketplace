@@ -1,7 +1,8 @@
 'use client'
 
+import { ArrowDown, ArrowUp, MoreVertical } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAdminHeroBanners } from '@/hooks/useAdminHeroBanners'
 import type { HeroBanner, HeroBannerPayload } from '@/types/hero-banners'
 
@@ -72,87 +73,154 @@ export default function HeroBannerActions({
     isPending,
   } = useAdminHeroBanners()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
   const moveUpItems = buildSwappedOrder(banner, previousBanner)
   const moveDownItems = buildSwappedOrder(banner, nextBanner)
 
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return
+    }
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [isMenuOpen])
+
+  const handleMenuAction = (action: () => void) => {
+    action()
+    setIsMenuOpen(false)
+  }
+
   return (
-    <div className="flex min-w-52 flex-wrap justify-end gap-2 max-[640px]:justify-start">
-      <Link href={`/admin/hero-banners/${banner.id}`} className="ui-secondary-button h-10 px-4 py-2 text-sm">
-        Редагувати
-      </Link>
-      <button
-        type="button"
-        className="ui-secondary-button h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={isPending}
-        onClick={() => void createHeroBanner(duplicatePayload(banner))}
-      >
-        Дублювати
-      </button>
-      <button
-        type="button"
-        className="rounded-2xl border border-panelBorder px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-panelAlt disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={isPending || !moveUpItems}
-        onClick={() => moveUpItems && void reorderHeroBanners(moveUpItems)}
-      >
-        Вище
-      </button>
-      <button
-        type="button"
-        className="rounded-2xl border border-panelBorder px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-panelAlt disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={isPending || !moveDownItems}
-        onClick={() => moveDownItems && void reorderHeroBanners(moveDownItems)}
-      >
-        Нижче
-      </button>
-      {banner.status === 'PUBLISHED' ? (
+    <div className="flex min-w-44 flex-col items-end gap-2 max-[640px]:items-start">
+      <div className="flex items-center gap-2">
+        <Link href={`/admin/hero-banners/${banner.id}`} className="ui-primary-button h-10 px-4 py-2 text-sm">
+          Редагувати
+        </Link>
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
+            aria-label="Відкрити меню дій Hero-банера"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-panelBorder text-copy-strong transition hover:bg-panelAlt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isPending}
+            onClick={() => setIsMenuOpen((current) => !current)}
+          >
+            <MoreVertical size={18} aria-hidden="true" />
+          </button>
+
+          {isMenuOpen ? (
+            <div
+              role="menu"
+              className="absolute right-0 z-30 mt-2 w-48 rounded-2xl border border-panelBorder bg-panel p-2 text-sm shadow-[0_24px_64px_rgba(0,0,0,0.45)] max-[640px]:left-0 max-[640px]:right-auto"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full rounded-xl px-3 py-2 text-left text-copy-primary transition-colors hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => handleMenuAction(() => void createHeroBanner(duplicatePayload(banner)))}
+              >
+                Дублювати
+              </button>
+              {banner.status === 'PUBLISHED' ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full rounded-xl px-3 py-2 text-left text-amber-200 transition-colors hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isPending}
+                  onClick={() => handleMenuAction(() => void pauseHeroBanner(banner.id))}
+                >
+                  Пауза
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full rounded-xl px-3 py-2 text-left text-brand-success transition-colors hover:bg-brand-success/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isPending || banner.status === 'ARCHIVED'}
+                  onClick={() => handleMenuAction(() => void publishHeroBanner(banner.id))}
+                >
+                  Опублікувати
+                </button>
+              )}
+              {banner.status !== 'ARCHIVED' ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full rounded-xl px-3 py-2 text-left text-copy-primary transition-colors hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isPending}
+                  onClick={() => handleMenuAction(() => void archiveHeroBanner(banner.id))}
+                >
+                  Архівувати
+                </button>
+              ) : null}
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full rounded-xl px-3 py-2 text-left text-brand-danger transition-colors hover:bg-brand-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isPending}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Видалити
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full rounded-xl bg-brand-danger/10 px-3 py-2 text-left text-brand-danger transition-colors hover:bg-brand-danger/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isPending}
+                  onClick={() => handleMenuAction(() => void deleteHeroBanner(banner.id))}
+                >
+                  Підтвердити
+                </button>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          className="rounded-2xl border border-amber-400/30 px-4 py-2 text-sm font-medium text-amber-200 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isPending}
-          onClick={() => void pauseHeroBanner(banner.id)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-panelBorder px-3 py-1.5 text-xs font-medium text-copy-strong transition hover:bg-panelAlt disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isPending || !moveUpItems}
+          onClick={() => moveUpItems && void reorderHeroBanners(moveUpItems)}
         >
-          Пауза
+          <ArrowUp size={14} aria-hidden="true" />
+          Вище
         </button>
-      ) : (
         <button
           type="button"
-          className="rounded-2xl border border-brand-success/30 px-4 py-2 text-sm font-medium text-brand-success transition hover:bg-brand-success/10 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isPending || banner.status === 'ARCHIVED'}
-          onClick={() => void publishHeroBanner(banner.id)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-panelBorder px-3 py-1.5 text-xs font-medium text-copy-strong transition hover:bg-panelAlt disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isPending || !moveDownItems}
+          onClick={() => moveDownItems && void reorderHeroBanners(moveDownItems)}
         >
-          Опублікувати
+          <ArrowDown size={14} aria-hidden="true" />
+          Нижче
         </button>
-      )}
-      {banner.status !== 'ARCHIVED' ? (
-        <button
-          type="button"
-          className="rounded-2xl border border-panelBorder px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-panelAlt disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isPending}
-          onClick={() => void archiveHeroBanner(banner.id)}
-        >
-          Архівувати
-        </button>
-      ) : null}
-      {!confirmDelete ? (
-        <button
-          type="button"
-          className="rounded-2xl border border-brand-danger/25 px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-brand-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isPending}
-          onClick={() => setConfirmDelete(true)}
-        >
-          Видалити
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="rounded-2xl border border-brand-danger/25 bg-brand-danger/10 px-4 py-2 text-sm font-medium text-copy-strong transition hover:bg-brand-danger/20 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isPending}
-          onClick={() => void deleteHeroBanner(banner.id)}
-        >
-          Підтвердити
-        </button>
-      )}
+      </div>
     </div>
   )
 }

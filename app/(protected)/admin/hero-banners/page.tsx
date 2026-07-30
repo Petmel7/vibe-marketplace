@@ -33,27 +33,37 @@ export default async function AdminHeroBannersPage({
       title="Керування Hero-банерами"
       description="Створюйте та впорядковуйте банери для майбутнього головного Hero-блоку без зміни публічної сторінки на цьому етапі."
     >
+      <div className="flex justify-center max-[500px]:block">
+        <Link href="/admin/hero-banners/new" className="ui-primary-button max-[500px]:w-full">
+          Створити Hero-банер
+        </Link>
+      </div>
+
       <AdminFilterBar action="/admin/hero-banners">
         <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch">
-          <div className="grid w-full max-w-md gap-3 max-[500px]:max-w-none min-[900px]:max-w-2xl min-[900px]:grid-cols-2">
-            <StatusFilter
-              name="status"
-              label="Статус"
-              defaultValue={data.filters.status}
-              options={HERO_BANNER_STATUSES.map((status) => ({
-                label: getHeroBannerStatusLabel(status),
-                value: status,
-              }))}
-            />
-            <StatusFilter
-              name="destinationType"
-              label="Тип переходу"
-              defaultValue={data.filters.destinationType}
-              options={HERO_BANNER_DESTINATION_TYPES.map((type) => ({
-                label: getHeroBannerDestinationTypeLabel(type),
-                value: type,
-              }))}
-            />
+          <div className="flex w-full flex-col items-center gap-3 max-[500px]:items-stretch min-[1146px]:flex-row min-[1146px]:items-end min-[1146px]:justify-center">
+            <div className="w-full max-w-md max-[500px]:max-w-none">
+              <StatusFilter
+                name="status"
+                label="Статус"
+                defaultValue={data.filters.status}
+                options={HERO_BANNER_STATUSES.map((status) => ({
+                  label: getHeroBannerStatusLabel(status),
+                  value: status,
+                }))}
+              />
+            </div>
+            <div className="w-full max-w-md max-[500px]:max-w-none">
+              <StatusFilter
+                name="destinationType"
+                label="Тип переходу"
+                defaultValue={data.filters.destinationType}
+                options={HERO_BANNER_DESTINATION_TYPES.map((type) => ({
+                  label: getHeroBannerDestinationTypeLabel(type),
+                  value: type,
+                }))}
+              />
+            </div>
           </div>
           <button type="submit" className="ui-primary-button max-[500px]:w-full">
             Застосувати фільтри
@@ -64,11 +74,6 @@ export default async function AdminHeroBannersPage({
       <AdminDataTable
         title="Hero-банери"
         description="Переглядайте статуси, періоди публікації, порядок показу та швидкі дії для кожного банера."
-        actions={
-          <Link href="/admin/hero-banners/new" className="ui-primary-button max-[500px]:w-full">
-            Створити Hero-банер
-          </Link>
-        }
       >
         {data.items.length === 0 ? (
           <div className="p-6">

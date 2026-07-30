@@ -333,14 +333,16 @@ function HeroBannerImageField({
           <span className="text-sm text-copy-muted">Зображення ще не завантажено</span>
         )}
       </div>
-      <button
-        type="button"
-        className="ui-secondary-button h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={disabled || !imageUrl}
-        onClick={() => void onRemove(slot)}
-      >
-        Видалити зображення
-      </button>
+      <div className="flex justify-center">
+        <button
+          type="button"
+          className="ui-secondary-button h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled || !imageUrl}
+          onClick={() => void onRemove(slot)}
+        >
+          Видалити зображення
+        </button>
+      </div>
     </div>
   )
 }
@@ -510,7 +512,7 @@ export default function HeroBannerForm({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)] xl:items-start">
       <DashboardCard
         title={title}
         description="Керуйте контентом, переходами, періодом публікації та порядком показу Hero-банера."
@@ -573,7 +575,7 @@ export default function HeroBannerForm({
             />
           </label>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-5 pt-4">
             <HeroBannerImageField
               slot="desktop"
               label="Desktop-зображення"
@@ -607,7 +609,7 @@ export default function HeroBannerForm({
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Колір фону</span>
               <input
@@ -630,6 +632,7 @@ export default function HeroBannerForm({
               />
               <ErrorMessage message={errors.textColor} />
             </label>
+
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Прозорість оверлею</span>
               <input
@@ -644,9 +647,7 @@ export default function HeroBannerForm({
               />
               <ErrorMessage message={errors.overlayOpacity} />
             </label>
-          </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Тип переходу</span>
               <select
@@ -673,6 +674,7 @@ export default function HeroBannerForm({
               </select>
               <ErrorMessage message={errors.destinationType} />
             </label>
+
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">
                 {destinationTargetLabelByType[values.destinationType]}
@@ -699,9 +701,7 @@ export default function HeroBannerForm({
               />
               <ErrorMessage message={errors.ctaText} />
             </label>
-          </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
             <label className="space-y-2">
               <span className="block text-sm font-medium text-copy-strong">Статус</span>
               <select
@@ -729,17 +729,18 @@ export default function HeroBannerForm({
               />
               <ErrorMessage message={errors.sortOrder} />
             </label>
-            <label className="flex items-center gap-3 rounded-2xl border border-panelBorder bg-panel/60 px-4 py-3">
-              <input
-                type="checkbox"
-                checked={values.openInNewTab}
-                disabled={values.destinationType !== 'CUSTOM_URL'}
-                onChange={(event) => setValue('openInNewTab', event.target.checked)}
-                className="h-4 w-4 rounded border-panelBorder text-brand-accent disabled:opacity-50"
-              />
-              <span className="text-sm text-copy-secondary">Відкривати у новій вкладці</span>
-            </label>
           </div>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-panelBorder bg-panel/60 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={values.openInNewTab}
+              disabled={values.destinationType !== 'CUSTOM_URL'}
+              onChange={(event) => setValue('openInNewTab', event.target.checked)}
+              className="h-4 w-4 rounded border-panelBorder text-brand-accent disabled:opacity-50"
+            />
+            <span className="text-sm text-copy-secondary">Відкривати у новій вкладці</span>
+          </label>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="space-y-2">
@@ -799,16 +800,16 @@ export default function HeroBannerForm({
             </p>
           ) : null}
 
-          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <div className="flex flex-wrap justify-center gap-3 max-[500px]:w-full">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex w-full flex-col items-center justify-center gap-3 min-[501px]:w-auto min-[501px]:flex-row">
               <button
                 type="submit"
                 disabled={isBusy}
-                className="ui-primary-button min-w-48 disabled:cursor-not-allowed disabled:opacity-60 max-[500px]:w-full"
+                className="ui-primary-button w-full disabled:cursor-not-allowed disabled:opacity-60 min-[501px]:w-56 max-[500px]:w-full"
               >
                 {isBusy ? 'Збереження...' : mode === 'create' ? 'Створити Hero-банер' : 'Зберегти зміни'}
               </button>
-              <Link href="/admin/hero-banners" className="ui-secondary-button min-w-48 max-[500px]:w-full">
+              <Link href="/admin/hero-banners" className="ui-secondary-button w-full min-[501px]:w-56 max-[500px]:w-full">
                 До списку
               </Link>
             </div>
@@ -840,7 +841,9 @@ export default function HeroBannerForm({
         </form>
       </DashboardCard>
 
-      <HeroBannerPreview values={values} mode={previewMode} onModeChange={setPreviewMode} />
+      <div className="xl:sticky xl:top-6 xl:self-start">
+        <HeroBannerPreview values={values} mode={previewMode} onModeChange={setPreviewMode} />
+      </div>
     </div>
   )
 }
