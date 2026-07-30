@@ -38,12 +38,22 @@ const nextConfig: NextConfig = {
         {
           protocol: "https",
           hostname: supabaseHostname,
+          pathname: "/storage/v1/object/public/hero-banners/**",
+        },
+        {
+          protocol: "https",
+          hostname: supabaseHostname,
           pathname: "/storage/v1/object/sign/product-images/**",
         },
         {
           protocol: "https",
           hostname: supabaseHostname,
           pathname: "/storage/v1/object/sign/store-assets/**",
+        },
+        {
+          protocol: "https",
+          hostname: supabaseHostname,
+          pathname: "/storage/v1/object/sign/hero-banners/**",
         },
       ]
       : [],

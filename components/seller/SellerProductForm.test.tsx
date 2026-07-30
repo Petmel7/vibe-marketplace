@@ -3,13 +3,16 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ProductImageDraft } from '@/hooks/useProductImageUpload'
 import SellerProductForm from './SellerProductForm'
 
 const routerPush = vi.fn()
 const routerReplace = vi.fn()
 const routerRefresh = vi.fn()
 
-globalThis.IS_REACT_ACT_ENVIRONMENT = true
+;(globalThis as typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT?: boolean
+}).IS_REACT_ACT_ENVIRONMENT = true
 
 let mockCategories: Array<{
   id: string
@@ -24,10 +27,24 @@ let mockCategories: Array<{
     children: []
   }>
 }> = []
-let mockUploadImages = vi.fn(async () => [])
-let mockRemoveImage = vi.fn(async () => true)
-let mockReorderImages = vi.fn(async () => [])
-let mockSetPrimaryImage = vi.fn(async () => [])
+type UploadImagesMock = (
+  productId: string,
+  drafts: ProductImageDraft[],
+) => Promise<ProductImageDraft[] | null>
+type RemoveImageMock = (productId: string, imageId: string) => Promise<boolean>
+type ReorderImagesMock = (
+  productId: string,
+  images: Array<{ id: string; position: number }>,
+) => Promise<ProductImageDraft[] | null>
+type SetPrimaryImageMock = (
+  productId: string,
+  imageId: string,
+) => Promise<ProductImageDraft[] | null>
+
+let mockUploadImages: UploadImagesMock = vi.fn(async () => [])
+let mockRemoveImage: RemoveImageMock = vi.fn(async () => true)
+let mockReorderImages: ReorderImagesMock = vi.fn(async () => [])
+let mockSetPrimaryImage: SetPrimaryImageMock = vi.fn(async () => [])
 let mockIsUploading = false
 
 vi.mock('next/navigation', () => ({
@@ -93,25 +110,36 @@ vi.mock('@/components/seller/UploadProgress', () => ({
 }))
 
 function createSuccessResponse<T>(data: T, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => ({ success: true as const, data }),
-  } satisfies Response
+  return new Response(
+    JSON.stringify({
+      success: true as const,
+      data,
+    }),
+    {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  )
 }
 
 function createErrorResponse(message: string, code = 'REQUEST_FAILED', status = 400) {
-  return {
-    ok: false,
-    status,
-    json: async () => ({
+  return new Response(
+    JSON.stringify({
       success: false as const,
       error: {
         message,
         code,
       },
     }),
-  } satisfies Response
+    {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  )
 }
 
 function createDraftProduct(overrides?: Partial<{
@@ -454,7 +482,7 @@ describe('SellerProductForm flow', () => {
     fetchMock.mockResolvedValue(createSuccessResponse({ id: 'product-created-3' }, 201))
     mockUploadImages = vi.fn(
       () =>
-        new Promise((resolve) => {
+        new Promise<typeof persistedImages>((resolve) => {
           resolveUpload = resolve as (value: typeof persistedImages) => void
         }),
     )

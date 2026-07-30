@@ -30,7 +30,7 @@ vi.mock('../api/viewed.api', () => ({
 
 import { useViewedProducts } from './useViewedProducts'
 
-function TestComponent({ currentProductId }: { currentProductId: string }) {
+function TestComponent({ currentProductId }: { currentProductId?: string }) {
   const { items, isLoading } = useViewedProducts(currentProductId)
 
   return (

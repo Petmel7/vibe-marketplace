@@ -6,9 +6,12 @@ import type {
 export type HeroBannerDestinationDto = {
   type: HeroBannerDestinationType
   categoryId: string | null
+  categorySlug: string | null
   productId: string | null
   storeId: string | null
+  storeSlug: string | null
   promotionId: string | null
+  promotionCode: string | null
   searchQuery: string | null
   customUrl: string | null
 }

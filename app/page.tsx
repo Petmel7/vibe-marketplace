@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import HomeHeroSection from '@/components/hero/HomeHeroSection'
 import HomeProductSection from '@/components/product/HomeProductSection'
 import ProductCardSkeleton from '@/components/product/ProductCardSkeleton'
 import { getCachedGlobalSeo } from '@/app/_lib/seo.data'
@@ -45,6 +46,8 @@ export default async function Home() {
   return (
     <main>
       <div className="space-y-10">
+        <HomeHeroSection />
+
         <Suspense fallback={<HomeSectionSkeleton title="Новинки" />}>
           <HomeProductSection type="new" title="Новинки" />
         </Suspense>

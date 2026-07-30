@@ -118,9 +118,12 @@ function toHeroBannerDto(banner: HeroBannerRecord): HeroBannerDto {
     destination: {
       type: banner.destinationType,
       categoryId: banner.categoryId ?? null,
+      categorySlug: banner.category?.slug ?? null,
       productId: banner.productId ?? null,
       storeId: banner.storeId ?? null,
+      storeSlug: banner.store?.slug ?? null,
       promotionId: banner.promotionId ?? null,
+      promotionCode: banner.promotion?.code ?? null,
       searchQuery: banner.searchQuery ?? null,
       customUrl: banner.customUrl ?? null,
     },
