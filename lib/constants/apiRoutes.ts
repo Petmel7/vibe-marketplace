@@ -189,6 +189,10 @@ export function getAdminHeroBannerArchiveRoute(id: string) {
   return `${getAdminHeroBannerRoute(id)}/archive`
 }
 
+export function getAdminCategoryImageRoute(id: string) {
+  return `${API_ROUTES.adminCategories}/${id}/image`
+}
+
 export function getAdminCommissionRuleDetailRoute(id: string) {
   return `${API_ROUTES.adminCommissionRules}/${id}`
 }

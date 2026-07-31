@@ -1,12 +1,14 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
+import { ImageIcon } from 'lucide-react'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
 import CategoryFormDialog from '@/components/admin/CategoryFormDialog'
 import ReorderControls from '@/components/admin/ReorderControls'
 import { useAdminCategories } from '@/hooks/useAdminCategories'
 import { useAdminMutation } from '@/hooks/useAdminMutation'
-import { API_ROUTES } from '@/lib/constants/apiRoutes'
+import { API_ROUTES, getAdminCategoryImageRoute } from '@/lib/constants/apiRoutes'
 import {
   flattenCategoryTree,
   getSubtreeProductCount,
@@ -17,6 +19,10 @@ type DialogState =
   | { mode: 'closed' }
   | { mode: 'create'; parentId?: string | null }
   | { mode: 'edit'; categoryId: string }
+
+type ApiSuccess<T> = { success: true; data: T }
+type ApiError = { success: false; error?: { message?: string } }
+type CategoryImageState = { imageUrl: string | null; imageStoragePath: string | null }
 
 function findAdminCategoryById(nodes: AdminCategoryTreeNode[], id: string): AdminCategoryTreeNode | null {
   for (const node of nodes) {
@@ -33,8 +39,49 @@ function findAdminCategoryById(nodes: AdminCategoryTreeNode[], id: string): Admi
   return null
 }
 
+function applyCategoryImageState(
+  nodes: AdminCategoryTreeNode[],
+  categoryId: string,
+  imageState: CategoryImageState,
+): AdminCategoryTreeNode[] {
+  let didChange = false
+  const nextNodes = nodes.map((node) => {
+    if (node.id === categoryId) {
+      didChange = true
+      return {
+        ...node,
+        imageUrl: imageState.imageUrl,
+        imageStoragePath: imageState.imageStoragePath,
+      }
+    }
+
+    const nextChildren = applyCategoryImageState(node.children, categoryId, imageState)
+    if (nextChildren !== node.children) {
+      didChange = true
+      return {
+        ...node,
+        children: nextChildren,
+      }
+    }
+
+    return node
+  })
+
+  return didChange ? nextNodes : nodes
+}
+
+async function parseCategoryImageResponse(response: Response, fallbackErrorMessage: string): Promise<CategoryImageState> {
+  const json = (await response.json().catch(() => null)) as ApiSuccess<CategoryImageState> | ApiError | null
+
+  if (!response.ok || !json?.success) {
+    throw new Error(json?.success === false ? json.error?.message ?? fallbackErrorMessage : fallbackErrorMessage)
+  }
+
+  return json.data
+}
+
 export default function AdminCategoryTree() {
-  const { categories, isLoading, errorMessage, reloadCategories } = useAdminCategories()
+  const { categories, setCategories, isLoading, errorMessage, reloadCategories } = useAdminCategories()
   const { execute, errorMessage: mutationErrorMessage, isPending, setErrorMessage } = useAdminMutation()
   const [dialogState, setDialogState] = useState<DialogState>({ mode: 'closed' })
 
@@ -168,6 +215,34 @@ export default function AdminCategoryTree() {
     }
   }
 
+  async function handleCategoryImageUpload(categoryId: string, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(getAdminCategoryImageRoute(categoryId), {
+      method: 'POST',
+      body: formData,
+    })
+    const uploaded = await parseCategoryImageResponse(response, 'Зараз не вдалося завантажити зображення категорії.')
+
+    setCategories((current) => applyCategoryImageState(current, categoryId, uploaded))
+    return uploaded
+  }
+
+  async function handleCategoryImageRemove(categoryId: string) {
+    const response = await fetch(getAdminCategoryImageRoute(categoryId), {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    })
+    const removed = await parseCategoryImageResponse(response, 'Зараз не вдалося видалити зображення категорії.')
+
+    setCategories((current) => applyCategoryImageState(current, categoryId, removed))
+    return removed
+  }
+
   const totalCategories = flattenCategoryTree(categories).length
 
   if (isLoading) {
@@ -277,8 +352,29 @@ export default function AdminCategoryTree() {
         errorMessage={mutationErrorMessage}
         onClose={() => setDialogState({ mode: 'closed' })}
         onSubmit={handleDialogSubmit}
+        onImageUpload={handleCategoryImageUpload}
+        onImageRemove={handleCategoryImageRemove}
       />
     </div>
+  )
+}
+
+function CategoryThumbnail({ node }: { node: AdminCategoryTreeNode }) {
+  return (
+    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-panelBorder bg-panelAlt text-copy-muted">
+      {node.imageUrl ? (
+        <Image
+          src={node.imageUrl}
+          alt={node.name}
+          fill
+          unoptimized
+          sizes="44px"
+          className="object-cover"
+        />
+      ) : (
+        <ImageIcon className="h-5 w-5" aria-hidden="true" />
+      )}
+    </span>
   )
 }
 
@@ -311,24 +407,27 @@ function AdminCategoryBranch({
   return (
     <div className="rounded-3xl border border-panelBorder bg-panel/40 p-4 sm:p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-copy-strong">{node.name}</h3>
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-medium ${node.isActive ? 'bg-brand-success/15 text-copy-strong' : 'bg-panelAlt text-copy-secondary'
-                }`}
-            >
-              {node.isActive ? 'Активна' : 'Неактивна'}
-            </span>
-            <span className="rounded-full bg-panelAlt px-3 py-1 text-xs font-medium text-copy-secondary">
-              {node.slug}
-            </span>
-          </div>
-          <p className="text-sm text-copy-secondary">{breadcrumb}</p>
-          <div className="flex flex-wrap gap-3 text-xs text-copy-muted">
-            <span>Дочірніх: {node.children.length}</span>
-            <span>Прямих товарів: {node.productCount}</span>
-            <span>Товарів у піддереві: {subtreeProductCount}</span>
+        <div className="flex min-w-0 gap-3">
+          <CategoryThumbnail node={node} />
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-copy-strong">{node.name}</h3>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${node.isActive ? 'bg-brand-success/15 text-copy-strong' : 'bg-panelAlt text-copy-secondary'
+                  }`}
+              >
+                {node.isActive ? 'Активна' : 'Неактивна'}
+              </span>
+              <span className="rounded-full bg-panelAlt px-3 py-1 text-xs font-medium text-copy-secondary">
+                {node.slug}
+              </span>
+            </div>
+            <p className="text-sm text-copy-secondary">{breadcrumb}</p>
+            <div className="flex flex-wrap gap-3 text-xs text-copy-muted">
+              <span>Дочірніх: {node.children.length}</span>
+              <span>Прямих товарів: {node.productCount}</span>
+              <span>Товарів у піддереві: {subtreeProductCount}</span>
+            </div>
           </div>
         </div>
 
