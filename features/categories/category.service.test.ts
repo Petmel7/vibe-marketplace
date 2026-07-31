@@ -6,10 +6,14 @@ import {
   deleteAdminCategory,
   getAdminCategoryTree,
   getPublicCategoryTree,
+  removeAdminCategoryImage,
   reorderAdminCategories,
   updateAdminCategory,
+  uploadAdminCategoryImage,
 } from './category.service'
 import * as repository from './category.repository'
+import * as mediaService from '@/features/media/media.service'
+import * as seoCache from '@/features/seo/seo.cache'
 import { CategoryNotFoundError } from '@/lib/errors/seller'
 import {
   CategoryCircularReferenceError,
@@ -24,13 +28,25 @@ vi.mock('./category.repository', () => ({
   findCategoryBySlug: vi.fn(),
   createCategory: vi.fn(),
   updateCategory: vi.fn(),
+  updateCategoryImage: vi.fn(),
   updateCategoryPositions: vi.fn(),
   updateCategoryLevels: vi.fn(),
   countProductsByCategoryIds: vi.fn(),
   deleteCategoriesByIdsInOrder: vi.fn(),
 }))
 
+vi.mock('@/features/media/media.service', () => ({
+  deleteCategoryImageBinary: vi.fn(),
+  uploadCategoryImageBinary: vi.fn(),
+}))
+
+vi.mock('@/features/seo/seo.cache', () => ({
+  revalidateSeoForCategoryChange: vi.fn(),
+}))
+
 const mockedRepository = vi.mocked(repository)
+const mockedMediaService = vi.mocked(mediaService)
+const mockedSeoCache = vi.mocked(seoCache)
 
 const adminUser: SessionUser = {
   id: 'admin-1',
@@ -48,6 +64,8 @@ function makeCategory(overrides: Partial<repository.CategoryRecord> = {}): repos
     level: 0,
     isActive: true,
     isVisible: true,
+    imageUrl: null,
+    imageStoragePath: null,
     createdAt: new Date('2026-05-25T00:00:00.000Z'),
     updatedAt: new Date('2026-05-25T00:00:00.000Z'),
     productCount: 0,
@@ -86,6 +104,100 @@ describe('getAdminCategoryTree', () => {
     const result = await getAdminCategoryTree(adminUser)
 
     expect(result[0]?.children[0]).toMatchObject({ slug: 'hidden', isActive: false })
+  })
+})
+
+describe('uploadAdminCategoryImage', () => {
+  it('uploads and persists a new category image', async () => {
+    const file = new File([Uint8Array.from([0xff, 0xd8, 0xff])], 'category.jpg', { type: 'image/jpeg' })
+    mockedRepository.findCategoryById.mockResolvedValue(makeCategory({ id: 'cat-1' }))
+    mockedMediaService.uploadCategoryImageBinary.mockResolvedValue({
+      bucket: 'category-images',
+      url: 'https://cdn.example.com/category-images/categories/cat-1/new.jpg',
+      storagePath: 'categories/cat-1/new.jpg',
+      contentType: 'image/jpeg',
+      size: 3,
+    })
+
+    const result = await uploadAdminCategoryImage(adminUser, 'cat-1', file)
+
+    expect(mockedMediaService.uploadCategoryImageBinary).toHaveBeenCalledWith({ categoryId: 'cat-1', file })
+    expect(mockedRepository.updateCategoryImage).toHaveBeenCalledWith('cat-1', {
+      imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/new.jpg',
+      imageStoragePath: 'categories/cat-1/new.jpg',
+    })
+    expect(mockedMediaService.deleteCategoryImageBinary).not.toHaveBeenCalled()
+    expect(mockedSeoCache.revalidateSeoForCategoryChange).toHaveBeenCalled()
+    expect(result).toEqual({
+      imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/new.jpg',
+      imageStoragePath: 'categories/cat-1/new.jpg',
+    })
+  })
+
+  it('replaces an existing category image and deletes the previous stored object', async () => {
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'category.png', { type: 'image/png' })
+    mockedRepository.findCategoryById.mockResolvedValue(
+      makeCategory({
+        id: 'cat-1',
+        imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/old.png',
+        imageStoragePath: 'categories/cat-1/old.png',
+      }),
+    )
+    mockedMediaService.uploadCategoryImageBinary.mockResolvedValue({
+      bucket: 'category-images',
+      url: 'https://cdn.example.com/category-images/categories/cat-1/new.png',
+      storagePath: 'categories/cat-1/new.png',
+      contentType: 'image/png',
+      size: 4,
+    })
+
+    await uploadAdminCategoryImage(adminUser, 'cat-1', file)
+
+    expect(mockedRepository.updateCategoryImage).toHaveBeenCalledWith('cat-1', {
+      imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/new.png',
+      imageStoragePath: 'categories/cat-1/new.png',
+    })
+    expect(mockedMediaService.deleteCategoryImageBinary).toHaveBeenCalledWith('categories/cat-1/old.png')
+  })
+})
+
+describe('removeAdminCategoryImage', () => {
+  it('clears category image fields and deletes stored objects', async () => {
+    mockedRepository.findCategoryById.mockResolvedValue(
+      makeCategory({
+        id: 'cat-1',
+        imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/image.webp',
+        imageStoragePath: 'categories/cat-1/image.webp',
+      }),
+    )
+
+    const result = await removeAdminCategoryImage(adminUser, 'cat-1')
+
+    expect(mockedRepository.updateCategoryImage).toHaveBeenCalledWith('cat-1', {
+      imageUrl: null,
+      imageStoragePath: null,
+    })
+    expect(mockedMediaService.deleteCategoryImageBinary).toHaveBeenCalledWith('categories/cat-1/image.webp')
+    expect(mockedSeoCache.revalidateSeoForCategoryChange).toHaveBeenCalled()
+    expect(result).toEqual({ imageUrl: null, imageStoragePath: null })
+  })
+
+  it('clears legacy URL-only category images without deleting storage', async () => {
+    mockedRepository.findCategoryById.mockResolvedValue(
+      makeCategory({
+        id: 'cat-1',
+        imageUrl: 'https://legacy.example.com/category.jpg',
+        imageStoragePath: null,
+      }),
+    )
+
+    await removeAdminCategoryImage(adminUser, 'cat-1')
+
+    expect(mockedRepository.updateCategoryImage).toHaveBeenCalledWith('cat-1', {
+      imageUrl: null,
+      imageStoragePath: null,
+    })
+    expect(mockedMediaService.deleteCategoryImageBinary).not.toHaveBeenCalled()
   })
 })
 

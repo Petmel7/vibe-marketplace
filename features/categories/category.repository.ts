@@ -17,6 +17,8 @@ export type CategoryRecord = {
   level: number
   isActive: boolean
   isVisible: boolean
+  imageUrl: string | null
+  imageStoragePath: string | null
   createdAt: Date
   updatedAt: Date
   productCount: number
@@ -31,6 +33,8 @@ function mapCategoryRecord(category: {
   level: number
   isActive: boolean
   isVisible: boolean
+  image: string | null
+  imageStoragePath: string | null
   createdAt: Date
   updatedAt: Date
   _count?: { products: number }
@@ -44,6 +48,8 @@ function mapCategoryRecord(category: {
     level: category.level,
     isActive: category.isActive,
     isVisible: category.isVisible,
+    imageUrl: category.image,
+    imageStoragePath: category.imageStoragePath,
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,
     productCount: category._count?.products ?? 0,
@@ -59,6 +65,8 @@ const categorySelect = {
   level: true,
   isActive: true,
   isVisible: true,
+  image: true,
+  imageStoragePath: true,
   createdAt: true,
   updatedAt: true,
   _count: {
@@ -131,6 +139,8 @@ export async function createCategory(data: CreateAdminCategoryDto & { slug: stri
       position: data.position,
       level: data.level,
       isActive: data.isActive ?? true,
+      image: data.imageUrl ?? null,
+      imageStoragePath: data.imageStoragePath ?? null,
       updatedAt: new Date(),
     },
     select: categorySelect,
@@ -151,6 +161,25 @@ export async function updateCategory(
       ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
       ...(data.level !== undefined ? { level: data.level } : {}),
       ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      ...(data.imageUrl !== undefined ? { image: data.imageUrl } : {}),
+      ...(data.imageStoragePath !== undefined ? { imageStoragePath: data.imageStoragePath } : {}),
+      updatedAt: new Date(),
+    },
+    select: categorySelect,
+  })
+
+  return mapCategoryRecord(category)
+}
+
+export async function updateCategoryImage(
+  id: string,
+  data: { imageUrl: string | null; imageStoragePath: string | null },
+) {
+  const category = await prisma.category.update({
+    where: { id },
+    data: {
+      image: data.imageUrl,
+      imageStoragePath: data.imageStoragePath,
       updatedAt: new Date(),
     },
     select: categorySelect,

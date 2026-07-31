@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto'
 import { InvalidImageFileError } from '@/lib/errors/seller'
 import type { UploadedMediaAssetDto, StoreAssetKind, HeroBannerImageSlot } from './media.dto'
-import { HERO_BANNER_BUCKET, PRODUCT_IMAGE_BUCKET, STORE_ASSET_BUCKET } from './media.dto'
+import { CATEGORY_IMAGE_BUCKET, HERO_BANNER_BUCKET, PRODUCT_IMAGE_BUCKET, STORE_ASSET_BUCKET } from './media.dto'
 import { removePublicAsset, uploadPublicAsset } from './media.repository'
 
 const STORE_ASSET_MAX_BYTES = 5 * 1024 * 1024
 const PRODUCT_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 const HERO_BANNER_IMAGE_MAX_BYTES = 8 * 1024 * 1024
+const CATEGORY_IMAGE_MAX_BYTES = 2 * 1024 * 1024
 
 type ValidatedImage = {
   bytes: Uint8Array
@@ -183,12 +184,47 @@ export async function uploadHeroBannerImageBinary(params: {
   }
 }
 
+export async function uploadCategoryImageBinary(params: {
+  categoryId: string
+  file: File
+}): Promise<UploadedMediaAssetDto> {
+  const validated = await validateImageFile(params.file, {
+    maxBytes: CATEGORY_IMAGE_MAX_BYTES,
+    allowSvg: false,
+  })
+
+  const storagePath = buildStoragePath(
+    `categories/${params.categoryId}`,
+    validated.bytes,
+    validated.extension,
+  )
+
+  const uploaded = await uploadPublicAsset({
+    bucket: CATEGORY_IMAGE_BUCKET,
+    path: storagePath,
+    body: validated.bytes,
+    contentType: validated.contentType,
+  })
+
+  return {
+    bucket: CATEGORY_IMAGE_BUCKET,
+    url: uploaded.url,
+    storagePath: uploaded.storagePath,
+    contentType: validated.contentType,
+    size: validated.size,
+  }
+}
+
 export async function deleteProductImageBinary(storagePath: string): Promise<void> {
   await removePublicAsset(PRODUCT_IMAGE_BUCKET, storagePath)
 }
 
 export async function deleteHeroBannerImageBinary(storagePath: string): Promise<void> {
   await removePublicAsset(HERO_BANNER_BUCKET, storagePath)
+}
+
+export async function deleteCategoryImageBinary(storagePath: string): Promise<void> {
+  await removePublicAsset(CATEGORY_IMAGE_BUCKET, storagePath)
 }
 
 export async function deleteStoreAssetBinary(storagePath: string): Promise<void> {

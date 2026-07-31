@@ -36,6 +36,11 @@ describe('storage.config', () => {
           usesSignedUrls: false,
         }),
         expect.objectContaining({
+          bucket: 'category-images',
+          visibility: 'public',
+          usesSignedUrls: false,
+        }),
+        expect.objectContaining({
           bucket: 'abuse-report-evidence',
           visibility: 'private',
           usesSignedUrls: true,
@@ -66,6 +71,7 @@ describe('storage.config', () => {
         expect.stringContaining('SUPABASE_URL'),
         expect.stringContaining('SUPABASE_SERVICE_ROLE_KEY'),
         expect.stringContaining('hero-banners'),
+        expect.stringContaining('category-images'),
         expect.stringContaining('abuse-report-evidence'),
         expect.stringContaining('dispute-evidence'),
       ]),

@@ -4,7 +4,9 @@ vi.mock('@/features/media/media.repository')
 
 import * as mediaRepository from '@/features/media/media.repository'
 import {
+  deleteCategoryImageBinary,
   deleteHeroBannerImageBinary,
+  uploadCategoryImageBinary,
   uploadHeroBannerImageBinary,
   uploadProductImageBinary,
   uploadStoreAssetBinary,
@@ -90,6 +92,69 @@ describe('uploadHeroBannerImageBinary', () => {
     expect(mockMediaRepository.removePublicAsset).toHaveBeenCalledWith(
       'hero-banners',
       'hero-banners/mobile/hash.webp',
+    )
+  })
+})
+
+describe('uploadCategoryImageBinary', () => {
+  it('uploads validated category images to the category-images bucket', async () => {
+    const jpgBytes = Uint8Array.from([0xff, 0xd8, 0xff, 0x00])
+    const file = new File([jpgBytes], 'category.jpg', { type: 'image/jpeg' })
+    mockMediaRepository.uploadPublicAsset.mockResolvedValue({
+      url: 'https://cdn.example.com/category-images/categories/cat-1/hash.jpg',
+      storagePath: 'categories/cat-1/hash.jpg',
+    })
+
+    const result = await uploadCategoryImageBinary({
+      categoryId: 'cat-1',
+      file,
+    })
+
+    expect(mockMediaRepository.uploadPublicAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: 'category-images',
+        contentType: 'image/jpeg',
+        path: expect.stringMatching(/^categories\/cat-1\//),
+      }),
+    )
+    expect(result.bucket).toBe('category-images')
+    expect(result.storagePath).toMatch(/^categories\/cat-1\//)
+  })
+
+  it('rejects SVG category images', async () => {
+    const file = new File([new TextEncoder().encode('<svg />')], 'category.svg', { type: 'image/svg+xml' })
+
+    await expect(
+      uploadCategoryImageBinary({
+        categoryId: 'cat-1',
+        file,
+      }),
+    ).rejects.toThrow(InvalidImageFileError)
+
+    expect(mockMediaRepository.uploadPublicAsset).not.toHaveBeenCalled()
+  })
+
+  it('rejects category images larger than 2MB', async () => {
+    const bytes = new Uint8Array(2 * 1024 * 1024 + 1)
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const file = new File([bytes], 'large.png', { type: 'image/png' })
+
+    await expect(
+      uploadCategoryImageBinary({
+        categoryId: 'cat-1',
+        file,
+      }),
+    ).rejects.toThrow(InvalidImageFileError)
+
+    expect(mockMediaRepository.uploadPublicAsset).not.toHaveBeenCalled()
+  })
+
+  it('removes category images from the category-images bucket', async () => {
+    await deleteCategoryImageBinary('categories/cat-1/hash.webp')
+
+    expect(mockMediaRepository.removePublicAsset).toHaveBeenCalledWith(
+      'category-images',
+      'categories/cat-1/hash.webp',
     )
   })
 })

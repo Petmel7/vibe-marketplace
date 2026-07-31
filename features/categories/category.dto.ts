@@ -2,6 +2,7 @@ export type CategoryTreeNodeDto = {
   id: string
   name: string
   slug: string
+  imageUrl: string | null
   parentId: string | null
   position: number
   level: number
@@ -14,6 +15,7 @@ export type AdminCategoryNodeDto = Omit<CategoryTreeNodeDto, 'children'> & {
   createdAt: Date
   updatedAt: Date
   productCount: number
+  imageStoragePath: string | null
   children: AdminCategoryNodeDto[]
 }
 
@@ -23,6 +25,8 @@ export type CreateAdminCategoryDto = {
   parentId?: string | null
   position?: number
   isActive?: boolean
+  imageUrl?: string | null
+  imageStoragePath?: string | null
 }
 
 export type UpdateAdminCategoryDto = {
@@ -31,6 +35,13 @@ export type UpdateAdminCategoryDto = {
   parentId?: string | null
   position?: number
   isActive?: boolean
+  imageUrl?: string | null
+  imageStoragePath?: string | null
+}
+
+export type CategoryImageDto = {
+  imageUrl: string | null
+  imageStoragePath: string | null
 }
 
 export type ReorderAdminCategoriesDto = {

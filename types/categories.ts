@@ -2,6 +2,7 @@ export type CategoryTreeNode = {
   id: string
   name: string
   slug: string
+  imageUrl: string | null
   parentId: string | null
   position: number
   level: number
@@ -14,6 +15,7 @@ export type AdminCategoryTreeNode = Omit<CategoryTreeNode, 'children'> & {
   createdAt: string
   updatedAt: string
   productCount: number
+  imageStoragePath: string | null
   children: AdminCategoryTreeNode[]
 }
 

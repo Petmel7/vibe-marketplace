@@ -7,8 +7,14 @@ import {
   CategoryHasProductsError,
   CategorySlugConflictError,
 } from '@/lib/errors/category'
+import {
+  deleteCategoryImageBinary,
+  uploadCategoryImageBinary,
+} from '@/features/media/media.service'
+import { revalidateSeoForCategoryChange } from '@/features/seo/seo.cache'
 import type {
   AdminCategoryNodeDto,
+  CategoryImageDto,
   CategoryTreeNodeDto,
   CreateAdminCategoryDto,
   ReorderAdminCategoriesDto,
@@ -18,10 +24,12 @@ import {
   createCategory as repoCreateCategory,
   countProductsByCategoryIds,
   deleteCategoriesByIdsInOrder,
+  findCategoryById,
   findCategoryBySlug,
   listAllCategories,
   listPublicCategories,
   updateCategory as repoUpdateCategory,
+  updateCategoryImage,
   updateCategoryLevels,
   updateCategoryPositions,
   type CategoryRecord,
@@ -41,6 +49,7 @@ function toCategoryTreeNodeDto(category: CategoryRecord, children: CategoryTreeN
     id: category.id,
     name: category.name,
     slug: category.slug,
+    imageUrl: category.imageUrl,
     parentId: category.parentId,
     position: category.position,
     level: category.level,
@@ -53,11 +62,13 @@ function toAdminCategoryNodeDto(category: CategoryRecord, children: AdminCategor
     id: category.id,
     name: category.name,
     slug: category.slug,
+    imageUrl: category.imageUrl,
     parentId: category.parentId,
     position: category.position,
     level: category.level,
     isActive: category.isActive,
     isVisible: category.isVisible,
+    imageStoragePath: category.imageStoragePath,
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,
     productCount: category.productCount,
@@ -346,4 +357,66 @@ export async function deleteAdminCategory(user: SessionUser, categoryId: string)
 
   await deleteCategoriesByIdsInOrder(deleteOrder)
   return { deleted: true }
+}
+
+export async function uploadAdminCategoryImage(
+  user: SessionUser,
+  categoryId: string,
+  file: File,
+): Promise<CategoryImageDto> {
+  requireAdmin(user)
+  const category = await findCategoryById(categoryId)
+
+  if (!category) {
+    throw new CategoryNotFoundError()
+  }
+
+  const uploaded = await uploadCategoryImageBinary({
+    categoryId,
+    file,
+  })
+
+  await updateCategoryImage(categoryId, {
+    imageUrl: uploaded.url,
+    imageStoragePath: uploaded.storagePath,
+  })
+
+  if (category.imageStoragePath) {
+    await deleteCategoryImageBinary(category.imageStoragePath)
+  }
+
+  revalidateSeoForCategoryChange()
+
+  return {
+    imageUrl: uploaded.url,
+    imageStoragePath: uploaded.storagePath,
+  }
+}
+
+export async function removeAdminCategoryImage(
+  user: SessionUser,
+  categoryId: string,
+): Promise<CategoryImageDto> {
+  requireAdmin(user)
+  const category = await findCategoryById(categoryId)
+
+  if (!category) {
+    throw new CategoryNotFoundError()
+  }
+
+  await updateCategoryImage(categoryId, {
+    imageUrl: null,
+    imageStoragePath: null,
+  })
+
+  if (category.imageStoragePath) {
+    await deleteCategoryImageBinary(category.imageStoragePath)
+  }
+
+  revalidateSeoForCategoryChange()
+
+  return {
+    imageUrl: null,
+    imageStoragePath: null,
+  }
 }

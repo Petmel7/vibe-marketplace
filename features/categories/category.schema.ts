@@ -3,6 +3,15 @@ import { z } from 'zod'
 const slugRegex = /^[a-z0-9-]+$/
 
 const categoryIdSchema = z.string().trim().min(1).max(191)
+const nullableTrimmedString = (maxLength: number) =>
+  z.preprocess((value) => {
+    if (typeof value !== 'string') {
+      return value
+    }
+
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }, z.string().max(maxLength).nullable())
 const categorySlugSchema = z
   .string()
   .trim()
@@ -20,6 +29,8 @@ export const createAdminCategorySchema = z.object({
   parentId: categoryIdSchema.nullish(),
   position: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+  imageUrl: nullableTrimmedString(2048).optional(),
+  imageStoragePath: nullableTrimmedString(1024).optional(),
 })
 
 export const updateAdminCategorySchema = z
@@ -29,6 +40,8 @@ export const updateAdminCategorySchema = z
     parentId: categoryIdSchema.nullish(),
     position: z.coerce.number().int().min(0).optional(),
     isActive: z.boolean().optional(),
+    imageUrl: nullableTrimmedString(2048).optional(),
+    imageStoragePath: nullableTrimmedString(1024).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field must be provided',
@@ -43,4 +56,8 @@ export const reorderAdminCategoriesSchema = z.object({
       }),
     )
     .min(1),
+})
+
+export const removeCategoryImageSchema = z.object({
+  storagePath: z.string().trim().min(1).max(1024).optional(),
 })
