@@ -30,8 +30,9 @@ export default function DesktopHeader({
 }) {
   const pathname = usePathname()
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false)
+  const [catalogOpenPath, setCatalogOpenPath] = useState<string | null>(null)
   const [activeRootSlug, setActiveRootSlug] = useState<string | null>(null)
+  const isCatalogOpen = catalogOpenPath === pathname
 
   const currentRootSlug = useMemo(() => {
     if (!categories.length) return null
@@ -45,17 +46,17 @@ export default function DesktopHeader({
 
   const handleToggleCatalog = useCallback(() => {
     if (!categories.length) return
-    setIsCatalogOpen((current) => !current)
-  }, [categories.length])
+    setCatalogOpenPath((current) => (current === pathname ? null : pathname))
+  }, [categories.length, pathname])
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent) => {
       if (event.key === 'ArrowDown' && !isCatalogOpen && categories.length > 0) {
         event.preventDefault()
-        setIsCatalogOpen(true)
+        setCatalogOpenPath(pathname)
       }
     },
-    [isCatalogOpen, categories.length]
+    [isCatalogOpen, categories.length, pathname]
   )
 
   useEffect(() => {
@@ -63,13 +64,13 @@ export default function DesktopHeader({
 
     const handlePointerDown = (event: MouseEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) {
-        setIsCatalogOpen(false)
+        setCatalogOpenPath(null)
       }
     }
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsCatalogOpen(false)
+        setCatalogOpenPath(null)
       }
     }
 
@@ -81,10 +82,6 @@ export default function DesktopHeader({
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isCatalogOpen])
-
-  useEffect(() => {
-    setIsCatalogOpen(false)
-  }, [pathname])
 
   return (
     <div ref={menuRef} className="flex w-full items-center gap-6">
@@ -124,7 +121,7 @@ export default function DesktopHeader({
             categories={categories}
             activeRootSlug={currentRootSlug}
             onRootSelect={setActiveRootSlug}
-            onNavigate={() => setIsCatalogOpen(false)}
+            onNavigate={() => setCatalogOpenPath(null)}
           />
         </div>
       ) : null}

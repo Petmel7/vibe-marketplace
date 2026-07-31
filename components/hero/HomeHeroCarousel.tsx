@@ -177,7 +177,7 @@ export default function HomeHeroCarousel({ banners }: { banners: HeroBanner[] })
                 className="relative min-w-0 flex-[0_0_100%]"
                 style={{ backgroundColor: banner.backgroundColor ?? '#111827' }}
               >
-                <div className="relative min-h-[220px] overflow-hidden sm:min-h-[300px] lg:min-h-[360px]">
+                <div className="relative min-h-55 overflow-hidden sm:min-h-75 lg:min-h-90">
                   <HeroImage banner={banner} priority={index === 0} />
                   <div
                     className="absolute inset-0 bg-black"
@@ -186,7 +186,7 @@ export default function HomeHeroCarousel({ banners }: { banners: HeroBanner[] })
                   />
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_32%),linear-gradient(90deg,rgba(0,0,0,0.48),rgba(0,0,0,0.04))]" aria-hidden="true" />
 
-                  <div className="relative z-10 flex min-h-[220px] items-center px-5 py-10 sm:min-h-[300px] sm:px-10 lg:min-h-[360px] lg:px-16">
+                  <div className="relative z-10 flex min-h-55 items-center px-5 py-10 sm:min-h-75 sm:px-10 lg:min-h-90 lg:px-16">
                     <div className="max-w-2xl" style={{ color: textColor }}>
                       {banner.eyebrow ? (
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] opacity-80 sm:text-sm">
