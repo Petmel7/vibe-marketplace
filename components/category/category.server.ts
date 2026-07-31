@@ -21,7 +21,7 @@ type PublicCategoryTreeApiNode = {
   id: string
   name: string
   slug: string
-  image: string | null
+  imageUrl: string | null
   children: PublicCategoryTreeApiNode[]
 }
 
@@ -47,7 +47,7 @@ function buildCategoryTree(records: PublicCategoryTreeRecord[]): CategoryTreeNod
       id: record.id,
       name: record.name,
       slug: record.slug,
-      image: record.image,
+      imageUrl: record.image,
       children: visit(record.id),
     }))
 

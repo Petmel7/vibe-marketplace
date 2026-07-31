@@ -4,13 +4,14 @@
 import { KeyboardEvent } from 'react'
 import clsx from 'clsx'
 import { ArrowUpRight } from 'lucide-react'
+import CategoryImage from '@/components/category/CategoryImage'
 import Icon from '@/components/ui/Icon'
 
 type Category = {
     id: string
     slug: string
     name: string
-    image?: string | null
+    imageUrl?: string | null
 }
 
 type Props = {
@@ -74,7 +75,17 @@ export default function CategoryButton({
             data-root-category={category.slug}
         >
             <div className="flex items-center gap-2">
-                <Icon src={category.image} size={20} />
+                {category.imageUrl ? (
+                    <CategoryImage
+                        src={category.imageUrl}
+                        alt={category.name}
+                        sizes="24px"
+                        className="relative block h-6 w-6 shrink-0 overflow-hidden rounded-lg bg-panelAlt"
+                        imageClassName="object-cover"
+                    />
+                ) : (
+                    <Icon src={null} size={20} />
+                )}
                 <span>{category.name}</span>
             </div>
 

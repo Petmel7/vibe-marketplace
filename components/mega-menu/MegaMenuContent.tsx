@@ -2,15 +2,14 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
-import { getImageUrl } from '@/utils/getImageUrl'
+import CategoryImage from '@/components/category/CategoryImage'
 
 type Category = {
     id: string
     name: string
     href: string
-    image?: string | null
+    imageUrl?: string | null
     children: Category[]
 }
 
@@ -110,15 +109,13 @@ function CategoryCard({
             className="group flex items-center gap-3 rounded-2xl border border-transparent bg-panel/60 p-3 transition-colors hover:border-panelBorder hover:bg-panelAlt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             onClick={onNavigate}
         >
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-media">
-                <Image
-                    src={getImageUrl(item.image)}
-                    alt={item.name}
-                    fill
-                    className="object-cover transition-transform duration-200 group-hover:scale-105"
-                    sizes="56px"
-                />
-            </div>
+            <CategoryImage
+                src={item.imageUrl}
+                alt={item.name}
+                sizes="56px"
+                className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-media"
+                imageClassName="object-cover transition-transform duration-200 group-hover:scale-105"
+            />
 
             <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-copy-primary">

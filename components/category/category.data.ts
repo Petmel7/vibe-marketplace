@@ -9,7 +9,7 @@ export interface CategoryTreeApiNode {
   id: string
   name: string
   slug: string
-  image: string | null
+  imageUrl: string | null
   children: CategoryTreeApiNode[]
 }
 
