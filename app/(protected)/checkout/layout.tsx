@@ -17,7 +17,7 @@ export default async function CheckoutLayout({
 
   if (!hasRole(user.roles, ROLE_VALUES.BUYER)) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-6">
         <ProtectedRouteState
           title="Потрібен доступ покупця"
           description="Оформлення замовлення доступне лише для автентифікованих акаунтів покупця."

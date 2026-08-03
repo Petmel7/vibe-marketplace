@@ -1,6 +1,6 @@
 export default function ProfileDashboardSkeleton() {
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-6">
       <div className="grid animate-pulse gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <div className="space-y-4">
           <div className="h-28 rounded-3xl bg-panel" />

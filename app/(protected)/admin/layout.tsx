@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   if (!hasRole(user.roles, ROLE_VALUES.ADMIN)) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-6">
         <ProtectedRouteState
           title="Потрібен доступ адміністратора"
           description="Цей робочий простір призначений для адміністраторів маркетплейсу, які керують модерацією, аналітикою та операційним контролем."
@@ -52,7 +52,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   if (!adminProfile) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-6">
         <ProtectedRouteState
           title="Профіль адміністратора ще не готовий"
           description="Ваша роль адміністратора вже активна, але запис профілю адміністратора ще не ініціалізовано."
