@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import type { ReactNode } from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
@@ -301,7 +300,7 @@ describe('AuthSessionProvider', () => {
     expect(useCartStore.getState().refreshKey).toBe(2)
   })
 
-  it('does not refetch /api/auth/me on public pathname changes', async () => {
+  it('does not resync on public pathname changes', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
@@ -345,8 +344,6 @@ describe('AuthSessionProvider', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(
-      fetchMock.mock.calls.some((call) => call[0] === '/api/auth/me'),
-    ).toBe(false)
+    expect(fetchMock.mock.calls.every((call) => call[0] === '/api/auth/sync')).toBe(true)
   })
 })

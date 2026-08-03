@@ -17,7 +17,6 @@ type AuthSessionContextValue = {
   isHydrated: boolean
   hasCompletedInitialSync: boolean
   setUser: (user: SessionUser | null) => void
-  refreshUser: () => Promise<SessionUser | null>
 }
 
 export const AuthSessionContext = createContext<AuthSessionContextValue | null>(null)
@@ -28,23 +27,6 @@ function shouldRefreshSessionForPathname(pathname: string | null) {
   }
 
   return !isAuthPagePath(pathname)
-}
-
-async function fetchCurrentUser(): Promise<SessionUser | null> {
-  const response = await fetch(API_ROUTES.authMe, {
-    credentials: 'include',
-    cache: 'no-store',
-  })
-
-  if (response.status === 401) return null
-  if (response.status === 404) throw new Error('AUTH_ROUTE_UNAVAILABLE')
-  if (!response.ok) throw new Error('Failed to refresh auth session')
-
-  const payload = (await response.json()) as
-    | { success: true; data: SessionUser }
-    | { success: false; error: { message: string; code: string } }
-
-  return payload.success ? payload.data : null
 }
 
 async function syncAuthenticatedUser(
@@ -96,7 +78,6 @@ export default function AuthSessionProvider({
   )
   const [isSyncingUser, setIsSyncingUser] = useState(false)
   const [isRefreshing, startTransition] = useTransition()
-  const inFlightRefreshRef = useRef(false)
   const lastSyncedAccessTokenRef = useRef<string | null>(null)
   const syncingAccessTokenRef = useRef<string | null>(null)
   const isHydrated = !shouldRefreshSessionForPathname(pathname) || hasBootstrappedBrowserSession
@@ -154,32 +135,7 @@ export default function AuthSessionProvider({
               })
             }
 
-            fetchCurrentUser()
-              .then((nextUser) => {
-                if (cancelled) {
-                  return
-                }
-
-                setUser(nextUser)
-                setHasBootstrappedBrowserSession(true)
-              })
-              .catch((refreshError) => {
-                if (cancelled) {
-                  return
-                }
-
-                if (process.env.NODE_ENV !== 'production') {
-                  console.warn('[AuthSessionProvider] fallback current-user refresh failed', {
-                    pathname: pathnameRef.current,
-                    route: API_ROUTES.authMe,
-                    error:
-                      refreshError instanceof Error
-                        ? refreshError.message
-                        : String(refreshError),
-                  })
-                }
-                setHasBootstrappedBrowserSession(true)
-              })
+            setHasBootstrappedBrowserSession(true)
           })
           .finally(() => {
             if (syncingAccessTokenRef.current === accessToken) {
@@ -272,42 +228,8 @@ export default function AuthSessionProvider({
       isHydrated,
       hasCompletedInitialSync: hasBootstrappedBrowserSession,
       setUser,
-      refreshUser: () =>
-        new Promise<SessionUser | null>((resolve, reject) => {
-          if (!shouldRefreshSessionForPathname(pathname)) {
-            resolve(user)
-            return
-          }
-
-          if (inFlightRefreshRef.current) {
-            resolve(user)
-            return
-          }
-
-          inFlightRefreshRef.current = true
-          startTransition(() => {
-            fetchCurrentUser()
-              .then((nextUser) => {
-                setUser(nextUser)
-                resolve(nextUser)
-              })
-              .catch((error) => {
-                if (process.env.NODE_ENV !== 'production') {
-                  console.warn('[AuthSessionProvider] manual refresh failed', {
-                    pathname: pathnameRef.current,
-                    route: API_ROUTES.authMe,
-                    error: error instanceof Error ? error.message : String(error),
-                  })
-                }
-                reject(error)
-              })
-              .finally(() => {
-                inFlightRefreshRef.current = false
-              })
-          })
-        }),
     }),
-    [hasBootstrappedBrowserSession, isHydrated, isRefreshing, isSyncingUser, pathname, user]
+    [hasBootstrappedBrowserSession, isHydrated, isRefreshing, isSyncingUser, user]
   )
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>

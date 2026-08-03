@@ -91,7 +91,6 @@ describe('useWishlist', () => {
       isAuthenticated: true,
       isHydrated: true,
       isRefreshing: false,
-      refreshUser: vi.fn(),
     })
   })
 
@@ -108,7 +107,6 @@ describe('useWishlist', () => {
       isAuthenticated: false,
       isHydrated: true,
       isRefreshing: false,
-      refreshUser: vi.fn(),
     })
 
     act(() => {
