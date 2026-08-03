@@ -12,17 +12,22 @@ type UseLocalFilePreviewUrlsOptions = {
   isPreviewable: (file: File) => boolean
 }
 
+function getFilePreviewKey({ id, file }: LocalPreviewFile) {
+  return `${id}:${file.name}:${file.size}:${file.lastModified}`
+}
+
 export function useLocalFilePreviewUrls({
   files,
   isPreviewable,
 }: UseLocalFilePreviewUrlsOptions) {
-  const [brokenPreviewIds, setBrokenPreviewIds] = useState<string[]>([])
+  const [brokenPreviewKeys, setBrokenPreviewKeys] = useState<string[]>([])
   const previewEntries = useMemo(
     () =>
       files
         .filter((item) => isPreviewable(item.file))
         .map((item) => ({
           id: item.id,
+          previewKey: getFilePreviewKey(item),
           url: URL.createObjectURL(item.file),
         })),
     [files, isPreviewable],
@@ -30,6 +35,10 @@ export function useLocalFilePreviewUrls({
 
   const previewUrlById = useMemo(
     () => new Map(previewEntries.map((entry) => [entry.id, entry.url])),
+    [previewEntries],
+  )
+  const previewKeyById = useMemo(
+    () => new Map(previewEntries.map((entry) => [entry.id, entry.previewKey])),
     [previewEntries],
   )
 
@@ -41,13 +50,10 @@ export function useLocalFilePreviewUrls({
     }
   }, [previewEntries])
 
-  useEffect(() => {
-    const activeIds = new Set(files.map((item) => item.id))
-    setBrokenPreviewIds((current) => current.filter((id) => activeIds.has(id)))
-  }, [files])
-
   function getPreviewUrl(id: string) {
-    if (brokenPreviewIds.includes(id)) {
+    const previewKey = previewKeyById.get(id)
+
+    if (!previewKey || brokenPreviewKeys.includes(previewKey)) {
       return null
     }
 
@@ -55,7 +61,15 @@ export function useLocalFilePreviewUrls({
   }
 
   function markPreviewBroken(id: string) {
-    setBrokenPreviewIds((current) => (current.includes(id) ? current : [...current, id]))
+    const previewKey = previewKeyById.get(id)
+
+    if (!previewKey) {
+      return
+    }
+
+    setBrokenPreviewKeys((current) =>
+      current.includes(previewKey) ? current : [...current, previewKey],
+    )
   }
 
   return {

@@ -21,13 +21,32 @@ const EMPTY_REVIEW_LIST = (ratingSummary: ReviewRatingSummary): ProductReviewLis
   ratingSummary,
 })
 
+function getReviewRequestKey(productId: string, ratingSummary: ReviewRatingSummary) {
+  return [
+    productId,
+    ratingSummary.averageRating,
+    ratingSummary.totalCount,
+    ratingSummary.rating1Count,
+    ratingSummary.rating2Count,
+    ratingSummary.rating3Count,
+    ratingSummary.rating4Count,
+    ratingSummary.rating5Count,
+  ].join(':')
+}
+
+type ReviewState = {
+  requestKey: string
+  reviews: ProductReviewList
+  hasError: boolean
+}
+
 export default function ProductReviewsClientSection({
   productId,
   productName,
   ratingSummary,
 }: ProductReviewsClientSectionProps) {
-  const [reviews, setReviews] = useState<ProductReviewList | null>(null)
-  const [hasError, setHasError] = useState(false)
+  const [reviewState, setReviewState] = useState<ReviewState | null>(null)
+  const requestKey = getReviewRequestKey(productId, ratingSummary)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -43,32 +62,34 @@ export default function ProductReviewsClientSection({
           return
         }
 
-        setReviews(data)
-        setHasError(false)
+        setReviewState({ requestKey, reviews: data, hasError: false })
       } catch {
         if (controller.signal.aborted) {
           return
         }
 
-        setReviews(EMPTY_REVIEW_LIST(ratingSummary))
-        setHasError(true)
+        setReviewState({
+          requestKey,
+          reviews: EMPTY_REVIEW_LIST(ratingSummary),
+          hasError: true,
+        })
       }
     }
 
-    setReviews(null)
-    setHasError(false)
     void loadReviews()
 
     return () => controller.abort()
-  }, [productId, ratingSummary])
+  }, [productId, ratingSummary, requestKey])
 
-  if (!reviews) {
+  const currentState = reviewState?.requestKey === requestKey ? reviewState : null
+
+  if (!currentState) {
     return <ProductReviewsSectionFallback summary={ratingSummary} />
   }
 
   return (
     <div className="space-y-4">
-      {hasError ? (
+      {currentState.hasError ? (
         <p
           className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-copy-primary"
           role="status"
@@ -81,7 +102,7 @@ export default function ProductReviewsClientSection({
         productId={productId}
         productName={productName}
         ratingSummary={ratingSummary}
-        reviews={reviews}
+        reviews={currentState.reviews}
       />
     </div>
   )
