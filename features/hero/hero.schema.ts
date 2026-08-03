@@ -9,6 +9,13 @@ const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
+const emptyStringToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value
+
+function optionalEnumQueryParam<T extends Record<string, string | number>>(enumLike: T) {
+  return z.preprocess(emptyStringToUndefined, z.nativeEnum(enumLike).optional())
+}
+
 const nullableTrimmedString = (max: number) =>
   z
     .preprocess(
@@ -196,8 +203,8 @@ export const updateHeroBannerSchema = heroBannerBaseSchema.partial().superRefine
 })
 
 export const heroBannerQuerySchema = paginationSchema.extend({
-  status: z.nativeEnum(HeroBannerStatus).optional(),
-  destinationType: z.nativeEnum(HeroBannerDestinationType).optional(),
+  status: optionalEnumQueryParam(HeroBannerStatus),
+  destinationType: optionalEnumQueryParam(HeroBannerDestinationType),
 })
 
 export const publicHeroBannerQuerySchema = z.object({
