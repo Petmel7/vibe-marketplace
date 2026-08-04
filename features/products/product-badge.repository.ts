@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { Prisma, ProductBadgeSource, ProductBadgeType, ProductStatus } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import { resolveRepositoryClient, type RepositoryContext } from '@/lib/repository/context'
 
 export type BadgeSubjectProduct = {
   id: string
@@ -129,101 +130,103 @@ export async function replaceSystemNewBadge(
   productId: string,
   publishedAt: Date | null,
   shouldPersist: boolean,
+  context?: RepositoryContext,
 ) {
+  const db = resolveRepositoryClient(context)
   const windowEnd = publishedAt ? new Date(publishedAt.getTime() + 30 * 24 * 60 * 60 * 1000) : null
 
-  await prisma.$transaction(async (tx) => {
-    await tx.productBadge.deleteMany({
-      where: {
+  await db.productBadge.deleteMany({
+    where: {
+      productId,
+      type: ProductBadgeType.NEW,
+      source: ProductBadgeSource.SYSTEM,
+    },
+  })
+
+  if (shouldPersist && publishedAt && windowEnd) {
+    await db.productBadge.create({
+      data: {
         productId,
         type: ProductBadgeType.NEW,
         source: ProductBadgeSource.SYSTEM,
+        startsAt: publishedAt,
+        endsAt: windowEnd,
+        updatedAt: new Date(),
       },
     })
-
-    if (shouldPersist && publishedAt && windowEnd) {
-      await tx.productBadge.create({
-        data: {
-          productId,
-          type: ProductBadgeType.NEW,
-          source: ProductBadgeSource.SYSTEM,
-          startsAt: publishedAt,
-          endsAt: windowEnd,
-          updatedAt: new Date(),
-        },
-      })
-    }
-  })
+  }
 }
 
 export async function replaceSystemHitBadges(
   badges: Array<{ productId: string; score: Decimal }>,
+  context?: RepositoryContext,
 ) {
-  await prisma.$transaction(async (tx) => {
-    await tx.productBadge.deleteMany({
-      where: {
-        type: ProductBadgeType.HIT,
-        source: ProductBadgeSource.SYSTEM,
-      },
-    })
+  const db = resolveRepositoryClient(context)
 
-    if (badges.length === 0) {
-      return
-    }
+  await db.productBadge.deleteMany({
+    where: {
+      type: ProductBadgeType.HIT,
+      source: ProductBadgeSource.SYSTEM,
+    },
+  })
 
-    await tx.productBadge.createMany({
-      data: badges.map((badge) => ({
-        productId: badge.productId,
-        type: ProductBadgeType.HIT,
-        source: ProductBadgeSource.SYSTEM,
-        score: badge.score,
-        startsAt: new Date(),
-        endsAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })),
-    })
+  if (badges.length === 0) {
+    return
+  }
+
+  await db.productBadge.createMany({
+    data: badges.map((badge) => ({
+      productId: badge.productId,
+      type: ProductBadgeType.HIT,
+      source: ProductBadgeSource.SYSTEM,
+      score: badge.score,
+      startsAt: new Date(),
+      endsAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
   })
 }
 
 export async function upsertProductMetrics(
   snapshots: Array<AggregatedMetricSnapshot & { hitScore: Decimal; calculatedAt: Date }>,
+  context?: RepositoryContext,
 ) {
   if (snapshots.length === 0) {
     return
   }
 
-  await prisma.$transaction(
-    snapshots.map((snapshot) =>
-      prisma.productMetrics.upsert({
-        where: { productId: snapshot.productId },
-        create: {
-          productId: snapshot.productId,
-          viewCount: snapshot.viewCount,
-          wishlistCount: snapshot.wishlistCount,
-          soldCount: snapshot.soldCount,
-          revenueAmount: snapshot.revenueAmount,
-          ratingAvg: snapshot.ratingAvg,
-          reviewCount: snapshot.reviewCount,
-          hitScore: snapshot.hitScore,
-          lastCalculatedAt: snapshot.calculatedAt,
-          createdAt: snapshot.calculatedAt,
-          updatedAt: snapshot.calculatedAt,
-        },
-        update: {
-          viewCount: snapshot.viewCount,
-          wishlistCount: snapshot.wishlistCount,
-          soldCount: snapshot.soldCount,
-          revenueAmount: snapshot.revenueAmount,
-          ratingAvg: snapshot.ratingAvg,
-          reviewCount: snapshot.reviewCount,
-          hitScore: snapshot.hitScore,
-          lastCalculatedAt: snapshot.calculatedAt,
-          updatedAt: snapshot.calculatedAt,
-        },
-      }),
-    ),
-  )
+  const db = resolveRepositoryClient(context)
+
+  for (const snapshot of snapshots) {
+    await db.productMetrics.upsert({
+      where: { productId: snapshot.productId },
+      create: {
+        productId: snapshot.productId,
+        viewCount: snapshot.viewCount,
+        wishlistCount: snapshot.wishlistCount,
+        soldCount: snapshot.soldCount,
+        revenueAmount: snapshot.revenueAmount,
+        ratingAvg: snapshot.ratingAvg,
+        reviewCount: snapshot.reviewCount,
+        hitScore: snapshot.hitScore,
+        lastCalculatedAt: snapshot.calculatedAt,
+        createdAt: snapshot.calculatedAt,
+        updatedAt: snapshot.calculatedAt,
+      },
+      update: {
+        viewCount: snapshot.viewCount,
+        wishlistCount: snapshot.wishlistCount,
+        soldCount: snapshot.soldCount,
+        revenueAmount: snapshot.revenueAmount,
+        ratingAvg: snapshot.ratingAvg,
+        reviewCount: snapshot.reviewCount,
+        hitScore: snapshot.hitScore,
+        lastCalculatedAt: snapshot.calculatedAt,
+        updatedAt: snapshot.calculatedAt,
+      },
+    })
+  }
 }
 
 export async function findProductMetrics(

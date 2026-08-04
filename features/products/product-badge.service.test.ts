@@ -18,6 +18,8 @@ import {
   UnauthorizedBadgeMutationError,
 } from '@/lib/errors/product'
 
+const transactionClient = {}
+
 vi.mock('./product-badge.repository', () => ({
   aggregateReviewStats: vi.fn(),
   aggregateSalesStats: vi.fn(),
@@ -40,6 +42,10 @@ vi.mock('./product-badge.repository', () => ({
 
 vi.mock('./product-badge-rule.repository', () => ({
   findBadgeRuleByType: vi.fn(),
+}))
+
+vi.mock('@/lib/repository/context', () => ({
+  runServiceTransaction: vi.fn((callback) => callback(transactionClient)),
 }))
 
 const mockedRepository = vi.mocked(repository)
@@ -149,6 +155,7 @@ describe('syncSystemNewBadgeForProduct', () => {
       'product-1',
       publishedAt,
       true,
+      { db: transactionClient },
     )
   })
 
@@ -164,6 +171,7 @@ describe('syncSystemNewBadgeForProduct', () => {
       'product-1',
       null,
       false,
+      { db: transactionClient },
     )
   })
 })
@@ -237,6 +245,7 @@ describe('recalculateProductMetricsAndBadges', () => {
           revenueAmount: new Decimal('2000.00'),
         }),
       ]),
+      { db: transactionClient },
     )
     expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -245,6 +254,7 @@ describe('recalculateProductMetricsAndBadges', () => {
           score: expect.any(Decimal),
         }),
       ]),
+      { db: transactionClient },
     )
 
     const hitBadgesCall = mockedRepository.replaceSystemHitBadges.mock.calls[0]?.[0] ?? []
@@ -262,9 +272,10 @@ describe('recalculateProductMetricsAndBadges', () => {
 
     await recalculateProductMetricsAndBadges()
 
-    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([
-      expect.objectContaining({ productId: 'product-views-hit' }),
-    ])
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith(
+      [expect.objectContaining({ productId: 'product-views-hit' })],
+      { db: transactionClient },
+    )
   })
 
   it('assigns HIT when trusted wishlist count satisfies the active rule threshold', async () => {
@@ -278,9 +289,10 @@ describe('recalculateProductMetricsAndBadges', () => {
 
     await recalculateProductMetricsAndBadges()
 
-    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([
-      expect.objectContaining({ productId: 'product-wishlist-hit' }),
-    ])
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith(
+      [expect.objectContaining({ productId: 'product-wishlist-hit' })],
+      { db: transactionClient },
+    )
   })
 
   it('assigns HIT when trusted sold count satisfies the active rule threshold', async () => {
@@ -296,9 +308,10 @@ describe('recalculateProductMetricsAndBadges', () => {
 
     await recalculateProductMetricsAndBadges()
 
-    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([
-      expect.objectContaining({ productId: 'product-sales-hit' }),
-    ])
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith(
+      [expect.objectContaining({ productId: 'product-sales-hit' })],
+      { db: transactionClient },
+    )
   })
 
   it('does not assign HIT below all active thresholds', async () => {
@@ -361,6 +374,7 @@ describe('recalculateProductMetricsAndBadges', () => {
           soldCount: 4,
         }),
       ]),
+      { db: transactionClient },
     )
 
     const hitBadgesCall = mockedRepository.replaceSystemHitBadges.mock.calls[0]?.[0] ?? []
@@ -399,7 +413,7 @@ describe('recalculateProductMetricsAndBadges', () => {
 
     await recalculateProductMetricsAndBadges()
 
-    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([])
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenCalledWith([], { db: transactionClient })
   })
 
   it('remains idempotent when the same recalculation runs twice', async () => {
@@ -416,12 +430,16 @@ describe('recalculateProductMetricsAndBadges', () => {
     await recalculateProductMetricsAndBadges()
     await recalculateProductMetricsAndBadges()
 
-    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenNthCalledWith(1, [
-      expect.objectContaining({ productId: 'product-repeat-hit' }),
-    ])
-    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenNthCalledWith(2, [
-      expect.objectContaining({ productId: 'product-repeat-hit' }),
-    ])
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenNthCalledWith(
+      1,
+      [expect.objectContaining({ productId: 'product-repeat-hit' })],
+      { db: transactionClient },
+    )
+    expect(mockedRepository.replaceSystemHitBadges).toHaveBeenNthCalledWith(
+      2,
+      [expect.objectContaining({ productId: 'product-repeat-hit' })],
+      { db: transactionClient },
+    )
   })
 })
 

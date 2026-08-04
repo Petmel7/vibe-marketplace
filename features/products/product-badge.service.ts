@@ -43,6 +43,7 @@ import {
   UnauthorizedBadgeMutationError,
 } from '@/lib/errors/product'
 import { ProductNotFoundError } from '@/lib/errors/seller'
+import { runServiceTransaction } from '@/lib/repository/context'
 
 const NEW_BADGE_WINDOW_DAYS = 30
 
@@ -183,7 +184,9 @@ export async function syncSystemNewBadgeForProduct(product: BadgeFlagSubject): P
     product.status === ProductStatus.PUBLISHED &&
     product.publishedAt !== null
 
-  await replaceSystemNewBadge(product.id, product.publishedAt, shouldPersist)
+  await runServiceTransaction((db) =>
+    replaceSystemNewBadge(product.id, product.publishedAt, shouldPersist, { db }),
+  )
 }
 
 export async function resolveMarketplaceBadgesForProducts(products: BadgeFlagSubject[]) {
@@ -269,7 +272,7 @@ export async function recalculateProductMetricsAndBadges(): Promise<void> {
       }
     })
 
-    await upsertProductMetrics(snapshots)
+    await runServiceTransaction((db) => upsertProductMetrics(snapshots, { db }))
 
     const productsById = new Map(products.map((product) => [product.id, product]))
 
@@ -291,7 +294,7 @@ export async function recalculateProductMetricsAndBadges(): Promise<void> {
         score: snapshot.hitScore,
       }))
 
-    await replaceSystemHitBadges(systemHitBadges)
+    await runServiceTransaction((db) => replaceSystemHitBadges(systemHitBadges, { db }))
   } catch (error) {
     throw new ProductMetricsCalculationError(
       error instanceof Error ? error.message : 'Product metrics could not be calculated',
