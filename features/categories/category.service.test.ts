@@ -44,6 +44,10 @@ vi.mock('@/features/seo/seo.cache', () => ({
   revalidateSeoForCategoryChange: vi.fn(),
 }))
 
+vi.mock('@/utils/logger', () => ({
+  logError: vi.fn(),
+}))
+
 const mockedRepository = vi.mocked(repository)
 const mockedMediaService = vi.mocked(mediaService)
 const mockedSeoCache = vi.mocked(seoCache)
@@ -159,6 +163,30 @@ describe('uploadAdminCategoryImage', () => {
     })
     expect(mockedMediaService.deleteCategoryImageBinary).toHaveBeenCalledWith('categories/cat-1/old.png')
   })
+
+  it('keeps the replacement successful when previous storage cleanup fails', async () => {
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'category.png', { type: 'image/png' })
+    mockedRepository.findCategoryById.mockResolvedValue(
+      makeCategory({
+        id: 'cat-1',
+        imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/old.png',
+        imageStoragePath: 'categories/cat-1/old.png',
+      }),
+    )
+    mockedMediaService.uploadCategoryImageBinary.mockResolvedValue({
+      bucket: 'category-images',
+      url: 'https://cdn.example.com/category-images/categories/cat-1/new.png',
+      storagePath: 'categories/cat-1/new.png',
+      contentType: 'image/png',
+      size: 4,
+    })
+    mockedMediaService.deleteCategoryImageBinary.mockRejectedValueOnce(new Error('object already removed'))
+
+    await expect(uploadAdminCategoryImage(adminUser, 'cat-1', file)).resolves.toEqual({
+      imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/new.png',
+      imageStoragePath: 'categories/cat-1/new.png',
+    })
+  })
 })
 
 describe('removeAdminCategoryImage', () => {
@@ -198,6 +226,22 @@ describe('removeAdminCategoryImage', () => {
       imageStoragePath: null,
     })
     expect(mockedMediaService.deleteCategoryImageBinary).not.toHaveBeenCalled()
+  })
+
+  it('keeps image removal successful when storage cleanup fails', async () => {
+    mockedRepository.findCategoryById.mockResolvedValue(
+      makeCategory({
+        id: 'cat-1',
+        imageUrl: 'https://cdn.example.com/category-images/categories/cat-1/image.webp',
+        imageStoragePath: 'categories/cat-1/image.webp',
+      }),
+    )
+    mockedMediaService.deleteCategoryImageBinary.mockRejectedValueOnce(new Error('missing object'))
+
+    await expect(removeAdminCategoryImage(adminUser, 'cat-1')).resolves.toEqual({
+      imageUrl: null,
+      imageStoragePath: null,
+    })
   })
 })
 

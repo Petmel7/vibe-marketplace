@@ -16,6 +16,8 @@ import {
   resolveSellerStoreContext,
 } from '@/features/store/store.service'
 import { uploadProductImageBinary, deleteProductImageBinary } from '@/features/media/media.service'
+import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
+import { cleanupStoredUpload, uploadAndPersist } from '@/lib/upload/upload.service'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { createAdminNotification } from '@/features/notifications/notifications.service'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
@@ -889,19 +891,32 @@ export async function uploadProductImage(
     throw new ProductImageLimitExceededError(`A product can have at most ${PRODUCT_IMAGE_LIMIT} images`)
   }
 
-  const uploaded = await uploadProductImageBinary({ productId, file: params.file })
   const desiredPosition = params.position ?? existingCount
   const shouldBecomePrimary = existingCount === 0 || Boolean(params.isPrimary)
 
-  const [created] = await repoCreateProductImages(productId, [
-    {
-      url: uploaded.url,
-      storagePath: uploaded.storagePath,
-      altText: params.altText ?? null,
-      position: desiredPosition,
-      isPrimary: existingCount === 0,
+  const { persisted: createdImages } = await uploadAndPersist({
+    upload: async () => {
+      const asset = await uploadProductImageBinary({ productId, file: params.file })
+      return {
+        ...asset,
+        filename: params.file.name,
+      }
     },
-  ])
+    persist: (uploaded) =>
+      repoCreateProductImages(productId, [
+        {
+          url: uploaded.url,
+          storagePath: uploaded.storagePath,
+          altText: params.altText ?? null,
+          position: desiredPosition,
+          isPrimary: existingCount === 0,
+        },
+      ]),
+    deleteUploadedObject: deleteProductImageBinary,
+    cleanupUploadedLabel: 'seller-product:image:uploaded-cleanup',
+    context: { productId },
+  })
+  const [created] = createdImages
 
   if (shouldBecomePrimary && !created.isPrimary) {
     await repoSetPrimaryProductImage(productId, created.id)
@@ -924,7 +939,16 @@ export async function removeProductImage(user: SessionUser, productId: string, i
   }
 
   await repoDeleteProductImage(image.id)
-  await deleteProductImageBinary(image.storagePath)
+  await cleanupStoredUpload({
+    previous: {
+      bucket: UPLOAD_BUCKETS.productImages,
+      storagePath: image.storagePath,
+      url: image.url,
+    },
+    deleteObject: deleteProductImageBinary,
+    label: 'seller-product:image:remove-cleanup',
+    context: { productId, imageId },
+  })
 
   const remaining = await repoListProductImages(productId)
   if (remaining.length > 0 && !remaining.some((entry: { isPrimary: boolean }) => entry.isPrimary)) {

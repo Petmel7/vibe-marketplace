@@ -7,6 +7,8 @@ import {
 import { requireAdmin } from '@/lib/auth/guards'
 import { toErrorResponse } from '@/lib/errors/handleError'
 import { requireAuth } from '@/lib/session/getSession'
+import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
+import { cleanupStoredUpload } from '@/lib/upload/upload.service'
 
 const removeHeroBannerImageSchema = z.object({
   storagePath: z.string().trim().min(1).max(1024),
@@ -63,7 +65,14 @@ export async function DELETE(request: Request): Promise<Response> {
       return validationErrorResponse(parsed.error.flatten())
     }
 
-    await deleteHeroBannerImageBinary(parsed.data.storagePath)
+    await cleanupStoredUpload({
+      previous: {
+        bucket: UPLOAD_BUCKETS.heroBanners,
+        storagePath: parsed.data.storagePath,
+      },
+      deleteObject: deleteHeroBannerImageBinary,
+      label: 'hero-banner:image:remove-cleanup',
+    })
 
     return Response.json({ success: true, data: null })
   } catch (error) {

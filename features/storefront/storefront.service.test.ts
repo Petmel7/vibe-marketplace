@@ -363,4 +363,24 @@ describe('uploadStorefrontAsset', () => {
     expect(result.asset.storagePath).toBe('stores/store-uuid-001/logo/hash.png')
     expect(result.store.logoUrl).toBe('https://cdn.example.com/logo.png')
   })
+
+  it('cleans up an uploaded asset when store persistence fails', async () => {
+    const original = makeStoreRow()
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'logo.png', { type: 'image/png' })
+    const persistError = new Error('db down')
+
+    mockStoreService.resolveSellerStoreContext.mockResolvedValue(original as never)
+    mockMediaService.uploadStoreAssetBinary.mockResolvedValue({
+      bucket: 'store-assets',
+      url: 'https://cdn.example.com/logo.png',
+      storagePath: 'stores/store-uuid-001/logo/hash.png',
+      contentType: 'image/png',
+      size: 4,
+    })
+    mockStorefrontRepo.updateStoreSettings.mockRejectedValue(persistError)
+
+    await expect(uploadStorefrontAsset(mockUser, 'logo', file)).rejects.toBe(persistError)
+
+    expect(mockMediaService.deleteStoreAssetBinary).toHaveBeenCalledWith('stores/store-uuid-001/logo/hash.png')
+  })
 })

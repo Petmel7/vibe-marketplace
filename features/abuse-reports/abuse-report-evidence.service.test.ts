@@ -87,6 +87,28 @@ describe('abuse-report-evidence.service', () => {
     expect(result.url).toBe('https://signed.example.test/evidence')
   })
 
+  it('cleans up uploaded storage when evidence metadata persistence fails', async () => {
+    const persistError = new Error('db down')
+    mockRepository.countEvidenceByReportId.mockResolvedValue(0)
+    mockStorageRepository.uploadAbuseReportEvidenceAsset.mockResolvedValue({
+      url: 'https://storage.example.test/object',
+      storagePath: 'reports/report-1/evidence-1-proof.png',
+    })
+    mockRepository.createAbuseReportEvidenceRecord.mockRejectedValue(persistError)
+
+    await expect(
+      evidenceService.uploadReportEvidence(
+        buyerUser,
+        'report-1',
+        createFile('proof.png', 'image/png'),
+      ),
+    ).rejects.toBe(persistError)
+
+    expect(mockStorageRepository.removeAbuseReportEvidenceAsset).toHaveBeenCalledWith(
+      'reports/report-1/evidence-1-proof.png',
+    )
+  })
+
   it('enforces the max file count per report', async () => {
     mockRepository.countEvidenceByReportId.mockResolvedValue(5)
 
@@ -159,6 +181,20 @@ describe('abuse-report-evidence.service', () => {
     expect(mockStorageRepository.removeAbuseReportEvidenceAsset).toHaveBeenCalledWith(
       'reports/report-1/evidence-1-proof.png',
     )
+    expect(mockRepository.deleteEvidenceById).toHaveBeenCalledWith('evidence-1')
+    expect(result.id).toBe('evidence-1')
+  })
+
+  it('keeps evidence deletion successful when storage cleanup fails', async () => {
+    mockRepository.findEvidenceById.mockResolvedValue(makeEvidenceRecord() as never)
+    mockStorageRepository.removeAbuseReportEvidenceAsset.mockRejectedValueOnce(new Error('missing object'))
+
+    const result = await evidenceService.deleteReportEvidence(
+      buyerUser,
+      'report-1',
+      'evidence-1',
+    )
+
     expect(mockRepository.deleteEvidenceById).toHaveBeenCalledWith('evidence-1')
     expect(result.id).toBe('evidence-1')
   })

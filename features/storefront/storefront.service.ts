@@ -7,8 +7,9 @@ import {
   SlugAlreadyTakenError,
 } from '@/lib/errors/seller'
 import { generateSlug } from '@/lib/utils/slugify'
-import { uploadStoreAssetBinary } from '@/features/media/media.service'
+import { deleteStoreAssetBinary, uploadStoreAssetBinary } from '@/features/media/media.service'
 import type { StoreAssetKind } from '@/features/media/media.dto'
+import { uploadAndPersist } from '@/lib/upload/upload.service'
 import { findSellerByUserId } from '@/features/seller/seller.repository'
 import {
   createStore,
@@ -185,15 +186,27 @@ export async function uploadStorefrontAsset(
   const store = await resolveSellerStoreContext(user, storeId)
   if (!store) throw new StoreProvisioningRequiredError()
 
-  const asset = await uploadStoreAssetBinary({
-    storeId: store.id,
-    kind,
-    file,
-  })
+  const { uploaded: asset, persisted: updatedStore } = await uploadAndPersist({
+    upload: async () => {
+      const uploaded = await uploadStoreAssetBinary({
+        storeId: store.id,
+        kind,
+        file,
+      })
 
-  const updatedStore = await repoUpdateStoreSettings(store.id, {
-    ...(kind === 'logo' ? { logoUrl: asset.url } : {}),
-    ...(kind === 'banner' ? { bannerUrl: asset.url } : {}),
+      return {
+        ...uploaded,
+        filename: file.name,
+      }
+    },
+    persist: (uploaded) =>
+      repoUpdateStoreSettings(store.id, {
+        ...(kind === 'logo' ? { logoUrl: uploaded.url } : {}),
+        ...(kind === 'banner' ? { bannerUrl: uploaded.url } : {}),
+      }),
+    deleteUploadedObject: deleteStoreAssetBinary,
+    cleanupUploadedLabel: 'storefront:asset:uploaded-cleanup',
+    context: { storeId: store.id, kind },
   })
 
   return {

@@ -12,6 +12,8 @@ import {
   uploadCategoryImageBinary,
 } from '@/features/media/media.service'
 import { revalidateSeoForCategoryChange } from '@/features/seo/seo.cache'
+import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
+import { cleanupStoredUpload, replaceStoredUpload } from '@/lib/upload/upload.service'
 import type {
   AdminCategoryNodeDto,
   CategoryImageDto,
@@ -371,19 +373,34 @@ export async function uploadAdminCategoryImage(
     throw new CategoryNotFoundError()
   }
 
-  const uploaded = await uploadCategoryImageBinary({
-    categoryId,
-    file,
-  })
+  const { uploaded } = await replaceStoredUpload({
+    upload: async () => {
+      const asset = await uploadCategoryImageBinary({
+        categoryId,
+        file,
+      })
 
-  await updateCategoryImage(categoryId, {
-    imageUrl: uploaded.url,
-    imageStoragePath: uploaded.storagePath,
+      return {
+        ...asset,
+        filename: file.name,
+      }
+    },
+    persist: (asset) =>
+      updateCategoryImage(categoryId, {
+        imageUrl: asset.url,
+        imageStoragePath: asset.storagePath,
+      }),
+    previous: {
+      bucket: UPLOAD_BUCKETS.categoryImages,
+      storagePath: category.imageStoragePath,
+      url: category.imageUrl,
+    },
+    deleteUploadedObject: deleteCategoryImageBinary,
+    deletePreviousObject: deleteCategoryImageBinary,
+    cleanupUploadedLabel: 'category:image:uploaded-cleanup',
+    cleanupPreviousLabel: 'category:image:previous-cleanup',
+    context: { categoryId },
   })
-
-  if (category.imageStoragePath) {
-    await deleteCategoryImageBinary(category.imageStoragePath)
-  }
 
   revalidateSeoForCategoryChange()
 
@@ -409,9 +426,16 @@ export async function removeAdminCategoryImage(
     imageStoragePath: null,
   })
 
-  if (category.imageStoragePath) {
-    await deleteCategoryImageBinary(category.imageStoragePath)
-  }
+  await cleanupStoredUpload({
+    previous: {
+      bucket: UPLOAD_BUCKETS.categoryImages,
+      storagePath: category.imageStoragePath,
+      url: category.imageUrl,
+    },
+    deleteObject: deleteCategoryImageBinary,
+    label: 'category:image:remove-cleanup',
+    context: { categoryId },
+  })
 
   revalidateSeoForCategoryChange()
 

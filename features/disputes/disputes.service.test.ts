@@ -432,6 +432,29 @@ describe('disputes.service', () => {
     })
   })
 
+  it('cleans up uploaded dispute evidence when metadata persistence fails', async () => {
+    const persistError = new Error('db down')
+    mockRepository.findDisputeById.mockResolvedValue(makeDisputeRecord({ evidence: [] }) as never)
+    mockRepository.countEvidenceByDisputeId.mockResolvedValue(0)
+    mockStorage.uploadDisputeEvidenceAsset.mockResolvedValue({
+      url: 'https://storage.example/evidence',
+      storagePath: 'disputes/dispute-1/evidence-2-proof.jpg',
+    })
+    mockRepository.createDisputeEvidenceRecord.mockRejectedValue(persistError)
+
+    await expect(
+      uploadDisputeEvidence(
+        buyerUser,
+        'dispute-1',
+        new File([new Uint8Array([1, 2, 3])], 'proof.jpg', { type: 'image/jpeg' }),
+      ),
+    ).rejects.toBe(persistError)
+
+    expect(mockStorage.removeDisputeEvidenceAsset).toHaveBeenCalledWith(
+      expect.stringMatching(/^disputes\/dispute-1\/.+-proof\.jpg$/),
+    )
+  })
+
   it('enqueues seller message notifications for buyer and admins without exposing internal notes', async () => {
     mockRepository.findDisputeById.mockResolvedValue(makeDisputeRecord() as never)
     mockRepository.createDisputeMessageRecord.mockResolvedValue({

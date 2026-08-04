@@ -31,6 +31,7 @@ import {
   archiveProduct,
   createProduct,
   getMyProductById,
+  removeProductImage,
   setPrimaryProductImage,
   submitForReview,
   updateProduct,
@@ -867,6 +868,44 @@ describe('uploadProductImage', () => {
     await expect(uploadProductImage(mockUser, product.id, { file })).rejects.toThrow(
       ProductImageLimitExceededError,
     )
+  })
+
+  it('cleans up a newly uploaded object when product image metadata persistence fails', async () => {
+    const product = makeProduct()
+    const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'product.png', { type: 'image/png' })
+    const persistError = new Error('db down')
+
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+    mockProductRepo.countProductImages.mockResolvedValue(0)
+    mockMediaService.uploadProductImageBinary.mockResolvedValue({
+      bucket: 'product-images',
+      url: 'https://cdn.example.com/product.png',
+      storagePath: 'products/product-uuid-001/hash.png',
+      contentType: 'image/png',
+      size: 4,
+    })
+    mockProductRepo.createProductImages.mockRejectedValue(persistError)
+
+    await expect(uploadProductImage(mockUser, product.id, { file })).rejects.toBe(persistError)
+    expect(mockMediaService.deleteProductImageBinary).toHaveBeenCalledWith('products/product-uuid-001/hash.png')
+  })
+})
+
+describe('removeProductImage', () => {
+  it('removes product image metadata even when storage cleanup fails', async () => {
+    const product = makeProduct()
+    const image = makeImage()
+
+    mockProductRepo.findProductByIdAndStoreId.mockResolvedValue(product)
+    mockProductRepo.findProductImageById.mockResolvedValue(image)
+    mockProductRepo.listProductImages.mockResolvedValue([])
+    mockProductRepo.updateProductPrimaryImage.mockResolvedValue(product)
+    mockMediaService.deleteProductImageBinary.mockRejectedValueOnce(new Error('object already gone'))
+
+    await expect(removeProductImage(mockUser, product.id, image.id)).resolves.toBeUndefined()
+
+    expect(mockProductRepo.deleteProductImage).toHaveBeenCalledWith(image.id)
+    expect(mockProductRepo.updateProductPrimaryImage).toHaveBeenCalledWith(product.id, null)
   })
 })
 

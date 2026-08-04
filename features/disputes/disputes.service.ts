@@ -22,6 +22,9 @@ import {
   InvalidDisputeTransitionError,
 } from '@/lib/errors/dispute'
 import { logError } from '@/utils/logger'
+import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
+import { uploadAndPersist } from '@/lib/upload/upload.service'
+import { validateUploadFileMetadata } from '@/lib/upload/upload.validation'
 import type {
   AdminDisputeListQueryDto,
   CreateDisputeDto,
@@ -119,44 +122,24 @@ function resolvePersonName(person: {
   return person?.profile?.displayName ?? person?.name ?? person?.email ?? 'Користувач'
 }
 
-function sanitizeFileName(fileName: string, extension: string): string {
-  const baseName = fileName.replace(/\.[^.]+$/, '')
-  const normalized = baseName
-    .normalize('NFKD')
-    .replace(/[^\w.-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[-_.]+|[-_.]+$/g, '')
-    .slice(0, 80)
-
-  const safeBaseName = normalized || 'evidence'
-  return `${safeBaseName}.${extension}`
-}
-
 function assertEvidenceFile(file: File): { contentType: string; safeFileName: string } {
-  if (!(file instanceof File)) {
-    throw new InvalidDisputeEvidenceFileError('A valid dispute evidence file is required')
-  }
-
-  if (file.size <= 0) {
-    throw new InvalidDisputeEvidenceFileError('Evidence file cannot be empty')
-  }
-
-  if (file.size > MAX_EVIDENCE_BYTES) {
-    throw new InvalidDisputeEvidenceFileError('Evidence file exceeds the 10MB limit')
-  }
-
-  const contentType = file.type.trim().toLowerCase()
-  const extension = ALLOWED_EVIDENCE_TYPES.get(contentType)
-
-  if (!extension) {
-    throw new InvalidDisputeEvidenceFileError(
-      'Only JPG, JPEG, PNG, WEBP, and PDF evidence files are supported',
-    )
-  }
+  const validated = validateUploadFileMetadata({
+    file,
+    maxBytes: MAX_EVIDENCE_BYTES,
+    allowedContentTypes: ALLOWED_EVIDENCE_TYPES,
+    fallbackFilename: 'evidence',
+    createError: (message) => new InvalidDisputeEvidenceFileError(message),
+    messages: {
+      invalidFile: 'A valid dispute evidence file is required',
+      emptyFile: 'Evidence file cannot be empty',
+      maxBytes: 'Evidence file exceeds the 10MB limit',
+      unsupportedType: 'Only JPG, JPEG, PNG, WEBP, and PDF evidence files are supported',
+    },
+  })
 
   return {
-    contentType,
-    safeFileName: sanitizeFileName(file.name, extension),
+    contentType: validated.contentType,
+    safeFileName: validated.filename,
   }
 }
 
@@ -695,30 +678,41 @@ export async function uploadDisputeEvidence(
   const storagePath = `disputes/${id}/${evidenceId}-${validatedFile.safeFileName}`
   const bytes = new Uint8Array(await file.arrayBuffer())
 
-  await uploadDisputeEvidenceAsset({
-    storagePath,
-    body: bytes,
-    contentType: validatedFile.contentType,
-  })
-
   let evidenceRecord: Awaited<ReturnType<typeof createDisputeEvidenceRecord>>
   try {
-    evidenceRecord = await createDisputeEvidenceRecord({
-      id: evidenceId,
-      disputeId: id,
-      uploadedById: user.id,
-      storagePath,
-      fileName: validatedFile.safeFileName,
-      fileType: validatedFile.contentType,
-      fileSize: file.size,
-    })
-  } catch (error) {
-    try {
-      await removeDisputeEvidenceAsset(storagePath)
-    } catch (cleanupError) {
-      logError('disputes:evidence:cleanup', cleanupError)
-    }
+    const result = await uploadAndPersist({
+      upload: async () => {
+        await uploadDisputeEvidenceAsset({
+          storagePath,
+          body: bytes,
+          contentType: validatedFile.contentType,
+        })
 
+        return {
+          bucket: UPLOAD_BUCKETS.disputeEvidence,
+          url: storagePath,
+          storagePath,
+          contentType: validatedFile.contentType,
+          size: file.size,
+          filename: validatedFile.safeFileName,
+        }
+      },
+      persist: (uploaded) =>
+        createDisputeEvidenceRecord({
+          id: evidenceId,
+          disputeId: id,
+          uploadedById: user.id,
+          storagePath: uploaded.storagePath,
+          fileName: uploaded.filename,
+          fileType: uploaded.contentType,
+          fileSize: uploaded.size,
+        }),
+      deleteUploadedObject: removeDisputeEvidenceAsset,
+      cleanupUploadedLabel: 'disputes:evidence:cleanup',
+      context: { disputeId: id, evidenceId },
+    })
+    evidenceRecord = result.persisted
+  } catch (error) {
     if (error instanceof Error) {
       throw error
     }

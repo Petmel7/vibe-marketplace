@@ -10,6 +10,9 @@ import {
   InvalidEvidenceFileError,
 } from '@/lib/errors/abuse-report'
 import { logError } from '@/utils/logger'
+import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
+import { cleanupStoredUpload, uploadAndPersist } from '@/lib/upload/upload.service'
+import { validateUploadFileMetadata } from '@/lib/upload/upload.validation'
 import type {
   AbuseReportEvidenceDto,
   AbuseReportEvidenceListDto,
@@ -38,42 +41,24 @@ const ALLOWED_EVIDENCE_TYPES = new Map<string, string>([
   ['application/pdf', 'pdf'],
 ])
 
-function sanitizeFileName(fileName: string, extension: string): string {
-  const baseName = fileName.replace(/\.[^.]+$/, '')
-  const normalized = baseName
-    .normalize('NFKD')
-    .replace(/[^\w.-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[-_.]+|[-_.]+$/g, '')
-    .slice(0, 80)
-
-  const safeBaseName = normalized || 'evidence'
-  return `${safeBaseName}.${extension}`
-}
-
 function assertEvidenceFile(file: File): { contentType: string; safeFileName: string } {
-  if (!(file instanceof File)) {
-    throw new InvalidEvidenceFileError('A valid evidence file is required')
-  }
-
-  if (file.size <= 0) {
-    throw new InvalidEvidenceFileError('Evidence file cannot be empty')
-  }
-
-  if (file.size > MAX_EVIDENCE_BYTES) {
-    throw new InvalidEvidenceFileError('Evidence file exceeds the 10MB limit')
-  }
-
-  const contentType = file.type.trim().toLowerCase()
-  const extension = ALLOWED_EVIDENCE_TYPES.get(contentType)
-
-  if (!extension) {
-    throw new InvalidEvidenceFileError('Only JPG, JPEG, PNG, WEBP, and PDF files are supported')
-  }
+  const validated = validateUploadFileMetadata({
+    file,
+    maxBytes: MAX_EVIDENCE_BYTES,
+    allowedContentTypes: ALLOWED_EVIDENCE_TYPES,
+    fallbackFilename: 'evidence',
+    createError: (message) => new InvalidEvidenceFileError(message),
+    messages: {
+      invalidFile: 'A valid evidence file is required',
+      emptyFile: 'Evidence file cannot be empty',
+      maxBytes: 'Evidence file exceeds the 10MB limit',
+      unsupportedType: 'Only JPG, JPEG, PNG, WEBP, and PDF files are supported',
+    },
+  })
 
   return {
-    contentType,
-    safeFileName: sanitizeFileName(file.name, extension),
+    contentType: validated.contentType,
+    safeFileName: validated.filename,
   }
 }
 
@@ -130,31 +115,42 @@ export async function uploadReportEvidence(
   const storagePath = `reports/${reportId}/${evidenceId}-${validatedFile.safeFileName}`
   const bytes = new Uint8Array(await file.arrayBuffer())
 
-  const uploaded = await uploadAbuseReportEvidenceAsset({
-    storagePath,
-    body: bytes,
-    contentType: validatedFile.contentType,
-  })
-
   let record: AbuseReportEvidenceRecord
   try {
-    record = await createAbuseReportEvidenceRecord({
-      id: evidenceId,
-      reportId,
-      uploadedById: user.id,
-      url: uploaded.url,
-      storagePath: uploaded.storagePath,
-      fileName: validatedFile.safeFileName,
-      fileType: validatedFile.contentType,
-      fileSize: file.size,
-    })
-  } catch (error) {
-    try {
-      await removeAbuseReportEvidenceAsset(storagePath)
-    } catch (cleanupError) {
-      logError('uploadReportEvidence.cleanup', cleanupError)
-    }
+    const result = await uploadAndPersist({
+      upload: async () => {
+        const uploaded = await uploadAbuseReportEvidenceAsset({
+          storagePath,
+          body: bytes,
+          contentType: validatedFile.contentType,
+        })
 
+        return {
+          bucket: UPLOAD_BUCKETS.abuseReportEvidence,
+          url: uploaded.url,
+          storagePath: uploaded.storagePath,
+          contentType: validatedFile.contentType,
+          size: file.size,
+          filename: validatedFile.safeFileName,
+        }
+      },
+      persist: (uploaded) =>
+        createAbuseReportEvidenceRecord({
+          id: evidenceId,
+          reportId,
+          uploadedById: user.id,
+          url: uploaded.url,
+          storagePath: uploaded.storagePath,
+          fileName: uploaded.filename,
+          fileType: uploaded.contentType,
+          fileSize: uploaded.size,
+        }),
+      deleteUploadedObject: removeAbuseReportEvidenceAsset,
+      cleanupUploadedLabel: 'uploadReportEvidence.cleanup',
+      context: { reportId, evidenceId },
+    })
+    record = result.persisted
+  } catch (error) {
     if (error instanceof Error) {
       throw error
     }
@@ -235,8 +231,16 @@ export async function deleteReportEvidence(
     throw new EvidenceOwnershipError()
   }
 
-  await removeAbuseReportEvidenceAsset(evidence.storagePath)
   await deleteEvidenceById(evidenceId)
+  await cleanupStoredUpload({
+    previous: {
+      bucket: UPLOAD_BUCKETS.abuseReportEvidence,
+      storagePath: evidence.storagePath,
+    },
+    deleteObject: removeAbuseReportEvidenceAsset,
+    label: 'deleteReportEvidence.cleanup',
+    context: { reportId, evidenceId },
+  })
 
   return { id: evidenceId }
 }
