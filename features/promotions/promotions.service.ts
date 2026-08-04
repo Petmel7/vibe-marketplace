@@ -6,6 +6,7 @@ import {
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { requireAdmin, requireSeller } from '@/lib/auth/guards'
+import { runServiceTransaction } from '@/lib/repository/context'
 import {
   InvalidPromotionCodeError,
   InvalidPromotionTargetError,
@@ -670,8 +671,9 @@ export async function updateSellerPromotion(
     updatedAt: new Date(),
   })
 
-  const promotion = input.targets
-    ? await replacePromotionTargets(promotionId, input.targets)
+  const targets = input.targets
+  const promotion = targets
+    ? await runServiceTransaction((db) => replacePromotionTargets(promotionId, targets, { db }))
     : updated
 
   return toPromotionDto((promotion ?? updated) as PromotionRecord)

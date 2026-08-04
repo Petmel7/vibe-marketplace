@@ -1,4 +1,8 @@
 import { prisma } from '@/lib/prisma'
+import {
+  resolveRepositoryClient,
+  type RepositoryContext,
+} from '@/lib/repository/context'
 import type { CreateAdminCategoryDto, UpdateAdminCategoryDto } from './category.dto'
 
 export type CategorySummaryRecord = {
@@ -214,40 +218,44 @@ export async function updateCategoryImage(
   return mapCategoryRecord(category)
 }
 
-export async function updateCategoryPositions(items: Array<{ id: string; position: number }>): Promise<void> {
+export async function updateCategoryPositions(
+  items: Array<{ id: string; position: number }>,
+  context?: RepositoryContext,
+): Promise<void> {
   if (items.length === 0) {
     return
   }
 
-  await prisma.$transaction(
-    items.map((item) =>
-      prisma.category.update({
-        where: { id: item.id },
-        data: {
-          position: item.position,
-          updatedAt: new Date(),
-        },
-      }),
-    ),
-  )
+  const db = resolveRepositoryClient(context)
+  for (const item of items) {
+    await db.category.update({
+      where: { id: item.id },
+      data: {
+        position: item.position,
+        updatedAt: new Date(),
+      },
+    })
+  }
 }
 
-export async function updateCategoryLevels(items: Array<{ id: string; level: number }>): Promise<void> {
+export async function updateCategoryLevels(
+  items: Array<{ id: string; level: number }>,
+  context?: RepositoryContext,
+): Promise<void> {
   if (items.length === 0) {
     return
   }
 
-  await prisma.$transaction(
-    items.map((item) =>
-      prisma.category.update({
-        where: { id: item.id },
-        data: {
-          level: item.level,
-          updatedAt: new Date(),
-        },
-      }),
-    ),
-  )
+  const db = resolveRepositoryClient(context)
+  for (const item of items) {
+    await db.category.update({
+      where: { id: item.id },
+      data: {
+        level: item.level,
+        updatedAt: new Date(),
+      },
+    })
+  }
 }
 
 export async function countProductsByCategoryIds(categoryIds: string[]): Promise<number> {
@@ -264,16 +272,18 @@ export async function countProductsByCategoryIds(categoryIds: string[]): Promise
   })
 }
 
-export async function deleteCategoriesByIdsInOrder(categoryIds: string[]): Promise<void> {
+export async function deleteCategoriesByIdsInOrder(
+  categoryIds: string[],
+  context?: RepositoryContext,
+): Promise<void> {
   if (categoryIds.length === 0) {
     return
   }
 
-  await prisma.$transaction(
-    categoryIds.map((id) =>
-      prisma.category.delete({
-        where: { id },
-      }),
-    ),
-  )
+  const db = resolveRepositoryClient(context)
+  for (const id of categoryIds) {
+    await db.category.delete({
+      where: { id },
+    })
+  }
 }

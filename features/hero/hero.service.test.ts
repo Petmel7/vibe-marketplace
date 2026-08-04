@@ -27,6 +27,10 @@ vi.mock('@/lib/auth/guards', () => ({
   requireAdmin: vi.fn(),
 }))
 
+vi.mock('@/lib/repository/context', () => ({
+  runServiceTransaction: vi.fn((callback: (db: unknown) => unknown) => callback({})),
+}))
+
 import * as repository from './hero.repository'
 import * as guards from '@/lib/auth/guards'
 import {

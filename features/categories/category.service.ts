@@ -12,6 +12,7 @@ import {
   uploadCategoryImageBinary,
 } from '@/features/media/media.service'
 import { revalidateSeoForCategoryChange } from '@/features/seo/seo.cache'
+import { runServiceTransaction } from '@/lib/repository/context'
 import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
 import { cleanupStoredUpload, replaceStoredUpload } from '@/lib/upload/upload.service'
 import type {
@@ -227,7 +228,9 @@ export async function createAdminCategory(
   const orderedIds = [...siblings.map((category) => category.id)]
   orderedIds.splice(targetPosition, 0, created.id)
 
-  await updateCategoryPositions(orderedIds.map((id, index) => ({ id, position: index })))
+  await runServiceTransaction((db) =>
+    updateCategoryPositions(orderedIds.map((id, index) => ({ id, position: index })), { db }),
+  )
   return refreshAdminCategory(created.id)
 }
 
@@ -286,7 +289,7 @@ export async function updateAdminCategory(
       }
     }).filter((item): item is { id: string; level: number } => item !== null)
 
-    await updateCategoryLevels(descendantLevelUpdates)
+    await runServiceTransaction((db) => updateCategoryLevels(descendantLevelUpdates, { db }))
   }
 
   const oldParentId = category.parentId
@@ -306,10 +309,14 @@ export async function updateAdminCategory(
     nextOrderIds.splice(targetPosition, 0, category.id)
 
     if (parentChanged) {
-      await updateCategoryPositions(oldSiblings.map((item, index) => ({ id: item.id, position: index })))
+      await runServiceTransaction((db) =>
+        updateCategoryPositions(oldSiblings.map((item, index) => ({ id: item.id, position: index })), { db }),
+      )
     }
 
-    await updateCategoryPositions(nextOrderIds.map((id, index) => ({ id, position: index })))
+    await runServiceTransaction((db) =>
+      updateCategoryPositions(nextOrderIds.map((id, index) => ({ id, position: index })), { db }),
+    )
   }
 
   return refreshAdminCategory(category.id)
@@ -337,7 +344,9 @@ export async function reorderAdminCategories(
     .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
     .map((item) => item.id)
 
-  await updateCategoryPositions(desiredOrder.map((id, index) => ({ id, position: index })))
+  await runServiceTransaction((db) =>
+    updateCategoryPositions(desiredOrder.map((id, index) => ({ id, position: index })), { db }),
+  )
   return getAdminCategoryTree(user)
 }
 
@@ -363,7 +372,7 @@ export async function deleteAdminCategory(user: SessionUser, categoryId: string)
     (left, right) => (depthById.get(right) ?? 0) - (depthById.get(left) ?? 0),
   )
 
-  await deleteCategoriesByIdsInOrder(deleteOrder)
+  await runServiceTransaction((db) => deleteCategoriesByIdsInOrder(deleteOrder, { db }))
   return { deleted: true }
 }
 

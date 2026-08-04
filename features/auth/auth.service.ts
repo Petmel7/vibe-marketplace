@@ -5,6 +5,7 @@ import {
 } from './auth.repository'
 import type { SessionUser } from './auth.dto'
 import { emitWelcomeEmailEvent } from '@/features/email/events/email.events'
+import { runServiceTransaction } from '@/lib/repository/context'
 import { logError } from '@/utils/logger'
 
 /**
@@ -16,9 +17,12 @@ export async function syncUser(supabaseUser: SupabaseUser): Promise<SessionUser>
   let created = false
 
   try {
-    const provisioned = await ensureUserProvisioned(
-      supabaseUser.id,
-      supabaseUser.email ?? ''
+    const provisioned = await runServiceTransaction((db) =>
+      ensureUserProvisioned(
+        supabaseUser.id,
+        supabaseUser.email ?? '',
+        { db },
+      ),
     )
     created = provisioned.created
     return buildSessionUser(

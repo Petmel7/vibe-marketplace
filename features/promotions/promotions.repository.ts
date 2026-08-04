@@ -1,6 +1,10 @@
 import { Prisma, PromotionOwnerType, PromotionType } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { PromotionDuplicateCodeError } from '@/lib/errors/promotion'
+import {
+  resolveRepositoryClient,
+  type RepositoryContext,
+} from '@/lib/repository/context'
 import type { PromotionQueryDto, PromotionTargetInputDto } from './promotions.dto'
 
 const promotionSummaryInclude = {
@@ -248,26 +252,26 @@ export async function updatePromotion(
 export async function replacePromotionTargets(
   promotionId: string,
   targets: PromotionTargetInputDto[],
+  context?: RepositoryContext,
 ) {
-  return prisma.$transaction(async (tx) => {
-    await tx.promotionTarget.deleteMany({
-      where: { promotionId },
-    })
+  const db = resolveRepositoryClient(context)
+  await db.promotionTarget.deleteMany({
+    where: { promotionId },
+  })
 
-    if (targets.length > 0) {
-      await tx.promotionTarget.createMany({
-        data: targets.map((target) => ({
-          promotionId,
-          targetType: target.targetType,
-          targetId: target.targetId,
-        })),
-      })
-    }
-
-    return tx.promotion.findUnique({
-      where: { id: promotionId },
-      include: promotionSummaryInclude,
+  if (targets.length > 0) {
+    await db.promotionTarget.createMany({
+      data: targets.map((target) => ({
+        promotionId,
+        targetType: target.targetType,
+        targetId: target.targetId,
+      })),
     })
+  }
+
+  return db.promotion.findUnique({
+    where: { id: promotionId },
+    include: promotionSummaryInclude,
   })
 }
 

@@ -11,6 +11,10 @@ vi.mock('@/features/email/events/email.events', () => ({
   emitWelcomeEmailEvent: vi.fn(),
 }))
 
+vi.mock('@/lib/repository/context', () => ({
+  runServiceTransaction: vi.fn((callback: (db: unknown) => unknown) => callback({})),
+}))
+
 import { ensureUserProvisioned, getUserRoles } from '@/features/auth/auth.repository'
 import { emitWelcomeEmailEvent } from '@/features/email/events/email.events'
 import { getSessionUser, syncUser } from '@/features/auth/auth.service'
@@ -47,7 +51,11 @@ describe('syncUser', () => {
     await syncUser(supabaseUser)
 
     expect(mockEnsureUserProvisioned).toHaveBeenCalledOnce()
-    expect(mockEnsureUserProvisioned).toHaveBeenCalledWith(supabaseUser.id, supabaseUser.email)
+    expect(mockEnsureUserProvisioned).toHaveBeenCalledWith(
+      supabaseUser.id,
+      supabaseUser.email,
+      expect.objectContaining({ db: expect.anything() }),
+    )
     expect(mockEmitWelcomeEmailEvent).toHaveBeenCalledWith({
       userId: supabaseUser.id,
       email: supabaseUser.email,
@@ -116,7 +124,11 @@ describe('syncUser', () => {
 
     const result = await syncUser(supabaseUser)
 
-    expect(mockEnsureUserProvisioned).toHaveBeenCalledWith('repair-1', 'repair@example.com')
+    expect(mockEnsureUserProvisioned).toHaveBeenCalledWith(
+      'repair-1',
+      'repair@example.com',
+      expect.objectContaining({ db: expect.anything() }),
+    )
     expect(result.roles).toEqual([UserRole.BUYER])
     expect(mockEmitWelcomeEmailEvent).not.toHaveBeenCalled()
   })

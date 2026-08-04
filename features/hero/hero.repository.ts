@@ -4,6 +4,10 @@ import {
   Prisma,
 } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import {
+  resolveRepositoryClient,
+  type RepositoryContext,
+} from '@/lib/repository/context'
 
 export const heroBannerInclude = {
   category: {
@@ -130,15 +134,19 @@ export async function deleteHeroBanner(id: string) {
 
 export async function updateHeroBannerSortOrders(
   items: Array<{ id: string; sortOrder: number }>,
+  context?: RepositoryContext,
 ) {
-  return prisma.$transaction(
-    items.map((item) =>
-      prisma.heroBanner.update({
+  const db = resolveRepositoryClient(context)
+  const banners = []
+  for (const item of items) {
+    banners.push(
+      await db.heroBanner.update({
         where: { id: item.id },
         data: { sortOrder: item.sortOrder },
       }),
-    ),
-  )
+    )
+  }
+  return banners
 }
 
 export async function categoryExists(id: string) {

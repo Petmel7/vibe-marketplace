@@ -1,43 +1,58 @@
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@/app/generated/prisma/client'
+import {
+  resolveRepositoryClient,
+  type RepositoryContext,
+} from '@/lib/repository/context'
 
 export async function findUserById(id: string) {
   return prisma.user.findUnique({ where: { id } })
 }
 
-export async function createUserWithProfile(id: string, email: string) {
-  return prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
-      data: {
-        id,
-        email,
-        updatedAt: new Date(),
-      },
-    })
-    await tx.userProfile.create({
-      data: {
-        userId: id,
-        updatedAt: new Date(),
-      },
-    })
-    await tx.buyerProfile.create({
-      data: {
-        userId: id,
-        updatedAt: new Date(),
-      },
-    })
-    await tx.userRoleAssignment.create({
-      data: {
-        userId: id,
-        role: UserRole.BUYER,
-      },
-    })
-    return user
+export async function createUserWithProfile(
+  id: string,
+  email: string,
+  context?: RepositoryContext,
+) {
+  const db = resolveRepositoryClient(context)
+  const now = new Date()
+
+  const user = await db.user.create({
+    data: {
+      id,
+      email,
+      updatedAt: now,
+    },
   })
+  await db.userProfile.create({
+    data: {
+      userId: id,
+      updatedAt: now,
+    },
+  })
+  await db.buyerProfile.create({
+    data: {
+      userId: id,
+      updatedAt: now,
+    },
+  })
+  await db.userRoleAssignment.create({
+    data: {
+      userId: id,
+      role: UserRole.BUYER,
+    },
+  })
+
+  return user
 }
 
-export async function ensureUserProvisioned(id: string, email: string) {
-  const existingUser = await prisma.user.findUnique({
+export async function ensureUserProvisioned(
+  id: string,
+  email: string,
+  context?: RepositoryContext,
+) {
+  const db = resolveRepositoryClient(context)
+  const existingUser = await db.user.findUnique({
     where: { id },
     select: {
       id: true,
@@ -76,54 +91,52 @@ export async function ensureUserProvisioned(id: string, email: string) {
     needsBuyerRoleCreate
 
   if (hasMutations) {
-    await prisma.$transaction(async (tx) => {
-      const now = new Date()
+    const now = new Date()
 
-      if (needsUserCreate) {
-        await tx.user.create({
-          data: {
-            id,
-            email,
-            updatedAt: now,
-          },
-        })
-      } else if (needsEmailUpdate) {
-        await tx.user.update({
-          where: { id },
-          data: {
-            email,
-            updatedAt: now,
-          },
-        })
-      }
+    if (needsUserCreate) {
+      await db.user.create({
+        data: {
+          id,
+          email,
+          updatedAt: now,
+        },
+      })
+    } else if (needsEmailUpdate) {
+      await db.user.update({
+        where: { id },
+        data: {
+          email,
+          updatedAt: now,
+        },
+      })
+    }
 
-      if (needsProfileCreate) {
-        await tx.userProfile.create({
-          data: {
-            userId: id,
-            updatedAt: now,
-          },
-        })
-      }
+    if (needsProfileCreate) {
+      await db.userProfile.create({
+        data: {
+          userId: id,
+          updatedAt: now,
+        },
+      })
+    }
 
-      if (needsBuyerProfileCreate) {
-        await tx.buyerProfile.create({
-          data: {
-            userId: id,
-            updatedAt: now,
-          },
-        })
-      }
+    if (needsBuyerProfileCreate) {
+      await db.buyerProfile.create({
+        data: {
+          userId: id,
+          updatedAt: now,
+        },
+      })
+    }
 
-      if (needsBuyerRoleCreate) {
-        await tx.userRoleAssignment.create({
-          data: {
-            userId: id,
-            role: UserRole.BUYER,
-          },
-        })
-      }
-    })
+    if (needsBuyerRoleCreate) {
+      await db.userRoleAssignment.create({
+        data: {
+          userId: id,
+          role: UserRole.BUYER,
+        },
+      })
+    }
   }
 
   return {

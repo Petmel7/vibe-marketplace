@@ -7,7 +7,6 @@ const {
   heroBannerCreateMock,
   heroBannerUpdateMock,
   heroBannerDeleteMock,
-  transactionMock,
   categoryFindUniqueMock,
   productFindUniqueMock,
   storeFindUniqueMock,
@@ -19,7 +18,6 @@ const {
   heroBannerCreateMock: vi.fn(),
   heroBannerUpdateMock: vi.fn(),
   heroBannerDeleteMock: vi.fn(),
-  transactionMock: vi.fn((operations) => Promise.all(operations)),
   categoryFindUniqueMock: vi.fn(),
   productFindUniqueMock: vi.fn(),
   storeFindUniqueMock: vi.fn(),
@@ -48,7 +46,6 @@ vi.mock('@/lib/prisma', () => ({
     promotion: {
       findUnique: promotionFindUniqueMock,
     },
-    $transaction: transactionMock,
   },
 }))
 
@@ -124,7 +121,7 @@ describe('target existence helpers', () => {
 })
 
 describe('updateHeroBannerSortOrders', () => {
-  it('updates sort orders in a single transaction', async () => {
+  it('updates sort orders through the provided repository client', async () => {
     heroBannerUpdateMock.mockResolvedValue({})
 
     await updateHeroBannerSortOrders([
@@ -133,6 +130,5 @@ describe('updateHeroBannerSortOrders', () => {
     ])
 
     expect(heroBannerUpdateMock).toHaveBeenCalledTimes(2)
-    expect(transactionMock).toHaveBeenCalledTimes(1)
   })
 })

@@ -25,6 +25,10 @@ vi.mock('@/lib/auth/guards', () => ({
   requireSeller: vi.fn(),
 }))
 
+vi.mock('@/lib/repository/context', () => ({
+  runServiceTransaction: vi.fn((callback: (db: unknown) => unknown) => callback({})),
+}))
+
 import * as repo from '@/features/promotions/promotions.repository'
 import * as guards from '@/lib/auth/guards'
 import {

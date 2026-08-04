@@ -44,6 +44,10 @@ vi.mock('@/features/seo/seo.cache', () => ({
   revalidateSeoForCategoryChange: vi.fn(),
 }))
 
+vi.mock('@/lib/repository/context', () => ({
+  runServiceTransaction: vi.fn((callback: (db: unknown) => unknown) => callback({})),
+}))
+
 vi.mock('@/utils/logger', () => ({
   logError: vi.fn(),
 }))
@@ -273,11 +277,14 @@ describe('createAdminCategory', () => {
       position: 1,
     })
 
-    expect(mockedRepository.updateCategoryPositions).toHaveBeenCalledWith([
-      { id: 'sibling-a', position: 0 },
-      { id: 'new-child', position: 1 },
-      { id: 'sibling-b', position: 2 },
-    ])
+    expect(mockedRepository.updateCategoryPositions).toHaveBeenCalledWith(
+      [
+        { id: 'sibling-a', position: 0 },
+        { id: 'new-child', position: 1 },
+        { id: 'sibling-b', position: 2 },
+      ],
+      expect.objectContaining({ db: expect.anything() }),
+    )
     expect(result).toMatchObject({ id: 'new-child', parentId: 'root', level: 1 })
   })
 })
@@ -353,10 +360,13 @@ describe('reorderAdminCategories', () => {
       ],
     })
 
-    expect(mockedRepository.updateCategoryPositions).toHaveBeenCalledWith([
-      { id: 'b', position: 0 },
-      { id: 'a', position: 1 },
-    ])
+    expect(mockedRepository.updateCategoryPositions).toHaveBeenCalledWith(
+      [
+        { id: 'b', position: 0 },
+        { id: 'a', position: 1 },
+      ],
+      expect.objectContaining({ db: expect.anything() }),
+    )
     expect(result.map((item) => item.id)).toEqual(['b', 'a'])
   })
 })
@@ -380,7 +390,10 @@ describe('deleteAdminCategory', () => {
 
     const result = await deleteAdminCategory(adminUser, 'leaf')
 
-    expect(mockedRepository.deleteCategoriesByIdsInOrder).toHaveBeenCalledWith(['leaf'])
+    expect(mockedRepository.deleteCategoriesByIdsInOrder).toHaveBeenCalledWith(
+      ['leaf'],
+      expect.objectContaining({ db: expect.anything() }),
+    )
     expect(result).toEqual({ deleted: true })
   })
 

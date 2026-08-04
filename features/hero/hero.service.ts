@@ -5,6 +5,7 @@ import {
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import { requireAdmin } from '@/lib/auth/guards'
+import { runServiceTransaction } from '@/lib/repository/context'
 import {
   HeroBannerNotFoundError,
   InvalidHeroBannerDestinationError,
@@ -569,7 +570,7 @@ export async function reorderAdminHeroBanners(
     throw new HeroBannerNotFoundError('One or more hero banners were not found')
   }
 
-  await updateHeroBannerSortOrders(input.items)
+  await runServiceTransaction((db) => updateHeroBannerSortOrders(input.items, { db }))
 
   return getAdminHeroBanners(user, {
     page: 1,
