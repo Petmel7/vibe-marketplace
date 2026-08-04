@@ -1,5 +1,4 @@
 import { type NextRequest } from 'next/server'
-import { ZodError } from 'zod'
 import {
   createHeroBannerSchema,
   heroBannerQuerySchema,
@@ -9,30 +8,22 @@ import {
   getAdminHeroBanners,
 } from '@/features/hero/hero.service'
 import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
-import { toErrorResponse } from '@/lib/errors/handleError'
-import { validationErrorResponse } from '@/lib/http/validation'
+import { handleApiRoute } from '@/lib/http/route'
 import { getRequestId } from '@/lib/security/request'
 import { requireAuth } from '@/lib/session/getSession'
 
 export async function GET(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('GET /api/admin/hero-banners', async () => {
     const user = await requireAuth()
     const query = heroBannerQuerySchema.parse(
       Object.fromEntries(request.nextUrl.searchParams.entries()),
     )
-    const data = await getAdminHeroBanners(user, query)
-    return Response.json({ success: true, data }, { status: 200 })
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return validationErrorResponse(error)
-    }
-
-    return toErrorResponse('GET /api/admin/hero-banners', error)
-  }
+    return getAdminHeroBanners(user, query)
+  })
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('POST /api/admin/hero-banners', async () => {
     const user = await requireAuth()
     const body = createHeroBannerSchema.parse(await request.json())
     const data = await createAdminHeroBanner(user, body)
@@ -46,12 +37,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       requestId: getRequestId(request),
     })
 
-    return Response.json({ success: true, data }, { status: 201 })
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return validationErrorResponse(error)
-    }
-
-    return toErrorResponse('POST /api/admin/hero-banners', error)
-  }
+    return data
+  }, { status: 201 })
 }

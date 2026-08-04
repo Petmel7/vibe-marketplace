@@ -1,9 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { getCart, clearCart } from '@/features/cart/cart.service'
-import {
-  resolveCartIdentifier,
-  internalErrorResponse,
-} from '@/app/api/cart/_helpers'
+import { resolveCartIdentifier } from '@/app/api/cart/_helpers'
+import { handleApiRoute } from '@/lib/http/route'
 
 /**
  * GET /api/cart
@@ -20,15 +18,12 @@ import {
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
 export async function GET(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('GET /api/cart', async () => {
     const result = await resolveCartIdentifier(request)
     if (!result.ok) return result.response
 
-    const data = await getCart(result.identifier)
-    return Response.json({ success: true, data }, { status: 200 })
-  } catch (error) {
-    return internalErrorResponse('GET /api/cart', error)
-  }
+    return getCart(result.identifier)
+  })
 }
 
 /**
@@ -43,13 +38,10 @@ export async function GET(request: NextRequest): Promise<Response> {
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
 export async function DELETE(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('DELETE /api/cart', async () => {
     const result = await resolveCartIdentifier(request)
     if (!result.ok) return result.response
 
-    const data = await clearCart(result.identifier)
-    return Response.json({ success: true, data }, { status: 200 })
-  } catch (error) {
-    return internalErrorResponse('DELETE /api/cart', error)
-  }
+    return clearCart(result.identifier)
+  })
 }

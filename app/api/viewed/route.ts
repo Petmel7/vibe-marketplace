@@ -1,14 +1,12 @@
 
 import { type NextRequest } from 'next/server'
-import { ZodError } from 'zod'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getOrCreateVisitorId } from '@/lib/visitor/visitor.server'
-import { logError } from '@/utils/logger'
+import { handleApiRoute } from '@/lib/http/route'
 import { viewedRecordSchema } from '@/features/viewed/viewed.schema'
 import {
   getRecentlyViewed,
   recordView,
-  ProductNotFoundError,
   type ViewedIdentifier,
 } from '@/features/viewed/viewed.service'
 
@@ -30,122 +28,27 @@ async function resolveIdentifier(): Promise<ViewedIdentifier> {
 }
 
 export async function GET(): Promise<Response> {
-  try {
+  return handleApiRoute('GET /api/viewed', async () => {
     const identifier =
       await resolveIdentifier()
 
-    const data =
-      await getRecentlyViewed(identifier)
-
-    return Response.json(
-      {
-        success: true,
-        data,
-      },
-      {
-        status: 200,
-      },
-    )
-  } catch (error) {
-    logError(
-      'GET /api/viewed',
-      error,
-    )
-
-    return Response.json(
-      {
-        success: false,
-        error: {
-          message:
-            'An unexpected error occurred',
-          code: 'INTERNAL_ERROR',
-        },
-      },
-      {
-        status: 500,
-      },
-    )
-  }
+    return getRecentlyViewed(identifier)
+  })
 }
 
 export async function POST(
   request: NextRequest,
 ): Promise<Response> {
-  try {
+  return handleApiRoute('POST /api/viewed', async () => {
     const identifier =
       await resolveIdentifier()
 
-    const body = await request.json()
-
     const input =
-      viewedRecordSchema.parse(body)
+      viewedRecordSchema.parse(await request.json())
 
-    const data = await recordView(
+    return recordView(
       identifier,
       input,
     )
-
-    return Response.json(
-      {
-        success: true,
-        data,
-      },
-      {
-        status: 200,
-      },
-    )
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues
-              .map((e) => e.message)
-              .join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        {
-          status: 400,
-        },
-      )
-    }
-
-    if (
-      error instanceof ProductNotFoundError
-    ) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.message,
-            code: error.code,
-          },
-        },
-        {
-          status: 404,
-        },
-      )
-    }
-
-    logError(
-      'POST /api/viewed',
-      error,
-    )
-
-    return Response.json(
-      {
-        success: false,
-        error: {
-          message:
-            'An unexpected error occurred',
-          code: 'INTERNAL_ERROR',
-        },
-      },
-      {
-        status: 500,
-      },
-    )
-  }
+  })
 }

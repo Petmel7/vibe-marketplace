@@ -1,15 +1,13 @@
 import { type NextRequest } from 'next/server'
-import { ZodError } from 'zod'
 import { reorderHeroBannersSchema } from '@/features/hero/hero.schema'
 import { reorderAdminHeroBanners } from '@/features/hero/hero.service'
 import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
-import { toErrorResponse } from '@/lib/errors/handleError'
-import { validationErrorResponse } from '@/lib/http/validation'
+import { handleApiRoute } from '@/lib/http/route'
 import { getRequestId } from '@/lib/security/request'
 import { requireAuth } from '@/lib/session/getSession'
 
 export async function PATCH(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('PATCH /api/admin/hero-banners/reorder', async () => {
     const user = await requireAuth()
     const body = reorderHeroBannersSchema.parse(await request.json())
     const data = await reorderAdminHeroBanners(user, body)
@@ -22,12 +20,6 @@ export async function PATCH(request: NextRequest): Promise<Response> {
       requestId: getRequestId(request),
     })
 
-    return Response.json({ success: true, data }, { status: 200 })
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return validationErrorResponse(error)
-    }
-
-    return toErrorResponse('PATCH /api/admin/hero-banners/reorder', error)
-  }
+    return data
+  })
 }

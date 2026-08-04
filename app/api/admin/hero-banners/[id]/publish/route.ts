@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { publishAdminHeroBanner } from '@/features/hero/hero.service'
 import { recordAdminAudit } from '@/features/admin/audit/admin-audit'
-import { toErrorResponse } from '@/lib/errors/handleError'
+import { handleApiRoute } from '@/lib/http/route'
 import { getRequestId } from '@/lib/security/request'
 import { requireAuth } from '@/lib/session/getSession'
 
@@ -10,7 +10,7 @@ type Props = {
 }
 
 export async function PATCH(request: NextRequest, { params }: Props): Promise<Response> {
-  try {
+  return handleApiRoute('PATCH /api/admin/hero-banners/[id]/publish', async () => {
     const user = await requireAuth()
     const { id } = await params
     const data = await publishAdminHeroBanner(user, id)
@@ -23,8 +23,6 @@ export async function PATCH(request: NextRequest, { params }: Props): Promise<Re
       requestId: getRequestId(request),
     })
 
-    return Response.json({ success: true, data }, { status: 200 })
-  } catch (error) {
-    return toErrorResponse('PATCH /api/admin/hero-banners/[id]/publish', error)
-  }
+    return data
+  })
 }

@@ -1,8 +1,7 @@
 import { type NextRequest } from 'next/server'
-import { ZodError } from 'zod'
 import { verifyBearerToken } from '@/lib/auth'
-import { toErrorResponse } from '@/lib/errors/handleError'
-import { logError, logInfo, logWarn } from '@/utils/logger'
+import { handleApiRoute } from '@/lib/http/route'
+import { logInfo, logWarn } from '@/utils/logger'
 import { wishlistProductIdParamSchema } from '@/features/wishlist/wishlist.schema'
 import { removeFromWishlist } from '@/features/wishlist/wishlist.service'
 
@@ -50,7 +49,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ productId: string }> },
 ): Promise<Response> {
-  try {
+  return handleApiRoute('DELETE /api/wishlist/[productId]', async () => {
     const auth = await measureWishlistToggleStep('auth', { method: 'DELETE' }, () =>
       verifyBearerToken(request),
     )
@@ -66,23 +65,7 @@ export async function DELETE(
     return measureWishlistToggleStep(
       'response',
       { method: 'DELETE', userId: auth.userId, productId, wished: data.wished },
-      () => Promise.resolve(Response.json({ success: true, data }, { status: 200 })),
+      () => Promise.resolve(data),
     )
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((e) => e.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
-    }
-
-    logError('DELETE /api/wishlist/[productId]', error)
-    return toErrorResponse('DELETE /api/wishlist/[productId]', error)
-  }
+  })
 }

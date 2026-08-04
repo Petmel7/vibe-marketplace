@@ -1,13 +1,11 @@
 import { type NextRequest } from 'next/server'
-import { ZodError } from 'zod'
 import { verifyBearerToken } from '@/lib/auth'
-import { logError, logInfo, logWarn } from '@/utils/logger'
-import { toErrorResponse } from '@/lib/errors/handleError'
+import { logInfo, logWarn } from '@/utils/logger'
+import { handleApiRoute } from '@/lib/http/route'
 import { wishlistAddSchema } from '@/features/wishlist/wishlist.schema'
 import {
   getWishlist,
   addToWishlist,
-  ProductNotFoundError,
 } from '@/features/wishlist/wishlist.service'
 
 async function measureRouteAwait<T>(
@@ -89,7 +87,7 @@ async function measureWishlistToggleStep<T>(
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
 export async function GET(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('GET /api/wishlist', async () => {
     logInfo('wishlist:route:start', {
       domain: 'wishlist',
       method: 'GET',
@@ -105,16 +103,13 @@ export async function GET(request: NextRequest): Promise<Response> {
       userId: auth.userId,
       itemCount: data.items.length,
     })
-    const response = Response.json({ success: true, data }, { status: 200 })
     logInfo('wishlist:route:response-built', {
       domain: 'wishlist',
       userId: auth.userId,
       itemCount: data.items.length,
     })
-    return response
-  } catch (error) {
-    return toErrorResponse('GET /api/wishlist', error)
-  }
+    return data
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +134,7 @@ export async function GET(request: NextRequest): Promise<Response> {
  *   500  { success: false, error: { message, code: 'INTERNAL_ERROR' } }
  */
 export async function POST(request: NextRequest): Promise<Response> {
-  try {
+  return handleApiRoute('POST /api/wishlist', async () => {
     const auth = await measureWishlistToggleStep('auth', { method: 'POST' }, () =>
       verifyBearerToken(request),
     )
@@ -156,29 +151,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return measureWishlistToggleStep(
       'response',
       { method: 'POST', userId: auth.userId, productId, wished: data.wished },
-      () => Promise.resolve(Response.json({ success: true, data }, { status: 201 })),
+      () => Promise.resolve(data),
     )
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return Response.json(
-        {
-          success: false,
-          error: {
-            message: error.issues.map((e) => e.message).join('; '),
-            code: 'VALIDATION_ERROR',
-          },
-        },
-        { status: 400 },
-      )
-    }
-
-    if (error instanceof ProductNotFoundError) {
-      return Response.json(
-        { success: false, error: { message: error.message, code: error.code } },
-        { status: 404 },
-      )
-    }
-
-    return toErrorResponse('POST /api/wishlist', error)
-  }
+  }, { status: 201 })
 }
