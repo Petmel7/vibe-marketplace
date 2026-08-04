@@ -1,9 +1,9 @@
 import { RefundRequestReason, RefundRequestStatus } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   optionalQueryDate,
   optionalQueryParam,
   optionalQueryUuid,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { z } from 'zod'
 
@@ -11,10 +11,7 @@ const moneyStringSchema = z
   .string()
   .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid monetary amount')
 
-const paginationSchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
-})
+const paginationSchema = paginationQuerySchema()
 
 export const createRefundRequestSchema = z
   .object({

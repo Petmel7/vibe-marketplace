@@ -5,8 +5,8 @@ import {
   DisputeStatus,
 } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   optionalQueryParam,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 
 const uuidSchema = z.uuid('Invalid UUID')
@@ -28,9 +28,7 @@ export const createDisputeSchema = z.object({
     .max(4000, 'Description must be at most 4000 characters'),
 })
 
-export const disputeListQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const disputeListQuerySchema = paginationQuerySchema().extend({
   status: optionalQueryParam(z.enum(DisputeStatus)),
   scope: optionalQueryParam(z.enum(['buyer', 'seller'])),
 })

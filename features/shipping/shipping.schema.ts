@@ -4,11 +4,11 @@ import {
   ShippingProvider,
 } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   defaultedQueryParam,
   optionalQueryParam,
   optionalQueryString,
   optionalQueryUuid,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { z } from 'zod'
 
@@ -267,10 +267,8 @@ export const bulkCreateShipmentTtnSchema = z.object({
   shipmentIds: z.array(z.string().uuid('Shipment id is invalid')).min(1).max(50),
 })
 
-export const sellerShipmentListQuerySchema = z.object({
+export const sellerShipmentListQuerySchema = paginationQuerySchema().extend({
   storeId: optionalQueryUuid(),
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
   status: optionalQueryParam(z.nativeEnum(ShipmentStatus)),
 })
 

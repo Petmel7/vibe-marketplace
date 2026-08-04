@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import {
-  defaultedQueryNumber,
   optionalQueryParam,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { EMAIL_EVENT_TYPES, EMAIL_TEMPLATE_KEYS } from './email.dto'
 
@@ -148,10 +148,8 @@ export const enqueueEmailEventSchema = z.object({
   template: emailTemplateKeySchema,
 })
 
-export const adminEmailQuerySchema = z.object({
+export const adminEmailQuerySchema = paginationQuerySchema().extend({
   eventType: optionalQueryParam(emailEventTypeSchema),
-  limit: defaultedQueryNumber(z.coerce.number().int().positive().max(100), 20),
-  page: defaultedQueryNumber(z.coerce.number().int().positive(), 1),
   status: optionalQueryParam(emailEventStatusSchema),
   template: optionalQueryParam(emailTemplateKeySchema),
 })

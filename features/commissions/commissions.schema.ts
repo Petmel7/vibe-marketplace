@@ -1,17 +1,14 @@
 import { CommissionRuleScope } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   optionalQueryBoolean,
   optionalQueryParam,
   optionalQueryString,
   optionalQueryUuid,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { z } from 'zod'
 
-const paginationSchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
-})
+const paginationSchema = paginationQuerySchema()
 
 const isoDateTimeSchema = z.string().datetime({ offset: true })
 

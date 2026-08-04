@@ -11,6 +11,10 @@ import {
   optionalQueryParam,
   optionalQueryString,
   optionalQueryUuid,
+  paginationQuerySchema,
+  queryLimitParam,
+  queryOffsetParam,
+  queryPageParam,
 } from './query'
 
 enum NativeStatus {
@@ -136,5 +140,44 @@ describe('query validation helpers', () => {
     expect(schema.parse(undefined)).toBeUndefined()
     expect(schema.parse('  hello  ')).toBe('hello')
     expect(schema.safeParse('too-long-value').success).toBe(false)
+  })
+
+  it('supports defaulted page query params', () => {
+    const schema = queryPageParam()
+
+    expect(schema.parse('')).toBe(1)
+    expect(schema.parse('   ')).toBe(1)
+    expect(schema.parse(undefined)).toBe(1)
+    expect(schema.parse('3')).toBe(3)
+    expect(schema.safeParse('0').success).toBe(false)
+  })
+
+  it('supports defaulted limit query params', () => {
+    const schema = queryLimitParam(20, 50)
+
+    expect(schema.parse('')).toBe(20)
+    expect(schema.parse('   ')).toBe(20)
+    expect(schema.parse(undefined)).toBe(20)
+    expect(schema.parse('50')).toBe(50)
+    expect(schema.safeParse('51').success).toBe(false)
+  })
+
+  it('supports defaulted offset query params', () => {
+    const schema = queryOffsetParam()
+
+    expect(schema.parse('')).toBe(0)
+    expect(schema.parse('   ')).toBe(0)
+    expect(schema.parse(undefined)).toBe(0)
+    expect(schema.parse('10')).toBe(10)
+    expect(schema.safeParse('-1').success).toBe(false)
+  })
+
+  it('builds reusable pagination query schemas', () => {
+    const schema = paginationQuerySchema({ defaultLimit: 12, maxLimit: 60 })
+
+    expect(schema.parse({ page: '', limit: '' })).toMatchObject({ page: 1, limit: 12 })
+    expect(schema.parse({ page: '2', limit: '60' })).toMatchObject({ page: 2, limit: 60 })
+    expect(schema.safeParse({ page: '0', limit: '12' }).success).toBe(false)
+    expect(schema.safeParse({ page: '1', limit: '61' }).success).toBe(false)
   })
 })

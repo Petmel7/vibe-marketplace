@@ -6,9 +6,9 @@ import {
   AbuseReportTargetType,
 } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   optionalQueryParam,
   optionalQueryUuid,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 
 const uuidSchema = z.uuid('Invalid UUID')
@@ -39,15 +39,11 @@ export const createAbuseReportSchema = z
     }
   })
 
-export const myReportsQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const myReportsQuerySchema = paginationQuerySchema().extend({
   status: optionalQueryParam(z.enum(AbuseReportStatus)),
 })
 
-export const adminReportsQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const adminReportsQuerySchema = paginationQuerySchema().extend({
   status: optionalQueryParam(z.enum(AbuseReportStatus)),
   targetType: optionalQueryParam(z.enum(AbuseReportTargetType)),
   reason: optionalQueryParam(z.enum(AbuseReportReason)),

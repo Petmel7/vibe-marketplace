@@ -1,8 +1,8 @@
 import { ReviewStatus } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   optionalQueryParam,
   optionalQueryUuid,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { z } from 'zod'
 
@@ -41,10 +41,7 @@ export const reviewUpdateSchema = z
 
 export type ReviewUpdateInput = z.infer<typeof reviewUpdateSchema>
 
-export const reviewListQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
-})
+export const reviewListQuerySchema = paginationQuerySchema()
 
 export type ReviewListQuery = z.infer<typeof reviewListQuerySchema>
 export type MyReviewListQuery = ReviewListQuery
@@ -59,9 +56,7 @@ export const sellerReplySchema = z.object({
 
 export type SellerReplyInput = z.infer<typeof sellerReplySchema>
 
-export const adminReviewListQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const adminReviewListQuerySchema = paginationQuerySchema().extend({
   status: optionalQueryParam(z.nativeEnum(ReviewStatus)),
   productId: optionalQueryUuid(),
   userId: optionalQueryUuid(),

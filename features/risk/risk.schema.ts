@@ -1,8 +1,8 @@
 import { RiskLevel } from '@/app/generated/prisma/client'
 import {
-  defaultedQueryNumber,
   optionalQueryParam,
   optionalQueryString,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { z } from 'zod'
 
@@ -10,9 +10,7 @@ export const riskTargetIdParamSchema = z.object({
   id: z.string().uuid(),
 })
 
-export const riskProfileQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const riskProfileQuerySchema = paginationQuerySchema().extend({
   level: optionalQueryParam(z.enum(RiskLevel)),
   search: optionalQueryString(z.string().trim().min(1).max(100)),
 })

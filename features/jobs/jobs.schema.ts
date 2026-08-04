@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import {
-  defaultedQueryNumber,
   optionalQueryDate,
   optionalQueryParam,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { JOB_STATUSES, JOB_TYPES } from './jobs.dto'
 
@@ -130,9 +130,7 @@ export const jobIdSchema = z.uuid()
 export const jobTypeFilterSchema = jobTypeSchema
 export const jobStatusFilterSchema = z.enum(JOB_STATUSES)
 
-export const jobListQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const jobListQuerySchema = paginationQuerySchema().extend({
   status: optionalQueryParam(jobStatusFilterSchema),
   type: optionalQueryParam(jobTypeFilterSchema),
   dateFrom: optionalQueryDate(),

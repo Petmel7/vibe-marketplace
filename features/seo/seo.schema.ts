@@ -1,15 +1,12 @@
 import { SeoEntityType } from '@/app/generated/prisma/enums'
 import {
-  defaultedQueryNumber,
   optionalQueryParam,
   optionalQueryString,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 import { z } from 'zod'
 
-const paginationSchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
-})
+const paginationSchema = paginationQuerySchema()
 
 const seoTextSchema = z.string().trim().min(1)
 

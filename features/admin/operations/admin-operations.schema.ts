@@ -5,10 +5,10 @@ import {
   recoverStaleJobsRequestSchema,
 } from '@/features/jobs/jobs.schema'
 import {
-  defaultedQueryNumber,
   optionalQueryDate,
   optionalQueryString,
   optionalQueryUuid,
+  paginationQuerySchema,
 } from '@/lib/validation/query'
 
 export const adminOperationsJobsQuerySchema = jobListQuerySchema
@@ -21,9 +21,7 @@ export const adminOperationsRecoverStaleSchema = recoverStaleJobsRequestSchema.e
   limit: z.number().int().min(1).max(100).default(25),
 })
 
-export const adminAuditLogQuerySchema = z.object({
-  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
-  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+export const adminAuditLogQuerySchema = paginationQuerySchema().extend({
   actorId: optionalQueryUuid(),
   domain: optionalQueryString(z.string().trim().min(1).max(100)),
   action: optionalQueryString(z.string().trim().min(1).max(100)),
