@@ -3,6 +3,8 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
+import SectionStack from '@/components/layout/SectionStack'
+import Panel from '@/components/ui/panel/Panel'
 import { useAdminBadgeRules } from '@/hooks/useAdminBadgeRules'
 import { useAdminMutation } from '@/hooks/useAdminMutation'
 import { API_ROUTES } from '@/lib/constants/apiRoutes'
@@ -70,7 +72,7 @@ export default function AdminBadgeRuleSettingsForm() {
 
   if (isLoading) {
     return (
-      <section className="ui-elevated-panel p-5 sm:p-6" aria-busy="true">
+      <Panel aria-busy="true">
         <div className="animate-pulse space-y-4">
           <div className="h-5 w-40 rounded bg-panelAlt" />
           <div className="h-20 rounded-2xl bg-panelAlt" />
@@ -81,13 +83,13 @@ export default function AdminBadgeRuleSettingsForm() {
             <div className="h-24 rounded-2xl bg-panelAlt" />
           </div>
         </div>
-      </section>
+      </Panel>
     )
   }
 
   if (errorMessage) {
     return (
-      <section className="ui-elevated-panel p-5 sm:p-6">
+      <Panel>
         <AdminEmptyState
           title="Правила бейджів недоступні"
           description={errorMessage}
@@ -99,18 +101,18 @@ export default function AdminBadgeRuleSettingsForm() {
             Спробувати ще раз
           </button>
         </div>
-      </section>
+      </Panel>
     )
   }
 
   if (!hitRule) {
     return (
-      <section className="ui-elevated-panel p-5 sm:p-6">
+      <Panel>
         <AdminEmptyState
           title="Правило HIT-бейджа не знайдено"
           description="Маркетплейс ще не має активного запису правила HIT-бейджа. Ініціалізуйте або відновіть це правило, щоб керувати порогами тут."
         />
-      </section>
+      </Panel>
     )
   }
 
@@ -174,8 +176,8 @@ function AdminBadgeRuleSettingsCard({
   const feedbackMessage = validationError || mutationErrorMessage
 
   return (
-    <div className="space-y-6">
-      <section className="ui-elevated-panel p-5 sm:p-6">
+    <SectionStack>
+      <Panel>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-copy-strong">Правило HIT маркетплейсу</h2>
@@ -296,7 +298,7 @@ function AdminBadgeRuleSettingsCard({
             {feedbackMessage}
           </p>
         ) : null}
-      </section>
+      </Panel>
 
       <section className="ui-panel p-5 sm:p-6">
         <h3 className="text-base font-semibold text-copy-strong">Поточний знімок правила</h3>
@@ -327,6 +329,6 @@ function AdminBadgeRuleSettingsCard({
           </div>
         </dl>
       </section>
-    </div>
+    </SectionStack>
   )
 }

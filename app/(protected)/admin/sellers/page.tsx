@@ -5,6 +5,7 @@ import AdminMetricCard from '@/components/admin/AdminMetricCard'
 import AdminSection from '@/components/admin/AdminSection'
 import AdminSellerModerationActions from '@/components/admin/AdminSellerModerationActions'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
+import MetricGrid from '@/components/layout/MetricGrid'
 import PaginationControls from '@/components/admin/PaginationControls'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { ADMIN_SELLER_STATUS_FILTERS, getAdminSellerStatusTone } from '@/types/admin'
@@ -34,7 +35,7 @@ export default async function AdminSellersPage({
       title="Керування продавцями"
       description="Відстежуйте стан верифікації, сигнали готовності вітрини та публічну присутність продавців на платформі."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricGrid columns={4}>
         <AdminMetricCard
           label="Усього продавців"
           value={data.analytics.totalSellers}
@@ -55,7 +56,7 @@ export default async function AdminSellersPage({
           value={data.analytics.topSellers.length}
           detail="Лідери за виторгом, які зараз відстежуються в аналітиці маркетплейсу"
         />
-      </div>
+      </MetricGrid>
 
       <AdminFilterBar action="/admin/sellers">
         <div className="flex flex-wrap items-end justify-center gap-3 max-[500px]:flex-col max-[500px]:items-stretch">

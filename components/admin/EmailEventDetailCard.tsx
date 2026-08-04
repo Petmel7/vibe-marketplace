@@ -1,5 +1,7 @@
 import EmailRetryButton from '@/components/admin/EmailRetryButton'
 import EmailStatusBadge from '@/components/admin/EmailStatusBadge'
+import SectionStack from '@/components/layout/SectionStack'
+import Panel from '@/components/ui/panel/Panel'
 import type { AdminEmailEventDetail } from '@/types/admin-emails'
 
 function formatDateTime(value: string | null) {
@@ -32,8 +34,8 @@ export default function EmailEventDetailCard({
   event: AdminEmailEventDetail
 }) {
   return (
-    <div className="space-y-6">
-      <section className="ui-elevated-panel p-5 sm:p-6">
+    <SectionStack>
+      <Panel>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -88,9 +90,9 @@ export default function EmailEventDetailCard({
             <dd className="mt-1 break-all text-copy-primary">{event.id}</dd>
           </div>
         </dl>
-      </section>
+      </Panel>
 
-      <section className="ui-elevated-panel p-5 sm:p-6">
+      <Panel>
         <h3 className="text-base font-semibold text-copy-strong">Дані payload</h3>
         <p className="mt-2 text-sm text-copy-muted">
           Збережені дані шаблону, що використовуються для рендерингу та ідемпотентних повторних спроб.
@@ -98,7 +100,7 @@ export default function EmailEventDetailCard({
         <pre className="mt-4 overflow-x-auto rounded-2xl border border-panelBorder bg-panel p-4 text-xs text-copy-secondary">
           <code>{formatJson(event.payload)}</code>
         </pre>
-      </section>
+      </Panel>
 
       <section className="ui-elevated-panel overflow-hidden">
         <div className="border-b border-panelBorder px-5 py-5 sm:px-6">
@@ -154,6 +156,6 @@ export default function EmailEventDetailCard({
           </div>
         )}
       </section>
-    </div>
+    </SectionStack>
   )
 }

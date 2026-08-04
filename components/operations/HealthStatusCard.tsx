@@ -1,4 +1,5 @@
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
+import Panel from '@/components/ui/panel/Panel'
 import type { ReactNode } from 'react'
 
 export default function HealthStatusCard({
@@ -15,7 +16,7 @@ export default function HealthStatusCard({
   meta?: ReactNode
 }) {
   return (
-    <section className="ui-elevated-panel p-5 sm:p-6">
+    <Panel>
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-copy-strong">{title}</h2>
@@ -24,6 +25,6 @@ export default function HealthStatusCard({
         <AdminStatusBadge label={label} tone={tone} />
       </div>
       {meta ? <div className="mt-5">{meta}</div> : null}
-    </section>
+    </Panel>
   )
 }

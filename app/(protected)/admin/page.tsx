@@ -5,6 +5,9 @@ import AdminMetricCard from '@/components/admin/AdminMetricCard'
 import AdminSection from '@/components/admin/AdminSection'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import ModerationQueueCard from '@/components/admin/ModerationQueueCard'
+import MetricGrid from '@/components/layout/MetricGrid'
+import SectionStack from '@/components/layout/SectionStack'
+import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
 import {
@@ -42,7 +45,7 @@ export default async function AdminOverviewPage() {
       title="Панель адміністратора"
       description="Відстежуйте стан маркетплейсу, навантаження модерації та операційне зростання в єдиному робочому просторі."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <MetricGrid columns={5}>
         <AdminMetricCard
           label="GMV"
           value={formatPrice(data.analytics.gmv)}
@@ -68,9 +71,9 @@ export default async function AdminOverviewPage() {
           value={data.analytics.totalProducts}
           detail={`Відхилених товарів у відстеженні: ${data.analytics.moderationStats.rejectedProducts}`}
         />
-      </div>
+      </MetricGrid>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricGrid columns={4}>
         <ModerationQueueCard
           label="Продавці в очікуванні"
           count={data.analytics.moderationStats.pendingSellerApprovals}
@@ -95,9 +98,9 @@ export default async function AdminOverviewPage() {
           description="Відхилені позиції каталогу, які можуть потребувати подальших дій або архівації."
           href="/admin/products?status=REJECTED"
         />
-      </div>
+      </MetricGrid>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+      <TwoColumnLayout variant="overview">
         <AdminDataTable
           title="Пульс модерації"
           description="Найновіші елементи модерації серед продавців і товарів."
@@ -155,7 +158,7 @@ export default async function AdminOverviewPage() {
           )}
         </AdminDataTable>
 
-        <div className="space-y-6">
+        <SectionStack>
           <AdminDataTable
             title="Топ продавців"
             description="Магазини з найбільшою виручкою за поточним аналітичним знімком."
@@ -213,8 +216,8 @@ export default async function AdminOverviewPage() {
               </div>
             )}
           </AdminDataTable>
-        </div>
-      </div>
+        </SectionStack>
+      </TwoColumnLayout>
     </AdminSection>
   )
 }
