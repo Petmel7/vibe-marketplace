@@ -1,5 +1,10 @@
 import { RefundRequestReason, RefundRequestStatus } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryDate,
+  optionalQueryParam,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const moneyStringSchema = z
@@ -7,8 +12,8 @@ const moneyStringSchema = z
   .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid monetary amount')
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 export const createRefundRequestSchema = z
@@ -34,16 +39,16 @@ export const refundListQuerySchema = paginationSchema.extend({
 })
 
 export const sellerRefundListQuerySchema = refundListQuerySchema.extend({
-  storeId: z.string().uuid().optional(),
+  storeId: optionalQueryUuid(),
 })
 
 export const adminRefundListQuerySchema = refundListQuerySchema.extend({
   reason: optionalQueryParam(z.nativeEnum(RefundRequestReason)),
-  requestedById: z.string().uuid().optional(),
-  resolvedById: z.string().uuid().optional(),
-  storeId: z.string().uuid().optional(),
-  dateFrom: z.string().date().optional(),
-  dateTo: z.string().date().optional(),
+  requestedById: optionalQueryUuid(),
+  resolvedById: optionalQueryUuid(),
+  storeId: optionalQueryUuid(),
+  dateFrom: optionalQueryDate(),
+  dateTo: optionalQueryDate(),
 })
 
 export const updateAdminRefundStatusSchema = z.object({

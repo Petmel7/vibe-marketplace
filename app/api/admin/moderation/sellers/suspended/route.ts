@@ -3,10 +3,11 @@ import { requireAuth } from '@/lib/session/getSession'
 import { z } from 'zod'
 import { getSuspendedSellers } from '@/features/moderation/seller/seller-moderation.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { defaultedQueryNumber } from '@/lib/validation/query'
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 /**

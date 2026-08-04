@@ -1,7 +1,8 @@
+import { optionalQueryUuid } from '@/lib/validation/query'
 import { z } from 'zod'
 
 export const sellerStoreContextQuerySchema = z.object({
-  storeId: z.string().uuid().optional(),
+  storeId: optionalQueryUuid(),
 })
 
 export const updateStoreSchema = z.object({

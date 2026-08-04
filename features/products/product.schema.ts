@@ -1,33 +1,30 @@
 import { z } from 'zod'
 import { ProductBadgeType } from '@/app/generated/prisma/client'
-import { defaultedQueryParam, optionalQueryParam } from '@/lib/validation/query'
-
-const optionalQueryNumber = (fieldName: string) =>
-  z.preprocess(
-    (value) => {
-      if (value === '' || value == null) {
-        return undefined
-      }
-
-      return value
-    },
-    z.coerce.number({ error: `${fieldName} must be a number` }).nonnegative({
-      error: `${fieldName} must be greater than or equal to 0`,
-    }).optional(),
-  )
+import {
+  defaultedQueryNumber,
+  defaultedQueryParam,
+  optionalQueryBoolean,
+  optionalQueryNumber,
+  optionalQueryParam,
+  optionalQueryString,
+} from '@/lib/validation/query'
 
 export const productPaginationQuerySchema = z.object({
-  page: z.coerce
-    .number({ error: 'page must be a number' })
-    .int({ error: 'page must be an integer' })
-    .min(1, { error: 'page must be at least 1' })
-    .default(1),
-  limit: z.coerce
-    .number({ error: 'limit must be a number' })
-    .int({ error: 'limit must be an integer' })
-    .min(1, { error: 'limit must be at least 1' })
-    .max(100, { error: 'limit must not exceed 100' })
-    .default(12),
+  page: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'page must be a number' })
+      .int({ error: 'page must be an integer' })
+      .min(1, { error: 'page must be at least 1' }),
+    1,
+  ),
+  limit: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'limit must be a number' })
+      .int({ error: 'limit must be an integer' })
+      .min(1, { error: 'limit must be at least 1' })
+      .max(100, { error: 'limit must not exceed 100' }),
+    12,
+  ),
 })
 
 export type ProductPaginationQuery = z.infer<typeof productPaginationQuerySchema>
@@ -43,22 +40,19 @@ export type ProductPaginationQuery = z.infer<typeof productPaginationQuerySchema
  * Note: Zod v4 uses `error` (not `invalid_type_error`) for type-mismatch messages.
  */
 export const productListQuerySchema = productPaginationQuerySchema.extend({
-  storeId: z
-    .string()
-    .uuid({ error: 'storeId must be a valid UUID' })
-    .optional(),
-  category: z
-    .string()
-    .trim()
-    .min(1, { error: 'category must not be empty' })
-    .optional(),
-  size: z
-    .string()
-    .trim()
-    .min(1, { error: 'size must not be empty' })
-    .optional(),
-  priceMin: optionalQueryNumber('priceMin'),
-  priceMax: optionalQueryNumber('priceMax'),
+  storeId: optionalQueryParam(z.string().uuid({ error: 'storeId must be a valid UUID' })),
+  category: optionalQueryString(z.string().trim().min(1, { error: 'category must not be empty' })),
+  size: optionalQueryString(z.string().trim().min(1, { error: 'size must not be empty' })),
+  priceMin: optionalQueryNumber(
+    z.coerce.number({ error: 'priceMin must be a number' }).nonnegative({
+      error: 'priceMin must be greater than or equal to 0',
+    }),
+  ),
+  priceMax: optionalQueryNumber(
+    z.coerce.number({ error: 'priceMax must be a number' }).nonnegative({
+      error: 'priceMax must be greater than or equal to 0',
+    }),
+  ),
   sort: defaultedQueryParam(z.enum(['price_asc', 'price_desc', 'newest']), 'newest'),
 }).superRefine((query, ctx) => {
   if (
@@ -77,17 +71,21 @@ export const productListQuerySchema = productPaginationQuerySchema.extend({
 export type ProductListQuery = z.infer<typeof productListQuerySchema>
 
 export const productCategoryPaginationQuerySchema = z.object({
-  page: z.coerce
-    .number({ error: 'page must be a number' })
-    .int({ error: 'page must be an integer' })
-    .min(1, { error: 'page must be at least 1' })
-    .default(1),
-  limit: z.coerce
-    .number({ error: 'limit must be a number' })
-    .int({ error: 'limit must be an integer' })
-    .min(1, { error: 'limit must be at least 1' })
-    .max(50, { error: 'limit must not exceed 50' })
-    .default(12),
+  page: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'page must be a number' })
+      .int({ error: 'page must be an integer' })
+      .min(1, { error: 'page must be at least 1' }),
+    1,
+  ),
+  limit: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'limit must be a number' })
+      .int({ error: 'limit must be an integer' })
+      .min(1, { error: 'limit must be at least 1' })
+      .max(50, { error: 'limit must not exceed 50' }),
+    12,
+  ),
 })
 
 export type ProductCategoryPaginationQuery = z.infer<typeof productCategoryPaginationQuerySchema>
@@ -100,62 +98,50 @@ export type ProductCategoryPaginationQuery = z.infer<typeof productCategoryPagin
  * - limit: items per page, 1–100 (defaults to 12)
  */
 export const productSearchQuerySchema = z.object({
-  q: z
-    .string()
-    .trim()
-    .max(100, { error: 'q must not exceed 100 characters' })
-    .optional(),
-  category: z
-    .string()
-    .trim()
-    .min(1, { error: 'category must not be empty' })
-    .optional(),
-  minPrice: optionalQueryNumber('minPrice'),
-  maxPrice: optionalQueryNumber('maxPrice'),
-  inStock: z.preprocess((value) => {
-    if (value === '' || value == null) {
-      return undefined
-    }
-
-    if (typeof value === 'boolean') {
-      return value
-    }
-
-    if (typeof value === 'string') {
-      if (value === 'true') return true
-      if (value === 'false') return false
-    }
-
-    return value
-  }, z.boolean({ error: 'inStock must be true or false' }).optional()),
-  rating: z.preprocess(
-    (value) => (value === '' || value == null ? undefined : value),
+  q: optionalQueryString(z.string().trim().max(100, { error: 'q must not exceed 100 characters' })),
+  category: optionalQueryString(z.string().trim().min(1, { error: 'category must not be empty' })),
+  minPrice: optionalQueryNumber(
+    z.coerce.number({ error: 'minPrice must be a number' }).nonnegative({
+      error: 'minPrice must be greater than or equal to 0',
+    }),
+  ),
+  maxPrice: optionalQueryNumber(
+    z.coerce.number({ error: 'maxPrice must be a number' }).nonnegative({
+      error: 'maxPrice must be greater than or equal to 0',
+    }),
+  ),
+  inStock: optionalQueryBoolean(),
+  rating: optionalQueryNumber(
     z.coerce
       .number({ error: 'rating must be a number' })
       .int({ error: 'rating must be an integer' })
       .min(1, { error: 'rating must be at least 1' })
       .max(5, { error: 'rating must not exceed 5' })
-      .optional(),
   ),
   badge: optionalQueryParam(z.nativeEnum(ProductBadgeType)),
-  store: z
-    .string()
-    .trim()
-    .min(1, { error: 'store must not be empty' })
-    .max(120, { error: 'store must not exceed 120 characters' })
-    .optional(),
+  store: optionalQueryString(
+    z
+      .string()
+      .trim()
+      .min(1, { error: 'store must not be empty' })
+      .max(120, { error: 'store must not exceed 120 characters' }),
+  ),
   sort: optionalQueryParam(z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'rating', 'popular'])),
-  page: z.coerce
-    .number({ error: 'page must be a number' })
-    .int({ error: 'page must be an integer' })
-    .min(1, { error: 'page must be at least 1' })
-    .default(1),
-  limit: z.coerce
-    .number({ error: 'limit must be a number' })
-    .int({ error: 'limit must be an integer' })
-    .min(1, { error: 'limit must be at least 1' })
-    .max(100, { error: 'limit must not exceed 100' })
-    .default(12),
+  page: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'page must be a number' })
+      .int({ error: 'page must be an integer' })
+      .min(1, { error: 'page must be at least 1' }),
+    1,
+  ),
+  limit: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'limit must be a number' })
+      .int({ error: 'limit must be an integer' })
+      .min(1, { error: 'limit must be at least 1' })
+      .max(100, { error: 'limit must not exceed 100' }),
+    12,
+  ),
 }).superRefine((query, ctx) => {
   if (
     query.minPrice !== undefined &&

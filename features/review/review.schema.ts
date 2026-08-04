@@ -1,5 +1,9 @@
 import { ReviewStatus } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryParam,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const reviewTextField = z.string().trim().min(1).max(2000)
@@ -38,8 +42,8 @@ export const reviewUpdateSchema = z
 export type ReviewUpdateInput = z.infer<typeof reviewUpdateSchema>
 
 export const reviewListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 export type ReviewListQuery = z.infer<typeof reviewListQuerySchema>
@@ -56,11 +60,11 @@ export const sellerReplySchema = z.object({
 export type SellerReplyInput = z.infer<typeof sellerReplySchema>
 
 export const adminReviewListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
   status: optionalQueryParam(z.nativeEnum(ReviewStatus)),
-  productId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
+  productId: optionalQueryUuid(),
+  userId: optionalQueryUuid(),
 })
 
 export type AdminReviewListQuery = z.infer<typeof adminReviewListQuerySchema>

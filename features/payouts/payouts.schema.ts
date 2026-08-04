@@ -4,21 +4,23 @@ import {
   SellerLedgerEntryStatus,
   SellerLedgerEntryType,
 } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryDateTime,
+  optionalQueryParam,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
-const optionalDateSchema = z
-  .string()
-  .datetime({ offset: true })
-  .optional()
+const optionalDateSchema = optionalQueryDateTime()
 
 export const sellerLedgerQuerySchema = paginationSchema.extend({
-  storeId: z.uuid().optional(),
+  storeId: optionalQueryUuid(),
   status: optionalQueryParam(z.nativeEnum(SellerLedgerEntryStatus)),
   type: optionalQueryParam(z.nativeEnum(SellerLedgerEntryType)),
   dateFrom: optionalDateSchema,
@@ -26,7 +28,7 @@ export const sellerLedgerQuerySchema = paginationSchema.extend({
 })
 
 export const sellerPayoutQuerySchema = paginationSchema.extend({
-  storeId: z.uuid().optional(),
+  storeId: optionalQueryUuid(),
   status: optionalQueryParam(z.nativeEnum(PayoutStatus)),
   dateFrom: optionalDateSchema,
   dateTo: optionalDateSchema,
@@ -34,15 +36,15 @@ export const sellerPayoutQuerySchema = paginationSchema.extend({
 
 export const adminPayoutQuerySchema = paginationSchema.extend({
   status: optionalQueryParam(z.nativeEnum(PayoutStatus)),
-  storeId: z.uuid().optional(),
-  sellerId: z.uuid().optional(),
+  storeId: optionalQueryUuid(),
+  sellerId: optionalQueryUuid(),
   dateFrom: optionalDateSchema,
   dateTo: optionalDateSchema,
 })
 
 export const adminSellerBalanceQuerySchema = paginationSchema.extend({
-  storeId: z.uuid().optional(),
-  sellerId: z.uuid().optional(),
+  storeId: optionalQueryUuid(),
+  sellerId: optionalQueryUuid(),
 })
 
 const moneyStringSchema = z

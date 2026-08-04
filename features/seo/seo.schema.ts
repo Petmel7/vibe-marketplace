@@ -1,10 +1,14 @@
 import { SeoEntityType } from '@/app/generated/prisma/enums'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryParam,
+  optionalQueryString,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 const seoTextSchema = z.string().trim().min(1)
@@ -74,5 +78,5 @@ export const updateSeoMetadataSchema = seoMetadataBaseSchema.partial().superRefi
 
 export const seoListQuerySchema = paginationSchema.extend({
   entityType: optionalQueryParam(z.nativeEnum(SeoEntityType)),
-  entityId: seoEntityIdentifierSchema.optional(),
+  entityId: optionalQueryString(seoEntityIdentifierSchema),
 })

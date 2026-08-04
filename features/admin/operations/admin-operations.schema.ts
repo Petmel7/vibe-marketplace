@@ -4,6 +4,12 @@ import {
   jobRunnerRequestSchema,
   recoverStaleJobsRequestSchema,
 } from '@/features/jobs/jobs.schema'
+import {
+  defaultedQueryNumber,
+  optionalQueryDate,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 
 export const adminOperationsJobsQuerySchema = jobListQuerySchema
 
@@ -16,13 +22,13 @@ export const adminOperationsRecoverStaleSchema = recoverStaleJobsRequestSchema.e
 })
 
 export const adminAuditLogQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  actorId: z.string().uuid().optional(),
-  domain: z.string().trim().min(1).max(100).optional(),
-  action: z.string().trim().min(1).max(100).optional(),
-  resourceType: z.string().trim().min(1).max(100).optional(),
-  resourceId: z.string().trim().min(1).max(255).optional(),
-  dateFrom: z.string().date().optional(),
-  dateTo: z.string().date().optional(),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
+  actorId: optionalQueryUuid(),
+  domain: optionalQueryString(z.string().trim().min(1).max(100)),
+  action: optionalQueryString(z.string().trim().min(1).max(100)),
+  resourceType: optionalQueryString(z.string().trim().min(1).max(100)),
+  resourceId: optionalQueryString(z.string().trim().min(1).max(255)),
+  dateFrom: optionalQueryDate(),
+  dateTo: optionalQueryDate(),
 })

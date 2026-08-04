@@ -3,10 +3,11 @@ import { ZodError } from 'zod'
 import { requireAuth } from '@/lib/session/getSession'
 import { getSellerFinanceSummary } from '@/features/payouts/payouts.service'
 import { toErrorResponse } from '@/lib/errors/handleError'
+import { optionalQueryUuid } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const sellerFinanceSummaryQuerySchema = z.object({
-  storeId: z.uuid().optional(),
+  storeId: optionalQueryUuid(),
 })
 
 export async function GET(request: NextRequest): Promise<Response> {

@@ -3,12 +3,18 @@ import {
   PromotionTargetType,
   PromotionType,
 } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryBoolean,
+  optionalQueryParam,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 const moneyStringSchema = z
@@ -43,9 +49,9 @@ export const createPromotionBaseSchema = z.object({
 
 export const promotionQuerySchema = paginationSchema.extend({
   type: optionalQueryParam(z.nativeEnum(PromotionType)),
-  isActive: z.coerce.boolean().optional(),
-  code: z.string().trim().max(64).optional(),
-  storeId: z.string().uuid().optional(),
+  isActive: optionalQueryBoolean(),
+  code: optionalQueryString(z.string().trim().max(64)),
+  storeId: optionalQueryUuid(),
 })
 
 const promotionTargetInputSchema = z.object({

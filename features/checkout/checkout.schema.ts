@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { checkoutPaymentMethodSchema } from '@/features/payments/payment.schema'
 import { checkoutDeliverySelectionSchema } from '@/features/shipping/shipping.schema'
+import {
+  optionalQueryParam,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 
 const moneyStringSchema = z
   .string()
@@ -26,8 +31,8 @@ export const checkoutSchema = z
 
 export const checkoutPreviewSchema = z
   .object({
-    cartId: z.string().uuid().optional(),
-    couponCode: z.string().trim().min(1).max(64).nullish(),
-    paymentMethod: checkoutPaymentMethodSchema.nullish(),
+    cartId: optionalQueryUuid(),
+    couponCode: optionalQueryString(z.string().trim().min(1).max(64)),
+    paymentMethod: optionalQueryParam(checkoutPaymentMethodSchema),
   })
   .merge(checkoutDeliverySelectionSchema)

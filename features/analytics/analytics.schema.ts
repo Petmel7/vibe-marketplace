@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { defaultedQueryParam, optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryParam,
+  optionalQueryParam,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 
 const MAX_ANALYTICS_RANGE_DAYS = 366
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -18,8 +23,8 @@ export const analyticsIntervalSchema = z.enum(['day', 'week', 'month'])
 
 export const analyticsQueryBaseSchema = z.object({
   range: defaultedQueryParam(analyticsRangeSchema, '30d'),
-  from: z.string().trim().optional(),
-  to: z.string().trim().optional(),
+  from: optionalQueryString(z.string().trim()),
+  to: optionalQueryString(z.string().trim()),
   interval: optionalQueryParam(analyticsIntervalSchema),
 })
 
@@ -93,7 +98,7 @@ function refineAnalyticsQuery(
 export const analyticsQuerySchema = analyticsQueryBaseSchema.superRefine(refineAnalyticsQuery)
 
 export const sellerAnalyticsQueryBaseSchema = analyticsQueryBaseSchema.extend({
-  storeId: z.uuid().optional(),
+  storeId: optionalQueryUuid(),
 })
 
 export const sellerAnalyticsQuerySchema = sellerAnalyticsQueryBaseSchema.superRefine(

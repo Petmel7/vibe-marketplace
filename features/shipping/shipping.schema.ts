@@ -3,7 +3,13 @@ import {
   ShippingDeliveryType,
   ShippingProvider,
 } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  defaultedQueryParam,
+  optionalQueryParam,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const trimmedOptionalString = z.string().trim().max(255).nullish()
@@ -30,7 +36,7 @@ const trimmedRequiredRecipientName = (label: string) =>
     )
 
 export const novaPoshtaCitiesQuerySchema = z.object({
-  q: z.string().trim().max(120).optional().default(''),
+  q: defaultedQueryParam(z.string().trim().max(120), ''),
 })
 
 export const novaPoshtaWarehousesQuerySchema = z.object({
@@ -38,9 +44,9 @@ export const novaPoshtaWarehousesQuerySchema = z.object({
 })
 
 export const adminNovaPoshtaSenderDiagnosticsQuerySchema = z.object({
-  senderRef: z.string().trim().min(1).max(120).optional(),
-  cityRef: z.string().trim().min(1).max(120).optional(),
-  cityName: z.string().trim().min(1).max(120).optional(),
+  senderRef: optionalQueryString(z.string().trim().min(1).max(120)),
+  cityRef: optionalQueryString(z.string().trim().min(1).max(120)),
+  cityName: optionalQueryString(z.string().trim().min(1).max(120)),
 })
 
 export const novaPoshtaEstimateSchema = z
@@ -262,9 +268,9 @@ export const bulkCreateShipmentTtnSchema = z.object({
 })
 
 export const sellerShipmentListQuerySchema = z.object({
-  storeId: z.string().uuid().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  storeId: optionalQueryUuid(),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
   status: optionalQueryParam(z.nativeEnum(ShipmentStatus)),
 })
 

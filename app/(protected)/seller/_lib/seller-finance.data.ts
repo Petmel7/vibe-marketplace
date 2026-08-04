@@ -8,6 +8,7 @@ import {
   sellerLedgerQuerySchema,
   sellerPayoutQuerySchema,
 } from '@/features/payouts/payouts.schema'
+import { optionalQueryUuid } from '@/lib/validation/query'
 import type { SessionUser } from '@/types/auth'
 import { getSellerLayoutData } from './seller-dashboard.data'
 
@@ -26,7 +27,7 @@ function parseWithSchema<T extends z.ZodTypeAny>(schema: T, searchParams: RawSea
 
 export async function getSellerFinanceSummaryPageData(user: SessionUser, searchParams: RawSearchParams) {
   const layout = await getSellerLayoutData(user)
-  const filters = parseWithSchema(z.object({ storeId: z.uuid().optional() }), searchParams)
+  const filters = parseWithSchema(z.object({ storeId: optionalQueryUuid() }), searchParams)
 
   if (!layout.store) {
     return {

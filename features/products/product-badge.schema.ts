@@ -1,41 +1,37 @@
 import { z } from 'zod'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryBoolean,
+  defaultedQueryNumber,
+  optionalQueryParam,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 
 const queryPaginationSchema = z.object({
-  page: z.coerce
-    .number({ error: 'page must be a number' })
-    .int({ error: 'page must be an integer' })
-    .min(1, { error: 'page must be at least 1' })
-    .default(1),
-  limit: z.coerce
-    .number({ error: 'limit must be a number' })
-    .int({ error: 'limit must be an integer' })
-    .min(1, { error: 'limit must be at least 1' })
-    .max(100, { error: 'limit must not exceed 100' })
-    .default(20),
+  page: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'page must be a number' })
+      .int({ error: 'page must be an integer' })
+      .min(1, { error: 'page must be at least 1' }),
+    1,
+  ),
+  limit: defaultedQueryNumber(
+    z.coerce
+      .number({ error: 'limit must be a number' })
+      .int({ error: 'limit must be an integer' })
+      .min(1, { error: 'limit must be at least 1' })
+      .max(100, { error: 'limit must not exceed 100' }),
+    20,
+  ),
 })
 
-const optionalBooleanFromQuery = z.preprocess((value) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined
-  }
-
-  if (typeof value === 'string') {
-    if (value === 'true') return true
-    if (value === 'false') return false
-  }
-
-  return value
-}, z.boolean().optional())
-
 export const productBadgesQuerySchema = queryPaginationSchema.extend({
-  productId: z.string().uuid({ error: 'productId must be a valid UUID' }).optional(),
+  productId: optionalQueryParam(z.string().uuid({ error: 'productId must be a valid UUID' })),
   type: optionalQueryParam(z.enum(['NEW', 'HIT', 'FEATURED'])),
-  activeOnly: optionalBooleanFromQuery.default(true),
+  activeOnly: defaultedQueryBoolean(true),
 })
 
 export const productMetricsQuerySchema = queryPaginationSchema.extend({
-  productId: z.string().uuid({ error: 'productId must be a valid UUID' }).optional(),
+  productId: optionalQueryUuid(),
 })
 
 export const adminCreateProductBadgeSchema = z.object({

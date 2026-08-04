@@ -1,10 +1,15 @@
+import {
+  defaultedQueryNumber,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 export const orderFilterSchema = z.object({
-  storeId: z.string().uuid().optional(),
-  status: z.string().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  storeId: optionalQueryUuid(),
+  status: optionalQueryString(z.string()),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 export const updateOrderStatusSchema = z.object({

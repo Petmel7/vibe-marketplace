@@ -1,10 +1,16 @@
 import { CommissionRuleScope } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryBoolean,
+  optionalQueryParam,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 const isoDateTimeSchema = z.string().datetime({ offset: true })
@@ -21,9 +27,9 @@ const moneyStringSchema = z
 
 export const commissionRuleQuerySchema = paginationSchema.extend({
   scope: optionalQueryParam(z.nativeEnum(CommissionRuleScope)),
-  isActive: z.coerce.boolean().optional(),
-  storeId: z.string().uuid().optional(),
-  categoryId: z.string().optional(),
+  isActive: optionalQueryBoolean(),
+  storeId: optionalQueryUuid(),
+  categoryId: optionalQueryString(z.string()),
 })
 
 export const createCommissionRuleBaseSchema = z.object({

@@ -2,12 +2,15 @@ import {
   HeroBannerDestinationType,
   HeroBannerStatus,
 } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryParam,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 const nullableTrimmedString = (max: number) =>
@@ -202,7 +205,7 @@ export const heroBannerQuerySchema = paginationSchema.extend({
 })
 
 export const publicHeroBannerQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(10).default(5),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(10), 5),
 })
 
 export const reorderHeroBannersSchema = z.object({

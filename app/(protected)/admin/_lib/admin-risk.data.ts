@@ -7,15 +7,16 @@ import {
 } from '@/features/risk/risk.service'
 import { riskProfileQuerySchema } from '@/features/risk/risk.schema'
 import { RiskSubjectNotFoundError } from '@/lib/errors/risk'
+import { optionalQueryString } from '@/lib/validation/query'
 import type { SessionUser } from '@/types/auth'
 import type { RiskProfileDetail, RiskSignalType } from '@/types/risk'
 
 type RawSearchParams = Record<string, string | string[] | undefined>
 
 const riskDetailFiltersSchema = z.object({
-  signalType: z.string().trim().min(1).optional(),
-  dateFrom: z.string().trim().min(1).optional(),
-  dateTo: z.string().trim().min(1).optional(),
+  signalType: optionalQueryString(z.string().trim().min(1)),
+  dateFrom: optionalQueryString(z.string().trim().min(1)),
+  dateTo: optionalQueryString(z.string().trim().min(1)),
 })
 
 function normalizeSearchParams(searchParams: RawSearchParams) {

@@ -1,5 +1,9 @@
 import { RiskLevel } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryParam,
+  optionalQueryString,
+} from '@/lib/validation/query'
 import { z } from 'zod'
 
 export const riskTargetIdParamSchema = z.object({
@@ -7,10 +11,10 @@ export const riskTargetIdParamSchema = z.object({
 })
 
 export const riskProfileQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
   level: optionalQueryParam(z.enum(RiskLevel)),
-  search: z.string().trim().min(1).max(100).optional(),
+  search: optionalQueryString(z.string().trim().min(1).max(100)),
 })
 
 export const riskRecalculateSchema = z

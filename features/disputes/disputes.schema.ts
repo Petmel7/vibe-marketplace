@@ -4,7 +4,10 @@ import {
   DisputeReason,
   DisputeStatus,
 } from '@/app/generated/prisma/client'
-import { optionalQueryParam } from '@/lib/validation/query'
+import {
+  defaultedQueryNumber,
+  optionalQueryParam,
+} from '@/lib/validation/query'
 
 const uuidSchema = z.uuid('Invalid UUID')
 const dateStringSchema = z.iso.datetime('Invalid date')
@@ -26,8 +29,8 @@ export const createDisputeSchema = z.object({
 })
 
 export const disputeListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
   status: optionalQueryParam(z.enum(DisputeStatus)),
   scope: optionalQueryParam(z.enum(['buyer', 'seller'])),
 })
@@ -35,9 +38,9 @@ export const disputeListQuerySchema = z.object({
 export const adminDisputeListQuerySchema = disputeListQuerySchema.extend({
   reason: optionalQueryParam(z.enum(DisputeReason)),
   priority: optionalQueryParam(z.enum(DisputePriority)),
-  storeId: uuidSchema.optional(),
-  dateFrom: dateStringSchema.optional(),
-  dateTo: dateStringSchema.optional(),
+  storeId: optionalQueryParam(uuidSchema),
+  dateFrom: optionalQueryParam(dateStringSchema),
+  dateTo: optionalQueryParam(dateStringSchema),
 })
 
 export const createDisputeMessageSchema = z.object({

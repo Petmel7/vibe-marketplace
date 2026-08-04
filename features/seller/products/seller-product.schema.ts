@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  defaultedQueryNumber,
+  optionalQueryString,
+  optionalQueryUuid,
+} from '@/lib/validation/query'
 import { ALLOWED_PRODUCT_SIZES } from './seller-product.sizes'
 import {
   PRODUCT_DESCRIPTION_MAX_LENGTH,
@@ -34,10 +39,10 @@ export const sellerProductImageSchema = z.object({
 })
 
 export const sellerProductListQuerySchema = z.object({
-  storeId: z.string().uuid().optional(),
-  status: z.string().trim().min(1).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  storeId: optionalQueryUuid(),
+  status: optionalQueryString(z.string().trim().min(1)),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 20),
 })
 
 export const createVariantSchema = z.object({

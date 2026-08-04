@@ -24,10 +24,11 @@ import { adminReviewListQuerySchema } from '@/features/review/review.schema'
 import type { SessionUser } from '@/types/auth'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 import { logInfo } from '@/utils/logger'
+import { defaultedQueryNumber } from '@/lib/validation/query'
 
 const moderationPaginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(6),
+  page: defaultedQueryNumber(z.coerce.number().int().min(1), 1),
+  limit: defaultedQueryNumber(z.coerce.number().int().min(1).max(100), 6),
 })
 
 type RawSearchParams = Record<string, string | string[] | undefined>
