@@ -1,4 +1,5 @@
 import { PaymentMethod, PaymentProvider, PaymentStatus } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 export const checkoutPaymentMethodSchema = z.enum([
@@ -13,9 +14,9 @@ export const manualPaymentMethodSchema = z.enum([
 export const paymentDiagnosticsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.nativeEnum(PaymentStatus).optional(),
-  provider: z.nativeEnum(PaymentProvider).optional(),
-  method: z.nativeEnum(PaymentMethod).optional(),
+  status: optionalQueryParam(z.nativeEnum(PaymentStatus)),
+  provider: optionalQueryParam(z.nativeEnum(PaymentProvider)),
+  method: optionalQueryParam(z.nativeEnum(PaymentMethod)),
   orderId: z.string().uuid().optional(),
 })
 

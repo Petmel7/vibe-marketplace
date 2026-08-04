@@ -1,4 +1,5 @@
 import { CommissionRuleScope } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
@@ -19,7 +20,7 @@ const moneyStringSchema = z
   .regex(/^\d+(\.\d{1,2})?$/, 'Amount must be a valid monetary value')
 
 export const commissionRuleQuerySchema = paginationSchema.extend({
-  scope: z.nativeEnum(CommissionRuleScope).optional(),
+  scope: optionalQueryParam(z.nativeEnum(CommissionRuleScope)),
   isActive: z.coerce.boolean().optional(),
   storeId: z.string().uuid().optional(),
   categoryId: z.string().optional(),

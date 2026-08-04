@@ -1,4 +1,5 @@
 import { SeoEntityType } from '@/app/generated/prisma/enums'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
@@ -72,6 +73,6 @@ export const updateSeoMetadataSchema = seoMetadataBaseSchema.partial().superRefi
 })
 
 export const seoListQuerySchema = paginationSchema.extend({
-  entityType: z.nativeEnum(SeoEntityType).optional(),
+  entityType: optionalQueryParam(z.nativeEnum(SeoEntityType)),
   entityId: seoEntityIdentifierSchema.optional(),
 })

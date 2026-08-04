@@ -1,4 +1,5 @@
 import { ReviewStatus } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const reviewTextField = z.string().trim().min(1).max(2000)
@@ -57,7 +58,7 @@ export type SellerReplyInput = z.infer<typeof sellerReplySchema>
 export const adminReviewListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.nativeEnum(ReviewStatus).optional(),
+  status: optionalQueryParam(z.nativeEnum(ReviewStatus)),
   productId: z.string().uuid().optional(),
   userId: z.string().uuid().optional(),
 })

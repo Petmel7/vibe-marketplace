@@ -3,6 +3,7 @@ import {
   PromotionTargetType,
   PromotionType,
 } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
@@ -41,7 +42,7 @@ export const createPromotionBaseSchema = z.object({
 })
 
 export const promotionQuerySchema = paginationSchema.extend({
-  type: z.nativeEnum(PromotionType).optional(),
+  type: optionalQueryParam(z.nativeEnum(PromotionType)),
   isActive: z.coerce.boolean().optional(),
   code: z.string().trim().max(64).optional(),
   storeId: z.string().uuid().optional(),

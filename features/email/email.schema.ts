@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { EMAIL_EVENT_TYPES, EMAIL_TEMPLATE_KEYS } from './email.dto'
 
 export const emailEventTypeSchema = z.enum(EMAIL_EVENT_TYPES)
@@ -145,9 +146,9 @@ export const enqueueEmailEventSchema = z.object({
 })
 
 export const adminEmailQuerySchema = z.object({
-  eventType: emailEventTypeSchema.optional(),
+  eventType: optionalQueryParam(emailEventTypeSchema),
   limit: z.coerce.number().int().positive().max(100).default(20),
   page: z.coerce.number().int().positive().default(1),
-  status: emailEventStatusSchema.optional(),
-  template: emailTemplateKeySchema.optional(),
+  status: optionalQueryParam(emailEventStatusSchema),
+  template: optionalQueryParam(emailTemplateKeySchema),
 })

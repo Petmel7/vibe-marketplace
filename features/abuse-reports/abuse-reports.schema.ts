@@ -5,6 +5,7 @@ import {
   AbuseReportStatus,
   AbuseReportTargetType,
 } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 
 const uuidSchema = z.uuid('Invalid UUID')
 const dateStringSchema = z.iso.datetime('Invalid date')
@@ -37,15 +38,15 @@ export const createAbuseReportSchema = z
 export const myReportsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.enum(AbuseReportStatus).optional(),
+  status: optionalQueryParam(z.enum(AbuseReportStatus)),
 })
 
 export const adminReportsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.enum(AbuseReportStatus).optional(),
-  targetType: z.enum(AbuseReportTargetType).optional(),
-  reason: z.enum(AbuseReportReason).optional(),
+  status: optionalQueryParam(z.enum(AbuseReportStatus)),
+  targetType: optionalQueryParam(z.enum(AbuseReportTargetType)),
+  reason: optionalQueryParam(z.enum(AbuseReportReason)),
   assignedAdminId: uuidSchema.optional(),
   dateFrom: dateStringSchema.optional(),
   dateTo: dateStringSchema.optional(),

@@ -3,6 +3,7 @@ import {
   ShippingDeliveryType,
   ShippingProvider,
 } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const trimmedOptionalString = z.string().trim().max(255).nullish()
@@ -264,7 +265,7 @@ export const sellerShipmentListQuerySchema = z.object({
   storeId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.nativeEnum(ShipmentStatus).optional(),
+  status: optionalQueryParam(z.nativeEnum(ShipmentStatus)),
 })
 
 export const shipmentSyncSchema = z.object({

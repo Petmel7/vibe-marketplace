@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ProductBadgeType } from '@/app/generated/prisma/client'
+import { defaultedQueryParam, optionalQueryParam } from '@/lib/validation/query'
 
 const optionalQueryNumber = (fieldName: string) =>
   z.preprocess(
@@ -58,7 +59,7 @@ export const productListQuerySchema = productPaginationQuerySchema.extend({
     .optional(),
   priceMin: optionalQueryNumber('priceMin'),
   priceMax: optionalQueryNumber('priceMax'),
-  sort: z.enum(['price_asc', 'price_desc', 'newest']).default('newest'),
+  sort: defaultedQueryParam(z.enum(['price_asc', 'price_desc', 'newest']), 'newest'),
 }).superRefine((query, ctx) => {
   if (
     query.priceMin !== undefined &&
@@ -136,14 +137,14 @@ export const productSearchQuerySchema = z.object({
       .max(5, { error: 'rating must not exceed 5' })
       .optional(),
   ),
-  badge: z.nativeEnum(ProductBadgeType).optional(),
+  badge: optionalQueryParam(z.nativeEnum(ProductBadgeType)),
   store: z
     .string()
     .trim()
     .min(1, { error: 'store must not be empty' })
     .max(120, { error: 'store must not exceed 120 characters' })
     .optional(),
-  sort: z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'rating', 'popular']).optional(),
+  sort: optionalQueryParam(z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'rating', 'popular'])),
   page: z.coerce
     .number({ error: 'page must be a number' })
     .int({ error: 'page must be an integer' })

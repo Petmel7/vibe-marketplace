@@ -4,6 +4,7 @@ import {
   SellerLedgerEntryStatus,
   SellerLedgerEntryType,
 } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
@@ -18,21 +19,21 @@ const optionalDateSchema = z
 
 export const sellerLedgerQuerySchema = paginationSchema.extend({
   storeId: z.uuid().optional(),
-  status: z.nativeEnum(SellerLedgerEntryStatus).optional(),
-  type: z.nativeEnum(SellerLedgerEntryType).optional(),
+  status: optionalQueryParam(z.nativeEnum(SellerLedgerEntryStatus)),
+  type: optionalQueryParam(z.nativeEnum(SellerLedgerEntryType)),
   dateFrom: optionalDateSchema,
   dateTo: optionalDateSchema,
 })
 
 export const sellerPayoutQuerySchema = paginationSchema.extend({
   storeId: z.uuid().optional(),
-  status: z.nativeEnum(PayoutStatus).optional(),
+  status: optionalQueryParam(z.nativeEnum(PayoutStatus)),
   dateFrom: optionalDateSchema,
   dateTo: optionalDateSchema,
 })
 
 export const adminPayoutQuerySchema = paginationSchema.extend({
-  status: z.nativeEnum(PayoutStatus).optional(),
+  status: optionalQueryParam(z.nativeEnum(PayoutStatus)),
   storeId: z.uuid().optional(),
   sellerId: z.uuid().optional(),
   dateFrom: optionalDateSchema,

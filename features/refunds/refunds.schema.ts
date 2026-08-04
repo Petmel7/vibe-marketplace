@@ -1,4 +1,5 @@
 import { RefundRequestReason, RefundRequestStatus } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const moneyStringSchema = z
@@ -29,7 +30,7 @@ export const createRefundRequestSchema = z
   })
 
 export const refundListQuerySchema = paginationSchema.extend({
-  status: z.nativeEnum(RefundRequestStatus).optional(),
+  status: optionalQueryParam(z.nativeEnum(RefundRequestStatus)),
 })
 
 export const sellerRefundListQuerySchema = refundListQuerySchema.extend({
@@ -37,7 +38,7 @@ export const sellerRefundListQuerySchema = refundListQuerySchema.extend({
 })
 
 export const adminRefundListQuerySchema = refundListQuerySchema.extend({
-  reason: z.nativeEnum(RefundRequestReason).optional(),
+  reason: optionalQueryParam(z.nativeEnum(RefundRequestReason)),
   requestedById: z.string().uuid().optional(),
   resolvedById: z.string().uuid().optional(),
   storeId: z.string().uuid().optional(),

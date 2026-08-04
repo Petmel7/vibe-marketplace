@@ -2,19 +2,13 @@ import {
   HeroBannerDestinationType,
   HeroBannerStatus,
 } from '@/app/generated/prisma/client'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { z } from 'zod'
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
-
-const emptyStringToUndefined = (value: unknown) =>
-  typeof value === 'string' && value.trim() === '' ? undefined : value
-
-function optionalEnumQueryParam<T extends Record<string, string | number>>(enumLike: T) {
-  return z.preprocess(emptyStringToUndefined, z.nativeEnum(enumLike).optional())
-}
 
 const nullableTrimmedString = (max: number) =>
   z
@@ -203,8 +197,8 @@ export const updateHeroBannerSchema = heroBannerBaseSchema.partial().superRefine
 })
 
 export const heroBannerQuerySchema = paginationSchema.extend({
-  status: optionalEnumQueryParam(HeroBannerStatus),
-  destinationType: optionalEnumQueryParam(HeroBannerDestinationType),
+  status: optionalQueryParam(z.nativeEnum(HeroBannerStatus)),
+  destinationType: optionalQueryParam(z.nativeEnum(HeroBannerDestinationType)),
 })
 
 export const publicHeroBannerQuerySchema = z.object({

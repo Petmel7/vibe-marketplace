@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { optionalQueryParam } from '@/lib/validation/query'
 import { JOB_STATUSES, JOB_TYPES } from './jobs.dto'
 
 const jobTypeSchema = z.enum(JOB_TYPES)
@@ -128,8 +129,8 @@ export const jobStatusFilterSchema = z.enum(JOB_STATUSES)
 export const jobListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: jobStatusFilterSchema.optional(),
-  type: jobTypeFilterSchema.optional(),
+  status: optionalQueryParam(jobStatusFilterSchema),
+  type: optionalQueryParam(jobTypeFilterSchema),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
 })

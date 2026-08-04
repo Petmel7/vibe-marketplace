@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { optionalQueryParam } from '@/lib/validation/query'
 
 const queryPaginationSchema = z.object({
   page: z.coerce
@@ -29,7 +30,7 @@ const optionalBooleanFromQuery = z.preprocess((value) => {
 
 export const productBadgesQuerySchema = queryPaginationSchema.extend({
   productId: z.string().uuid({ error: 'productId must be a valid UUID' }).optional(),
-  type: z.enum(['NEW', 'HIT', 'FEATURED']).optional(),
+  type: optionalQueryParam(z.enum(['NEW', 'HIT', 'FEATURED'])),
   activeOnly: optionalBooleanFromQuery.default(true),
 })
 

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { defaultedQueryParam, optionalQueryParam } from '@/lib/validation/query'
 
 const MAX_ANALYTICS_RANGE_DAYS = 366
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -16,10 +17,10 @@ export const analyticsRangeSchema = z.enum(['7d', '30d', '90d', '12m', 'custom']
 export const analyticsIntervalSchema = z.enum(['day', 'week', 'month'])
 
 export const analyticsQueryBaseSchema = z.object({
-  range: analyticsRangeSchema.default('30d'),
+  range: defaultedQueryParam(analyticsRangeSchema, '30d'),
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
-  interval: analyticsIntervalSchema.optional(),
+  interval: optionalQueryParam(analyticsIntervalSchema),
 })
 
 function refineAnalyticsQuery(
