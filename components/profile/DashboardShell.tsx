@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { SessionUser } from '@/types/auth'
 import type { UserProfileDto } from '@/features/profile/profile.dto'
 import DashboardSidebar from '@/components/profile/DashboardSidebar'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 
 export default function DashboardShell({
   user,
@@ -13,11 +14,8 @@ export default function DashboardShell({
   children: ReactNode
 }) {
   return (
-    <main className="ui-section-spacing">
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
-        <DashboardSidebar user={user} profile={profile} />
-        <div className="min-w-0 space-y-6">{children}</div>
-      </div>
-    </main>
+    <DashboardLayout sidebar={<DashboardSidebar user={user} profile={profile} />} sidebarWidth="280px">
+      {children}
+    </DashboardLayout>
   )
 }

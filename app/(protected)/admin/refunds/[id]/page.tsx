@@ -4,6 +4,8 @@ import AdminSection from '@/components/admin/AdminSection'
 import AdminRefundActionPanel from '@/components/refunds/AdminRefundActionPanel'
 import RefundDetailCard from '@/components/refunds/RefundDetailCard'
 import RefundTimeline from '@/components/refunds/RefundTimeline'
+import SectionStack from '@/components/layout/SectionStack'
+import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getAdminRefundDetailPageData } from '@/app/(protected)/admin/_lib/admin-refunds.data'
 
@@ -34,16 +36,16 @@ export default async function AdminRefundDetailPage({
         </Link>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-        <div className="space-y-6">
+      <TwoColumnLayout variant="detailAside">
+        <SectionStack>
           <RefundDetailCard refund={refund} title="Контекст запиту" />
           <RefundTimeline refund={refund} />
-        </div>
+        </SectionStack>
 
-        <div className="space-y-6">
+        <SectionStack>
           <AdminRefundActionPanel refund={refund} />
-        </div>
-      </div>
+        </SectionStack>
+      </TwoColumnLayout>
     </AdminSection>
   )
 }

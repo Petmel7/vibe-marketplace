@@ -3,6 +3,8 @@ import AdminDataTable from '@/components/admin/AdminDataTable'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
 import AdminMetricCard from '@/components/admin/AdminMetricCard'
 import AdminSection from '@/components/admin/AdminSection'
+import MetricGrid from '@/components/layout/MetricGrid'
+import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
 import RiskAdvisoryNotice from '@/components/risk/RiskAdvisoryNotice'
 import RiskProfileTable from '@/components/risk/RiskProfileTable'
 import RiskRecalculateButton from '@/components/risk/RiskRecalculateButton'
@@ -23,7 +25,7 @@ export default async function AdminRiskOverviewPage() {
     >
       <RiskAdvisoryNotice />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricGrid columns={4}>
         <AdminMetricCard
           label="Критичні користувачі"
           value={data.criticalUsers.total}
@@ -44,7 +46,7 @@ export default async function AdminRiskOverviewPage() {
           value={data.recentStores.total}
           detail="Відстежувані профілі ризику магазинів, доступні для перегляду"
         />
-      </div>
+      </MetricGrid>
 
       <div className="ui-elevated-panel flex flex-col gap-4 p-5 sm:p-6">
         <div className="space-y-1">
@@ -58,7 +60,7 @@ export default async function AdminRiskOverviewPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <TwoColumnLayout variant="even">
         <AdminDataTable
           title="Критичні профілі користувачів"
           description="Акаунти з найтерміновішою комбінацією сигналів довіри та безпеки."
@@ -92,7 +94,7 @@ export default async function AdminRiskOverviewPage() {
             <RiskProfileTable items={data.criticalStores.items} entityType="STORE" />
           )}
         </AdminDataTable>
-      </div>
+      </TwoColumnLayout>
     </AdminSection>
   )
 }

@@ -5,6 +5,8 @@ import DashboardCard from '@/components/profile/DashboardCard'
 import ProfileSection from '@/components/profile/ProfileSection'
 import RefundDetailCard from '@/components/refunds/RefundDetailCard'
 import RefundTimeline from '@/components/refunds/RefundTimeline'
+import SectionStack from '@/components/layout/SectionStack'
+import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getProfileRefundDetailViewState } from '@/app/(protected)/profile/_lib/profile-refunds.data'
 
@@ -51,8 +53,8 @@ export default async function ProfileRefundDetailPage({
         </Link>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-        <div className="space-y-6">
+      <TwoColumnLayout variant="detailAside">
+        <SectionStack>
           <RefundDetailCard refund={refund} />
           <DashboardCard
             title="Що далі"
@@ -63,12 +65,12 @@ export default async function ProfileRefundDetailPage({
               <p>Якщо маркетплейс запросить додаткові деталі, вони з’являться в оновленому статусі вашого повернення.</p>
             </div>
           </DashboardCard>
-        </div>
+        </SectionStack>
 
-        <div className="space-y-6">
+        <SectionStack>
           <RefundTimeline refund={refund} />
-        </div>
-      </div>
+        </SectionStack>
+      </TwoColumnLayout>
     </ProfileSection>
   )
 }

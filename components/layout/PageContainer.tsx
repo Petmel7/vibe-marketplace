@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import ContentContainer from '@/components/layout/ContentContainer'
 
 type PageContainerProps = {
     children: ReactNode
@@ -11,9 +12,9 @@ export function PageContainer({
 }: PageContainerProps) {
     return (
         <main className="mx-auto flex justify-center">
-            <div className={`w-full max-w-4xl ${className}`}>
+            <ContentContainer as="div" size="narrow" gutter={false} className={className}>
                 {children}
-            </div>
+            </ContentContainer>
         </main>
     )
 }

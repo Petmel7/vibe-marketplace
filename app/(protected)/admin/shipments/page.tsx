@@ -1,4 +1,6 @@
 import AdminSection from '@/components/admin/AdminSection'
+import CardHeader from '@/components/layout/CardHeader'
+import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
 import ShipmentSyncButton from '@/components/shipping/ShipmentSyncButton'
 import { getCurrentUser } from '@/lib/session/getSession'
 
@@ -12,15 +14,17 @@ export default async function AdminShipmentsPage() {
       title="Інструменти відправлень"
       description="Ручна синхронізація статусів відправлень допомагає швидко підтягнути нові стани Nova Poshta без фонового обробника завдань. Автоматичні дії для сценарію повернень тут не запускаються."
     >
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <TwoColumnLayout variant="balanced">
         <section className="ui-elevated-panel p-5 sm:p-6">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-copy-strong">Синхронізація відстеження</h2>
-            <p className="text-sm text-copy-secondary">
+          <CardHeader
+            title="Синхронізація відстеження"
+            description={
+              <>
               Запускає синхронізацію на backend для відправлень Nova Poshta зі статусом очікування та для
               відстежуваних відправлень. Це корисно для затриманих, неуспішних або щойно відправлених посилок.
-            </p>
-          </div>
+              </>
+            }
+          />
 
           <div className="mt-5 flex justify-center">
             <ShipmentSyncButton label="Синхронізувати відправлення в очікуванні" />
@@ -41,7 +45,7 @@ export default async function AdminShipmentsPage() {
             </p>
           </div>
         </section>
-      </div>
+      </TwoColumnLayout>
     </AdminSection>
   )
 }

@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import RefundDetailCard from '@/components/refunds/RefundDetailCard'
 import RefundTimeline from '@/components/refunds/RefundTimeline'
+import SectionStack from '@/components/layout/SectionStack'
+import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
@@ -61,8 +63,8 @@ export default async function SellerRefundDetailPage({
         </Link>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-        <div className="space-y-6">
+      <TwoColumnLayout variant="detailAside">
+        <SectionStack>
           <RefundDetailCard refund={refund} title="Контекст повернення" />
           <SellerTable
             title="Що це означає для продавця"
@@ -73,12 +75,12 @@ export default async function SellerRefundDetailPage({
               <p>Якщо повернення завершиться успішно, seller finance та ledger будуть оновлені на backend.</p>
             </div>
           </SellerTable>
-        </div>
+        </SectionStack>
 
-        <div className="space-y-6">
+        <SectionStack>
           <RefundTimeline refund={refund} />
-        </div>
-      </div>
+        </SectionStack>
+      </TwoColumnLayout>
     </SellerSection>
   )
 }

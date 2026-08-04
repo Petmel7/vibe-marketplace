@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { SessionUser } from '@/types/auth'
 import SellerSidebar from '@/components/seller/SellerSidebar'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 
 export default function SellerDashboardShell({
   user,
@@ -21,11 +22,8 @@ export default function SellerDashboardShell({
   children: ReactNode
 }) {
   return (
-    <main className="ui-section-spacing">
-      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-        <SellerSidebar user={user} sellerProfile={sellerProfile} store={store} />
-        <div className="min-w-0 space-y-6">{children}</div>
-      </div>
-    </main>
+    <DashboardLayout sidebar={<SellerSidebar user={user} sellerProfile={sellerProfile} store={store} />}>
+      {children}
+    </DashboardLayout>
   )
 }
