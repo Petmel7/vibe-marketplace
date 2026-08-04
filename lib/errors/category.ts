@@ -1,29 +1,22 @@
-export class CategorySlugConflictError extends Error {
-  readonly code = 'CATEGORY_SLUG_CONFLICT'
-  readonly statusCode = 409
+import { ConflictError, ValidationError } from './app'
 
+export class CategorySlugConflictError extends ConflictError {
   constructor(msg = 'Category slug is already taken') {
-    super(msg)
+    super(msg, 'CATEGORY_SLUG_CONFLICT')
     this.name = 'CategorySlugConflictError'
   }
 }
 
-export class CategoryCircularReferenceError extends Error {
-  readonly code = 'CATEGORY_CIRCULAR_REFERENCE'
-  readonly statusCode = 400
-
+export class CategoryCircularReferenceError extends ValidationError {
   constructor(msg = 'Category cannot be moved inside itself or one of its descendants') {
-    super(msg)
+    super(msg, 'CATEGORY_CIRCULAR_REFERENCE')
     this.name = 'CategoryCircularReferenceError'
   }
 }
 
-export class CategoryHasProductsError extends Error {
-  readonly code = 'CATEGORY_HAS_PRODUCTS'
-  readonly statusCode = 409
-
+export class CategoryHasProductsError extends ConflictError {
   constructor(msg = 'Category with linked products cannot be hard deleted') {
-    super(msg)
+    super(msg, 'CATEGORY_HAS_PRODUCTS')
     this.name = 'CategoryHasProductsError'
   }
 }

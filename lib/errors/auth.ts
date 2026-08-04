@@ -1,17 +1,18 @@
-export class UnauthorizedError extends Error {
-  readonly code = 'UNAUTHORIZED'
-  readonly statusCode = 401
+import {
+  AuthenticationError,
+  AuthorizationError,
+} from './app'
+
+export class UnauthorizedError extends AuthenticationError {
   constructor(message = 'Unauthorized') {
-    super(message)
+    super(message, 'UNAUTHORIZED')
     this.name = 'UnauthorizedError'
   }
 }
 
-export class ForbiddenError extends Error {
-  readonly code = 'FORBIDDEN'
-  readonly statusCode = 403
+export class ForbiddenError extends AuthorizationError {
   constructor(message = 'Forbidden') {
-    super(message)
+    super(message, 'FORBIDDEN')
     this.name = 'ForbiddenError'
   }
 }

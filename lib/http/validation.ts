@@ -1,14 +1,11 @@
 import { ZodError } from 'zod'
+import { mapErrorToApiError } from '@/lib/errors/mapper'
 
 export function validationErrorResponse(error: ZodError): Response {
-  return Response.json(
-    {
-      success: false,
-      error: {
-        message: error.issues.map((issue) => issue.message).join('; ') || 'Validation error',
-        code: 'VALIDATION_ERROR',
-      },
-    },
-    { status: 400 },
-  )
+  const mapped = mapErrorToApiError(error)
+
+  return Response.json(mapped.body, {
+    status: mapped.status,
+    headers: mapped.headers,
+  })
 }

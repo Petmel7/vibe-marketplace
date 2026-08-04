@@ -1,10 +1,14 @@
-export class RateLimitExceededError extends Error {
-  readonly code = 'RATE_LIMIT_EXCEEDED'
-  readonly statusCode = 429
+import { AppError } from './app'
+
+export class RateLimitExceededError extends AppError {
   readonly retryAfterSeconds: number
 
   constructor(retryAfterSeconds: number, message = 'Too many requests') {
-    super(message)
+    super({
+      code: 'RATE_LIMIT_EXCEEDED',
+      httpStatus: 429,
+      publicMessage: message,
+    })
     this.name = 'RateLimitExceededError'
     this.retryAfterSeconds = retryAfterSeconds
   }
