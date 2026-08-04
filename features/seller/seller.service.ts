@@ -1,8 +1,13 @@
 import { SellerProfileNotFoundError, SellerAlreadyOnboardedError } from '@/lib/errors/profile'
 import { AlreadyVerifiedError } from '@/lib/errors/seller'
 import { createAdminNotification } from '@/features/notifications/notifications.service'
-import { findSellerByUserId, createSellerProfile, assignSellerRole } from './seller.repository'
-import { prisma } from '@/lib/prisma'
+import { SellerVerificationStatus } from '@/app/generated/prisma/client'
+import {
+  findSellerByUserId,
+  createSellerProfile,
+  assignSellerRole,
+  updateSellerVerificationStatus,
+} from './seller.repository'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type { SellerProfileDto, SellerOnboardingDto } from './seller.dto'
 import { logError } from '@/utils/logger'
@@ -48,10 +53,7 @@ export async function initiateSelling(
 export async function submitVerification(user: SessionUser): Promise<SellerProfileDto> {
   const profile = await findSellerByUserId(user.id)
   if (!profile) throw new SellerProfileNotFoundError()
-  if (profile.verificationStatus === 'VERIFIED') throw new AlreadyVerifiedError()
+  if (profile.verificationStatus === SellerVerificationStatus.VERIFIED) throw new AlreadyVerifiedError()
 
-  return prisma.sellerProfile.update({
-    where: { userId: user.id },
-    data: { verificationStatus: 'PENDING', updatedAt: new Date() },
-  })
+  return updateSellerVerificationStatus(user.id, SellerVerificationStatus.PENDING)
 }

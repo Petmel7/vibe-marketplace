@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { UserRole } from '@/app/generated/prisma/client'
+import { SellerVerificationStatus, UserRole } from '@/app/generated/prisma/client'
 import type { SellerProfileDto, SellerOnboardingDto } from './seller.dto'
 
 export async function findSellerByUserId(userId: string): Promise<SellerProfileDto | null> {
@@ -25,5 +25,15 @@ export async function assignSellerRole(userId: string): Promise<void> {
     where: { userId_role: { userId, role: UserRole.SELLER } },
     create: { userId, role: UserRole.SELLER },
     update: {},
+  })
+}
+
+export async function updateSellerVerificationStatus(
+  userId: string,
+  verificationStatus: SellerVerificationStatus,
+): Promise<SellerProfileDto> {
+  return prisma.sellerProfile.update({
+    where: { userId },
+    data: { verificationStatus, updatedAt: new Date() },
   })
 }

@@ -1107,6 +1107,16 @@ export async function findCategoryBySlug(slug: string): Promise<CategoryNode | n
 }
 
 /**
+ * Return true when an active product with the given id exists in the database.
+ */
+export async function productExists(productId: string): Promise<boolean> {
+  const count = await prisma.product.count({
+    where: { id: productId, isActive: true },
+  })
+  return count > 0
+}
+
+/**
  * Find one active product by ID, including all its variants.
  * Returns null if not found or not active.
  */

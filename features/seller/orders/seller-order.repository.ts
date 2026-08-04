@@ -58,3 +58,18 @@ export async function updateItemFulfillmentStatus(id: string, status: ItemFulfil
     },
   })
 }
+
+export async function findSellerOrderShippingAddressById(id: string) {
+  return prisma.shippingAddress.findUnique({
+    where: { id },
+    select: {
+      fullName: true,
+      city: true,
+      country: true,
+      street: true,
+      building: true,
+      apartment: true,
+      zipCode: true,
+    },
+  })
+}

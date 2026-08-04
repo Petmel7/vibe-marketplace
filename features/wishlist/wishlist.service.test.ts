@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
 import * as repo from '@/features/wishlist/wishlist.repository'
-import * as productExistsLib from '@/lib/db/productExists'
 import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   getWishlist,
@@ -17,13 +16,12 @@ import {
 // ---------------------------------------------------------------------------
 
 vi.mock('@/features/wishlist/wishlist.repository')
-vi.mock('@/lib/db/productExists')
 vi.mock('@/features/products/product-metrics.jobs', () => ({
   scheduleProductMetricsRecalculation: vi.fn(),
 }))
 
 const mockRepo = vi.mocked(repo)
-const mockProductExists = vi.mocked(productExistsLib.productExists)
+const mockProductExists = vi.mocked(repo.productExists)
 const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 // ---------------------------------------------------------------------------

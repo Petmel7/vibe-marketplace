@@ -16,6 +16,7 @@ import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
 import { cleanupStoredUpload, replaceStoredUpload } from '@/lib/upload/upload.service'
 import type {
   AdminCategoryNodeDto,
+  CategorySummaryDto,
   CategoryImageDto,
   CategoryTreeNodeDto,
   CreateAdminCategoryDto,
@@ -29,6 +30,7 @@ import {
   findCategoryById,
   findCategoryBySlug,
   listAllCategories,
+  listCategorySummaries,
   listPublicCategories,
   updateCategory as repoUpdateCategory,
   updateCategoryImage,
@@ -183,6 +185,10 @@ async function refreshAdminCategory(categoryId: string): Promise<AdminCategoryNo
 export async function getPublicCategoryTree(): Promise<CategoryTreeNodeDto[]> {
   const categories = await listPublicCategories()
   return buildCategoryTree(categories.filter((category) => category.isActive && category.isVisible))
+}
+
+export async function getPublicCategorySummaries(): Promise<CategorySummaryDto[]> {
+  return listCategorySummaries()
 }
 
 export async function getAdminCategoryTree(user: SessionUser): Promise<AdminCategoryNodeDto[]> {

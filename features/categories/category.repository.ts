@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/prisma'
 import type { CreateAdminCategoryDto, UpdateAdminCategoryDto } from './category.dto'
 
+export type CategorySummaryRecord = {
+  id: string
+  name: string
+  slug: string
+  imageUrl: string | null
+}
+
 export type ActiveCategoryTraversalNode = {
   id: string
   parentId: string | null
@@ -87,6 +94,25 @@ export async function listPublicCategories(): Promise<CategoryRecord[]> {
   })
 
   return categories.map(mapCategoryRecord)
+}
+
+export async function listCategorySummaries(): Promise<CategorySummaryRecord[]> {
+  const categories = await prisma.category.findMany({
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      image: true,
+    },
+  })
+
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    imageUrl: category.image,
+  }))
 }
 
 export async function listActiveCategoryTraversalNodes(): Promise<ActiveCategoryTraversalNode[]> {

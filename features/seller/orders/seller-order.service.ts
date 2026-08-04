@@ -1,5 +1,4 @@
 import { ItemFulfillmentStatus } from '@/app/generated/prisma/client'
-import { prisma } from '@/lib/prisma'
 import { requireSeller } from '@/lib/auth/guards'
 import {
   OrderItemNotFoundError,
@@ -15,6 +14,7 @@ import type { OrderItemFilters } from './seller-order.repository'
 import {
   findOrderItemsByStoreId,
   findOrderItemById,
+  findSellerOrderShippingAddressById,
   updateItemFulfillmentStatus,
 } from './seller-order.repository'
 
@@ -53,9 +53,7 @@ async function toSellerOrderItemDto(
   let shippingAddress: SellerOrderItemDto['shippingAddress'] = null
 
   if (item.order.shippingAddressId) {
-    const addr = await prisma.shippingAddress.findUnique({
-      where: { id: item.order.shippingAddressId },
-    })
+    const addr = await findSellerOrderShippingAddressById(item.order.shippingAddressId)
     if (addr) {
       shippingAddress = {
         fullName: addr.fullName,

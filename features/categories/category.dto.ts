@@ -9,6 +9,13 @@ export type CategoryTreeNodeDto = {
   children: CategoryTreeNodeDto[]
 }
 
+export type CategorySummaryDto = {
+  id: string
+  name: string
+  slug: string
+  imageUrl: string | null
+}
+
 export type AdminCategoryNodeDto = Omit<CategoryTreeNodeDto, 'children'> & {
   isActive: boolean
   isVisible: boolean

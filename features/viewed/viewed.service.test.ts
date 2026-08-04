@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
 import * as repo from '@/features/viewed/viewed.repository'
-import * as productExistsLib from '@/lib/db/productExists'
 import * as productMetricsJobs from '@/features/products/product-metrics.jobs'
 import {
   getRecentlyViewed,
@@ -17,13 +16,12 @@ import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
 // ---------------------------------------------------------------------------
 
 vi.mock('@/features/viewed/viewed.repository')
-vi.mock('@/lib/db/productExists')
 vi.mock('@/features/products/product-metrics.jobs', () => ({
   scheduleProductMetricsRecalculation: vi.fn(),
 }))
 
 const mockRepo = vi.mocked(repo)
-const mockProductExists = vi.mocked(productExistsLib.productExists)
+const mockProductExists = vi.mocked(repo.productExists)
 const mockProductMetricsJobs = vi.mocked(productMetricsJobs)
 
 // ---------------------------------------------------------------------------

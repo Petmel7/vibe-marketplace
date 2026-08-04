@@ -4,7 +4,7 @@ import type { ViewedProduct, Product } from '@/app/generated/prisma/client'
 import type { ViewedIdentifier } from '@/features/viewed/viewed.types'
 
 export type { ViewedIdentifier }
-export { productExists } from '@/lib/db/productExists'
+export { productExists } from '@/features/products/product.repository'
 
 // ---------------------------------------------------------------------------
 // Types

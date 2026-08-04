@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { logInfo, logWarn } from '@/utils/logger'
 import type { Prisma, Wishlist, WishlistItem, Product } from '@/app/generated/prisma/client'
-export { productExists } from '@/lib/db/productExists'
+export { productExists } from '@/features/products/product.repository'
 
 type WishlistProductPreview = Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'>
 
