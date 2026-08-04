@@ -15,7 +15,7 @@ export default function FormError({
   }
 
   return (
-    <p id={id} className={clsx('text-sm text-brand-danger', className)} role="alert">
+    <p id={id} className={clsx('ui-form-error', className)} role="alert">
       {children}
     </p>
   )

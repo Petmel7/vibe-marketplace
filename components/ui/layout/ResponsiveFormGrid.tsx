@@ -9,7 +9,7 @@ export default function ResponsiveFormGrid({
   className?: string
 }) {
   return (
-    <div className={clsx('grid gap-4 lg:grid-cols-2', className)}>
+    <div className={clsx('ui-responsive-form-grid', className)}>
       {children}
     </div>
   )

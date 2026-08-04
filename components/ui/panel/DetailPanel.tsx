@@ -19,9 +19,9 @@ export default function DetailPanel({
     <Panel className={className}>
       {title || description || actions ? (
         <div className={clsx('flex items-start justify-between gap-4', children ? 'mb-5' : '')}>
-          <div className="space-y-1">
-            {title ? <h2 className="text-lg font-semibold text-copy-strong">{title}</h2> : null}
-            {description ? <p className="text-sm text-copy-muted">{description}</p> : null}
+          <div className="ui-heading-stack">
+            {title ? <h2 className="ui-card-title">{title}</h2> : null}
+            {description ? <p className="ui-form-helper">{description}</p> : null}
           </div>
           {actions}
         </div>

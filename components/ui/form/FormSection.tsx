@@ -13,11 +13,11 @@ export default function FormSection({
   className?: string
 }) {
   return (
-    <section className={clsx('space-y-5', className)}>
+    <section className={clsx('ui-form-section-stack', className)}>
       {title || description ? (
-        <div className="space-y-1">
-          {title ? <h2 className="text-lg font-semibold text-copy-strong">{title}</h2> : null}
-          {description ? <p className="text-sm text-copy-muted">{description}</p> : null}
+        <div className="ui-heading-stack">
+          {title ? <h2 className="ui-card-title">{title}</h2> : null}
+          {description ? <p className="ui-form-helper">{description}</p> : null}
         </div>
       ) : null}
       {children}

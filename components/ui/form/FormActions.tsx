@@ -9,7 +9,7 @@ export default function FormActions({
   className?: string
 }) {
   return (
-    <div className={clsx('flex flex-wrap gap-2', className)}>
+    <div className={clsx('ui-action-row', className)}>
       {children}
     </div>
   )

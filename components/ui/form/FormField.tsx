@@ -20,13 +20,13 @@ export default function FormField({
   className?: string
 }) {
   return (
-    <div className={clsx('space-y-2', className)}>
+    <div className={clsx('ui-form-field-stack', className)}>
       {label ? (
-        <label htmlFor={htmlFor} className="block text-sm font-medium text-copy-strong">
+        <label htmlFor={htmlFor} className="ui-form-label">
           {label}
         </label>
       ) : null}
-      {helperText ? <span className="block text-sm text-copy-muted">{helperText}</span> : null}
+      {helperText ? <span className="ui-form-helper">{helperText}</span> : null}
       {children}
       <FormError id={errorId}>{error}</FormError>
     </div>

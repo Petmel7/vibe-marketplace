@@ -9,7 +9,7 @@ export default function ResponsiveActionGroup({
   className?: string
 }) {
   return (
-    <div className={clsx('flex w-full flex-col items-center gap-3 max-[500px]:items-stretch', className)}>
+    <div className={clsx('ui-responsive-action-group', className)}>
       {children}
     </div>
   )

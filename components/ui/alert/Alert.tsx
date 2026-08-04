@@ -21,7 +21,7 @@ export default function Alert({
   role?: 'alert' | 'status'
 }) {
   return (
-    <div className={clsx('rounded-2xl border px-4 py-3 text-sm', toneClassName[tone], className)} role={role}>
+    <div className={clsx('ui-alert', toneClassName[tone], className)} role={role}>
       {children}
     </div>
   )

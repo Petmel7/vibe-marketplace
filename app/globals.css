@@ -4,6 +4,34 @@
   --background: #1d2533;
   --foreground: #ededed;
   --marketplace-content-max-width: 80rem;
+  --container-content: var(--marketplace-content-max-width);
+  --space-panel-x: 1.25rem;
+  --space-panel-y: 1.25rem;
+  --space-panel-x-sm: 1.5rem;
+  --space-panel-y-sm: 1.5rem;
+  --space-form-field: 0.5rem;
+  --space-form-section: 1.25rem;
+  --space-heading-stack: 0.25rem;
+  --space-section-stack: 1.25rem;
+  --space-action-gap: 0.75rem;
+  --space-action-gap-sm: 0.5rem;
+  --space-grid-gap: 1rem;
+  --space-table-cell-x: 1.25rem;
+  --space-table-cell-y: 1rem;
+  --space-table-header-y: 0.75rem;
+  --radius-panel: 1rem;
+  --radius-card: 1rem;
+  --radius-control: 0.75rem;
+  --radius-pill: 9999px;
+  --shadow-panel-elevated: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --button-height-xs: 2.25rem;
+  --button-height-md: 3rem;
+  --button-height-lg: 3.5rem;
+  --button-padding-x-xs: 1rem;
+  --button-padding-x-md: 2.25rem;
+  --button-padding-y-md: 0.75rem;
+  --button-padding-x-ui-md: 2.1875rem;
+  --button-padding-x-lg: 2.5rem;
 }
 
 @theme {
@@ -42,7 +70,7 @@ body {
 @layer components {
   .ui-container {
     @apply mx-auto w-full px-4 sm:px-6 lg:px-6 pt-4 pb-7;
-    max-width: var(--marketplace-content-max-width);
+    max-width: var(--container-content);
   }
 }
 
@@ -57,20 +85,111 @@ body {
 
   .ui-header-content {
     @apply relative mx-auto flex h-full w-full items-center px-6;
-    max-width: var(--marketplace-content-max-width);
+    max-width: var(--container-content);
   }
 
   .ui-panel {
-    @apply rounded-2xl bg-panel;
+    @apply bg-panel;
+    border-radius: var(--radius-panel);
   }
 
   .ui-elevated-panel {
-    @apply rounded-2xl border border-panelBorder bg-canvas;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+    @apply border border-panelBorder bg-canvas;
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel-elevated);
   }
 
   .ui-card {
-    @apply overflow-hidden rounded-2xl bg-panel;
+    @apply overflow-hidden bg-panel;
+    border-radius: var(--radius-card);
+  }
+
+  .ui-panel-padding {
+    padding: var(--space-panel-y) var(--space-panel-x);
+  }
+
+  @media (min-width: 640px) {
+    .ui-panel-padding {
+      padding: var(--space-panel-y-sm) var(--space-panel-x-sm);
+    }
+  }
+
+  .ui-form-field-stack > * + * {
+    margin-top: var(--space-form-field);
+  }
+
+  .ui-form-section-stack > * + * {
+    margin-top: var(--space-form-section);
+  }
+
+  .ui-heading-stack > * + * {
+    margin-top: var(--space-heading-stack);
+  }
+
+  .ui-dashboard-section > * + * {
+    margin-top: var(--space-section-stack);
+  }
+
+  .ui-form-label {
+    @apply block text-sm font-medium text-copy-strong;
+  }
+
+  .ui-form-helper {
+    @apply block text-sm text-copy-muted;
+  }
+
+  .ui-form-error {
+    @apply text-sm text-brand-danger;
+  }
+
+  .ui-card-title {
+    @apply text-lg font-semibold text-copy-strong;
+  }
+
+  .ui-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-action-gap-sm);
+  }
+
+  .ui-responsive-action-group {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-action-gap);
+  }
+
+  @media (max-width: 500px) {
+    .ui-responsive-action-group {
+      align-items: stretch;
+    }
+  }
+
+  .ui-responsive-form-grid {
+    display: grid;
+    gap: var(--space-grid-gap);
+  }
+
+  @media (min-width: 1024px) {
+    .ui-responsive-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .ui-alert {
+    @apply border text-sm;
+    border-radius: var(--radius-panel);
+    padding: 0.75rem 1rem;
+  }
+
+  .ui-table-cell {
+    padding: var(--space-table-cell-y) var(--space-table-cell-x);
+  }
+
+  .ui-table-header-cell {
+    padding: var(--space-table-header-y) var(--space-table-cell-x);
+    @apply font-medium;
   }
 
   .ui-product-card {
@@ -97,15 +216,24 @@ body {
   }
 
   .ui-pill-button {
-    @apply inline-flex h-12 items-center justify-center rounded-full px-9 py-3 text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
+    @apply inline-flex items-center justify-center text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
+    height: var(--button-height-md);
+    border-radius: var(--radius-pill);
+    padding: var(--button-padding-y-md) var(--button-padding-x-md);
   }
 
   .ui-primary-button {
-    @apply inline-flex h-12 items-center justify-center rounded-full bg-brand px-9 py-3 text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
+    @apply inline-flex items-center justify-center bg-brand text-[16px] leading-6 font-medium text-copy-strong transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60;
+    height: var(--button-height-md);
+    border-radius: var(--radius-pill);
+    padding: var(--button-padding-y-md) var(--button-padding-x-md);
   }
 
   .ui-secondary-button {
-    @apply inline-flex h-12 items-center justify-center rounded-full border-2 border-brand bg-transparent px-9 py-3 text-[16px] leading-6 font-medium text-brand transition-colors hover:bg-brand/10 active:bg-brand/15 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+    @apply inline-flex items-center justify-center border-2 border-brand bg-transparent text-[16px] leading-6 font-medium text-brand transition-colors hover:bg-brand/10 active:bg-brand/15 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+    height: var(--button-height-md);
+    border-radius: var(--radius-pill);
+    padding: var(--button-padding-y-md) var(--button-padding-x-md);
   }
 
   .ui-icon-button {
@@ -129,7 +257,9 @@ body {
   }
 
   .ui-surface-input {
-    @apply w-full rounded-xl border border-panelBorder bg-panel px-4 py-3 text-sm leading-5 text-copy-secondary placeholder:text-copy-muted outline-none transition-colors focus:border-brand focus:ring-1 focus:ring-brand;
+    @apply w-full border border-panelBorder bg-panel text-sm leading-5 text-copy-secondary placeholder:text-copy-muted outline-none transition-colors focus:border-brand focus:ring-1 focus:ring-brand;
+    border-radius: var(--radius-control);
+    padding: 0.75rem 1rem;
   }
 
   select.ui-surface-input {
@@ -264,7 +394,7 @@ body {
 
   .ui-dialog-panel {
     @apply relative z-50 flex max-h-screen w-full flex-col overflow-hidden border border-panelBorder bg-canvas md:mt-20 md:max-h-[70vh] md:w-150 md:rounded-xl;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-panel-elevated);
   }
 
   .ui-dialog-header {
@@ -319,19 +449,26 @@ body {
 /* BUTTONS */
 @layer components {
   .ui-btn {
-    @apply inline-flex items-center justify-center rounded-full font-medium text-center whitespace-nowrap;
+    @apply inline-flex items-center justify-center font-medium text-center whitespace-nowrap;
+    border-radius: var(--radius-pill);
   }
 
   .ui-btn-sm {
-    @apply h-9 px-4 text-sm;
+    @apply text-sm;
+    height: var(--button-height-xs);
+    padding-inline: var(--button-padding-x-xs);
   }
 
   .ui-btn-md {
-    @apply h-12 px-8.75 text-base;
+    @apply text-base;
+    height: var(--button-height-md);
+    padding-inline: var(--button-padding-x-ui-md);
   }
 
   .ui-btn-lg {
-    @apply h-14 px-10 text-lg;
+    @apply text-lg;
+    height: var(--button-height-lg);
+    padding-inline: var(--button-padding-x-lg);
   }
 
   .ui-btn-primary {

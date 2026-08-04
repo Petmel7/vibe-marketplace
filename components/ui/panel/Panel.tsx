@@ -16,7 +16,7 @@ export default function Panel<TElement extends ElementType = 'section'>({
   const Component = as ?? 'section'
 
   return (
-    <Component className={clsx('ui-elevated-panel p-5 sm:p-6', className)} {...props}>
+    <Component className={clsx('ui-elevated-panel ui-panel-padding', className)} {...props}>
       {children}
     </Component>
   )
