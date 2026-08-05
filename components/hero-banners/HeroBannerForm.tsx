@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import DashboardCard from '@/components/profile/DashboardCard'
+import DashboardCard from '@/components/ui/dashboard/DashboardCard'
 import { FormField, FormGrid } from '@/components/ui/form'
 import { useAdminHeroBanners } from '@/hooks/useAdminHeroBanners'
 import type { HeroBannerImageSlot } from '@/features/media/media.dto'

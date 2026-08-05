@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import DashboardCard from '@/components/profile/DashboardCard'
+import DashboardCard from '@/components/ui/dashboard/DashboardCard'
 import type { HeroBannerFormValues, PreviewMode } from '../types'
 
 export default function HeroBannerPreview({

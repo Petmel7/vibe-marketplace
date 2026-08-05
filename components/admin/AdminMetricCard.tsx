@@ -1,4 +1,4 @@
-import Panel from '@/components/ui/panel/Panel'
+import DashboardMetricCard from '@/components/ui/dashboard/DashboardMetricCard'
 
 export default function AdminMetricCard({
   label,
@@ -10,10 +10,13 @@ export default function AdminMetricCard({
   detail: string
 }) {
   return (
-    <Panel>
-      <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">{label}</p>
-      <p className="mt-4 text-3xl font-semibold text-copy-strong">{value}</p>
-      <p className="mt-3 text-sm text-copy-muted">{detail}</p>
-    </Panel>
+    <DashboardMetricCard
+      label={label}
+      value={value}
+      detail={detail}
+      labelClassName="text-xs uppercase tracking-[0.2em] text-copy-muted"
+      valueClassName="mt-4 text-3xl font-semibold text-copy-strong"
+      detailClassName="mt-3 text-sm text-copy-muted"
+    />
   )
 }

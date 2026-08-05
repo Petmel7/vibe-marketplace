@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import DashboardCard from '@/components/profile/DashboardCard'
+import DashboardCard from '@/components/ui/dashboard/DashboardCard'
 import { useAdminCommissionRules } from '@/hooks/useAdminCommissionRules'
 import {
   getCommissionRuleScopeLabel,

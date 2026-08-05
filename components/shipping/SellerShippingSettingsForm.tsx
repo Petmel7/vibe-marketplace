@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import DashboardCard from '@/components/profile/DashboardCard'
+import DashboardCard from '@/components/ui/dashboard/DashboardCard'
 import NovaPoshtaCityCombobox from '@/components/shipping/NovaPoshtaCityCombobox'
 import NovaPoshtaWarehouseSelect from '@/components/shipping/NovaPoshtaWarehouseSelect'
 import { useSellerStoreShippingSettings } from '@/hooks/useSellerStoreShippingSettings'
