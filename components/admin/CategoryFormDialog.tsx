@@ -2,6 +2,12 @@
 
 import Image from 'next/image'
 import { useId, useMemo, useState } from 'react'
+import {
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogShell,
+} from '@/components/ui/dialog'
 import { flattenCategoryTree, type AdminCategoryTreeNode } from '@/types/categories'
 
 type CategoryFormState = {
@@ -171,6 +177,8 @@ export default function CategoryFormDialog({
   const [formState, setFormState] = useState<CategoryFormState>(() => toFormState({ category, parentId }))
   const [imageAction, setImageAction] = useState<'upload' | 'remove' | null>(null)
   const [imageErrorMessage, setImageErrorMessage] = useState<string | null>(null)
+  const dialogTitleId = useId()
+  const dialogDescriptionId = `${dialogTitleId}-description`
 
   const parentOptions = useMemo(
     () =>
@@ -236,17 +244,27 @@ export default function CategoryFormDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/70 px-4 py-8 backdrop-blur-sm">
-      <div className="max-h-[calc(100vh-4rem)] w-full max-w-2xl overflow-y-auto rounded-4xl border border-panelBorder bg-[#1d2533] p-6 shadow-soft">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-copy-strong">{title}</h2>
-            <p className="mt-1 text-sm text-copy-secondary">
-              {mode === 'create'
-                ? 'Створіть новий вузол категорії в таксономії маркетплейсу.'
-                : 'Оновіть назву категорії, slug, розташування та видимість.'}
-            </p>
-          </div>
+    <DialogShell
+      open={open}
+      labelledBy={dialogTitleId}
+      describedBy={dialogDescriptionId}
+      onClose={onClose}
+      useDefaultClassNames={false}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-surface/70 px-4 py-8 backdrop-blur-sm"
+      panelClassName="max-h-[calc(100vh-4rem)] w-full max-w-2xl overflow-y-auto rounded-4xl border border-panelBorder bg-[#1d2533] p-6 shadow-soft"
+    >
+      <DialogHeader
+        title={title}
+        titleId={dialogTitleId}
+        descriptionId={dialogDescriptionId}
+        description={
+          <>
+            {mode === 'create'
+              ? 'Створіть новий вузол категорії в таксономії маркетплейсу.'
+              : 'Оновіть назву категорії, slug, розташування та видимість.'}
+          </>
+        }
+        actions={
           <button
             type="button"
             className="rounded-full border border-panelBorder px-3 py-2 text-sm text-copy-secondary transition-colors hover:bg-panelAlt hover:text-copy-strong"
@@ -254,10 +272,11 @@ export default function CategoryFormDialog({
           >
             Закрити
           </button>
-        </div>
-
+        }
+      />
+      <DialogBody>
         <form
-          className="mt-6 space-y-4"
+          className="space-y-4"
           onSubmit={async (event) => {
             event.preventDefault()
             await onSubmit({
@@ -338,7 +357,7 @@ export default function CategoryFormDialog({
             </p>
           ) : null}
 
-          <div className="flex flex-col gap-3 max-[500px]:items-stretch min-[501px]:flex-row min-[501px]:justify-center">
+          <DialogFooter className="!mt-0">
             <button
               type="button"
               className="ui-secondary-button max-[500px]:w-full"
@@ -350,9 +369,9 @@ export default function CategoryFormDialog({
             <button type="submit" className="ui-primary-button max-[500px]:w-full" disabled={isBusy}>
               {isPending ? 'Зберігаємо…' : mode === 'create' ? 'Створити категорію' : 'Зберегти зміни'}
             </button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogBody>
+    </DialogShell>
   )
 }
