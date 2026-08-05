@@ -6,6 +6,7 @@ export default function FormField({
   label,
   htmlFor,
   helperText,
+  helperId,
   error,
   errorId,
   children,
@@ -14,6 +15,7 @@ export default function FormField({
   label?: ReactNode
   htmlFor?: string
   helperText?: ReactNode
+  helperId?: string
   error?: ReactNode
   errorId?: string
   children: ReactNode
@@ -26,7 +28,7 @@ export default function FormField({
           {label}
         </label>
       ) : null}
-      {helperText ? <span className="ui-form-helper">{helperText}</span> : null}
+      {helperText ? <span id={helperId} className="ui-form-helper">{helperText}</span> : null}
       {children}
       <FormError id={errorId}>{error}</FormError>
     </div>

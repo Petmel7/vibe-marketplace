@@ -10,6 +10,7 @@ import {
   UploadError,
   UploadProgress,
 } from '@/components/ui/upload'
+import { FormField, FormGrid } from '@/components/ui/form'
 import { sellerOnboardingSchema } from '@/features/seller/seller.schema'
 import {
   createStoreSchema,
@@ -429,8 +430,7 @@ export default function SellerStoreSettingsForm({
             })
           }}
         >
-          <label className="space-y-2 sm:col-span-2">
-            <span className="block text-sm font-medium text-copy-strong">Назва бізнесу</span>
+          <FormField label="Назва бізнесу" className="sm:col-span-2">
             <input
               className="ui-surface-input"
               value={onboardingState.businessName}
@@ -439,9 +439,8 @@ export default function SellerStoreSettingsForm({
               }
               required
             />
-          </label>
-          <label className="space-y-2 sm:col-span-2">
-            <span className="block text-sm font-medium text-copy-strong">ІПН / податковий номер</span>
+          </FormField>
+          <FormField label="ІПН / податковий номер" className="sm:col-span-2">
             <input
               className="ui-surface-input"
               value={onboardingState.taxId}
@@ -449,7 +448,7 @@ export default function SellerStoreSettingsForm({
                 setOnboardingState((current) => ({ ...current, taxId: event.target.value }))
               }
             />
-          </label>
+          </FormField>
           <div className="sm:col-span-2">
             <button type="submit" className="ui-primary-button" disabled={isBusy}>
               {isBusy ? 'Зберігаємо...' : 'Створити профіль продавця'}
@@ -518,9 +517,8 @@ export default function SellerStoreSettingsForm({
             router.push('/seller')
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Назва магазину</span>
+          <FormGrid at="sm">
+            <FormField label="Назва магазину">
               <input
                 className="ui-surface-input"
                 value={storeState.name}
@@ -534,9 +532,8 @@ export default function SellerStoreSettingsForm({
                 }}
                 required
               />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Slug магазину</span>
+            </FormField>
+            <FormField label="Slug магазину">
               <input
                 className="ui-surface-input"
                 value={storeState.slug}
@@ -551,8 +548,8 @@ export default function SellerStoreSettingsForm({
                 aria-invalid={!parsedSlug.success || slugAvailability.status === 'unavailable' || slugAvailability.status === 'error'}
                 aria-describedby="storefront-slug-hint"
               />
-            </label>
-          </div>
+            </FormField>
+          </FormGrid>
 
           <div className="rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary">
             <p className="font-medium text-copy-strong">Попередній перегляд URL вітрини</p>
@@ -574,8 +571,7 @@ export default function SellerStoreSettingsForm({
             ) : null}
           </div>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Опис</span>
+          <FormField label="Опис">
             <textarea
               className="ui-surface-input min-h-32 resize-y"
               value={storeState.description}
@@ -583,7 +579,7 @@ export default function SellerStoreSettingsForm({
                 setStoreState((current) => ({ ...current, description: event.target.value }))
               }
             />
-          </label>
+          </FormField>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <StoreAssetUploadField
@@ -692,18 +688,20 @@ export default function SellerStoreSettingsForm({
             router.refresh()
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Назва магазину</span>
+          <FormGrid at="sm">
+            <FormField label="Назва магазину">
               <input
                 className="ui-surface-input"
                 value={storeState.name}
                 onChange={(event) => setStoreState((current) => ({ ...current, name: event.target.value }))}
                 required
               />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Slug магазину</span>
+            </FormField>
+            <FormField
+              label="Slug магазину"
+              helperId="store-settings-slug-note"
+              helperText="URL вашої вітрини фіксується після створення, щоб посилання залишалися стабільними."
+            >
               <input
                 className="ui-surface-input"
                 value={storeState.slug}
@@ -711,14 +709,10 @@ export default function SellerStoreSettingsForm({
                 disabled
                 aria-describedby="store-settings-slug-note"
               />
-              <p id="store-settings-slug-note" className="text-sm text-copy-muted">
-                URL вашої вітрини фіксується після створення, щоб посилання залишалися стабільними.
-              </p>
-            </label>
-          </div>
+            </FormField>
+          </FormGrid>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Опис</span>
+          <FormField label="Опис">
             <textarea
               className="ui-surface-input min-h-32 resize-y"
               value={storeState.description}
@@ -726,7 +720,7 @@ export default function SellerStoreSettingsForm({
                 setStoreState((current) => ({ ...current, description: event.target.value }))
               }
             />
-          </label>
+          </FormField>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <StoreAssetUploadField

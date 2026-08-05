@@ -11,6 +11,7 @@ import {
   UploadDropzone,
   UploadError,
 } from '@/components/ui/upload'
+import { FormField, FormGrid } from '@/components/ui/form'
 import { useAdminHeroBanners } from '@/hooks/useAdminHeroBanners'
 import type { HeroBannerImageSlot } from '@/features/media/media.dto'
 import {
@@ -523,18 +524,16 @@ export default function HeroBannerForm({
         description="Керуйте контентом, переходами, періодом публікації та порядком показу Hero-банера."
       >
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Надзаголовок</span>
+          <FormGrid>
+            <FormField label="Надзаголовок">
               <input
                 value={values.eyebrow}
                 onChange={(event) => setValue('eyebrow', event.target.value)}
                 className="ui-surface-input"
                 placeholder="Наприклад, Новий сезон"
               />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Назва</span>
+            </FormField>
+            <FormField label="Назва" error={errors.title}>
               <input
                 value={values.title}
                 onChange={(event) => setValue('title', event.target.value)}
@@ -542,22 +541,19 @@ export default function HeroBannerForm({
                 placeholder="Головна пропозиція банера"
                 aria-invalid={Boolean(errors.title)}
               />
-              <ErrorMessage message={errors.title} />
-            </label>
-          </div>
+            </FormField>
+          </FormGrid>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Підзаголовок</span>
+          <FormGrid>
+            <FormField label="Підзаголовок">
               <input
                 value={values.subtitle}
                 onChange={(event) => setValue('subtitle', event.target.value)}
                 className="ui-surface-input"
                 placeholder="Коротке уточнення"
               />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Alt-текст</span>
+            </FormField>
+            <FormField label="Alt-текст" error={errors.imageAlt}>
               <input
                 value={values.imageAlt}
                 onChange={(event) => setValue('imageAlt', event.target.value)}
@@ -565,12 +561,10 @@ export default function HeroBannerForm({
                 placeholder="Опишіть зображення для доступності"
                 aria-invalid={Boolean(errors.imageAlt)}
               />
-              <ErrorMessage message={errors.imageAlt} />
-            </label>
-          </div>
+            </FormField>
+          </FormGrid>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Опис</span>
+          <FormField label="Опис">
             <textarea
               value={values.description}
               onChange={(event) => setValue('description', event.target.value)}
@@ -578,7 +572,7 @@ export default function HeroBannerForm({
               className="ui-surface-input min-h-28"
               placeholder="Додатковий текст, який пояснює пропозицію."
             />
-          </label>
+          </FormField>
 
           <div className="space-y-5 pt-4">
             <HeroBannerImageField
@@ -614,9 +608,8 @@ export default function HeroBannerForm({
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Колір фону</span>
+          <FormGrid columns={3} at="xl" className="lg:grid-cols-2">
+            <FormField label="Колір фону" error={errors.backgroundColor}>
               <input
                 type="color"
                 value={values.backgroundColor}
@@ -624,10 +617,8 @@ export default function HeroBannerForm({
                 className="h-12 w-full rounded-2xl border border-panelBorder bg-panel p-1"
                 aria-invalid={Boolean(errors.backgroundColor)}
               />
-              <ErrorMessage message={errors.backgroundColor} />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Колір тексту</span>
+            </FormField>
+            <FormField label="Колір тексту" error={errors.textColor}>
               <input
                 type="color"
                 value={values.textColor}
@@ -635,11 +626,9 @@ export default function HeroBannerForm({
                 className="h-12 w-full rounded-2xl border border-panelBorder bg-panel p-1"
                 aria-invalid={Boolean(errors.textColor)}
               />
-              <ErrorMessage message={errors.textColor} />
-            </label>
+            </FormField>
 
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Прозорість оверлею</span>
+            <FormField label="Прозорість оверлею" error={errors.overlayOpacity}>
               <input
                 type="number"
                 min="0"
@@ -650,11 +639,9 @@ export default function HeroBannerForm({
                 className="ui-surface-input"
                 aria-invalid={Boolean(errors.overlayOpacity)}
               />
-              <ErrorMessage message={errors.overlayOpacity} />
-            </label>
+            </FormField>
 
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Тип переходу</span>
+            <FormField label="Тип переходу" error={errors.destinationType}>
               <select
                 value={values.destinationType}
                 onChange={(event) => {
@@ -677,13 +664,9 @@ export default function HeroBannerForm({
                   </option>
                 ))}
               </select>
-              <ErrorMessage message={errors.destinationType} />
-            </label>
+            </FormField>
 
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">
-                {destinationTargetLabelByType[values.destinationType]}
-              </span>
+            <FormField label={destinationTargetLabelByType[values.destinationType]} error={errors.destinationTarget}>
               <input
                 value={values.destinationTarget}
                 disabled={values.destinationType === 'NONE'}
@@ -692,10 +675,8 @@ export default function HeroBannerForm({
                 placeholder={values.destinationType === 'CUSTOM_URL' ? '/catalog' : 'ID або запит'}
                 aria-invalid={Boolean(errors.destinationTarget)}
               />
-              <ErrorMessage message={errors.destinationTarget} />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">CTA-текст</span>
+            </FormField>
+            <FormField label="CTA-текст" error={errors.ctaText}>
               <input
                 value={values.ctaText}
                 disabled={values.destinationType === 'NONE'}
@@ -704,11 +685,9 @@ export default function HeroBannerForm({
                 placeholder="Перейти"
                 aria-invalid={Boolean(errors.ctaText)}
               />
-              <ErrorMessage message={errors.ctaText} />
-            </label>
+            </FormField>
 
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Статус</span>
+            <FormField label="Статус">
               <select
                 value={values.status}
                 onChange={(event) => setValue('status', event.target.value as HeroBannerStatus)}
@@ -720,9 +699,8 @@ export default function HeroBannerForm({
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Порядок сортування</span>
+            </FormField>
+            <FormField label="Порядок сортування" error={errors.sortOrder}>
               <input
                 type="number"
                 min="0"
@@ -732,9 +710,8 @@ export default function HeroBannerForm({
                 className="ui-surface-input"
                 aria-invalid={Boolean(errors.sortOrder)}
               />
-              <ErrorMessage message={errors.sortOrder} />
-            </label>
-          </div>
+            </FormField>
+          </FormGrid>
 
           <label className="flex items-center gap-3 rounded-2xl border border-panelBorder bg-panel/60 px-4 py-3">
             <input

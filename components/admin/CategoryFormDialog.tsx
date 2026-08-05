@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogShell,
 } from '@/components/ui/dialog'
+import { FormField, FormGrid } from '@/components/ui/form'
 import {
   ImagePreview,
   UploadActions,
@@ -279,29 +280,26 @@ export default function CategoryFormDialog({
             })
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Назва</span>
+          <FormGrid at="sm">
+            <FormField label="Назва">
               <input
                 className="ui-surface-input"
                 value={formState.name}
                 onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
                 required
               />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-copy-strong">Slug</span>
+            </FormField>
+            <FormField label="Slug">
               <input
                 className="ui-surface-input"
                 value={formState.slug}
                 onChange={(event) => setFormState((current) => ({ ...current, slug: event.target.value }))}
                 placeholder="авто-з-назви"
               />
-            </label>
-          </div>
+            </FormField>
+          </FormGrid>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Батьківська категорія</span>
+          <FormField label="Батьківська категорія">
             <select
               className="ui-surface-input"
               value={formState.parentId}
@@ -314,7 +312,7 @@ export default function CategoryFormDialog({
                 </option>
               ))}
             </select>
-          </label>
+          </FormField>
 
           <label className="mt-2 flex items-start gap-3 rounded-2xl border border-panelBorder bg-panel px-4 py-4">
             <input

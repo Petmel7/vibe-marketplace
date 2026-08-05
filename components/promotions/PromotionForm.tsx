@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import DashboardCard from '@/components/profile/DashboardCard'
+import { FormActions, FormCard, FormField, FormGrid } from '@/components/ui/form'
 import { useAdminPromotions } from '@/hooks/useAdminPromotions'
 import {
   PROMOTION_DISCOUNT_TYPES,
@@ -144,11 +144,10 @@ export default function PromotionForm({
   }
 
   return (
-    <DashboardCard title={title} description={description}>
+    <FormCard title={title} description={description}>
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Код</span>
+        <FormGrid>
+          <FormField label="Код">
             <input
               required
               value={values.code}
@@ -156,10 +155,9 @@ export default function PromotionForm({
               className="ui-surface-input"
               placeholder="SAVE10"
             />
-          </label>
+          </FormField>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Назва</span>
+          <FormField label="Назва">
             <input
               required
               value={values.name}
@@ -167,11 +165,10 @@ export default function PromotionForm({
               className="ui-surface-input"
               placeholder="Літня стартова знижка"
             />
-          </label>
-        </div>
+          </FormField>
+        </FormGrid>
 
-        <label className="space-y-2">
-          <span className="block text-sm font-medium text-copy-strong">Опис</span>
+        <FormField label="Опис">
           <textarea
             value={values.description}
             onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
@@ -179,11 +176,10 @@ export default function PromotionForm({
             className="ui-surface-input min-h-28"
             placeholder="Необов’язковий внутрішній опис або опис для покупця."
           />
-        </label>
+        </FormField>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Тип акції</span>
+        <FormGrid>
+          <FormField label="Тип акції">
             <select
               value={values.type}
               onChange={(event) =>
@@ -200,10 +196,9 @@ export default function PromotionForm({
                 </option>
               ))}
             </select>
-          </label>
+          </FormField>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Тип знижки</span>
+          <FormField label="Тип знижки">
             <select
               value={values.discountType}
               onChange={(event) =>
@@ -220,12 +215,11 @@ export default function PromotionForm({
                 </option>
               ))}
             </select>
-          </label>
-        </div>
+          </FormField>
+        </FormGrid>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Значення знижки</span>
+        <FormGrid columns={3}>
+          <FormField label="Значення знижки" helperText={<span className="text-xs">{currentDiscountHint}</span>}>
             <input
               required
               type="number"
@@ -236,11 +230,9 @@ export default function PromotionForm({
               onChange={(event) => setValues((current) => ({ ...current, discountValue: event.target.value }))}
               className="ui-surface-input"
             />
-            <p className="text-xs text-copy-muted">{currentDiscountHint}</p>
-          </label>
+          </FormField>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Мінімальна сума замовлення</span>
+          <FormField label="Мінімальна сума замовлення">
             <input
               type="number"
               min="0"
@@ -250,10 +242,9 @@ export default function PromotionForm({
               className="ui-surface-input"
               placeholder="Необов’язково"
             />
-          </label>
+          </FormField>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Максимальна сума знижки</span>
+          <FormField label="Максимальна сума знижки">
             <input
               type="number"
               min="0"
@@ -263,12 +254,11 @@ export default function PromotionForm({
               className="ui-surface-input"
               placeholder="Необов’язково"
             />
-          </label>
-        </div>
+          </FormField>
+        </FormGrid>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Ліміт використань</span>
+        <FormGrid>
+          <FormField label="Ліміт використань">
             <input
               type="number"
               min="1"
@@ -278,10 +268,9 @@ export default function PromotionForm({
               className="ui-surface-input"
               placeholder="Необов’язково"
             />
-          </label>
+          </FormField>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Ліміт використань на одного користувача</span>
+          <FormField label="Ліміт використань на одного користувача">
             <input
               type="number"
               min="1"
@@ -291,12 +280,11 @@ export default function PromotionForm({
               className="ui-surface-input"
               placeholder="Необов’язково"
             />
-          </label>
-        </div>
+          </FormField>
+        </FormGrid>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Початок дії</span>
+        <FormGrid>
+          <FormField label="Початок дії">
             <input
               required
               type="datetime-local"
@@ -304,18 +292,17 @@ export default function PromotionForm({
               onChange={(event) => setValues((current) => ({ ...current, startsAt: event.target.value }))}
               className="ui-surface-input"
             />
-          </label>
+          </FormField>
 
-          <label className="space-y-2">
-            <span className="block text-sm font-medium text-copy-strong">Завершення дії</span>
+          <FormField label="Завершення дії">
             <input
               type="datetime-local"
               value={values.endsAt}
               onChange={(event) => setValues((current) => ({ ...current, endsAt: event.target.value }))}
               className="ui-surface-input"
             />
-          </label>
-        </div>
+          </FormField>
+        </FormGrid>
 
         <label className="flex items-center gap-3 rounded-2xl border border-panelBorder bg-panel/60 px-4 py-3">
           <input
@@ -339,7 +326,7 @@ export default function PromotionForm({
         ) : null}
 
         <div className={`flex flex-col gap-3 ${mode === 'create' ? 'items-center' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
-          <div className={`flex flex-wrap gap-2 ${mode === 'create' ? 'justify-center max-[500px]:w-full' : ''}`}>
+          <FormActions className={`${mode === 'create' ? 'justify-center max-[500px]:w-full' : ''}`}>
             <button
               type="submit"
               disabled={isPending}
@@ -358,7 +345,7 @@ export default function PromotionForm({
                 {initialPromotion.isActive ? 'Вимкнути акцію' : 'Активувати акцію'}
               </button>
             ) : null}
-          </div>
+          </FormActions>
 
           {mode === 'edit' && initialPromotion ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -396,6 +383,6 @@ export default function PromotionForm({
           ) : null}
         </div>
       </form>
-    </DashboardCard>
+    </FormCard>
   )
 }
