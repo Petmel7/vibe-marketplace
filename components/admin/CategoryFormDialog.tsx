@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useId, useMemo, useState } from 'react'
 import {
   DialogBody,
@@ -8,6 +7,13 @@ import {
   DialogHeader,
   DialogShell,
 } from '@/components/ui/dialog'
+import {
+  ImagePreview,
+  UploadActions,
+  UploadCard,
+  UploadDropzone,
+  UploadError,
+} from '@/components/ui/upload'
 import { flattenCategoryTree, type AdminCategoryTreeNode } from '@/types/categories'
 
 type CategoryFormState = {
@@ -66,7 +72,7 @@ function CategoryImageUploadCard({
   const isRemoving = action === 'remove'
 
   return (
-    <section className="space-y-3 rounded-3xl border border-panelBorder bg-panel/60 p-4">
+    <UploadCard>
       <div className="space-y-1">
         <label htmlFor={inputId} className="block text-sm font-medium text-copy-strong">
           Зображення категорії
@@ -79,43 +85,29 @@ function CategoryImageUploadCard({
             Зображення можна додати після створення категорії.
           </p>
         ) : null}
-        <input
+        <UploadDropzone
           id={inputId}
-          type="file"
           accept="image/png,image/jpeg,image/webp"
           disabled={disabled || !isEnabled}
-          aria-describedby={errorMessage ? `${descriptionId} ${errorId}` : descriptionId}
-          aria-invalid={Boolean(errorMessage)}
-          className="mt-3 block w-full rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary file:mr-4 file:rounded-full file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.currentTarget.value = ''
+          describedBy={errorMessage ? `${descriptionId} ${errorId}` : descriptionId}
+          invalid={Boolean(errorMessage)}
+          className="mt-3"
+          onFilesSelected={(files) => {
+            const file = files?.[0]
             if (file) {
               onUpload(file)
             }
           }}
         />
-        {errorMessage ? (
-          <p id={errorId} className="text-sm text-brand-danger" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
+        <UploadError id={errorId}>{errorMessage}</UploadError>
       </div>
 
-      <div className="relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-panelBorder bg-panelAlt">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={categoryName}
-            fill
-            unoptimized
-            sizes="(max-width: 768px) 100vw, 480px"
-            className="object-cover"
-          />
-        ) : (
-          <span className="px-4 text-center text-sm text-copy-muted">Зображення ще не завантажено</span>
-        )}
-      </div>
+      <ImagePreview
+        src={imageUrl}
+        alt={categoryName}
+        emptyLabel="Зображення ще не завантажено"
+        sizes="(max-width: 768px) 100vw, 480px"
+      />
 
       <div className="space-y-1">
         <p className="text-sm font-medium text-copy-strong">
@@ -126,7 +118,7 @@ function CategoryImageUploadCard({
         </p>
       </div>
 
-      <div className="flex justify-center">
+      <UploadActions compact>
         <button
           type="button"
           className="ui-secondary-button h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
@@ -135,8 +127,8 @@ function CategoryImageUploadCard({
         >
           {isRemoving ? 'Видаляємо…' : isUploading ? 'Завантажуємо…' : 'Видалити зображення'}
         </button>
-      </div>
-    </section>
+      </UploadActions>
+    </UploadCard>
   )
 }
 
