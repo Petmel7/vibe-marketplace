@@ -7,6 +7,16 @@ import SellerSection from '@/components/seller/SellerSection'
 import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import ShipmentStatusBadge from '@/components/shipping/ShipmentStatusBadge'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import type { SellerFulfillmentStatus } from '@/types/seller'
 import type { ShipmentStatus } from '@/types/shipping'
@@ -47,30 +57,31 @@ export default async function SellerOrdersPage() {
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Позиція</th>
-                <th className="px-5 py-3 font-medium">Доставка покупця</th>
-                <th className="px-5 py-3 font-medium">Хронологія</th>
-                <th className="px-5 py-3 font-medium">Відправлення</th>
-                <th className="px-5 py-3 font-medium">Дії</th>
+                <TableHeaderCell>Позиція</TableHeaderCell>
+                <TableHeaderCell>Доставка покупця</TableHeaderCell>
+                <TableHeaderCell>Хронологія</TableHeaderCell>
+                <TableHeaderCell>Відправлення</TableHeaderCell>
+                <TableHeaderCell>Дії</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.orderItems.map((item) => (
-                <tr key={item.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-copy-strong">{item.productNameSnapshot}</p>
-                    <p className="mt-1 text-copy-muted">{item.variantSnapshot || 'Базовий варіант'}</p>
+                <TableRow key={item.id}>
+                  <TableMetaCell
+                    title={item.productNameSnapshot}
+                    meta={item.variantSnapshot || 'Базовий варіант'}
+                  >
                     <p className="mt-1 text-copy-secondary">
                       {item.quantity} шт. · {formatPrice(item.unitPriceSnapshot)}
                     </p>
                     <div className="mt-3">
                       <FulfillmentStatusBadge status={item.fulfillmentStatus as SellerFulfillmentStatus} />
                     </div>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableMetaCell>
+                  <TableCell tone="secondary">
                     {item.shippingAddress ? (
                       <div className="space-y-1">
                         <p className="font-medium text-copy-primary">{item.shippingAddress.fullName}</p>
@@ -86,13 +97,13 @@ export default async function SellerOrdersPage() {
                     ) : (
                       <p className="text-copy-muted">Дані про доставку недоступні</p>
                     )}
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableCell>
+                  <TableCell tone="secondary">
                     <p>Замовлення #{item.orderId.slice(0, 8)}</p>
                     <p className="mt-1">{new Date(item.orderCreatedAt).toLocaleDateString('uk-UA')}</p>
                     <p className="mt-1 capitalize">{item.orderStatus}</p>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableCell>
+                  <TableStatusCell>
                     {item.shipment ? (
                       <div className="space-y-2">
                         <ShipmentStatusBadge status={item.shipment.status as ShipmentStatus} />
@@ -112,19 +123,19 @@ export default async function SellerOrdersPage() {
                     ) : (
                       <p className="text-copy-muted">Дані про відправлення недоступні</p>
                     )}
-                  </td>
-                  <td className="px-5 py-4">
+                  </TableStatusCell>
+                  <TableActionCell>
                     <SellerOrderActions
                       itemId={item.id}
                       orderStatus={item.orderStatus}
                       fulfillmentStatus={item.fulfillmentStatus as SellerFulfillmentStatus}
                       disabled={isReadOnly}
                     />
-                  </td>
-                </tr>
+                  </TableActionCell>
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </SellerTable>
 

@@ -5,8 +5,17 @@ import ProductStatusBadge from '@/components/seller/ProductStatusBadge'
 import SellerSection from '@/components/seller/SellerSection'
 import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
+import {
+  DataTable,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMoneyCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { formatPrice } from '@/utils/formatters/price'
 import { getSellerProductsPageData, getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
 
 const FILTERS = [
@@ -87,40 +96,38 @@ export default async function SellerProductsPage({
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Товар</th>
-                <th className="px-5 py-3 font-medium">Ціна</th>
-                <th className="px-5 py-3 font-medium">Залишок</th>
-                <th className="px-5 py-3 font-medium">Статус</th>
-                <th className="px-5 py-3 font-medium">Оновлено</th>
+                <TableHeaderCell>Товар</TableHeaderCell>
+                <TableHeaderCell>Ціна</TableHeaderCell>
+                <TableHeaderCell>Залишок</TableHeaderCell>
+                <TableHeaderCell>Статус</TableHeaderCell>
+                <TableHeaderCell>Оновлено</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.products.map((product) => (
-                <tr key={product.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
+                <TableRow key={product.id}>
+                  <TableCell>
                     <Link href={`/seller/products/${product.id}`} className="font-semibold text-copy-strong hover:text-brand">
                       {product.name}
                     </Link>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">{formatPrice(product.price)}</td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableCell>
+                  <TableMoneyCell amount={product.price} />
+                  <TableCell tone="secondary">
                     <span className={product.totalStock <= 5 ? 'text-amber-200' : 'text-copy-secondary'}>
                       {product.totalStock} шт.
                     </span>
-                  </td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableStatusCell>
                     <ProductStatusBadge status={product.status} />
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
-                    {new Date(product.createdAt).toLocaleDateString('uk-UA')}
-                  </td>
-                </tr>
+                  </TableStatusCell>
+                  <TableDateCell value={product.createdAt} mode="date" />
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </SellerTable>
     </SellerSection>

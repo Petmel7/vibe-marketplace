@@ -1,6 +1,14 @@
 import MoneyAmount from './MoneyAmount'
 import PayoutStatusBadge from './PayoutStatusBadge'
 import PayoutActionDialog from './PayoutActionDialog'
+import {
+  DataTable,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from '@/components/ui/table'
 import { getPayoutMethodLabel, type AdminPayoutDetail } from '@/types/payouts'
 
 function canShowAction(currentStatus: AdminPayoutDetail['status'], nextStatus: AdminPayoutDetail['status']) {
@@ -103,24 +111,24 @@ export default function AdminPayoutDetailCard({ payout }: { payout: AdminPayoutD
           </p>
         </header>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Ledger entry</th>
-                <th className="px-5 py-3 font-medium">Amount</th>
-                <th className="px-5 py-3 font-medium">Created</th>
+                <TableHeaderCell>Ledger entry</TableHeaderCell>
+                <TableHeaderCell>Amount</TableHeaderCell>
+                <TableHeaderCell>Created</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {payout.items.map((item) => (
-                <tr key={item.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4 font-medium text-copy-strong">#{item.ledgerEntryId.slice(0, 8)}</td>
-                  <td className="px-5 py-4"><MoneyAmount amount={item.amount} currency={payout.currency} /></td>
-                  <td className="px-5 py-4 text-copy-secondary">{new Date(item.createdAt).toLocaleString('uk-UA')}</td>
-                </tr>
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium text-copy-strong">#{item.ledgerEntryId.slice(0, 8)}</TableCell>
+                  <TableCell><MoneyAmount amount={item.amount} currency={payout.currency} /></TableCell>
+                  <TableDateCell value={item.createdAt} />
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </section>
     </div>

@@ -7,6 +7,17 @@ import AdminSellerModerationActions from '@/components/admin/AdminSellerModerati
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import MetricGrid from '@/components/layout/MetricGrid'
 import PaginationControls from '@/components/admin/PaginationControls'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { ADMIN_SELLER_STATUS_FILTERS, getAdminSellerStatusTone } from '@/types/admin'
 import { getAdminSellersPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
@@ -89,30 +100,30 @@ export default async function AdminSellersPage({
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Продавець</th>
-                <th className="px-5 py-3 font-medium">Верифікація</th>
-                <th className="px-5 py-3 font-medium">Мережа магазинів</th>
-                <th className="px-5 py-3 font-medium">Створено</th>
-                <th className="px-5 py-3 font-medium">Дії</th>
+                <TableHeaderCell>Продавець</TableHeaderCell>
+                <TableHeaderCell>Верифікація</TableHeaderCell>
+                <TableHeaderCell>Мережа магазинів</TableHeaderCell>
+                <TableHeaderCell>Створено</TableHeaderCell>
+                <TableHeaderCell>Дії</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.items.map((seller) => (
-                <tr key={seller.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-copy-strong">{seller.businessName || 'Продавець без назви'}</p>
-                    <p className="mt-1 text-copy-muted">Користувач {seller.userId.slice(0, 8)}</p>
-                  </td>
-                  <td className="px-5 py-4">
+                <TableRow key={seller.id}>
+                  <TableMetaCell
+                    title={seller.businessName || 'Продавець без назви'}
+                    meta={`Користувач ${seller.userId.slice(0, 8)}`}
+                  />
+                  <TableStatusCell>
                     <AdminStatusBadge
                       label={SELLER_STATUS_LABELS[seller.verificationStatus] ?? seller.verificationStatus}
                       tone={getAdminSellerStatusTone(seller.verificationStatus)}
                     />
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableStatusCell>
+                  <TableCell tone="secondary">
                     <p>{seller.storeCount} підключених магазинів</p>
                     <p className="mt-1 text-copy-muted">
                       {seller.storeCount > 0 ? 'Мережу магазинів налаштовано' : 'Магазини ще не налаштовані'}
@@ -126,15 +137,15 @@ export default async function AdminSellersPage({
                         з публічного каталогу.
                       </p>
                     ) : null}
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">{new Date(seller.createdAt).toLocaleDateString('uk-UA')}</td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableDateCell value={seller.createdAt} mode="date" />
+                  <TableActionCell>
                     <AdminSellerModerationActions sellerId={seller.id} verificationStatus={seller.verificationStatus} />
-                  </td>
-                </tr>
+                  </TableActionCell>
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </AdminDataTable>
 

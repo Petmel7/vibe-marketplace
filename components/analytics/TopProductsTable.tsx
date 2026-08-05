@@ -2,8 +2,8 @@ import AdminDataTable from '@/components/admin/AdminDataTable'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
 import EmptyState from '@/components/profile/EmptyState'
 import SellerTable from '@/components/seller/SellerTable'
+import { DataTable, TableCell, TableHead, TableHeaderCell, TableMoneyCell, TableRow } from '@/components/ui/table'
 import type { AnalyticsTopProduct } from '@/types/analytics'
-import { formatPrice } from '@/utils/formatters/price'
 
 export default function TopProductsTable({
   items,
@@ -35,24 +35,24 @@ export default function TopProductsTable({
           )}
         </div>
       ) : (
-        <table className="min-w-full text-sm">
-          <thead className="bg-panel/60 text-left text-copy-muted">
+        <DataTable>
+          <TableHead>
             <tr>
-              <th className="px-5 py-3 font-medium">Товар</th>
-              <th className="px-5 py-3 font-medium">Продано одиниць</th>
-              <th className="px-5 py-3 font-medium">Виручка</th>
+              <TableHeaderCell>Товар</TableHeaderCell>
+              <TableHeaderCell>Продано одиниць</TableHeaderCell>
+              <TableHeaderCell>Виручка</TableHeaderCell>
             </tr>
-          </thead>
+          </TableHead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.productId} className="border-t border-panelBorder">
-                <td className="px-5 py-4 font-semibold text-copy-strong">{item.name}</td>
-                <td className="px-5 py-4 text-copy-secondary">{item.totalSold}</td>
-                <td className="px-5 py-4 text-copy-secondary">{formatPrice(item.revenue)}</td>
-              </tr>
+              <TableRow key={item.productId}>
+                <TableCell className="font-semibold text-copy-strong">{item.name}</TableCell>
+                <TableCell tone="secondary">{item.totalSold}</TableCell>
+                <TableMoneyCell amount={item.revenue} />
+              </TableRow>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </TableShell>
   )

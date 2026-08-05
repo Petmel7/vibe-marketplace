@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import AbuseReportStatusBadge from './AbuseReportStatusBadge'
 import ReportTargetPreview from './ReportTargetPreview'
+import { DataTable, TableActionCell, TableCell, TableDateCell, TableHead, TableHeaderCell, TableRow, TableStatusCell } from '@/components/ui/table'
 import type { ReportSummary } from '@/types/abuse-reports'
 
 function getReasonLabel(reason: ReportSummary['reason']) {
@@ -30,37 +31,35 @@ function getReasonLabel(reason: ReportSummary['reason']) {
 
 export default function AdminReportsTable({ reports }: { reports: ReportSummary[] }) {
   return (
-    <table className="min-w-full divide-y divide-panelBorder text-left text-sm">
-      <thead className="bg-panelAlt/70 text-copy-secondary">
+    <DataTable className="divide-y divide-panelBorder text-left">
+      <TableHead className="bg-panelAlt/70 text-copy-secondary">
         <tr>
-          <th className="px-5 py-3 font-medium">Target</th>
-          <th className="px-5 py-3 font-medium">Reason</th>
-          <th className="px-5 py-3 font-medium">Status</th>
-          <th className="px-5 py-3 font-medium">Created</th>
-          <th className="px-5 py-3 font-medium">Action</th>
+          <TableHeaderCell>Target</TableHeaderCell>
+          <TableHeaderCell>Reason</TableHeaderCell>
+          <TableHeaderCell>Status</TableHeaderCell>
+          <TableHeaderCell>Created</TableHeaderCell>
+          <TableHeaderCell>Action</TableHeaderCell>
         </tr>
-      </thead>
+      </TableHead>
       <tbody className="divide-y divide-panelBorder">
         {reports.map((report) => (
-          <tr key={report.id} className="align-top">
-            <td className="px-5 py-4">
+          <TableRow key={report.id} className="border-t-0">
+            <TableCell>
               <ReportTargetPreview preview={report.targetPreview} />
-            </td>
-            <td className="px-5 py-4 text-copy-primary">{getReasonLabel(report.reason)}</td>
-            <td className="px-5 py-4">
+            </TableCell>
+            <TableCell tone="primary">{getReasonLabel(report.reason)}</TableCell>
+            <TableStatusCell>
               <AbuseReportStatusBadge status={report.status} />
-            </td>
-            <td className="px-5 py-4 text-copy-secondary">
-              {new Date(report.createdAt).toLocaleDateString('uk-UA')}
-            </td>
-            <td className="px-5 py-4">
+            </TableStatusCell>
+            <TableDateCell value={report.createdAt} mode="date" />
+            <TableActionCell>
               <Link href={`/admin/reports/${report.id}`} className="ui-secondary-button">
                 Open
               </Link>
-            </td>
-          </tr>
+            </TableActionCell>
+          </TableRow>
         ))}
       </tbody>
-    </table>
+    </DataTable>
   )
 }

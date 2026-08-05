@@ -1,38 +1,52 @@
 import CreatePayoutDialog from './CreatePayoutDialog'
 import MoneyAmount from './MoneyAmount'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+} from '@/components/ui/table'
 import type { SellerBalance } from '@/types/payouts'
 
 export default function AdminSellerBalancesTable({ items }: { items: SellerBalance[] }) {
   return (
-    <table className="min-w-full text-sm">
-      <thead className="bg-panel/60 text-left text-copy-muted">
+    <DataTable>
+      <TableHead>
         <tr>
-          <th className="px-5 py-3 font-medium">Продавець / магазин</th>
-          <th className="px-5 py-3 font-medium">В очікуванні</th>
-          <th className="px-5 py-3 font-medium">Доступно</th>
-          <th className="px-5 py-3 font-medium">Виплачено</th>
-          <th className="px-5 py-3 font-medium">Оновлено</th>
-          <th className="px-5 py-3 font-medium">Дія</th>
+          <TableHeaderCell>Продавець / магазин</TableHeaderCell>
+          <TableHeaderCell>В очікуванні</TableHeaderCell>
+          <TableHeaderCell>Доступно</TableHeaderCell>
+          <TableHeaderCell>Виплачено</TableHeaderCell>
+          <TableHeaderCell>Оновлено</TableHeaderCell>
+          <TableHeaderCell>Дія</TableHeaderCell>
         </tr>
-      </thead>
+      </TableHead>
       <tbody>
         {items.map((item) => (
-          <tr key={item.storeId} className="border-t border-panelBorder align-top">
-            <td className="px-5 py-4">
-              <p className="font-semibold text-copy-strong">{item.storeName}</p>
-              <p className="mt-1 text-copy-muted">{item.sellerName ?? item.sellerEmail}</p>
-              <p className="text-copy-muted">{item.sellerEmail}</p>
-            </td>
-            <td className="px-5 py-4"><MoneyAmount amount={item.pendingAmount} currency={item.currency} /></td>
-            <td className="px-5 py-4"><MoneyAmount amount={item.availableAmount} currency={item.currency} emphasize /></td>
-            <td className="px-5 py-4"><MoneyAmount amount={item.paidOutAmount} currency={item.currency} /></td>
-            <td className="px-5 py-4 text-copy-secondary">{new Date(item.updatedAt).toLocaleString('uk-UA')}</td>
-            <td className="px-5 py-4">
+          <TableRow key={item.storeId}>
+            <TableMetaCell
+              title={item.storeName}
+              meta={(
+                <>
+                  <p>{item.sellerName ?? item.sellerEmail}</p>
+                  <p>{item.sellerEmail}</p>
+                </>
+              )}
+            />
+            <TableCell><MoneyAmount amount={item.pendingAmount} currency={item.currency} /></TableCell>
+            <TableCell><MoneyAmount amount={item.availableAmount} currency={item.currency} emphasize /></TableCell>
+            <TableCell><MoneyAmount amount={item.paidOutAmount} currency={item.currency} /></TableCell>
+            <TableDateCell value={item.updatedAt} />
+            <TableActionCell>
               <CreatePayoutDialog balance={item} />
-            </td>
-          </tr>
+            </TableActionCell>
+          </TableRow>
         ))}
       </tbody>
-    </table>
+    </DataTable>
   )
 }

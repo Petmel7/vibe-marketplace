@@ -5,6 +5,15 @@ import SellerFinanceSummaryCards from '@/components/finance/SellerFinanceSummary
 import SellerSection from '@/components/seller/SellerSection'
 import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
+import {
+  DataTable,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getSellerFinanceSummaryPageData } from '@/app/(protected)/seller/_lib/seller-finance.data'
 import { getSellerWorkspaceRedirect } from '@/app/(protected)/seller/_lib/seller-dashboard.data'
@@ -60,31 +69,28 @@ export default async function SellerFinancePage({
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Магазин</th>
-                <th className="px-5 py-3 font-medium">В очікуванні</th>
-                <th className="px-5 py-3 font-medium">Доступно</th>
-                <th className="px-5 py-3 font-medium">Виплачено</th>
-                <th className="px-5 py-3 font-medium">Оновлено</th>
+                <TableHeaderCell>Магазин</TableHeaderCell>
+                <TableHeaderCell>В очікуванні</TableHeaderCell>
+                <TableHeaderCell>Доступно</TableHeaderCell>
+                <TableHeaderCell>Виплачено</TableHeaderCell>
+                <TableHeaderCell>Оновлено</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.summary.stores.map((store) => (
-                <tr key={store.storeId} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-copy-strong">{store.storeName}</p>
-                    <p className="mt-1 text-copy-muted">{store.storeId}</p>
-                  </td>
-                  <td className="px-5 py-4"><MoneyAmount amount={store.pendingAmount} currency={store.currency} /></td>
-                  <td className="px-5 py-4"><MoneyAmount amount={store.availableAmount} currency={store.currency} emphasize /></td>
-                  <td className="px-5 py-4"><MoneyAmount amount={store.paidOutAmount} currency={store.currency} /></td>
-                  <td className="px-5 py-4 text-copy-secondary">{new Date(store.updatedAt).toLocaleString('uk-UA')}</td>
-                </tr>
+                <TableRow key={store.storeId}>
+                  <TableMetaCell title={store.storeName} meta={store.storeId} />
+                  <TableCell><MoneyAmount amount={store.pendingAmount} currency={store.currency} /></TableCell>
+                  <TableCell><MoneyAmount amount={store.availableAmount} currency={store.currency} emphasize /></TableCell>
+                  <TableCell><MoneyAmount amount={store.paidOutAmount} currency={store.currency} /></TableCell>
+                  <TableDateCell value={store.updatedAt} />
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </SellerTable>
 

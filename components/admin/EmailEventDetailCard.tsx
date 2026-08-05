@@ -2,6 +2,15 @@ import EmailRetryButton from '@/components/admin/EmailRetryButton'
 import EmailStatusBadge from '@/components/admin/EmailStatusBadge'
 import SectionStack from '@/components/layout/SectionStack'
 import Panel from '@/components/ui/panel/Panel'
+import {
+  DataTable,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import type { AdminEmailEventDetail } from '@/types/admin-emails'
 
 function formatDateTime(value: string | null) {
@@ -116,43 +125,41 @@ export default function EmailEventDetailCard({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-panel/60 text-left text-copy-muted">
+            <DataTable>
+              <TableHead>
                 <tr>
-                  <th className="px-5 py-3 font-medium">Провайдер</th>
-                  <th className="px-5 py-3 font-medium">Статус</th>
-                  <th className="px-5 py-3 font-medium">Тема</th>
-                  <th className="px-5 py-3 font-medium">Надіслано</th>
-                  <th className="px-5 py-3 font-medium">Доставлено</th>
-                  <th className="px-5 py-3 font-medium">Остання активність</th>
-                  <th className="px-5 py-3 font-medium">Помилка</th>
+                  <TableHeaderCell>Провайдер</TableHeaderCell>
+                  <TableHeaderCell>Статус</TableHeaderCell>
+                  <TableHeaderCell>Тема</TableHeaderCell>
+                  <TableHeaderCell>Надіслано</TableHeaderCell>
+                  <TableHeaderCell>Доставлено</TableHeaderCell>
+                  <TableHeaderCell>Остання активність</TableHeaderCell>
+                  <TableHeaderCell>Помилка</TableHeaderCell>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody>
                 {event.logs.map((log) => (
-                  <tr key={log.id} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4 text-copy-secondary">
+                  <TableRow key={log.id}>
+                    <TableCell tone="secondary">
                       <p>{log.provider}</p>
                       {log.providerMessageId ? (
                         <p className="mt-1 break-all text-xs text-copy-muted">{log.providerMessageId}</p>
                       ) : null}
-                    </td>
-                    <td className="px-5 py-4">
+                    </TableCell>
+                    <TableStatusCell>
                       <EmailStatusBadge status={log.status} kind="delivery" />
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">{log.subject}</td>
-                    <td className="px-5 py-4 text-copy-secondary">{formatDateTime(log.sentAt)}</td>
-                    <td className="px-5 py-4 text-copy-secondary">{formatDateTime(log.deliveredAt)}</td>
-                    <td className="px-5 py-4 text-copy-secondary">
-                      {formatDateTime(log.bouncedAt ?? log.updatedAt)}
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">
+                    </TableStatusCell>
+                    <TableCell tone="secondary">{log.subject}</TableCell>
+                    <TableDateCell value={log.sentAt} />
+                    <TableDateCell value={log.deliveredAt} />
+                    <TableDateCell value={log.bouncedAt ?? log.updatedAt} />
+                    <TableCell tone="secondary">
                       {formatDiagnosticError(log.errorMessage)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         )}
       </section>

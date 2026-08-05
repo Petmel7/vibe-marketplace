@@ -1,58 +1,52 @@
 import JobActionDialog from '@/components/operations/JobActionDialog'
 import JobStatusBadge from '@/components/operations/JobStatusBadge'
+import { DataTable, TableActionCell, TableCell, TableDateCell, TableHead, TableHeaderCell, TableMetaCell, TableRow, TableStatusCell } from '@/components/ui/table'
 import { getOperationJobTypeLabel, type AdminOperationsJob } from '@/types/operations'
-
-function formatDateTime(value: string | null) {
-  return value ? new Date(value).toLocaleString('uk-UA') : '—'
-}
 
 export default function JobsTable({ items }: { items: AdminOperationsJob[] }) {
   return (
-    <table className="min-w-full text-sm">
-      <thead className="bg-panel/60 text-left text-copy-muted">
+    <DataTable>
+      <TableHead>
         <tr>
-          <th className="px-5 py-3 font-medium">Задача</th>
-          <th className="px-5 py-3 font-medium">Статус</th>
-          <th className="px-5 py-3 font-medium">Спроби</th>
-          <th className="px-5 py-3 font-medium">Запуск</th>
-          <th className="px-5 py-3 font-medium">Оброблено</th>
-          <th className="px-5 py-3 font-medium">Помилка</th>
-          <th className="px-5 py-3 font-medium">Помилка</th>
-          <th className="px-5 py-3 font-medium">Дії</th>
+          <TableHeaderCell>Задача</TableHeaderCell>
+          <TableHeaderCell>Статус</TableHeaderCell>
+          <TableHeaderCell>Спроби</TableHeaderCell>
+          <TableHeaderCell>Запуск</TableHeaderCell>
+          <TableHeaderCell>Оброблено</TableHeaderCell>
+          <TableHeaderCell>Помилка</TableHeaderCell>
+          <TableHeaderCell>Помилка</TableHeaderCell>
+          <TableHeaderCell>Дії</TableHeaderCell>
         </tr>
-      </thead>
+      </TableHead>
       <tbody>
         {items.map((job) => (
-          <tr key={job.id} className="border-t border-panelBorder align-top">
-            <td className="px-5 py-4">
-              <p className="font-semibold text-copy-strong">{getOperationJobTypeLabel(job.type)}</p>
-              <p className="mt-1 break-all text-xs text-copy-muted">{job.dedupeKey ?? 'Без ключа дедуплікації'}</p>
-            </td>
-            <td className="px-5 py-4">
+          <TableRow key={job.id}>
+            <TableMetaCell title={getOperationJobTypeLabel(job.type)} meta={<span className="break-all">{job.dedupeKey ?? 'Без ключа дедуплікації'}</span>} />
+            <TableStatusCell>
               <JobStatusBadge status={job.status} />
-            </td>
-            <td className="px-5 py-4 text-copy-secondary">
+            </TableStatusCell>
+            <TableCell tone="secondary">
               {job.attempts} / {job.maxAttempts}
-              <p className="mt-1 text-xs text-copy-muted">Заблоковано: {formatDateTime(job.lockedAt)}</p>
-            </td>
-            <td className="px-5 py-4 text-copy-secondary">
-              {formatDateTime(job.runAt)}
-              <p className="mt-1 text-xs text-copy-muted">Створено: {formatDateTime(job.createdAt)}</p>
-            </td>
-            <td className="px-5 py-4 text-copy-secondary">{formatDateTime(job.processedAt)}</td>
-            <td className="px-5 py-4 text-copy-secondary">{formatDateTime(job.failedAt)}</td>
-            <td className="px-5 py-4 text-copy-secondary">
+              <p className="mt-1 text-xs text-copy-muted">
+                Заблоковано: {job.lockedAt ? new Date(job.lockedAt).toLocaleString('uk-UA') : '—'}
+              </p>
+            </TableCell>
+            <TableCell tone="secondary">
+              {job.runAt ? new Date(job.runAt).toLocaleString('uk-UA') : '—'}
+              <p className="mt-1 text-xs text-copy-muted">Створено: {new Date(job.createdAt).toLocaleString('uk-UA')}</p>
+            </TableCell>
+            <TableDateCell value={job.processedAt} />
+            <TableDateCell value={job.failedAt} />
+            <TableCell tone="secondary">
               <span className="line-clamp-3">{job.errorMessage ?? '—'}</span>
-            </td>
-            <td className="px-5 py-4">
-              <div className="flex flex-wrap gap-2">
-                {job.status === 'FAILED' ? <JobActionDialog jobId={job.id} action="retry" /> : null}
-                {job.status === 'PENDING' ? <JobActionDialog jobId={job.id} action="cancel" /> : null}
-              </div>
-            </td>
-          </tr>
+            </TableCell>
+            <TableActionCell>
+              {job.status === 'FAILED' ? <JobActionDialog jobId={job.id} action="retry" /> : null}
+              {job.status === 'PENDING' ? <JobActionDialog jobId={job.id} action="cancel" /> : null}
+            </TableActionCell>
+          </TableRow>
         ))}
       </tbody>
-    </table>
+    </DataTable>
   )
 }

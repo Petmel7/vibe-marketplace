@@ -6,6 +6,16 @@ import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import PaginationControls from '@/components/admin/PaginationControls'
 import SearchInput from '@/components/admin/SearchInput'
 import StatusFilter from '@/components/admin/StatusFilter'
+import {
+  DataTable,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { ADMIN_USER_ROLE_FILTERS, getAdminRoleTone } from '@/types/admin'
 import { getAdminUsersPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
@@ -71,15 +81,15 @@ export default async function AdminUsersPage({
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Користувач</th>
-                <th className="px-5 py-3 font-medium">Ролі</th>
-                <th className="px-5 py-3 font-medium">Стан онбордингу</th>
-                <th className="px-5 py-3 font-medium">Створено</th>
+                <TableHeaderCell>Користувач</TableHeaderCell>
+                <TableHeaderCell>Ролі</TableHeaderCell>
+                <TableHeaderCell>Стан онбордингу</TableHeaderCell>
+                <TableHeaderCell>Створено</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.items.map((item) => {
                 const onboardingState = item.roles.includes('SELLER')
@@ -89,25 +99,22 @@ export default async function AdminUsersPage({
                     : 'Роль очікує'
 
                 return (
-                  <tr key={item.id} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{item.profileName || item.email}</p>
-                      <p className="mt-1 text-copy-muted">{item.email}</p>
-                    </td>
-                    <td className="px-5 py-4">
+                  <TableRow key={item.id}>
+                    <TableMetaCell title={item.profileName || item.email} meta={item.email} />
+                    <TableStatusCell>
                       <div className="flex flex-wrap gap-2">
                         {item.roles.map((role) => (
                           <AdminStatusBadge key={role} label={ROLE_LABELS[role] ?? role} tone={getAdminRoleTone(role)} />
                         ))}
                       </div>
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">{onboardingState}</td>
-                    <td className="px-5 py-4 text-copy-secondary">{new Date(item.createdAt).toLocaleDateString('uk-UA')}</td>
-                  </tr>
+                    </TableStatusCell>
+                    <TableCell tone="secondary">{onboardingState}</TableCell>
+                    <TableDateCell value={item.createdAt} mode="date" />
+                  </TableRow>
                 )
               })}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </AdminDataTable>
 

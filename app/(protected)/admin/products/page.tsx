@@ -7,8 +7,18 @@ import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import PaginationControls from '@/components/admin/PaginationControls'
 import SearchInput from '@/components/admin/SearchInput'
 import StatusFilter from '@/components/admin/StatusFilter'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableMoneyCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { formatPrice } from '@/utils/formatters/price'
 import { ADMIN_PRODUCT_STATUS_FILTERS, getAdminProductStatusTone } from '@/types/admin'
 import { getAdminProductsPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
 
@@ -70,33 +80,30 @@ export default async function AdminProductsPage({
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Товар</th>
-                <th className="px-5 py-3 font-medium">Магазин</th>
-                <th className="px-5 py-3 font-medium">Ціна</th>
-                <th className="px-5 py-3 font-medium">Статус</th>
-                <th className="px-5 py-3 font-medium">Модерація</th>
-                <th className="px-5 py-3 font-medium">Дії</th>
+                <TableHeaderCell>Товар</TableHeaderCell>
+                <TableHeaderCell>Магазин</TableHeaderCell>
+                <TableHeaderCell>Ціна</TableHeaderCell>
+                <TableHeaderCell>Статус</TableHeaderCell>
+                <TableHeaderCell>Модерація</TableHeaderCell>
+                <TableHeaderCell>Дії</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.items.map((product) => (
-                <tr key={product.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-copy-strong">{product.name}</p>
-                    <p className="mt-1 text-copy-muted">{new Date(product.createdAt).toLocaleDateString('uk-UA')}</p>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
-                  <td className="px-5 py-4 text-copy-secondary">{formatPrice(product.price)}</td>
-                  <td className="px-5 py-4">
+                <TableRow key={product.id}>
+                  <TableMetaCell title={product.name} meta={new Date(product.createdAt).toLocaleDateString('uk-UA')} />
+                  <TableCell tone="secondary">{product.storeName}</TableCell>
+                  <TableMoneyCell amount={product.price} />
+                  <TableStatusCell>
                     <AdminStatusBadge
                       label={PRODUCT_STATUS_LABELS[product.status] ?? product.status}
                       tone={getAdminProductStatusTone(product.status)}
                     />
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableStatusCell>
+                  <TableCell tone="secondary">
                     {product.moderationReason ? (
                       <>
                         <p>{product.moderationReason}</p>
@@ -107,14 +114,14 @@ export default async function AdminProductsPage({
                     ) : (
                       <p className="text-copy-muted">Немає примітки модерації</p>
                     )}
-                  </td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableActionCell>
                     <AdminProductModerationActions productId={product.id} status={product.status} />
-                  </td>
-                </tr>
+                  </TableActionCell>
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </AdminDataTable>
 

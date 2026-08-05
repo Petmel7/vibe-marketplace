@@ -8,6 +8,15 @@ import SellerSection from '@/components/seller/SellerSection'
 import SellerTable from '@/components/seller/SellerTable'
 import SellerVerificationNotice from '@/components/seller/SellerVerificationNotice'
 import ShipmentStatusBadge from '@/components/shipping/ShipmentStatusBadge'
+import {
+  DataTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import type { SellerFulfillmentStatus } from '@/types/seller'
 import type { ShipmentStatus } from '@/types/shipping'
@@ -85,26 +94,27 @@ export default async function SellerOverviewPage() {
               />
             </div>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-panel/60 text-left text-copy-muted">
+            <DataTable>
+              <TableHead>
                 <tr>
-                  <th className="px-5 py-3 font-medium">Товар</th>
-                  <th className="px-5 py-3 font-medium">Доставка покупця</th>
-                  <th className="px-5 py-3 font-medium">Відправлення</th>
-                  <th className="px-5 py-3 font-medium">Виконання</th>
+                  <TableHeaderCell>Товар</TableHeaderCell>
+                  <TableHeaderCell>Доставка покупця</TableHeaderCell>
+                  <TableHeaderCell>Відправлення</TableHeaderCell>
+                  <TableHeaderCell>Виконання</TableHeaderCell>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody>
                 {data.orderItems.map((item) => (
-                  <tr key={item.id} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{item.productNameSnapshot}</p>
-                      <p className="mt-1 text-copy-muted">{item.variantSnapshot || 'Базовий варіант'}</p>
+                  <TableRow key={item.id}>
+                    <TableMetaCell
+                      title={item.productNameSnapshot}
+                      meta={item.variantSnapshot || 'Базовий варіант'}
+                    >
                       <p className="mt-1 text-copy-secondary">
                         {item.quantity} шт. · {formatPrice(item.unitPriceSnapshot)}
                       </p>
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">
+                    </TableMetaCell>
+                    <TableCell tone="secondary">
                       {item.shippingAddress ? (
                         <>
                           <p className="font-medium text-copy-primary">{item.shippingAddress.fullName}</p>
@@ -115,8 +125,8 @@ export default async function SellerOverviewPage() {
                       ) : (
                         <p className="text-copy-muted">Адреса недоступна</p>
                       )}
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">
+                    </TableCell>
+                    <TableStatusCell>
                       {item.shipment ? (
                         <div className="space-y-2">
                           <ShipmentStatusBadge status={item.shipment.status as ShipmentStatus} />
@@ -130,14 +140,14 @@ export default async function SellerOverviewPage() {
                       ) : (
                         <p className="text-copy-muted">Відправлення недоступне</p>
                       )}
-                    </td>
-                    <td className="px-5 py-4">
+                    </TableStatusCell>
+                    <TableStatusCell>
                       <FulfillmentStatusBadge status={item.fulfillmentStatus as SellerFulfillmentStatus} />
-                    </td>
-                  </tr>
+                    </TableStatusCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           )}
         </SellerTable>
 

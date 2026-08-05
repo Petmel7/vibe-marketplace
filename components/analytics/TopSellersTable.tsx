@@ -1,7 +1,7 @@
 import AdminDataTable from '@/components/admin/AdminDataTable'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
+import { DataTable, TableCell, TableHead, TableHeaderCell, TableMoneyCell, TableRow } from '@/components/ui/table'
 import type { AnalyticsTopSeller } from '@/types/analytics'
-import { formatPrice } from '@/utils/formatters/price'
 
 export default function TopSellersTable({
   items,
@@ -21,24 +21,24 @@ export default function TopSellersTable({
           />
         </div>
       ) : (
-        <table className="min-w-full text-sm">
-          <thead className="bg-panel/60 text-left text-copy-muted">
+        <DataTable>
+          <TableHead>
             <tr>
-              <th className="px-5 py-3 font-medium">Магазин</th>
-              <th className="px-5 py-3 font-medium">Виручка</th>
-              <th className="px-5 py-3 font-medium">Замовлення</th>
+              <TableHeaderCell>Магазин</TableHeaderCell>
+              <TableHeaderCell>Виручка</TableHeaderCell>
+              <TableHeaderCell>Замовлення</TableHeaderCell>
             </tr>
-          </thead>
+          </TableHead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.storeId} className="border-t border-panelBorder">
-                <td className="px-5 py-4 font-semibold text-copy-strong">{item.storeName}</td>
-                <td className="px-5 py-4 text-copy-secondary">{formatPrice(item.revenue)}</td>
-                <td className="px-5 py-4 text-copy-secondary">{item.orderCount}</td>
-              </tr>
+              <TableRow key={item.storeId}>
+                <TableCell className="font-semibold text-copy-strong">{item.storeName}</TableCell>
+                <TableMoneyCell amount={item.revenue} />
+                <TableCell tone="secondary">{item.orderCount}</TableCell>
+              </TableRow>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </AdminDataTable>
   )

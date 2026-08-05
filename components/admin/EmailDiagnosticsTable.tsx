@@ -6,6 +6,17 @@ import AdminDataTable from '@/components/admin/AdminDataTable'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
 import EmailRetryButton from '@/components/admin/EmailRetryButton'
 import EmailStatusBadge from '@/components/admin/EmailStatusBadge'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { formatEmailEventLabel, type AdminEmailEventDetail } from '@/types/admin-emails'
 
 function formatDateTime(value: string | null) {
@@ -74,43 +85,40 @@ export default function EmailDiagnosticsTable({
           />
         </div>
       ) : (
-        <table className="min-w-full text-sm">
-          <thead className="bg-panel/60 text-left text-copy-muted">
+        <DataTable>
+          <TableHead>
             <tr>
-              <th className="px-5 py-3 font-medium">Подія</th>
-              <th className="px-5 py-3 font-medium">Отримувач</th>
-              <th className="px-5 py-3 font-medium">Шаблон</th>
-              <th className="px-5 py-3 font-medium">Остання доставка</th>
-              <th className="px-5 py-3 font-medium">Спроби</th>
-              <th className="px-5 py-3 font-medium">Надіслано</th>
-              <th className="px-5 py-3 font-medium">Невдало</th>
-              <th className="px-5 py-3 font-medium">Помилка</th>
-              <th className="px-5 py-3 font-medium">Дії</th>
+              <TableHeaderCell>Подія</TableHeaderCell>
+              <TableHeaderCell>Отримувач</TableHeaderCell>
+              <TableHeaderCell>Шаблон</TableHeaderCell>
+              <TableHeaderCell>Остання доставка</TableHeaderCell>
+              <TableHeaderCell>Спроби</TableHeaderCell>
+              <TableHeaderCell>Надіслано</TableHeaderCell>
+              <TableHeaderCell>Невдало</TableHeaderCell>
+              <TableHeaderCell>Помилка</TableHeaderCell>
+              <TableHeaderCell>Дії</TableHeaderCell>
             </tr>
-          </thead>
+          </TableHead>
           <tbody>
             {filteredItems.map((item) => {
               const latestLog = item.logs[0] ?? null
 
               return (
-                <tr key={item.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-copy-strong">{formatEmailEventLabel(item.eventType)}</p>
-                    <p className="mt-1 text-copy-muted">{formatDateTime(item.createdAt)}</p>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                <TableRow key={item.id}>
+                  <TableMetaCell title={formatEmailEventLabel(item.eventType)} meta={formatDateTime(item.createdAt)} />
+                  <TableCell tone="secondary">
                     <p className="break-all">{item.recipientEmail}</p>
                     {item.recipientUserId ? (
                       <p className="mt-1 text-xs text-copy-muted">ID користувача: {item.recipientUserId}</p>
                     ) : null}
-                  </td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableStatusCell>
                     <p className="font-medium text-copy-strong">{formatEmailEventLabel(item.template)}</p>
                     <div className="mt-2">
                       <EmailStatusBadge status={item.status} />
                     </div>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableStatusCell>
+                  <TableCell tone="secondary">
                     {latestLog ? (
                       <div className="space-y-2">
                         <p>{formatProviderLabel(latestLog.provider)}</p>
@@ -119,20 +127,16 @@ export default function EmailDiagnosticsTable({
                     ) : (
                       <span className="text-copy-muted">Ще немає логу провайдера</span>
                     )}
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableCell>
+                  <TableCell tone="secondary">
                     {item.attempts} / {item.maxAttempts}
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
-                    {formatDateTime(latestLog?.sentAt ?? item.processedAt)}
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
-                    {formatDateTime(item.failedAt)}
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableCell>
+                  <TableDateCell value={latestLog?.sentAt ?? item.processedAt} />
+                  <TableDateCell value={item.failedAt} />
+                  <TableCell tone="secondary">
                     {truncateError(latestLog?.errorMessage ?? null)}
-                  </td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableActionCell>
                     <div className="flex flex-col gap-2">
                       <Link href={`/admin/emails/${item.id}`} className="ui-secondary-button text-center">
                         Переглянути подію
@@ -144,12 +148,12 @@ export default function EmailDiagnosticsTable({
                         maxAttempts={item.maxAttempts}
                       />
                     </div>
-                  </td>
-                </tr>
+                  </TableActionCell>
+                </TableRow>
               )
             })}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </AdminDataTable>
   )

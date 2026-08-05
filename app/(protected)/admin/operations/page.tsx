@@ -5,6 +5,14 @@ import AdminSection from '@/components/admin/AdminSection'
 import OperationsMetricCard from '@/components/operations/OperationsMetricCard'
 import OperationsShell from '@/components/operations/OperationsShell'
 import ProviderStatusBadge from '@/components/operations/ProviderStatusBadge'
+import {
+  DataTable,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from '@/components/ui/table'
 import { getAdminOperationsOverviewPageData } from '@/app/(protected)/admin/_lib/admin-operations.data'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { getAdminAuditActorLabel } from '@/types/operations'
@@ -115,36 +123,34 @@ async function renderAdminOperationsOverviewPage() {
                 />
               </div>
             ) : (
-              <table className="min-w-full text-sm">
-                <thead className="bg-panel/60 text-left text-copy-muted">
+              <DataTable>
+                <TableHead>
                   <tr>
-                    <th className="px-5 py-3 font-medium">Виконавець</th>
-                    <th className="px-5 py-3 font-medium">Дія</th>
-                    <th className="px-5 py-3 font-medium">Ресурс</th>
-                    <th className="px-5 py-3 font-medium">Час</th>
+                    <TableHeaderCell>Виконавець</TableHeaderCell>
+                    <TableHeaderCell>Дія</TableHeaderCell>
+                    <TableHeaderCell>Ресурс</TableHeaderCell>
+                    <TableHeaderCell>Час</TableHeaderCell>
                   </tr>
-                </thead>
+                </TableHead>
                 <tbody>
                   {data.recentAuditLogs.items.map((item) => (
-                    <tr key={item.id} className="border-t border-panelBorder align-top">
-                      <td className="px-5 py-4 text-copy-secondary">
+                    <TableRow key={item.id}>
+                      <TableCell tone="secondary">
                         {getAdminAuditActorLabel(item)}
-                      </td>
-                      <td className="px-5 py-4">
+                      </TableCell>
+                      <TableCell>
                         <p className="font-semibold text-copy-strong">{item.action}</p>
                         <p className="mt-1 text-xs text-copy-muted">{item.domain}</p>
-                      </td>
-                      <td className="px-5 py-4 text-copy-secondary">
-                        {item.resourceType}
+                      </TableCell>
+                      <TableCell tone="secondary">
+                        <p>{item.resourceType}</p>
                         <p className="mt-1 text-xs text-copy-muted">{item.resourceId ?? '—'}</p>
-                      </td>
-                      <td className="px-5 py-4 text-copy-secondary">
-                        {new Date(item.createdAt).toLocaleString('uk-UA')}
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableDateCell value={item.createdAt} />
+                    </TableRow>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             )}
           </AdminDataTable>
 

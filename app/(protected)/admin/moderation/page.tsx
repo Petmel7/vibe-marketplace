@@ -4,6 +4,17 @@ import AdminProductModerationActions from '@/components/admin/AdminProductModera
 import AdminSection from '@/components/admin/AdminSection'
 import AdminSellerModerationActions from '@/components/admin/AdminSellerModerationActions'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import {
   getAdminProductStatusLabel,
@@ -38,36 +49,36 @@ export default async function AdminModerationPage() {
               />
             </div>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-panel/60 text-left text-copy-muted">
+            <DataTable>
+              <TableHead>
                 <tr>
-                  <th className="px-5 py-3 font-medium">Продавець</th>
-                  <th className="px-5 py-3 font-medium">Створено</th>
-                  <th className="px-5 py-3 font-medium">Статус</th>
-                  <th className="px-5 py-3 font-medium">Дії</th>
+                  <TableHeaderCell>Продавець</TableHeaderCell>
+                  <TableHeaderCell>Створено</TableHeaderCell>
+                  <TableHeaderCell>Статус</TableHeaderCell>
+                  <TableHeaderCell>Дії</TableHeaderCell>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody>
                 {data.pendingSellerQueue.items.map((seller) => (
-                  <tr key={seller.id} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{seller.businessName || 'Заявка продавця без назви'}</p>
-                      <p className="mt-1 text-copy-muted">Користувач {seller.userId.slice(0, 8)}</p>
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">{new Date(seller.createdAt).toLocaleDateString('uk-UA')}</td>
-                    <td className="px-5 py-4">
+                  <TableRow key={seller.id}>
+                    <TableMetaCell
+                      title={seller.businessName || 'Заявка продавця без назви'}
+                      meta={`Користувач ${seller.userId.slice(0, 8)}`}
+                    />
+                    <TableDateCell value={seller.createdAt} mode="date" />
+                    <TableStatusCell>
                       <AdminStatusBadge
                         label={getAdminSellerStatusLabel(seller.verificationStatus)}
                         tone={getAdminSellerStatusTone(seller.verificationStatus)}
                       />
-                    </td>
-                    <td className="px-5 py-4">
+                    </TableStatusCell>
+                    <TableActionCell>
                       <AdminSellerModerationActions sellerId={seller.id} verificationStatus={seller.verificationStatus} />
-                    </td>
-                  </tr>
+                    </TableActionCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           )}
         </AdminDataTable>
 
@@ -83,36 +94,33 @@ export default async function AdminModerationPage() {
               />
             </div>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-panel/60 text-left text-copy-muted">
+            <DataTable>
+              <TableHead>
                 <tr>
-                  <th className="px-5 py-3 font-medium">Товар</th>
-                  <th className="px-5 py-3 font-medium">Магазин</th>
-                  <th className="px-5 py-3 font-medium">Статус</th>
-                  <th className="px-5 py-3 font-medium">Дії</th>
+                  <TableHeaderCell>Товар</TableHeaderCell>
+                  <TableHeaderCell>Магазин</TableHeaderCell>
+                  <TableHeaderCell>Статус</TableHeaderCell>
+                  <TableHeaderCell>Дії</TableHeaderCell>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody>
                 {data.pendingProductQueue.items.map((product) => (
-                  <tr key={product.id} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{product.name}</p>
-                      <p className="mt-1 text-copy-muted">{new Date(product.createdAt).toLocaleDateString('uk-UA')}</p>
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
-                    <td className="px-5 py-4">
+                  <TableRow key={product.id}>
+                    <TableMetaCell title={product.name} meta={new Date(product.createdAt).toLocaleDateString('uk-UA')} />
+                    <TableCell tone="secondary">{product.storeName}</TableCell>
+                    <TableStatusCell>
                       <AdminStatusBadge
                         label={getAdminProductStatusLabel(product.status)}
                         tone={getAdminProductStatusTone(product.status)}
                       />
-                    </td>
-                    <td className="px-5 py-4">
+                    </TableStatusCell>
+                    <TableActionCell>
                       <AdminProductModerationActions productId={product.id} status={product.status} />
-                    </td>
-                  </tr>
+                    </TableActionCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           )}
         </AdminDataTable>
 

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import RiskLevelBadge from '@/components/risk/RiskLevelBadge'
+import { DataTable, TableActionCell, TableCell, TableDateCell, TableHead, TableHeaderCell, TableMetaCell, TableRow, TableStatusCell } from '@/components/ui/table'
 import { formatRiskScore, type RiskEntityType, type RiskProfileListItem } from '@/types/risk'
 
 function getProfileName(item: RiskProfileListItem, entityType: RiskEntityType) {
@@ -31,38 +32,33 @@ export default function RiskProfileTable({
   entityType: RiskEntityType
 }) {
   return (
-    <table className="min-w-full text-sm">
-      <thead className="bg-panel/60 text-left text-copy-muted">
+    <DataTable>
+      <TableHead>
         <tr>
-          <th className="px-5 py-3 font-medium">{entityType === 'USER' ? 'Користувач' : 'Магазин'}</th>
-          <th className="px-5 py-3 font-medium">Рівень ризику</th>
-          <th className="px-5 py-3 font-medium">Оцінка ризику</th>
-          <th className="px-5 py-3 font-medium">Востаннє перераховано</th>
-          <th className="px-5 py-3 font-medium">Відкрити</th>
+          <TableHeaderCell>{entityType === 'USER' ? 'Користувач' : 'Магазин'}</TableHeaderCell>
+          <TableHeaderCell>Рівень ризику</TableHeaderCell>
+          <TableHeaderCell>Оцінка ризику</TableHeaderCell>
+          <TableHeaderCell>Востаннє перераховано</TableHeaderCell>
+          <TableHeaderCell>Відкрити</TableHeaderCell>
         </tr>
-      </thead>
+      </TableHead>
       <tbody>
         {items.map((item) => (
-          <tr key={item.id} className="border-t border-panelBorder align-top">
-            <td className="px-5 py-4">
-              <p className="font-semibold text-copy-strong">{getProfileName(item, entityType)}</p>
-              <p className="mt-1 text-copy-muted">{getProfileMeta(item, entityType)}</p>
-            </td>
-            <td className="px-5 py-4">
+          <TableRow key={item.id}>
+            <TableMetaCell title={getProfileName(item, entityType)} meta={getProfileMeta(item, entityType)} />
+            <TableStatusCell>
               <RiskLevelBadge level={item.level} />
-            </td>
-            <td className="px-5 py-4 text-copy-secondary">{formatRiskScore(item.score)}</td>
-            <td className="px-5 py-4 text-copy-secondary">
-              {item.lastCalculatedAt ? new Date(item.lastCalculatedAt).toLocaleString('uk-UA') : 'Ще не перераховано'}
-            </td>
-            <td className="px-5 py-4">
+            </TableStatusCell>
+            <TableCell tone="secondary">{formatRiskScore(item.score)}</TableCell>
+            <TableDateCell value={item.lastCalculatedAt} fallback="Ще не перераховано" />
+            <TableActionCell>
               <Link href={getProfileHref(item, entityType)} className="ui-link-muted">
                 Переглянути деталі
               </Link>
-            </td>
-          </tr>
+            </TableActionCell>
+          </TableRow>
         ))}
       </tbody>
-    </table>
+    </DataTable>
   )
 }

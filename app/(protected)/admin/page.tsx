@@ -8,6 +8,15 @@ import ModerationQueueCard from '@/components/admin/ModerationQueueCard'
 import MetricGrid from '@/components/layout/MetricGrid'
 import SectionStack from '@/components/layout/SectionStack'
 import TwoColumnLayout from '@/components/layout/TwoColumnLayout'
+import {
+  DataTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
 import { formatPrice } from '@/utils/formatters/price'
 import {
@@ -114,47 +123,44 @@ export default async function AdminOverviewPage() {
               />
             </div>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-panel/60 text-left text-copy-muted">
+            <DataTable>
+              <TableHead>
                 <tr>
-                  <th className="px-5 py-3 font-medium">Елемент черги</th>
-                  <th className="px-5 py-3 font-medium">Власник</th>
-                  <th className="px-5 py-3 font-medium">Стан</th>
+                  <TableHeaderCell>Елемент черги</TableHeaderCell>
+                  <TableHeaderCell>Власник</TableHeaderCell>
+                  <TableHeaderCell>Стан</TableHeaderCell>
                 </tr>
-              </thead>
+              </TableHead>
               <tbody>
                 {data.pendingSellerQueue.items.map((seller) => (
-                  <tr key={`seller-${seller.id}`} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{seller.businessName || 'Заявка продавця без назви'}</p>
-                      <p className="mt-1 text-copy-muted">Черга верифікації продавців</p>
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">{seller.userId.slice(0, 8)}</td>
-                    <td className="px-5 py-4">
+                  <TableRow key={`seller-${seller.id}`}>
+                    <TableMetaCell
+                      title={seller.businessName || 'Заявка продавця без назви'}
+                      meta="Черга верифікації продавців"
+                    />
+                    <TableCell tone="secondary">{seller.userId.slice(0, 8)}</TableCell>
+                    <TableStatusCell>
                       <AdminStatusBadge
                         label={getAdminSellerStatusLabel(seller.verificationStatus)}
                         tone={getAdminSellerStatusTone(seller.verificationStatus)}
                       />
-                    </td>
-                  </tr>
+                    </TableStatusCell>
+                  </TableRow>
                 ))}
                 {data.pendingProductQueue.items.map((product) => (
-                  <tr key={`product-${product.id}`} className="border-t border-panelBorder align-top">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-copy-strong">{product.name}</p>
-                      <p className="mt-1 text-copy-muted">Черга модерації товарів</p>
-                    </td>
-                    <td className="px-5 py-4 text-copy-secondary">{product.storeName}</td>
-                    <td className="px-5 py-4">
+                  <TableRow key={`product-${product.id}`}>
+                    <TableMetaCell title={product.name} meta="Черга модерації товарів" />
+                    <TableCell tone="secondary">{product.storeName}</TableCell>
+                    <TableStatusCell>
                       <AdminStatusBadge
                         label={getAdminProductStatusLabel(product.status)}
                         tone={getAdminProductStatusTone(product.status)}
                       />
-                    </td>
-                  </tr>
+                    </TableStatusCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           )}
         </AdminDataTable>
 

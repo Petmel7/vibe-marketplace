@@ -4,8 +4,17 @@ import AdminFilterBar from '@/components/admin/AdminFilterBar'
 import AdminSection from '@/components/admin/AdminSection'
 import AdminStatusBadge from '@/components/admin/AdminStatusBadge'
 import PaginationControls from '@/components/admin/PaginationControls'
+import {
+  DataTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableMoneyCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import { getCurrentUser } from '@/lib/session/getSession'
-import { formatPrice } from '@/utils/formatters/price'
 import { ADMIN_ORDER_STATUS_FILTERS, getAdminOrderStatusTone } from '@/types/admin'
 import { getAdminOrdersPageData } from '@/app/(protected)/admin/_lib/admin-dashboard.data'
 
@@ -78,43 +87,44 @@ export default async function AdminOrdersPage({
             />
           </div>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-panel/60 text-left text-copy-muted">
+          <DataTable>
+            <TableHead>
               <tr>
-                <th className="px-5 py-3 font-medium">Замовлення</th>
-                <th className="px-5 py-3 font-medium">Покупець</th>
-                <th className="px-5 py-3 font-medium">Мережа магазинів</th>
-                <th className="px-5 py-3 font-medium">Сума</th>
-                <th className="px-5 py-3 font-medium">Статус</th>
+                <TableHeaderCell>Замовлення</TableHeaderCell>
+                <TableHeaderCell>Покупець</TableHeaderCell>
+                <TableHeaderCell>Мережа магазинів</TableHeaderCell>
+                <TableHeaderCell>Сума</TableHeaderCell>
+                <TableHeaderCell>Статус</TableHeaderCell>
               </tr>
-            </thead>
+            </TableHead>
             <tbody>
               {data.items.map((order) => (
-                <tr key={order.id} className="border-t border-panelBorder align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-copy-strong">Замовлення #{order.id.slice(0, 8)}</p>
-                    <p className="mt-1 text-copy-muted">{new Date(order.createdAt).toLocaleDateString('uk-UA')}</p>
+                <TableRow key={order.id}>
+                  <TableMetaCell
+                    title={`Замовлення #${order.id.slice(0, 8)}`}
+                    meta={new Date(order.createdAt).toLocaleDateString('uk-UA')}
+                  >
                     <p className="mt-2 text-copy-secondary">{order.itemCount} товар(ів)</p>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableMetaCell>
+                  <TableCell tone="secondary">
                     <p>{order.buyerEmail}</p>
                     <p className="mt-1 text-copy-muted">Покупець {order.buyerId.slice(0, 8)}</p>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">
+                  </TableCell>
+                  <TableCell tone="secondary">
                     <p>{order.storeNames.join(', ')}</p>
                     <p className="mt-1 text-copy-muted">
                       {order.items.slice(0, 2).map((item) => item.productNameSnapshot).join(', ')}
                       {order.items.length > 2 ? '…' : ''}
                     </p>
-                  </td>
-                  <td className="px-5 py-4 text-copy-secondary">{formatPrice(order.totalAmount)}</td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableMoneyCell amount={order.totalAmount} />
+                  <TableStatusCell>
                     <AdminStatusBadge label={ORDER_STATUS_LABELS[order.status] ?? order.status} tone={getAdminOrderStatusTone(order.status)} />
-                  </td>
-                </tr>
+                  </TableStatusCell>
+                </TableRow>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </AdminDataTable>
 
