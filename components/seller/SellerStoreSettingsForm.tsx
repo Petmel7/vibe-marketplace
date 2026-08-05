@@ -1,9 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import ImageUploadField from '@/components/seller/ImageUploadField'
-import UploadProgress from '@/components/seller/UploadProgress'
+import {
+  ImagePreview,
+  UploadActions,
+  UploadCard,
+  UploadDropzone,
+  UploadError,
+  UploadProgress,
+} from '@/components/ui/upload'
 import { sellerOnboardingSchema } from '@/features/seller/seller.schema'
 import {
   createStoreSchema,
@@ -62,6 +68,111 @@ function createStoreState(store: {
     logoUrl: store?.logoUrl ?? '',
     bannerUrl: store?.bannerUrl ?? '',
   }
+}
+
+function useStablePreviewUrl(file: File | null) {
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
+
+  return previewUrl
+}
+
+function StoreAssetUploadField({
+  label,
+  description,
+  file,
+  imageUrl,
+  alt,
+  accept,
+  errorMessage,
+  statusLabel,
+  disabled = false,
+  onFileSelect,
+  onClear,
+}: {
+  label: string
+  description: string
+  file: File | null
+  imageUrl?: string | null
+  alt: string
+  accept: string
+  errorMessage?: string | null
+  statusLabel?: string
+  disabled?: boolean
+  onFileSelect: (file: File | null) => void
+  onClear?: () => void
+}) {
+  const inputId = useId()
+  const descriptionId = `${inputId}-description`
+  const errorId = `${inputId}-error`
+  const previewUrl = useStablePreviewUrl(file)
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <label htmlFor={inputId} className="block text-sm font-medium text-copy-strong">
+          {label}
+        </label>
+        <p id={descriptionId} className="text-sm text-copy-muted">
+          {description}
+        </p>
+        <UploadDropzone
+          id={inputId}
+          accept={accept}
+          disabled={disabled}
+          describedBy={errorMessage ? `${descriptionId} ${errorId}` : descriptionId}
+          invalid={Boolean(errorMessage)}
+          onFilesSelected={(files) => onFileSelect(files?.[0] ?? null)}
+        />
+        <UploadError id={errorId}>{errorMessage}</UploadError>
+      </div>
+
+      <UploadCard className="bg-panel">
+        <ImagePreview
+          src={previewUrl ?? imageUrl}
+          alt={alt}
+          emptyLabel="No image selected"
+          sizes="(max-width: 768px) 100vw, 320px"
+        />
+
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-medium text-copy-strong">{label}</p>
+            <p className="mt-1 text-sm text-copy-muted">
+              {file ? file.name : imageUrl ? 'Current uploaded asset' : 'Select an image to preview it here.'}
+            </p>
+          </div>
+          {statusLabel ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-panelBorder px-3 py-1 text-xs text-copy-secondary">
+                {statusLabel}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        {onClear ? (
+          <UploadActions compact className="!items-start">
+            <button
+              type="button"
+              className="ui-secondary-button h-10 px-4 py-2 text-sm"
+              disabled={disabled || (!file && !imageUrl)}
+              onClick={onClear}
+            >
+              Remove
+            </button>
+          </UploadActions>
+        ) : null}
+      </UploadCard>
+    </div>
+  )
 }
 
 export default function SellerStoreSettingsForm({
@@ -475,7 +586,7 @@ export default function SellerStoreSettingsForm({
           </label>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <ImageUploadField
+            <StoreAssetUploadField
               label="Логотип магазину"
               description="Необов’язковий квадратний бренд-актив. JPG, PNG, WEBP або SVG до 5MB."
               file={logoAsset.file}
@@ -486,7 +597,7 @@ export default function SellerStoreSettingsForm({
               onFileSelect={(file) => handleAssetSelection(file, 'logo')}
               onClear={() => setLogoAsset(createPendingAssetState())}
             />
-            <ImageUploadField
+            <StoreAssetUploadField
               label="Банер магазину"
               description="Необов’язкове широке зображення для вітрини. JPG, PNG, WEBP або SVG до 5MB."
               file={bannerAsset.file}
@@ -504,6 +615,7 @@ export default function SellerStoreSettingsForm({
             current={assetProgress.current}
             total={assetProgress.total}
             isActive={assetProgress.active}
+            variant="inline"
           />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -617,7 +729,7 @@ export default function SellerStoreSettingsForm({
           </label>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <ImageUploadField
+            <StoreAssetUploadField
               label="Логотип магазину"
               description="Замініть завантажений логотип магазину. JPG, PNG, WEBP або SVG до 5MB."
               file={logoAsset.file}
@@ -630,7 +742,7 @@ export default function SellerStoreSettingsForm({
               onFileSelect={(file) => handleAssetSelection(file, 'logo')}
               onClear={() => setLogoAsset(createPendingAssetState())}
             />
-            <ImageUploadField
+            <StoreAssetUploadField
               label="Банер магазину"
               description="Замініть завантажений банер магазину. JPG, PNG, WEBP або SVG до 5MB."
               file={bannerAsset.file}
@@ -650,6 +762,7 @@ export default function SellerStoreSettingsForm({
             current={assetProgress.current}
             total={assetProgress.total}
             isActive={assetProgress.active}
+            variant="inline"
           />
 
           <div className="flex w-full flex-col items-stretch justify-center gap-3 min-[501px]:items-center min-[501px]:max-[859px]:flex-col min-[860px]:flex-row min-[860px]:flex-wrap min-[860px]:justify-center">

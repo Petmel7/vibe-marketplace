@@ -2,8 +2,15 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import DashboardCard from '@/components/profile/DashboardCard'
+import {
+  ImagePreview,
+  UploadActions,
+  UploadCard,
+  UploadDropzone,
+  UploadError,
+} from '@/components/ui/upload'
 import { useAdminHeroBanners } from '@/hooks/useAdminHeroBanners'
 import type { HeroBannerImageSlot } from '@/features/media/media.dto'
 import {
@@ -297,43 +304,41 @@ function HeroBannerImageField({
   onUpload: (slot: HeroBannerImageSlot, file: File) => Promise<void>
   onRemove: (slot: HeroBannerImageSlot) => Promise<void>
 }) {
+  const inputId = useId()
+  const descriptionId = `${inputId}-description`
+  const errorId = `${inputId}-error`
+
   return (
-    <div className="space-y-3 rounded-3xl border border-panelBorder bg-panel/60 p-4">
+    <UploadCard>
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-copy-strong">
+        <label htmlFor={inputId} className="block text-sm font-medium text-copy-strong">
           {label}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            disabled={disabled}
-            className="mt-3 block w-full rounded-2xl border border-panelBorder bg-panel px-4 py-3 text-sm text-copy-secondary file:mr-4 file:rounded-full file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.currentTarget.value = ''
-              if (file) {
-                void onUpload(slot, file)
-              }
-            }}
-          />
         </label>
-        <p className="text-sm text-copy-muted">{description}</p>
-        <ErrorMessage message={errorMessage} />
+        <UploadDropzone
+          id={inputId}
+          accept="image/png,image/jpeg,image/webp"
+          disabled={disabled}
+          describedBy={errorMessage ? `${descriptionId} ${errorId}` : descriptionId}
+          invalid={Boolean(errorMessage)}
+          className="mt-3"
+          onFilesSelected={(files) => {
+            const file = files?.[0]
+            if (file) {
+              void onUpload(slot, file)
+            }
+          }}
+        />
+        <p id={descriptionId} className="text-sm text-copy-muted">{description}</p>
+        <UploadError id={errorId}>{errorMessage}</UploadError>
       </div>
-      <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-panelBorder bg-panelAlt">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={imageAlt || label}
-            fill
-            unoptimized
-            sizes="(max-width: 768px) 100vw, 360px"
-            className="object-cover"
-          />
-        ) : (
-          <span className="text-sm text-copy-muted">Зображення ще не завантажено</span>
-        )}
-      </div>
-      <div className="flex justify-center">
+      <ImagePreview
+        src={imageUrl}
+        alt={imageAlt || label}
+        emptyLabel="Зображення ще не завантажено"
+        sizes="(max-width: 768px) 100vw, 360px"
+        className="h-36 border-panelBorder"
+      />
+      <UploadActions compact>
         <button
           type="button"
           className="ui-secondary-button h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
@@ -342,8 +347,8 @@ function HeroBannerImageField({
         >
           Видалити зображення
         </button>
-      </div>
-    </div>
+      </UploadActions>
+    </UploadCard>
   )
 }
 
