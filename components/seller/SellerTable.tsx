@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { TableShell } from '@/components/ui/table'
 
 export default function SellerTable({
   title,
@@ -10,12 +11,8 @@ export default function SellerTable({
   children: ReactNode
 }) {
   return (
-    <section className="ui-elevated-panel overflow-hidden">
-      <header className="border-b border-panelBorder px-5 py-5 sm:px-6">
-        <h2 className="text-lg font-semibold text-copy-strong">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-copy-muted">{description}</p> : null}
-      </header>
-      <div className="overflow-x-auto">{children}</div>
-    </section>
+    <TableShell variant="seller" title={title} description={description}>
+      {children}
+    </TableShell>
   )
 }

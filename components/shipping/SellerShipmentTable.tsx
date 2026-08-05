@@ -4,6 +4,18 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import EmptyState from '@/components/profile/EmptyState'
 import ShipmentStatusBadge from '@/components/shipping/ShipmentStatusBadge'
+import {
+  DataTable,
+  TableActionCell,
+  TableCell,
+  TableDateCell,
+  TableEmptyState,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import type { SellerShipmentList } from '@/types/shipping'
 import { canCreateShipmentTtn, getShipmentDestinationLabel } from '@/types/shipping'
 import BulkCreateTtnDialog from './BulkCreateTtnDialog'
@@ -27,14 +39,14 @@ export default function SellerShipmentTable({
 
   if (shipments.items.length === 0) {
     return (
-      <div className="p-6">
+      <TableEmptyState>
         <EmptyState
           title="Відправлень поки що немає"
           description="Коли покупці оформлять замовлення з Nova Poshta, тут з’являться відправлення для створення ТТН."
           actionHref="/seller/orders"
           actionLabel="Перейти до замовлень"
         />
-      </div>
+      </TableEmptyState>
     )
   }
 
@@ -60,10 +72,10 @@ export default function SellerShipmentTable({
         </div>
       </div>
 
-      <table className="min-w-full text-sm">
-        <thead className="bg-panel/60 text-left text-copy-muted">
+      <DataTable>
+        <TableHead>
           <tr>
-            <th className="px-5 py-3 font-medium">
+            <TableHeaderCell>
               <input
                 type="checkbox"
                 aria-label="Вибрати всі відправлення, придатні для масового створення ТТН"
@@ -72,23 +84,23 @@ export default function SellerShipmentTable({
                   setSelectedShipmentIds(event.target.checked ? eligibleShipmentIds : [])
                 }}
               />
-            </th>
-            <th className="px-5 py-3 font-medium">Замовлення</th>
-            <th className="px-5 py-3 font-medium">Доставка</th>
-            <th className="px-5 py-3 font-medium">ТТН</th>
-            <th className="px-5 py-3 font-medium">Статус</th>
-            <th className="px-5 py-3 font-medium">Створено</th>
-            <th className="px-5 py-3 font-medium">Дії</th>
+            </TableHeaderCell>
+            <TableHeaderCell>Замовлення</TableHeaderCell>
+            <TableHeaderCell>Доставка</TableHeaderCell>
+            <TableHeaderCell>ТТН</TableHeaderCell>
+            <TableHeaderCell>Статус</TableHeaderCell>
+            <TableHeaderCell>Створено</TableHeaderCell>
+            <TableHeaderCell>Дії</TableHeaderCell>
           </tr>
-        </thead>
+        </TableHead>
         <tbody>
           {shipments.items.map((shipment) => {
             const isEligible = eligibleShipmentIds.includes(shipment.id)
             const isSelected = selectedShipmentIds.includes(shipment.id)
 
             return (
-              <tr key={shipment.id} className="border-t border-panelBorder align-top">
-                <td className="px-5 py-4">
+              <TableRow key={shipment.id}>
+                <TableCell>
                   <input
                     type="checkbox"
                     aria-label={`Вибрати відправлення ${shipment.id}`}
@@ -102,26 +114,27 @@ export default function SellerShipmentTable({
                       )
                     }}
                   />
-                </td>
-                <td className="px-5 py-4">
-                  <p className="font-semibold text-copy-strong">#{shipment.orderId.slice(0, 8)}</p>
-                  <p className="mt-1 text-copy-muted">{shipment.id.slice(0, 8)}</p>
+                </TableCell>
+                <TableMetaCell
+                  title={`#${shipment.orderId.slice(0, 8)}`}
+                  meta={shipment.id.slice(0, 8)}
+                >
                   {shipment.isReturnShipment ? (
                     <p className="mt-2 text-xs text-amber-200">Зворотне відправлення</p>
                   ) : null}
-                </td>
-                <td className="px-5 py-4 text-copy-secondary">
+                </TableMetaCell>
+                <TableCell tone="secondary">
                   <p className="font-medium text-copy-primary">{shipment.recipientCityName}</p>
                   <p className="mt-1">{getShipmentDestinationLabel(shipment)}</p>
-                </td>
-                <td className="px-5 py-4 text-copy-secondary">
+                </TableCell>
+                <TableCell tone="secondary">
                   {shipment.trackingNumber ? (
                     <span className="font-medium text-copy-primary">{shipment.trackingNumber}</span>
                   ) : (
                     <span className="text-copy-muted">Ще не створено</span>
                   )}
-                </td>
-                <td className="px-5 py-4">
+                </TableCell>
+                <TableStatusCell>
                   <div className="space-y-2">
                     <ShipmentStatusBadge status={shipment.status} />
                     {shipment.status === 'FAILED' || shipment.status === 'RETURNED' ? (
@@ -132,20 +145,18 @@ export default function SellerShipmentTable({
                       </p>
                     ) : null}
                   </div>
-                </td>
-                <td className="px-5 py-4 text-copy-secondary">
-                  {new Date(shipment.createdAt).toLocaleDateString('uk-UA')}
-                </td>
-                <td className="px-5 py-4">
+                </TableStatusCell>
+                <TableDateCell value={shipment.createdAt} mode="date" />
+                <TableActionCell>
                   <Link href={`/seller/shipments/${shipment.id}`} className="ui-link-muted">
                     Відкрити
                   </Link>
-                </td>
-              </tr>
+                </TableActionCell>
+              </TableRow>
             )
           })}
         </tbody>
-      </table>
+      </DataTable>
     </div>
   )
 }

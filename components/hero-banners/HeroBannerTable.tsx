@@ -1,6 +1,18 @@
 import Link from 'next/link'
 import HeroBannerActions from '@/components/hero-banners/HeroBannerActions'
 import HeroBannerStatusBadge from '@/components/hero-banners/HeroBannerStatusBadge'
+import {
+  DataTable,
+  ResponsiveTable,
+  TableActionCell,
+  TableCell,
+  TableDateCell,
+  TableHead,
+  TableHeaderCell,
+  TableMetaCell,
+  TableRow,
+  TableStatusCell,
+} from '@/components/ui/table'
 import type { HeroBanner } from '@/types/hero-banners'
 import { getHeroBannerDestinationTypeLabel } from '@/types/hero-banners'
 
@@ -77,81 +89,67 @@ function HeroBannerCard({
 
 export default function HeroBannerTable({ items }: { items: HeroBanner[] }) {
   return (
-    <>
-      <div className="hidden md:block">
-        <table className="min-w-full divide-y divide-panelBorder text-sm">
-          <thead className="bg-panel/60 text-xs uppercase tracking-[0.14em] text-copy-muted">
+    <ResponsiveTable
+      desktop={
+        <DataTable className="divide-y divide-panelBorder">
+          <TableHead className="text-xs uppercase tracking-[0.14em]">
             <tr>
-              <th scope="col" className="px-5 py-3 text-left font-medium">
-                Прев’ю
-              </th>
-              <th scope="col" className="px-5 py-3 text-left font-medium">
-                Назва
-              </th>
-              <th scope="col" className="px-5 py-3 text-left font-medium">
-                Статус
-              </th>
-              <th scope="col" className="px-5 py-3 text-left font-medium">
-                Період публікації
-              </th>
-              <th scope="col" className="px-5 py-3 text-left font-medium">
-                Порядок
-              </th>
-              <th scope="col" className="px-5 py-3 text-left font-medium">
-                Оновлено
-              </th>
-              <th scope="col" className="px-5 py-3 text-right font-medium">
-                Дії
-              </th>
+              <TableHeaderCell>Прев’ю</TableHeaderCell>
+              <TableHeaderCell>Назва</TableHeaderCell>
+              <TableHeaderCell>Статус</TableHeaderCell>
+              <TableHeaderCell>Період публікації</TableHeaderCell>
+              <TableHeaderCell>Порядок</TableHeaderCell>
+              <TableHeaderCell>Оновлено</TableHeaderCell>
+              <TableHeaderCell align="right">Дії</TableHeaderCell>
             </tr>
-          </thead>
+          </TableHead>
           <tbody className="divide-y divide-panelBorder">
             {items.map((banner, index) => (
-              <tr key={banner.id} className="align-top">
-                <td className="px-5 py-4">
+              <TableRow key={banner.id} className="border-t-0">
+                <TableCell>
                   <Preview banner={banner} />
-                </td>
-                <td className="px-5 py-4">
-                  <div className="max-w-xs space-y-1">
+                </TableCell>
+                <TableMetaCell
+                  title={(
                     <Link
                       href={`/admin/hero-banners/${banner.id}`}
                       className="font-semibold text-copy-strong hover:text-white"
                     >
                       {banner.title}
                     </Link>
-                    <p className="text-xs text-copy-muted">
-                      {getHeroBannerDestinationTypeLabel(banner.destination.type)}
-                    </p>
-                  </div>
-                </td>
-                <td className="px-5 py-4">
+                  )}
+                  meta={getHeroBannerDestinationTypeLabel(banner.destination.type)}
+                />
+                <TableStatusCell>
                   <HeroBannerStatusBadge status={banner.status} />
-                </td>
-                <td className="max-w-xs px-5 py-4 text-copy-secondary">{formatPublishPeriod(banner)}</td>
-                <td className="px-5 py-4 tabular-nums text-copy-secondary">{banner.sortOrder}</td>
-                <td className="px-5 py-4 text-copy-secondary">{formatDateTime(banner.updatedAt)}</td>
-                <td className="px-5 py-4">
+                </TableStatusCell>
+                <TableCell tone="secondary" className="max-w-xs">{formatPublishPeriod(banner)}</TableCell>
+                <TableCell tone="secondary" className="tabular-nums">{banner.sortOrder}</TableCell>
+                <TableDateCell value={banner.updatedAt} />
+                <TableActionCell align="right">
                   <HeroBannerActions
                     banner={banner}
                     previousBanner={items[index - 1] ?? null}
                     nextBanner={items[index + 1] ?? null}
                   />
-                </td>
-              </tr>
+                </TableActionCell>
+              </TableRow>
             ))}
           </tbody>
-        </table>
-      </div>
-      <div className="md:hidden">
-        {items.map((banner, index) => (
-          <HeroBannerCard
-            key={banner.id}
-            banner={banner}
-            previousBanner={items[index - 1] ?? null}
-            nextBanner={items[index + 1] ?? null}
-          />
-        ))}
-      </div>
-    </>
+        </DataTable>
+      }
+      mobile={
+        <>
+          {items.map((banner, index) => (
+            <HeroBannerCard
+              key={banner.id}
+              banner={banner}
+              previousBanner={items[index - 1] ?? null}
+              nextBanner={items[index + 1] ?? null}
+            />
+          ))}
+        </>
+      }
+    />
   )
 }
