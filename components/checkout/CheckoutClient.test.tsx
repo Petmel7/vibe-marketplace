@@ -347,7 +347,7 @@ describe('CheckoutClient', () => {
     })
 
     expect(container.textContent).toContain(
-      'Updating checkout total with the latest shipping estimate...',
+      'Оновлюємо підсумок замовлення з актуальною оцінкою доставки...',
     )
   })
 

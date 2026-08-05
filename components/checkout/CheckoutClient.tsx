@@ -1,54 +1,36 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useId, useRef, useState } from 'react'
 import ProtectedRouteState from '@/components/auth/ProtectedRouteState'
 import EmptyState from '@/components/profile/EmptyState'
-import DashboardCard from '@/components/profile/DashboardCard'
 import type { CreateAddressDto } from '@/features/address/address.dto'
 import { useCheckout } from '@/hooks/useCheckout'
 import AppliedCouponCard from './AppliedCouponCard'
 import CheckoutAddressSelector from './CheckoutAddressSelector'
 import CheckoutBlockingIssues from './CheckoutBlockingIssues'
+import CheckoutConfirmationCard from './CheckoutConfirmationCard'
 import CheckoutDeliverySection from './CheckoutDeliverySection'
 import CheckoutItemList from './CheckoutItemList'
-import CheckoutSubmitButton from './CheckoutSubmitButton'
 import CheckoutSummary from './CheckoutSummary'
 import CouponInput from './CouponInput'
+import { useCheckoutPrivacyConsent } from './hooks/useCheckoutPrivacyConsent'
 import LiqPayPaymentHandoff from './LiqPayPaymentHandoff'
 import PaymentMethodSelector from './PaymentMethodSelector'
-
-const CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY = 'checkout:privacy-consent:v1'
 
 export default function CheckoutClient({
   initialCartId,
 }: {
   initialCartId?: string
 }) {
-  const privacyConsentHintId = useId()
-  const privacyConsentErrorId = useId()
-  const privacyConsentRef = useRef<HTMLInputElement | null>(null)
-  const [acceptedPrivacy, setAcceptedPrivacy] = useState(() => {
-    if (typeof window === 'undefined') {
-      return false
-    }
-
-    return window.localStorage.getItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY) === 'true'
-  })
-  const [privacyConsentError, setPrivacyConsentError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    if (acceptedPrivacy) {
-      window.localStorage.setItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY, 'true')
-      return
-    }
-
-    window.localStorage.removeItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY)
-  }, [acceptedPrivacy])
+  const {
+    acceptedPrivacy,
+    privacyConsentError,
+    privacyConsentHintId,
+    privacyConsentErrorId,
+    privacyConsentRef,
+    handlePrivacyConsentChange,
+    requirePrivacyConsent,
+    resetPrivacyConsent,
+  } = useCheckoutPrivacyConsent()
 
   const {
     preview,
@@ -111,27 +93,15 @@ export default function CheckoutClient({
 
   const handleAddAddress = async (payload: CreateAddressDto) => addAddress(payload)
 
-  const handlePrivacyConsentChange = (checked: boolean) => {
-    setAcceptedPrivacy(checked)
-
-    if (checked) {
-      setPrivacyConsentError(null)
-    }
-  }
-
   const handleSubmitCheckout = async () => {
-    if (!acceptedPrivacy) {
-      setPrivacyConsentError('Підтвердіть згоду на обробку персональних даних.')
-      privacyConsentRef.current?.focus()
+    if (!requirePrivacyConsent()) {
       return
     }
 
-    setPrivacyConsentError(null)
     const result = await submitCheckout({ acceptedPrivacy: true })
 
-    if (result && typeof window !== 'undefined') {
-      window.localStorage.removeItem(CHECKOUT_PRIVACY_CONSENT_STORAGE_KEY)
-      setAcceptedPrivacy(false)
+    if (result) {
+      resetPrivacyConsent()
     }
   }
 
@@ -267,68 +237,21 @@ export default function CheckoutClient({
           />
         ) : null}
         <CheckoutSummary preview={preview} paymentMethod={selectedPaymentMethod} />
-        <DashboardCard
-          title="Підтвердження"
-          description="Перед оформленням замовлення підтвердіть згоду на обробку персональних даних."
-        >
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 text-sm text-copy-primary">
-              <input
-                ref={privacyConsentRef}
-                type="checkbox"
-                checked={acceptedPrivacy}
-                onChange={(event) => handlePrivacyConsentChange(event.target.checked)}
-                className="mt-1 h-4 w-4"
-                aria-invalid={privacyConsentError ? true : undefined}
-                aria-describedby={
-                  privacyConsentError ? privacyConsentErrorId : privacyConsentHintId
-                }
-              />
-              <span>
-                Я погоджуюся з умовами обробки{' '}
-                <Link href="/privacy" className="ui-link">
-                  персональних даних
-                </Link>
-                .
-              </span>
-            </label>
-
-            <p id={privacyConsentHintId} className="text-xs text-copy-muted">
-              Ми використовуємо ці дані лише для оформлення, оплати та доставки замовлення.
-            </p>
-
-            {privacyConsentError ? (
-              <p
-                id={privacyConsentErrorId}
-                className="text-sm text-brand-danger"
-                role="alert"
-              >
-                {privacyConsentError}
-              </p>
-            ) : null}
-
-            {previewSyncMessage ? (
-              <p className="text-sm text-copy-muted">{previewSyncMessage}</p>
-            ) : isPreviewRecalculating ? (
-              <p className="text-sm text-copy-muted">
-                Оновлюємо підсумок замовлення з актуальною оцінкою доставки...
-              </p>
-            ) : null}
-
-            {submitError ? (
-              <p className="text-sm text-brand-danger" role="alert">
-                {submitError}
-              </p>
-            ) : null}
-
-            <CheckoutSubmitButton
-              onSubmit={handleSubmitCheckout}
-              disabled={!canSubmit || isSubmitting}
-              isSubmitting={isSubmitting}
-              paymentMethod={selectedPaymentMethod}
-            />
-          </div>
-        </DashboardCard>
+        <CheckoutConfirmationCard
+          acceptedPrivacy={acceptedPrivacy}
+          privacyConsentRef={privacyConsentRef}
+          privacyConsentHintId={privacyConsentHintId}
+          privacyConsentErrorId={privacyConsentErrorId}
+          privacyConsentError={privacyConsentError}
+          previewSyncMessage={previewSyncMessage}
+          isPreviewRecalculating={isPreviewRecalculating}
+          submitError={submitError}
+          canSubmit={canSubmit}
+          isSubmitting={isSubmitting}
+          selectedPaymentMethod={selectedPaymentMethod}
+          onPrivacyConsentChange={handlePrivacyConsentChange}
+          onSubmit={handleSubmitCheckout}
+        />
       </div>
     </div>
   )
