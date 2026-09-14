@@ -50,20 +50,39 @@ import type { CategoryTreeNode } from '@/components/category/category.data'
 
 const categories: CategoryTreeNode[] = [
   {
-    id: 'women',
-    name: 'Жінкам',
-    slug: 'women',
-    href: '/catalog/women',
+    id: 'clothing',
+    name: 'Одяг та взуття',
+    slug: 'clothing',
+    href: '/catalog/clothing',
     imageUrl: null,
-    pathSegments: ['women'],
+    pathSegments: ['clothing'],
     children: [
       {
-        id: 'dresses',
-        name: 'Сукні',
-        slug: 'dresses',
-        href: '/catalog/women/dresses',
+        id: 'women-clothing',
+        name: 'Жіночий одяг',
+        slug: 'women-clothing',
+        href: '/catalog/clothing/women-clothing',
         imageUrl: null,
-        pathSegments: ['women', 'dresses'],
+        pathSegments: ['clothing', 'women-clothing'],
+        children: [
+          {
+            id: 'women-dresses',
+            name: 'Жіночі сукні',
+            slug: 'women-dresses',
+            href: '/catalog/clothing/women-clothing/women-dresses',
+            imageUrl: null,
+            pathSegments: ['clothing', 'women-clothing', 'women-dresses'],
+            children: [],
+          },
+        ],
+      },
+      {
+        id: 'shoes',
+        name: 'Взуття',
+        slug: 'shoes',
+        href: '/catalog/clothing/shoes',
+        imageUrl: null,
+        pathSegments: ['clothing', 'shoes'],
         children: [],
       },
     ],
@@ -205,10 +224,25 @@ describe('Header navigation naming', () => {
     expect(dialog?.textContent).toContain('Категорії')
     expect(dialog?.id).toBe(categoriesButton?.getAttribute('aria-controls'))
     expect(document.getElementById(categoriesButton?.getAttribute('aria-controls') ?? '')).toBe(dialog)
-    expect(dialog?.textContent).toContain('Жінкам')
+    expect(dialog?.textContent).toContain('Одяг та взуття')
     expect(dialog?.textContent).toContain('Чоловікам')
-    expect(dialog?.textContent).toContain('Сукні')
+    expect(dialog?.textContent).toContain('Жіночий одяг')
+    expect(dialog?.textContent).toContain('Жіночі сукні')
+    expect(dialog?.textContent).toContain('Взуття')
     expect(dialog?.textContent).not.toContain('Сорочки')
+    expect(dialog?.textContent).not.toContain('Переглянути всі товари')
+    expect(dialog?.textContent).not.toContain('Підкатегорії')
+
+    const allCategoriesLink = Array.from(document.body.querySelectorAll('a'))
+      .find((link) => link.textContent?.trim() === 'Усі')
+    const intermediateCategoryLink = Array.from(document.body.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Жіночий одяг'))
+    const leafCategoryLink = Array.from(document.body.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Жіночі сукні'))
+
+    expect(allCategoriesLink).toBeUndefined()
+    expect(intermediateCategoryLink).toBeUndefined()
+    expect(leafCategoryLink?.getAttribute('href')).toBe('/catalog/clothing/women-clothing/women-dresses')
 
     const menRootButton = Array.from(document.body.querySelectorAll('button'))
       .find((button) => button.textContent?.includes('Чоловікам'))
@@ -219,12 +253,9 @@ describe('Header navigation naming', () => {
 
     expect(document.body.textContent).toContain('Сорочки')
 
-    const rootCategoryLink = Array.from(document.body.querySelectorAll('a'))
-      .find((link) => link.textContent?.includes('Чоловікам'))
     const nestedCategoryLink = Array.from(document.body.querySelectorAll('a'))
       .find((link) => link.textContent?.includes('Сорочки'))
 
-    expect(rootCategoryLink?.getAttribute('href')).toBe('/catalog/men')
     expect(nestedCategoryLink?.getAttribute('href')).toBe('/catalog/men/shirts')
 
     await act(async () => {

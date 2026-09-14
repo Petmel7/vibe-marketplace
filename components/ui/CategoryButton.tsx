@@ -4,7 +4,6 @@
 import { KeyboardEvent } from 'react'
 import clsx from 'clsx'
 import { ArrowUpRight } from 'lucide-react'
-import CategoryImage from '@/components/category/CategoryImage'
 import Icon from '@/components/ui/Icon'
 
 type Category = {
@@ -75,17 +74,18 @@ export default function CategoryButton({
             data-root-category={category.slug}
         >
             <div className="flex items-center gap-2">
-                {category.imageUrl ? (
-                    <CategoryImage
+                <span className={clsx(
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-white',
+                    isActive
+                        ? 'border-white/20 bg-white/15'
+                        : 'border-panelBorder bg-white/10'
+                )}>
+                    <Icon
                         src={category.imageUrl}
-                        alt={category.name}
-                        sizes="24px"
-                        className="relative block h-6 w-6 shrink-0 overflow-hidden rounded-lg bg-panelAlt"
-                        imageClassName="object-cover"
+                        size={22}
+                        className="opacity-95"
                     />
-                ) : (
-                    <Icon src={null} size={20} />
-                )}
+                </span>
                 <span>{category.name}</span>
             </div>
 

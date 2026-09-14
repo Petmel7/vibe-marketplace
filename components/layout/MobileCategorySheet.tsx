@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import type { CategoryTreeNode } from '@/components/category/category.data'
 import CategoryImage from '@/components/category/CategoryImage'
 import DialogShell from '@/components/ui/dialog/DialogShell'
+import Icon from '@/components/ui/Icon'
 
 const MOBILE_CATEGORY_SHEET_TITLE_ID = 'mobile-category-sheet-title'
 export const MOBILE_CATEGORY_SHEET_ID = 'mobile-category-sheet'
@@ -73,13 +74,17 @@ export default function MobileCategorySheet({
                       aria-pressed={isActive}
                       onClick={() => setSelectedRootId(category.id)}
                     >
-                      <CategoryImage
-                        src={category.imageUrl}
-                        alt={category.name}
-                        sizes="48px"
-                        className="relative block h-12 w-12 overflow-hidden rounded-full border border-panelBorder bg-media"
-                        imageClassName="object-cover"
-                      />
+                      <span className={`flex h-12 w-12 items-center justify-center rounded-full border ${
+                        isActive
+                          ? 'border-white/20 bg-white/15 text-white'
+                          : 'border-panelBorder bg-white/10 text-white/85'
+                      }`}>
+                        <Icon
+                          src={category.imageUrl}
+                          size={26}
+                          className="opacity-95"
+                        />
+                      </span>
                       <span className="line-clamp-2">{category.name}</span>
                     </button>
                   )
@@ -88,29 +93,10 @@ export default function MobileCategorySheet({
             </aside>
 
             <div className="min-h-0 overflow-y-auto px-3 py-4">
-              <div className="mb-4 rounded-3xl border border-panelBorder bg-panel/50 p-3">
-                <CategoryHeroLink category={selectedRoot} onNavigate={onClose} />
-              </div>
-
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="ui-body-muted">Підкатегорії</p>
-                  <h3 className="text-lg font-semibold text-copy-strong">{selectedRoot.name}</h3>
-                </div>
-
-                <Link
-                  href="/categories"
-                  className="shrink-0 rounded-full border border-panelBorder px-3 py-2 text-xs font-medium text-copy-secondary transition-colors hover:border-brand/60 hover:text-copy-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  onClick={onClose}
-                >
-                  Усі
-                </Link>
-              </div>
-
               {selectedRoot.children.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-5">
                   {selectedRoot.children.map((category) => (
-                    <MobileCategoryCard
+                    <MobileCategoryEntry
                       key={category.id}
                       category={category}
                       onNavigate={onClose}
@@ -134,32 +120,40 @@ export default function MobileCategorySheet({
   )
 }
 
-function CategoryHeroLink({
+function MobileCategoryEntry({
   category,
   onNavigate,
 }: {
   category: CategoryTreeNode
   onNavigate: () => void
 }) {
-  return (
-    <Link
-      href={category.href}
-      className="group flex items-center gap-3 rounded-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      onClick={onNavigate}
-    >
-      <CategoryImage
-        src={category.imageUrl}
-        alt={category.name}
-        sizes="64px"
-        className="relative block h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-media"
-        imageClassName="object-cover transition-transform duration-200 group-hover:scale-105"
-      />
+  if (category.children.length === 0) {
+    return <MobileCategoryCard category={category} onNavigate={onNavigate} />
+  }
 
-      <div>
-        <p className="text-sm font-semibold text-copy-strong">{category.name}</p>
-        <p className="ui-body-muted mt-1">Переглянути всі товари</p>
-      </div>
-    </Link>
+  const leafCategories = getLeafCategories(category)
+
+  return (
+    <section className="space-y-3" aria-labelledby={`mobile-category-section-${category.id}`}>
+      <h3
+        id={`mobile-category-section-${category.id}`}
+        className="px-1 text-sm font-semibold uppercase tracking-[0.08em] text-copy-strong"
+      >
+        {category.name}
+      </h3>
+
+      {leafCategories.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {leafCategories.map((leafCategory) => (
+            <MobileCategoryCard
+              key={leafCategory.id}
+              category={leafCategory}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -171,53 +165,31 @@ function MobileCategoryCard({
   onNavigate: () => void
 }) {
   return (
-    <article className="space-y-2">
+    <article>
       <Link
         href={category.href}
-        className="group block overflow-hidden rounded-3xl border border-panelBorder bg-panel/55 transition-colors hover:border-brand/60 hover:bg-panelAlt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="group block rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         onClick={onNavigate}
       >
         <CategoryImage
           src={category.imageUrl}
           alt={category.name}
           sizes="(max-width: 420px) 40vw, 150px"
-          className="relative block aspect-square w-full bg-media"
+          className="relative block aspect-square w-full overflow-hidden rounded-3xl border border-panelBorder bg-media transition-colors group-hover:border-brand/60"
           imageClassName="object-cover transition-transform duration-200 group-hover:scale-105"
         />
-        <span className="line-clamp-2 block px-3 py-2 text-sm font-medium leading-snug text-copy-primary">
+        <span className="line-clamp-2 block px-1.5 pt-2 text-sm font-medium leading-snug text-copy-primary transition-colors group-hover:text-copy-strong">
           {category.name}
         </span>
       </Link>
-
-      {category.children.length > 0 ? (
-        <div className="space-y-1">
-          {category.children.map((child) => (
-            <NestedCategoryLink
-              key={child.id}
-              category={child}
-              onNavigate={onNavigate}
-            />
-          ))}
-        </div>
-      ) : null}
     </article>
   )
 }
 
-function NestedCategoryLink({
-  category,
-  onNavigate,
-}: {
-  category: CategoryTreeNode
-  onNavigate: () => void
-}) {
-  return (
-    <Link
-      href={category.href}
-      className="block rounded-2xl border border-transparent bg-panel/40 px-3 py-2 text-xs text-copy-secondary transition-colors hover:border-panelBorder hover:bg-panelAlt hover:text-copy-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      onClick={onNavigate}
-    >
-      <span className="line-clamp-1">{category.name}</span>
-    </Link>
-  )
+function getLeafCategories(category: CategoryTreeNode): CategoryTreeNode[] {
+  if (category.children.length === 0) {
+    return [category]
+  }
+
+  return category.children.flatMap(getLeafCategories)
 }
