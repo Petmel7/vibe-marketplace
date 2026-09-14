@@ -39,6 +39,10 @@ vi.mock('@/components/ui/Logo', () => ({
   default: () => <span data-testid="logo">Logo</span>,
 }))
 
+vi.mock('next/image', () => ({
+  default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} />,
+}))
+
 import BottomNav from '@/components/layout/BottomNav'
 import DesktopHeader from '@/components/layout/DesktopHeader'
 import MobileHeader from '@/components/layout/MobileHeader'
@@ -60,6 +64,25 @@ const categories: CategoryTreeNode[] = [
         href: '/catalog/women/dresses',
         imageUrl: null,
         pathSegments: ['women', 'dresses'],
+        children: [],
+      },
+    ],
+  },
+  {
+    id: 'men',
+    name: 'Чоловікам',
+    slug: 'men',
+    href: '/catalog/men',
+    imageUrl: null,
+    pathSegments: ['men'],
+    children: [
+      {
+        id: 'shirts',
+        name: 'Сорочки',
+        slug: 'shirts',
+        href: '/catalog/men/shirts',
+        imageUrl: null,
+        pathSegments: ['men', 'shirts'],
         children: [],
       },
     ],
@@ -153,7 +176,7 @@ describe('Header navigation naming', () => {
     expect(categoriesLink).toBeUndefined()
   })
 
-  it('opens a mobile categories dialog with canonical category links', async () => {
+  it('opens a mobile categories drawer with canonical category links', async () => {
     act(() => {
       root!.render(
         <MobileHeader
@@ -182,14 +205,27 @@ describe('Header navigation naming', () => {
     expect(dialog?.textContent).toContain('Категорії')
     expect(dialog?.id).toBe(categoriesButton?.getAttribute('aria-controls'))
     expect(document.getElementById(categoriesButton?.getAttribute('aria-controls') ?? '')).toBe(dialog)
+    expect(dialog?.textContent).toContain('Жінкам')
+    expect(dialog?.textContent).toContain('Чоловікам')
+    expect(dialog?.textContent).toContain('Сукні')
+    expect(dialog?.textContent).not.toContain('Сорочки')
+
+    const menRootButton = Array.from(document.body.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Чоловікам'))
+
+    await act(async () => {
+      menRootButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(document.body.textContent).toContain('Сорочки')
 
     const rootCategoryLink = Array.from(document.body.querySelectorAll('a'))
-      .find((link) => link.textContent?.includes('Жінкам'))
+      .find((link) => link.textContent?.includes('Чоловікам'))
     const nestedCategoryLink = Array.from(document.body.querySelectorAll('a'))
-      .find((link) => link.textContent?.includes('Сукні'))
+      .find((link) => link.textContent?.includes('Сорочки'))
 
-    expect(rootCategoryLink?.getAttribute('href')).toBe('/catalog/women')
-    expect(nestedCategoryLink?.getAttribute('href')).toBe('/catalog/women/dresses')
+    expect(rootCategoryLink?.getAttribute('href')).toBe('/catalog/men')
+    expect(nestedCategoryLink?.getAttribute('href')).toBe('/catalog/men/shirts')
 
     await act(async () => {
       nestedCategoryLink?.dispatchEvent(new MouseEvent('click', { bubbles: true }))

@@ -67,6 +67,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+@keyframes mobile-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
 @layer components {
   .ui-container {
     @apply mx-auto w-full px-4 sm:px-6 lg:px-6 pt-4 pb-7;
