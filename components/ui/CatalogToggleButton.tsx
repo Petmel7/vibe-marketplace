@@ -3,7 +3,7 @@
 
 import clsx from 'clsx'
 import { KeyboardEvent } from 'react'
-import { LayoutGrid } from 'lucide-react'
+import { List } from 'lucide-react'
 
 type Props = {
     isOpen: boolean
@@ -36,7 +36,7 @@ export default function CatalogToggleButton({
                 onClick={onToggle}
                 onKeyDown={onKeyDown}
             >
-                <LayoutGrid size={20} color="currentColor" />
+                <List size={20} color="currentColor" />
                 <span className="text-sm font-medium">Категорії</span>
             </button>
         </div>

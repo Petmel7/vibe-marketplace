@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { LayoutGrid, Search } from 'lucide-react'
 import type { CategoryTreeNode } from '@/components/category/category.data'
 import type { SessionUser } from '@/types/auth'
 import CartIcon from '@/components/cart/CartIcon'
@@ -98,8 +98,9 @@ export default function DesktopHeader({
 
       <Link
         href="/catalog"
-        className="rounded-full border border-panelBorder px-4 py-2 text-sm font-medium text-[#E8E9EA] transition-colors hover:border-brand/60 hover:bg-panel/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="flex items-center gap-2 rounded-full border border-panelBorder px-4 py-2 text-sm font-medium text-[#E8E9EA] transition-colors hover:border-brand/60 hover:bg-panel/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
+        <LayoutGrid size={20} color="currentColor" aria-hidden="true" />
         Каталог
       </Link>
 

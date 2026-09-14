@@ -1,14 +1,14 @@
 
 'use client'
 
-import { House, List } from 'lucide-react'
+import { House, LayoutGrid } from 'lucide-react'
 import CartIcon from '@/components/cart/CartIcon'
 import WishlistIcon from '../wishlist/WishlistIcon'
 import NavItem from '@/components/ui/NavItem'
 
 const NAV_ITEMS = [
   { href: '/', icon: House, label: 'Головна', exact: true },
-  { href: '/catalog', icon: List, label: 'Каталог' },
+  { href: '/catalog', icon: LayoutGrid, label: 'Каталог' },
   { href: '/wishlist', component: WishlistIcon, label: 'Вибране' },
   { href: '/cart', component: CartIcon, label: 'Кошик' },
 ] as const
