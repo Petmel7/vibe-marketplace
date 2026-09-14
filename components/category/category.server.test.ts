@@ -69,6 +69,8 @@ describe('category server loaders', () => {
         image: true,
         parentId: true,
         position: true,
+        isActive: true,
+        isVisible: true,
       },
     })
     expect(result).toEqual([
@@ -103,7 +105,7 @@ describe('category server loaders', () => {
     ])
   })
 
-  it('adds canonical catalog hrefs to flat public categories using hierarchy paths', async () => {
+  it('adds canonical catalog hrefs to flat public categories using the active visible tree', async () => {
     categoryFindManyMock.mockResolvedValue([
       {
         id: 'root',
@@ -112,7 +114,6 @@ describe('category server loaders', () => {
         image: 'https://cdn.example.com/category-images/categories/root/image.webp',
         parentId: null,
         position: 1,
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
       {
         id: 'child',
@@ -121,7 +122,6 @@ describe('category server loaders', () => {
         image: null,
         parentId: 'root',
         position: 0,
-        createdAt: new Date('2026-01-02T00:00:00.000Z'),
       },
     ])
 
@@ -130,7 +130,11 @@ describe('category server loaders', () => {
 
     expect(categoryFindManyMock).toHaveBeenCalledTimes(1)
     expect(categoryFindManyMock).toHaveBeenCalledWith({
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: {
+        isActive: true,
+        isVisible: true,
+      },
+      orderBy: [{ position: 'asc' }, { name: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
         name: true,
@@ -138,7 +142,8 @@ describe('category server loaders', () => {
         image: true,
         parentId: true,
         position: true,
-        createdAt: true,
+        isActive: true,
+        isVisible: true,
       },
     })
     expect(result).toEqual([
@@ -157,6 +162,163 @@ describe('category server loaders', () => {
         imageUrl: null,
         href: '/catalog/clothing/t-shirts',
         pathSegments: ['clothing', 't-shirts'],
+      },
+    ])
+  })
+
+  it('excludes inactive categories from the flat public category list', async () => {
+    categoryFindManyMock.mockResolvedValue([
+      {
+        id: 'active-root',
+        name: 'Активна категорія',
+        slug: 'active',
+        image: null,
+        parentId: null,
+        position: 0,
+        isActive: true,
+        isVisible: true,
+      },
+      {
+        id: 'inactive-root',
+        name: 'Неактивна категорія',
+        slug: 'inactive',
+        image: null,
+        parentId: null,
+        position: 1,
+        isActive: false,
+        isVisible: true,
+      },
+    ])
+
+    const { fetchCategories } = await import('./category.server')
+    const result = await fetchCategories()
+
+    expect(result).toEqual([
+      {
+        id: 'active-root',
+        name: 'Активна категорія',
+        slug: 'active',
+        imageUrl: null,
+        href: '/catalog/active',
+        pathSegments: ['active'],
+      },
+    ])
+    expect(categoryFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          isActive: true,
+          isVisible: true,
+        },
+      }),
+    )
+  })
+
+  it('excludes invisible categories from the flat public category list', async () => {
+    categoryFindManyMock.mockResolvedValue([
+      {
+        id: 'visible-root',
+        name: 'Видима категорія',
+        slug: 'visible',
+        image: null,
+        parentId: null,
+        position: 0,
+        isActive: true,
+        isVisible: true,
+      },
+      {
+        id: 'hidden-root',
+        name: 'Прихована категорія',
+        slug: 'hidden',
+        image: null,
+        parentId: null,
+        position: 1,
+        isActive: true,
+        isVisible: false,
+      },
+    ])
+
+    const { fetchCategories } = await import('./category.server')
+    const result = await fetchCategories()
+
+    expect(result).toEqual([
+      {
+        id: 'visible-root',
+        name: 'Видима категорія',
+        slug: 'visible',
+        imageUrl: null,
+        href: '/catalog/visible',
+        pathSegments: ['visible'],
+      },
+    ])
+    expect(categoryFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          isActive: true,
+          isVisible: true,
+        },
+      }),
+    )
+  })
+
+  it('queries only categories that are routable by the public catalog tree', async () => {
+    categoryFindManyMock.mockResolvedValue([])
+
+    const { fetchCategories } = await import('./category.server')
+    const result = await fetchCategories()
+
+    expect(result).toEqual([])
+    expect(categoryFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          isActive: true,
+          isVisible: true,
+        },
+      }),
+    )
+  })
+
+  it('excludes categories whose active visible parent is missing from the public tree', async () => {
+    categoryFindManyMock.mockResolvedValue([
+      {
+        id: 'root',
+        name: 'Одяг',
+        slug: 'clothing',
+        image: null,
+        parentId: null,
+        position: 0,
+      },
+      {
+        id: 'orphan',
+        name: 'Осиротіла категорія',
+        slug: 'orphan',
+        image: null,
+        parentId: 'missing-parent',
+        position: 0,
+      },
+    ])
+
+    const { fetchCategories, fetchCategoryTree } = await import('./category.server')
+    const [categories, tree] = await Promise.all([fetchCategories(), fetchCategoryTree()])
+
+    expect(categories).toEqual([
+      {
+        id: 'root',
+        name: 'Одяг',
+        slug: 'clothing',
+        imageUrl: null,
+        href: '/catalog/clothing',
+        pathSegments: ['clothing'],
+      },
+    ])
+    expect(tree).toEqual([
+      {
+        id: 'root',
+        name: 'Одяг',
+        slug: 'clothing',
+        imageUrl: null,
+        href: '/catalog/clothing',
+        pathSegments: ['clothing'],
+        children: [],
       },
     ])
   })
