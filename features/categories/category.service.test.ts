@@ -5,6 +5,7 @@ import {
   createAdminCategory,
   deleteAdminCategory,
   getAdminCategoryTree,
+  getSafePublicCategoryCatalogPathByLegacySlug,
   getPublicCategoryTree,
   removeAdminCategoryImage,
   reorderAdminCategories,
@@ -99,6 +100,66 @@ describe('getPublicCategoryTree', () => {
 
     expect(result.map((item) => item.slug)).toEqual(['accessories', 'root'])
     expect(result[1]?.children.map((child) => child.slug)).toEqual(['a', 'b'])
+  })
+})
+
+describe('getSafePublicCategoryCatalogPathByLegacySlug', () => {
+  it('returns the canonical catalog path for a public root category slug', async () => {
+    mockedRepository.listPublicCategories.mockResolvedValue([
+      makeCategory({ id: 'root', name: 'Жінкам', slug: 'women', parentId: null }),
+    ])
+
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('women')).resolves.toMatchObject({
+      href: '/catalog/women',
+      pathSegments: ['women'],
+    })
+  })
+
+  it('returns the full canonical catalog path for a public nested category slug', async () => {
+    mockedRepository.listPublicCategories.mockResolvedValue([
+      makeCategory({ id: 'root', name: 'Жінкам', slug: 'women', parentId: null }),
+      makeCategory({ id: 'child', name: 'Сукні', slug: 'dresses', parentId: 'root', level: 1 }),
+    ])
+
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('dresses')).resolves.toMatchObject({
+      href: '/catalog/women/dresses',
+      pathSegments: ['women', 'dresses'],
+    })
+  })
+
+  it('returns null for missing category slugs', async () => {
+    mockedRepository.listPublicCategories.mockResolvedValue([])
+
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('missing')).resolves.toBeNull()
+  })
+
+  it('returns null for inactive or invisible category slugs', async () => {
+    mockedRepository.listPublicCategories.mockResolvedValue([
+      makeCategory({ id: 'inactive', name: 'Неактивна', slug: 'inactive', isActive: false }),
+      makeCategory({ id: 'hidden', name: 'Прихована', slug: 'hidden', isVisible: false }),
+    ])
+
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('inactive')).resolves.toBeNull()
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('hidden')).resolves.toBeNull()
+  })
+
+  it('returns null for orphaned category slugs without a public root path', async () => {
+    mockedRepository.listPublicCategories.mockResolvedValue([
+      makeCategory({ id: 'orphan', name: 'Осиротіла', slug: 'orphan', parentId: 'missing-parent', level: 1 }),
+    ])
+
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('orphan')).resolves.toBeNull()
+  })
+
+  it('returns null for ambiguous duplicate public slugs', async () => {
+    mockedRepository.listPublicCategories.mockResolvedValue([
+      makeCategory({ id: 'root-a', name: 'Жінкам', slug: 'women', parentId: null }),
+      makeCategory({ id: 'root-b', name: 'Чоловікам', slug: 'men', parentId: null }),
+      makeCategory({ id: 'child-a', name: 'Sale', slug: 'sale', parentId: 'root-a', level: 1 }),
+      makeCategory({ id: 'child-b', name: 'Sale', slug: 'sale', parentId: 'root-b', level: 1 }),
+    ])
+
+    await expect(getSafePublicCategoryCatalogPathByLegacySlug('sale')).resolves.toBeNull()
   })
 })
 

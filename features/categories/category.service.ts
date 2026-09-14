@@ -228,6 +228,18 @@ export async function getPublicCategoryCatalogPathBySlug(
   return (await getPublicCategoryCatalogPaths()).bySlug.get(slug) ?? null
 }
 
+export async function getSafePublicCategoryCatalogPathByLegacySlug(
+  slug: string | null | undefined,
+): Promise<CategoryCatalogPath | null> {
+  if (!slug) {
+    return null
+  }
+
+  const matches = (await getPublicCategoryCatalogPaths()).items.filter((item) => item.slug === slug)
+
+  return matches.length === 1 ? matches[0] : null
+}
+
 export async function getPublicCategorySummaries(): Promise<CategorySummaryDto[]> {
   return listCategorySummaries()
 }
