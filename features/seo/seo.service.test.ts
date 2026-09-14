@@ -179,6 +179,78 @@ describe('public SEO resolution', () => {
     })
   })
 
+  it('ignores relative legacy category canonical overrides', async () => {
+    mockRepo.findPublicCategoryByIdOrSlug.mockResolvedValue({
+      id: 'category-1',
+      name: 'Сукні',
+      slug: 'sukni',
+      seoTitle: null,
+      seoDescription: null,
+      seoText: null,
+      updatedAt: new Date('2026-06-08T12:00:00.000Z'),
+    } as never)
+    mockRepo.findSeoMetadataByEntity.mockResolvedValue(
+      makeSeoOverride({
+        entityType: SeoEntityType.CATEGORY,
+        entityId: 'category-1',
+        canonicalUrl: '/products/category/sukni',
+      }) as never,
+    )
+
+    const result = await getCategorySeo({ slug: 'sukni' })
+
+    expect(result.canonicalUrl).toBe('https://marketplace.example.com/catalog/women/sukni')
+    expect(result.breadcrumbJsonLd.itemListElement[2]?.item).toBe(
+      'https://marketplace.example.com/catalog/women/sukni',
+    )
+  })
+
+  it('ignores absolute legacy category canonical overrides', async () => {
+    mockRepo.findPublicCategoryByIdOrSlug.mockResolvedValue({
+      id: 'category-1',
+      name: 'Сукні',
+      slug: 'sukni',
+      seoTitle: null,
+      seoDescription: null,
+      seoText: null,
+      updatedAt: new Date('2026-06-08T12:00:00.000Z'),
+    } as never)
+    mockRepo.findSeoMetadataByEntity.mockResolvedValue(
+      makeSeoOverride({
+        entityType: SeoEntityType.CATEGORY,
+        entityId: 'category-1',
+        canonicalUrl: 'https://marketplace.example.com/products/category/sukni',
+      }) as never,
+    )
+
+    const result = await getCategorySeo({ slug: 'sukni' })
+
+    expect(result.canonicalUrl).toBe('https://marketplace.example.com/catalog/women/sukni')
+  })
+
+  it('keeps non-legacy category canonical overrides', async () => {
+    mockRepo.findPublicCategoryByIdOrSlug.mockResolvedValue({
+      id: 'category-1',
+      name: 'Сукні',
+      slug: 'sukni',
+      seoTitle: null,
+      seoDescription: null,
+      seoText: null,
+      updatedAt: new Date('2026-06-08T12:00:00.000Z'),
+    } as never)
+    mockRepo.findSeoMetadataByEntity.mockResolvedValue(
+      makeSeoOverride({
+        entityType: SeoEntityType.CATEGORY,
+        entityId: 'category-1',
+        canonicalUrl: 'https://marketplace.example.com/collections/sukni',
+      }) as never,
+    )
+
+    const result = await getCategorySeo({ slug: 'sukni' })
+
+    expect(result.canonicalUrl).toBe('https://marketplace.example.com/collections/sukni')
+  })
+
   it('lets explicit overrides win over generated fallback', async () => {
     mockRepo.findPublicProductByIdOrSlug.mockResolvedValue({
       id: 'product-1',
@@ -203,6 +275,7 @@ describe('public SEO resolution', () => {
     expect(result.title).toBe('Override title')
     expect(result.ogTitle).toBe('Override OG title')
     expect(result.source).toBe('override')
+    expect(result.canonicalUrl).toBe('https://marketplace.example.com/products/product-1')
   })
 
   it('rejects unpublished or non-public products', async () => {

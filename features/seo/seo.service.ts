@@ -96,6 +96,30 @@ function resolveRobotsFlags(override?: SeoMetadataRecord | null) {
   }
 }
 
+function isLegacyCategoryCanonicalUrl(value: string | null | undefined) {
+  if (!value?.trim()) {
+    return false
+  }
+
+  try {
+    const url = new URL(value, 'https://marketplace.local')
+    return url.pathname === '/products/category' || url.pathname.startsWith('/products/category/')
+  } catch {
+    return false
+  }
+}
+
+function resolveCategoryCanonicalUrl(input: {
+  overrideCanonicalUrl: string | null | undefined
+  generatedCanonicalUrl: string
+}) {
+  if (isLegacyCategoryCanonicalUrl(input.overrideCanonicalUrl)) {
+    return input.generatedCanonicalUrl
+  }
+
+  return input.overrideCanonicalUrl ?? input.generatedCanonicalUrl
+}
+
 function assertPublicIdentifier(input: { id?: string; slug?: string }) {
   if (!input.id && !input.slug) {
     throw new InvalidSeoMetadataError('SEO entity lookup requires id or slug')
@@ -309,7 +333,11 @@ export async function getCategorySeo(input: { id?: string; slug?: string }): Pro
   const fallbackTitle = `${category.name} купити онлайн | Marketplace`
   const fallbackDescription =
     category.seoText?.trim() || `${category.name}. Добірка товарів з доставкою по Україні.`
-  const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl(categoryCatalogPath.href)
+  const generatedCanonicalUrl = buildCanonicalUrl(categoryCatalogPath.href)
+  const canonicalUrl = resolveCategoryCanonicalUrl({
+    overrideCanonicalUrl: override?.canonicalUrl,
+    generatedCanonicalUrl,
+  })
   const usedEntityField = Boolean(category.seoTitle || category.seoDescription || category.seoText)
   const source = inferSource({ override, usedEntityField })
   const robots = resolveRobotsFlags(override)
