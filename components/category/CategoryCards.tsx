@@ -11,7 +11,7 @@ interface Props {
 function CategoryCard({ category }: { category: CategoryListItem }) {
   return (
     <Link
-      href={`/products/category/${category.slug}`}
+      href={category.href}
       className="relative block aspect-square overflow-hidden rounded-tl-[18px] rounded-br-[18px]"
     >
       <CategoryImage

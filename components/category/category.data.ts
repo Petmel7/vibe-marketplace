@@ -3,6 +3,8 @@ export interface CategoryListItem {
   name: string
   slug: string
   imageUrl: string | null
+  href: string
+  pathSegments: string[]
 }
 
 export interface CategoryTreeApiNode {
@@ -19,6 +21,15 @@ export interface CategoryTreeNode extends CategoryTreeApiNode {
   children: CategoryTreeNode[]
 }
 
+export function buildCategoryCatalogHref(pathSegments: readonly string[]) {
+  const safeSegments = pathSegments
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+
+  return safeSegments.length > 0 ? `/catalog/${safeSegments.join('/')}` : '/catalog'
+}
+
 export function decorateCategoryTree(
   nodes: CategoryTreeApiNode[] = [],
   fullAncestors: string[] = [],
@@ -31,7 +42,7 @@ export function decorateCategoryTree(
 
     return {
       ...node,
-      href: `/catalog/${pathSegments.join('/')}`,
+      href: buildCategoryCatalogHref(pathSegments),
       pathSegments,
       children: decorateCategoryTree(
         node.children ?? [],

@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import {
+  buildCategoryCatalogHref,
   decorateCategoryTree,
   type CategoryListItem,
   type CategoryTreeNode,
@@ -15,6 +16,7 @@ type PublicCategoryTreeRecord = {
   image: string | null
   parentId: string | null
   position: number
+  createdAt?: Date
 }
 
 type PublicCategoryTreeApiNode = {
@@ -54,28 +56,60 @@ function buildCategoryTree(records: PublicCategoryTreeRecord[]): CategoryTreeNod
   return decorateCategoryTree(visit(null))
 }
 
+function flattenCategoryTree(nodes: CategoryTreeNode[]): CategoryListItem[] {
+  return nodes.flatMap((node) => [
+    {
+      id: node.id,
+      name: node.name,
+      slug: node.slug,
+      imageUrl: node.imageUrl,
+      href: node.href,
+      pathSegments: node.pathSegments,
+    },
+    ...flattenCategoryTree(node.children),
+  ])
+}
+
 const fetchCategoriesCached = unstable_cache(
-  async (): Promise<CategoryListItem[]> =>
-    measureServerOperation(
+  async (): Promise<CategoryListItem[]> => {
+    const records = await measureServerOperation(
       'fetchCategories',
       {
         component: 'components/category/category.server',
         repository: 'fetchCategoriesCached',
-        sql: 'SELECT categories list ORDER BY created_at, id',
+        sql: 'prisma.category.findMany(public categories with hierarchy)',
         categoryTree: 'categories-list',
         cache: 'unstable_cache:public-categories-list',
       },
-      async () =>
-        prisma.$queryRaw<CategoryListItem[]>`
-          SELECT
-            id,
-            name,
-            slug,
-            image_url AS "imageUrl"
-          FROM categories
-          ORDER BY created_at ASC, id ASC
-        `,
-    ),
+      () =>
+        prisma.category.findMany({
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            image: true,
+            parentId: true,
+            position: true,
+            createdAt: true,
+          },
+        }),
+    )
+    const byId = new Map(flattenCategoryTree(buildCategoryTree(records)).map((category) => [category.id, category]))
+
+    return records.map((record) => {
+      const decorated = byId.get(record.id)
+
+      return {
+        id: record.id,
+        name: record.name,
+        slug: record.slug,
+        imageUrl: record.image,
+        href: decorated?.href ?? buildCategoryCatalogHref([record.slug]),
+        pathSegments: decorated?.pathSegments ?? [record.slug],
+      }
+    })
+  },
   ['public-categories-list'],
   {
     revalidate: 60 * 60,
