@@ -31,13 +31,13 @@ export default function CatalogToggleButton({
                 type="button"
                 className={getStyles(isOpen)}
                 aria-expanded={isOpen}
-                aria-controls="mega-menu-catalog"
+                aria-controls="mega-menu-categories"
                 aria-haspopup="dialog"
                 onClick={onToggle}
                 onKeyDown={onKeyDown}
             >
                 <LayoutGrid size={20} color="currentColor" />
-                <span className="text-sm font-medium">Каталог</span>
+                <span className="text-sm font-medium">Категорії</span>
             </button>
         </div>
     )

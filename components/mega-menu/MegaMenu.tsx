@@ -28,7 +28,7 @@ export default function MegaMenu({
     <div
       className="ui-elevated-panel absolute left-0 top-full z-40 mt-3 hidden w-full overflow-hidden md:grid md:grid-cols-[280px_minmax(0,1fr)]"
       role="dialog"
-      aria-label="Каталог товарів"
+      aria-label="Категорії товарів"
     >
       <aside className="border-r border-panelBorder bg-panelMuted p-3">
         <nav aria-label="Основні категорії" className="space-y-1">

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Search } from 'lucide-react'
 import type { CategoryTreeNode } from '@/components/category/category.data'
@@ -95,6 +96,13 @@ export default function DesktopHeader({
         onKeyDown={handleKeyDown}
       />
 
+      <Link
+        href="/catalog"
+        className="rounded-full border border-panelBorder px-4 py-2 text-sm font-medium text-[#E8E9EA] transition-colors hover:border-brand/60 hover:bg-panel/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        Каталог
+      </Link>
+
       <nav className="ml-auto flex items-center gap-5">
         <HeaderIconButton label="Пошук" onClick={onSearch}>
           <Search size={24} color="#E8E9EA" />
@@ -116,7 +124,7 @@ export default function DesktopHeader({
       </nav>
 
       {isCatalogOpen && categories.length > 0 && currentRootSlug ? (
-        <div id="mega-menu-catalog" className="absolute inset-x-0 top-full">
+        <div id="mega-menu-categories" className="absolute inset-x-0 top-full">
           <MegaMenu
             categories={categories}
             activeRootSlug={currentRootSlug}

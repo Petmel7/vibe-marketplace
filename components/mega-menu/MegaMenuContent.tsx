@@ -42,7 +42,7 @@ function MegaMenuHeader({
     return (
         <div className="flex items-center justify-between gap-4">
             <div>
-                <p className="ui-body-muted">Каталог</p>
+                <p className="ui-body-muted">Категорії</p>
                 <h2 className="ui-heading-product text-[28px] leading-8">{root.name}</h2>
             </div>
 
