@@ -17,6 +17,14 @@ type MobileCategorySheetProps = {
   onClose: () => void
 }
 
+function getRootTabId(categoryId: string) {
+  return `mobile-category-root-tab-${categoryId}`
+}
+
+function getRootPanelId(categoryId: string) {
+  return `mobile-category-root-panel-${categoryId}`
+}
+
 export default function MobileCategorySheet({
   categories,
   open,
@@ -47,7 +55,7 @@ export default function MobileCategorySheet({
 
           <button
             type="button"
-            className="ui-icon-button"
+            className="ui-icon-button h-10 w-10"
             aria-label="Закрити категорії"
             onClick={onClose}
           >
@@ -58,20 +66,29 @@ export default function MobileCategorySheet({
         {selectedRoot ? (
           <div className="grid min-h-0 flex-1 grid-cols-[96px_minmax(0,1fr)]">
             <aside className="min-h-0 overflow-y-auto border-r border-panelBorder bg-panelMuted/70 px-2 py-3">
-              <nav aria-label="Основні категорії" className="space-y-2">
+              <nav
+                aria-label="Основні категорії"
+                className="space-y-2"
+                role="tablist"
+              >
                 {categories.map((category) => {
                   const isActive = category.id === selectedRoot.id
+                  const tabId = getRootTabId(category.id)
+                  const panelId = getRootPanelId(category.id)
 
                   return (
                     <button
+                      id={tabId}
                       key={category.id}
                       type="button"
+                      role="tab"
                       className={`flex min-h-20 w-full flex-col items-center justify-center gap-1.5 rounded-3xl border px-2 py-2 text-center text-[11px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                         isActive
                           ? 'border-brand/60 bg-brand/15 text-copy-strong'
                           : 'border-transparent text-copy-secondary hover:border-panelBorder hover:bg-panel/70 hover:text-copy-strong'
                       }`}
-                      aria-pressed={isActive}
+                      aria-controls={panelId}
+                      aria-selected={isActive}
                       onClick={() => setSelectedRootId(category.id)}
                     >
                       <span className={`flex h-12 w-12 items-center justify-center rounded-full border ${
@@ -92,7 +109,12 @@ export default function MobileCategorySheet({
               </nav>
             </aside>
 
-            <div className="min-h-0 overflow-y-auto px-3 py-4">
+            <div
+              id={getRootPanelId(selectedRoot.id)}
+              role="tabpanel"
+              aria-labelledby={getRootTabId(selectedRoot.id)}
+              className="min-h-0 overflow-y-auto px-3 py-4"
+            >
               {selectedRoot.children.length > 0 ? (
                 <div className="space-y-5">
                   {selectedRoot.children.map((category) => (

@@ -213,6 +213,8 @@ describe('Header navigation naming', () => {
     expect(categoriesButton).toBeTruthy()
     expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
     expect(categoriesButton?.getAttribute('aria-controls')).toBe('mobile-category-sheet')
+    expect(categoriesButton?.className).toContain('h-10')
+    expect(categoriesButton?.className).toContain('w-10')
 
     await act(async () => {
       categoriesButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -224,6 +226,23 @@ describe('Header navigation naming', () => {
     expect(dialog?.textContent).toContain('Категорії')
     expect(dialog?.id).toBe(categoriesButton?.getAttribute('aria-controls'))
     expect(document.getElementById(categoriesButton?.getAttribute('aria-controls') ?? '')).toBe(dialog)
+
+    const closeButton = Array.from(document.body.querySelectorAll('button'))
+      .find((button) => button.getAttribute('aria-label') === 'Закрити категорії')
+    expect(closeButton?.className).toContain('h-10')
+    expect(closeButton?.className).toContain('w-10')
+
+    const rootTabList = document.body.querySelector('[role="tablist"][aria-label="Основні категорії"]')
+    const rootTabs = Array.from(document.body.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
+    const selectedRootTab = rootTabs.find((tab) => tab.textContent?.includes('Одяг та взуття'))
+    const rootPanel = document.body.querySelector('[role="tabpanel"]')
+
+    expect(rootTabList).toBeTruthy()
+    expect(rootTabs).toHaveLength(2)
+    expect(selectedRootTab?.getAttribute('aria-selected')).toBe('true')
+    expect(selectedRootTab?.getAttribute('aria-controls')).toBe(rootPanel?.id)
+    expect(rootPanel?.getAttribute('aria-labelledby')).toBe(selectedRootTab?.id)
+
     expect(dialog?.textContent).toContain('Одяг та взуття')
     expect(dialog?.textContent).toContain('Чоловікам')
     expect(dialog?.textContent).toContain('Жіночий одяг')
@@ -252,6 +271,10 @@ describe('Header navigation naming', () => {
     })
 
     expect(document.body.textContent).toContain('Сорочки')
+    expect(menRootButton?.getAttribute('aria-selected')).toBe('true')
+    expect(document.body.querySelector('[role="tabpanel"]')?.id).toBe(
+      menRootButton?.getAttribute('aria-controls'),
+    )
 
     const nestedCategoryLink = Array.from(document.body.querySelectorAll('a'))
       .find((link) => link.textContent?.includes('Сорочки'))

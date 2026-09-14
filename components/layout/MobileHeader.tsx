@@ -50,7 +50,7 @@ export default function MobileHeader({
 
         <button
           type="button"
-          className="ui-icon-button"
+          className="ui-icon-button h-10 w-10"
           aria-label="Відкрити категорії"
           aria-expanded={isCategorySheetOpen}
           aria-controls={MOBILE_CATEGORY_SHEET_ID}
