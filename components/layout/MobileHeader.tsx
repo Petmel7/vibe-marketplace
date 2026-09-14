@@ -1,19 +1,42 @@
 'use client'
 
-import { Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { List, Search } from 'lucide-react'
+import type { CategoryTreeNode } from '@/components/category/category.data'
 import type { SessionUser } from '@/types/auth'
 import AuthUserMenu from '@/components/auth/AuthUserMenu'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import HeaderIconButton from './HeaderIconButton'
+import MobileCategorySheet, { MOBILE_CATEGORY_SHEET_ID } from './MobileCategorySheet'
 import Logo from '../ui/Logo'
 
 export default function MobileHeader({
+  categories,
   user,
   onSearch,
 }: {
+  categories: CategoryTreeNode[]
   user: SessionUser | null
   onSearch: () => void
 }) {
+  const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 768px)')
+    const closeAtDesktop = (event: MediaQueryListEvent | MediaQueryList) => {
+      if (event.matches) {
+        setIsCategorySheetOpen(false)
+      }
+    }
+
+    closeAtDesktop(mediaQuery)
+    mediaQuery.addEventListener('change', closeAtDesktop)
+
+    return () => {
+      mediaQuery.removeEventListener('change', closeAtDesktop)
+    }
+  }, [])
+
   return (
     <>
       <div className="flex flex-1 items-center gap-3">
@@ -25,10 +48,27 @@ export default function MobileHeader({
           <Search size={24} color="#E8E9EA" />
         </HeaderIconButton>
 
+        <button
+          type="button"
+          className="ui-icon-button"
+          aria-label="Відкрити категорії"
+          aria-expanded={isCategorySheetOpen}
+          aria-controls={MOBILE_CATEGORY_SHEET_ID}
+          onClick={() => setIsCategorySheetOpen(true)}
+        >
+          <List size={24} color="#E8E9EA" aria-hidden="true" />
+        </button>
+
         {user ? <NotificationBell /> : null}
 
         <AuthUserMenu user={user} />
       </nav>
+
+      <MobileCategorySheet
+        categories={categories}
+        open={isCategorySheetOpen}
+        onClose={() => setIsCategorySheetOpen(false)}
+      />
     </>
   )
 }

@@ -15,7 +15,11 @@ export default function HeaderClient({ categories }: { categories: CategoryTreeN
   return (
     <>
       <HeaderBase className="md:hidden">
-        <MobileHeader user={user} onSearch={() => setIsSearchOpen(true)} />
+        <MobileHeader
+          categories={categories}
+          user={user}
+          onSearch={() => setIsSearchOpen(true)}
+        />
       </HeaderBase>
 
       <HeaderBase className="relative hidden md:block">

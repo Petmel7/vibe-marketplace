@@ -20,6 +20,7 @@ function getFocusableElements(container: HTMLElement) {
 }
 
 export default function DialogShell({
+  id,
   open,
   children,
   labelledBy,
@@ -32,6 +33,7 @@ export default function DialogShell({
   panelClassName,
   useDefaultClassNames = true,
 }: {
+  id?: string
   open: boolean
   children: ReactNode
   labelledBy: string
@@ -117,6 +119,7 @@ export default function DialogShell({
       onKeyDown={handleKeyDown}
     >
       <div
+        id={id}
         ref={panelRef}
         role="dialog"
         aria-modal="true"

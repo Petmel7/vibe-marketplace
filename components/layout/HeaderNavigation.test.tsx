@@ -41,6 +41,7 @@ vi.mock('@/components/ui/Logo', () => ({
 
 import BottomNav from '@/components/layout/BottomNav'
 import DesktopHeader from '@/components/layout/DesktopHeader'
+import MobileHeader from '@/components/layout/MobileHeader'
 import type { CategoryTreeNode } from '@/components/category/category.data'
 
 const categories: CategoryTreeNode[] = [
@@ -68,10 +69,33 @@ const categories: CategoryTreeNode[] = [
 describe('Header navigation naming', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot> | null
+  let mediaQueryListeners: Set<(event: MediaQueryListEvent) => void>
 
   beforeEach(() => {
     vi.clearAllMocks()
     usePathnameMock.mockReturnValue('/')
+    mediaQueryListeners = new Set()
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn((event: string, listener: (event: MediaQueryListEvent) => void) => {
+          if (event === 'change') {
+            mediaQueryListeners.add(listener)
+          }
+        }),
+        removeEventListener: vi.fn((event: string, listener: (event: MediaQueryListEvent) => void) => {
+          if (event === 'change') {
+            mediaQueryListeners.delete(listener)
+          }
+        }),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    })
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -122,7 +146,87 @@ describe('Header navigation naming', () => {
 
     const catalogLink = Array.from(container.querySelectorAll('a'))
       .find((link) => link.textContent?.includes('Каталог'))
+    const categoriesLink = Array.from(container.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Категорії'))
 
     expect(catalogLink?.getAttribute('href')).toBe('/catalog')
+    expect(categoriesLink).toBeUndefined()
+  })
+
+  it('opens a mobile categories dialog with canonical category links', async () => {
+    act(() => {
+      root!.render(
+        <MobileHeader
+          categories={categories}
+          user={null}
+          onSearch={vi.fn()}
+        />,
+      )
+    })
+
+    const categoriesButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Відкрити категорії"]',
+    )
+
+    expect(categoriesButton).toBeTruthy()
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
+    expect(categoriesButton?.getAttribute('aria-controls')).toBe('mobile-category-sheet')
+
+    await act(async () => {
+      categoriesButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('true')
+
+    const dialog = document.body.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain('Категорії')
+    expect(dialog?.id).toBe(categoriesButton?.getAttribute('aria-controls'))
+    expect(document.getElementById(categoriesButton?.getAttribute('aria-controls') ?? '')).toBe(dialog)
+
+    const rootCategoryLink = Array.from(document.body.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Жінкам'))
+    const nestedCategoryLink = Array.from(document.body.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Сукні'))
+
+    expect(rootCategoryLink?.getAttribute('href')).toBe('/catalog/women')
+    expect(nestedCategoryLink?.getAttribute('href')).toBe('/catalog/women/dresses')
+
+    await act(async () => {
+      nestedCategoryLink?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('closes the mobile categories dialog when the viewport reaches the md breakpoint', async () => {
+    act(() => {
+      root!.render(
+        <MobileHeader
+          categories={categories}
+          user={null}
+          onSearch={vi.fn()}
+        />,
+      )
+    })
+
+    const categoriesButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Відкрити категорії"]',
+    )
+
+    await act(async () => {
+      categoriesButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('true')
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy()
+
+    await act(async () => {
+      for (const listener of mediaQueryListeners) {
+        listener({ matches: true } as MediaQueryListEvent)
+      }
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
   })
 })
