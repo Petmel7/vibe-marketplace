@@ -186,6 +186,7 @@ const product = {
   storeSlug: 'test-store',
   categoryName: 'Outerwear',
   categorySlug: 'outerwear',
+  categoryHref: '/catalog/outerwear',
 }
 
 describe('ProductDetails', () => {
@@ -217,6 +218,7 @@ describe('ProductDetails', () => {
     expect(markup).toContain('Store 10%')
     expect(markup).toContain('Промокод: STORE10')
     expect(markup).toContain('Знижка: 10.00%')
+    expect(markup).toContain('href="/catalog/outerwear"')
   })
 
   it('selects the first in-stock variant by default for products with multiple purchasable variants', () => {

@@ -77,6 +77,7 @@ export interface ProductDetailDto extends ProductSummaryDto {
   storeSlug: string
   categoryName: string | null
   categorySlug: string | null
+  categoryHref: string | null
   variants: ProductVariantDto[]
 }
 

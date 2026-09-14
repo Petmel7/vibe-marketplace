@@ -18,9 +18,7 @@ export function getHeroBannerCtaHref(banner: HeroBanner) {
 
   switch (destination.type) {
     case 'CATEGORY':
-      return destination.categorySlug
-        ? `/products/category/${encodeURIComponent(destination.categorySlug)}`
-        : null
+      return destination.categoryHref
     case 'PRODUCT':
       return destination.productId ? `/products/${encodeURIComponent(destination.productId)}` : null
     case 'STORE': {

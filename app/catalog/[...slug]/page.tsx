@@ -29,13 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const seo = await getCachedCategorySeo(leafSlug)
     const metadata = buildCategoryMetadata(seo)
 
-    return {
-      ...metadata,
-      robots: {
-        index: false,
-        follow: true,
-      },
-    }
+    return metadata
   } catch (error) {
     if (error instanceof SeoEntityNotFoundError) {
       notFound()

@@ -146,7 +146,7 @@ export function buildProductMetadata(seo: ProductSeoDto): Metadata {
 
 export function buildCategoryMetadata(seo: CategorySeoDto): Metadata {
   return seoToMetadata(seo, {
-    fallbackPath: `/products/category/${seo.categorySlug}`,
+    fallbackPath: seo.categoryHref,
     openGraphType: 'website',
   })
 }

@@ -38,6 +38,7 @@ function makeBanner(destination: HeroBanner['destination']): HeroBanner {
 const emptyDestinationFields = {
   categoryId: null,
   categorySlug: null,
+  categoryHref: null,
   productId: null,
   storeId: null,
   storeSlug: null,
@@ -56,9 +57,10 @@ describe('getHeroBannerCtaHref', () => {
           type: 'CATEGORY',
           categoryId: 'category-1',
           categorySlug: 'zhinky',
+          categoryHref: '/catalog/zhinky',
         }),
       ),
-    ).toBe('/products/category/zhinky')
+    ).toBe('/catalog/zhinky')
 
     expect(
       getHeroBannerCtaHref(

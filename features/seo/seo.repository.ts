@@ -275,7 +275,11 @@ export async function listPublicCategoriesForSitemap() {
       isVisible: true,
     },
     select: {
+      id: true,
+      name: true,
       slug: true,
+      parentId: true,
+      position: true,
       updatedAt: true,
     },
     orderBy: [{ updatedAt: 'desc' }, { slug: 'asc' }],

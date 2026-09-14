@@ -73,7 +73,7 @@ describe('seo json-ld components', () => {
               '@type': 'ListItem',
               position: 2,
               name: 'Сукні',
-              item: 'https://marketplace.example.com/products/category/sukni',
+              item: 'https://marketplace.example.com/catalog/women/sukni',
             },
           ],
         }}

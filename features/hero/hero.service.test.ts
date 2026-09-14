@@ -31,8 +31,13 @@ vi.mock('@/lib/repository/context', () => ({
   runServiceTransaction: vi.fn((callback: (db: unknown) => unknown) => callback({})),
 }))
 
+vi.mock('@/features/categories/category.service', () => ({
+  getPublicCategoryCatalogPaths: vi.fn(),
+}))
+
 import * as repository from './hero.repository'
 import * as guards from '@/lib/auth/guards'
+import * as categoryService from '@/features/categories/category.service'
 import {
   createAdminHeroBanner,
   getAdminHeroBanners,
@@ -43,6 +48,7 @@ import {
 
 const mockedRepository = vi.mocked(repository)
 const mockedGuards = vi.mocked(guards)
+const mockedCategoryService = vi.mocked(categoryService)
 
 const adminUser: SessionUser = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -107,6 +113,11 @@ beforeEach(() => {
   mockedRepository.promotionExists.mockResolvedValue(true)
   mockedRepository.listAdminHeroBanners.mockResolvedValue([])
   mockedRepository.countAdminHeroBanners.mockResolvedValue(0)
+  mockedCategoryService.getPublicCategoryCatalogPaths.mockResolvedValue({
+    items: [],
+    byId: new Map(),
+    bySlug: new Map(),
+  })
 })
 
 describe('getPublicHeroBanners', () => {
@@ -126,6 +137,47 @@ describe('getPublicHeroBanners', () => {
         overlayOpacity: '0.35',
       }),
     ])
+  })
+
+  it('maps category destinations to canonical catalog hrefs', async () => {
+    const now = new Date('2026-07-29T12:00:00.000Z')
+    mockedCategoryService.getPublicCategoryCatalogPaths.mockResolvedValue({
+      items: [
+        {
+          id: 'category-1',
+          slug: 'sukni',
+          href: '/catalog/women/sukni',
+          pathSegments: ['women', 'sukni'],
+        },
+      ],
+      byId: new Map([
+        [
+          'category-1',
+          {
+            id: 'category-1',
+            slug: 'sukni',
+            href: '/catalog/women/sukni',
+            pathSegments: ['women', 'sukni'],
+          },
+        ],
+      ]),
+      bySlug: new Map(),
+    })
+    mockedRepository.listActiveHeroBanners.mockResolvedValue([
+      makeBanner({
+        id: 'banner-category',
+        status: 'PUBLISHED',
+        destinationType: 'CATEGORY',
+        categoryId: 'category-1',
+        category: {
+          slug: 'sukni',
+        },
+      }),
+    ])
+
+    const result = await getPublicHeroBanners({ limit: 4 }, now)
+
+    expect(result.items[0]?.destination.categoryHref).toBe('/catalog/women/sukni')
   })
 })
 

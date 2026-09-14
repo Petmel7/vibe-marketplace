@@ -131,6 +131,7 @@ const product = {
   storeSlug: 'test-store',
   categoryName: 'Outerwear',
   categorySlug: 'outerwear',
+  categoryHref: '/catalog/outerwear',
 }
 
 describe('ProductDetails share action', () => {

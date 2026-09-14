@@ -7,6 +7,7 @@ export type HeroBannerDestinationDto = {
   type: HeroBannerDestinationType
   categoryId: string | null
   categorySlug: string | null
+  categoryHref: string | null
   productId: string | null
   storeId: string | null
   storeSlug: string | null

@@ -41,6 +41,7 @@ import type {
 import { InvalidFilterError, SearchExecutionError } from '@/lib/errors/product'
 import { getActiveCategoryTraversalNodesCached } from '@/features/categories/category.cache'
 import { getVisibleProductPromotions } from '@/features/promotions/promotions.service'
+import { getPublicCategoryCatalogPathById } from '@/features/categories/category.service'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 import { logInfo } from '@/utils/logger'
 import {
@@ -1245,7 +1246,7 @@ const getProductRequestCached = cache(
       throw new ProductNotFoundError(id)
     }
 
-    const [badgesByProductId, promotionsByProductId] = await Promise.all([
+    const [badgesByProductId, promotionsByProductId, categoryCatalogPath] = await Promise.all([
       measureServerOperation(
         'getProductBadges',
         {
@@ -1281,6 +1282,16 @@ const getProductRequestCached = cache(
             ],
           }),
       ),
+      measureServerOperation(
+        'getProductCategoryCatalogPath',
+        {
+          service: 'features/products/product.service',
+          dependency: 'getPublicCategoryCatalogPathById',
+          productId: product.id,
+          categoryId: product.categoryId ?? null,
+        },
+        () => getPublicCategoryCatalogPathById(product.categoryId),
+      ),
     ])
 
     return measureServerOperation(
@@ -1303,6 +1314,7 @@ const getProductRequestCached = cache(
         storeSlug: product.store.slug,
         categoryName: product.category?.name ?? null,
         categorySlug: product.category?.slug ?? null,
+        categoryHref: categoryCatalogPath?.href ?? null,
         ratingSummary: toRatingSummaryDto(product.ratingSummary),
         variants: product.variants.map(toProductVariantDto),
       }),

@@ -50,6 +50,7 @@ describe('seo metadata helpers', () => {
       storeSlug: 'atelier',
       categoryName: 'Сукні',
       categorySlug: 'sukni',
+      categoryHref: '/catalog/women/sukni',
       title: 'Сукня купити онлайн | Atelier',
       description: 'Сукня. Ціна, відгуки та доставка по Україні.',
       keywords: null,
@@ -94,10 +95,11 @@ describe('seo metadata helpers', () => {
       categoryId: 'category-1',
       categoryName: 'Сукні',
       categorySlug: 'sukni',
+      categoryHref: '/catalog/women/sukni',
       title: 'Сукні купити онлайн | Marketplace',
       description: 'Добірка суконь на Marketplace.',
       keywords: null,
-      canonicalUrl: 'https://marketplace.example.com/products/category/sukni',
+      canonicalUrl: 'https://marketplace.example.com/catalog/women/sukni',
       ogTitle: null,
       ogDescription: null,
       ogImageUrl: null,
@@ -112,7 +114,7 @@ describe('seo metadata helpers', () => {
     })
 
     expect(metadata.title).toBe('Сукні купити онлайн | Marketplace')
-    expect(metadata.alternates?.canonical).toBe('https://marketplace.example.com/products/category/sukni')
+    expect(metadata.alternates?.canonical).toBe('https://marketplace.example.com/catalog/women/sukni')
   })
 
   it('forces search pages to noindex', () => {

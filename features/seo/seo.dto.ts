@@ -64,6 +64,7 @@ export type ProductSeoDto = ResolvedSeoMetadataDto & {
   storeSlug: string
   categoryName: string | null
   categorySlug: string | null
+  categoryHref: string | null
   productJsonLd: ProductJsonLdDto
   breadcrumbJsonLd: BreadcrumbJsonLdDto
 }
@@ -72,6 +73,7 @@ export type CategorySeoDto = ResolvedSeoMetadataDto & {
   categoryId: string
   categoryName: string
   categorySlug: string
+  categoryHref: string
   breadcrumbJsonLd: BreadcrumbJsonLdDto
 }
 
@@ -166,4 +168,3 @@ export type SeoListDto = {
   limit: number
   total: number
 }
-

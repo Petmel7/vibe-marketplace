@@ -1,6 +1,7 @@
 import { SeoEntityType } from '@/app/generated/prisma/enums'
 import { requireAdmin } from '@/lib/auth/guards'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { getPublicCategoryCatalogPaths } from '@/features/categories/category.service'
 import { InvalidSeoMetadataError, SeoEntityNotFoundError, SeoMetadataNotFoundError } from '@/lib/errors/seo'
 import { measureServerOperation } from '@/lib/observability/server-timing'
 import { logInfo } from '@/utils/logger'
@@ -215,6 +216,9 @@ export async function getProductSeo(input: { id?: string; slug?: string }): Prom
   }
 
   const override = await loadSeoOverride(SeoEntityType.PRODUCT, product.id)
+  const categoryCatalogPath = product.category
+    ? (await getPublicCategoryCatalogPaths()).byId.get(product.category.id) ?? null
+    : null
   const fallbackTitle = `${product.name} купити онлайн | ${product.store.name}`
   const fallbackDescription = `${product.name}. Ціна, відгуки та доставка по Україні.`
   const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl(`/products/${product.id}`)
@@ -231,10 +235,10 @@ export async function getProductSeo(input: { id?: string; slug?: string }): Prom
     { name: 'Каталог', item: buildCanonicalUrl('/catalog') },
   ]
 
-  if (product.category) {
+  if (product.category && categoryCatalogPath) {
     breadcrumbItems.push({
       name: product.category.name,
-      item: buildCanonicalUrl(`/products/category/${product.category.slug}`),
+      item: buildCanonicalUrl(categoryCatalogPath.href),
     })
   }
 
@@ -252,6 +256,7 @@ export async function getProductSeo(input: { id?: string; slug?: string }): Prom
     storeSlug: product.store.slug,
     categoryName: product.category?.name ?? null,
     categorySlug: product.category?.slug ?? null,
+    categoryHref: categoryCatalogPath?.href ?? null,
     title: override?.title ?? fallbackTitle,
     description: override?.description ?? fallbackDescription,
     keywords: override?.keywords ?? null,
@@ -295,10 +300,16 @@ export async function getCategorySeo(input: { id?: string; slug?: string }): Pro
   }
 
   const override = await loadSeoOverride(SeoEntityType.CATEGORY, category.id)
+  const categoryCatalogPath = (await getPublicCategoryCatalogPaths()).byId.get(category.id)
+
+  if (!categoryCatalogPath) {
+    throw new SeoEntityNotFoundError('Public category SEO is unavailable for this entity')
+  }
+
   const fallbackTitle = `${category.name} купити онлайн | Marketplace`
   const fallbackDescription =
     category.seoText?.trim() || `${category.name}. Добірка товарів з доставкою по Україні.`
-  const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl(`/products/category/${category.slug}`)
+  const canonicalUrl = override?.canonicalUrl ?? buildCanonicalUrl(categoryCatalogPath.href)
   const usedEntityField = Boolean(category.seoTitle || category.seoDescription || category.seoText)
   const source = inferSource({ override, usedEntityField })
   const robots = resolveRobotsFlags(override)
@@ -314,6 +325,7 @@ export async function getCategorySeo(input: { id?: string; slug?: string }): Pro
     categoryId: category.id,
     categoryName: category.name,
     categorySlug: category.slug,
+    categoryHref: categoryCatalogPath.href,
     title: resolveValue(override?.title, category.seoTitle, fallbackTitle) as string,
     description: resolveValue(override?.description, category.seoDescription, fallbackDescription),
     keywords: override?.keywords ?? null,
@@ -388,13 +400,22 @@ export async function getSitemapEntries(): Promise<SitemapEntryDto[]> {
     listPublicCategoriesForSitemap(),
     listPublicProductsForSitemap(),
   ])
+  const categoryCatalogPaths = await getPublicCategoryCatalogPaths()
 
-  const categoryEntries = categories.map((category) => ({
-    loc: buildCanonicalUrl(`/products/category/${category.slug}`),
-    lastModified: category.updatedAt.toISOString(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }))
+  const categoryEntries = categories.flatMap((category): SitemapEntryDto[] => {
+      const categoryCatalogPath = categoryCatalogPaths.byId.get(category.id)
+
+      if (!categoryCatalogPath) {
+        return []
+      }
+
+      return [{
+        loc: buildCanonicalUrl(categoryCatalogPath.href),
+        lastModified: category.updatedAt.toISOString(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      }]
+    })
 
   const productEntries = products.map((product) => ({
     loc: buildCanonicalUrl(`/products/${product.id}`),

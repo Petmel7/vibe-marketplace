@@ -15,6 +15,11 @@ import { revalidateSeoForCategoryChange } from '@/features/seo/seo.cache'
 import { runServiceTransaction } from '@/lib/repository/context'
 import { UPLOAD_BUCKETS } from '@/lib/upload/upload.config'
 import { cleanupStoredUpload, replaceStoredUpload } from '@/lib/upload/upload.service'
+import {
+  buildCategoryCatalogPathIndex,
+  type CategoryCatalogPath,
+  type CategoryCatalogPathIndex,
+} from '@/lib/categories/catalog-hrefs'
 import type {
   AdminCategoryNodeDto,
   CategorySummaryDto,
@@ -186,6 +191,41 @@ async function refreshAdminCategory(categoryId: string): Promise<AdminCategoryNo
 export async function getPublicCategoryTree(): Promise<CategoryTreeNodeDto[]> {
   const categories = await listPublicCategories()
   return buildCategoryTree(categories.filter((category) => category.isActive && category.isVisible))
+}
+
+export async function getPublicCategoryCatalogPaths(): Promise<CategoryCatalogPathIndex> {
+  const categories = await listPublicCategories()
+  return buildCategoryCatalogPathIndex(
+    categories
+      .filter((category) => category.isActive && category.isVisible)
+      .map((category) => ({
+        id: category.id,
+        slug: category.slug,
+        parentId: category.parentId,
+        position: category.position,
+        name: category.name,
+      })),
+  )
+}
+
+export async function getPublicCategoryCatalogPathById(
+  categoryId: string | null | undefined,
+): Promise<CategoryCatalogPath | null> {
+  if (!categoryId) {
+    return null
+  }
+
+  return (await getPublicCategoryCatalogPaths()).byId.get(categoryId) ?? null
+}
+
+export async function getPublicCategoryCatalogPathBySlug(
+  slug: string | null | undefined,
+): Promise<CategoryCatalogPath | null> {
+  if (!slug) {
+    return null
+  }
+
+  return (await getPublicCategoryCatalogPaths()).bySlug.get(slug) ?? null
 }
 
 export async function getPublicCategorySummaries(): Promise<CategorySummaryDto[]> {

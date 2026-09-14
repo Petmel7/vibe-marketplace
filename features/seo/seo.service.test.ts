@@ -19,6 +19,10 @@ vi.mock('@/lib/auth/guards', () => ({
   requireAdmin: vi.fn(),
 }))
 
+vi.mock('@/features/categories/category.service', () => ({
+  getPublicCategoryCatalogPaths: vi.fn(),
+}))
+
 vi.mock('@/config/env', () => ({
   getServerEnv: vi.fn(() => ({
     APP_URL: 'https://marketplace.example.com',
@@ -33,6 +37,7 @@ import { SeoEntityType } from '@/app/generated/prisma/enums'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import * as repo from './seo.repository'
 import * as guards from '@/lib/auth/guards'
+import * as categoryService from '@/features/categories/category.service'
 import {
   createAdminSeoMetadata,
   getCategorySeo,
@@ -46,6 +51,7 @@ import { revalidateSeoForMetadataEntity } from './seo.cache'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(guards)
+const mockCategoryService = vi.mocked(categoryService)
 const mockRevalidateSeoForMetadataEntity = vi.mocked(revalidateSeoForMetadataEntity)
 
 const adminUser: SessionUser = {
@@ -77,6 +83,38 @@ function makeSeoOverride(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.resetAllMocks()
   mockGuards.requireAdmin.mockReturnValue(undefined)
+  mockCategoryService.getPublicCategoryCatalogPaths.mockResolvedValue({
+    items: [
+      {
+        id: 'category-1',
+        slug: 'sukni',
+        href: '/catalog/women/sukni',
+        pathSegments: ['women', 'sukni'],
+      },
+    ],
+    byId: new Map([
+      [
+        'category-1',
+        {
+          id: 'category-1',
+          slug: 'sukni',
+          href: '/catalog/women/sukni',
+          pathSegments: ['women', 'sukni'],
+        },
+      ],
+    ]),
+    bySlug: new Map([
+      [
+        'sukni',
+        {
+          id: 'category-1',
+          slug: 'sukni',
+          href: '/catalog/women/sukni',
+          pathSegments: ['women', 'sukni'],
+        },
+      ],
+    ]),
+  })
   mockRepo.findSeoMetadataByEntity.mockResolvedValue(null as never)
   mockRepo.listPublicCategoriesForSitemap.mockResolvedValue([] as never)
   mockRepo.listPublicProductsForSitemap.mockResolvedValue([] as never)
@@ -111,6 +149,11 @@ describe('public SEO resolution', () => {
     expect(result.description).toBe('Пальто вовняне. Ціна, відгуки та доставка по Україні.')
     expect(result.source).toBe('generated')
     expect(result.canonicalUrl).toBe('https://marketplace.example.com/products/product-1')
+    expect(result.categoryHref).toBe('/catalog/women/sukni')
+    expect(result.breadcrumbJsonLd.itemListElement[2]).toMatchObject({
+      name: 'Пальта',
+      item: 'https://marketplace.example.com/catalog/women/sukni',
+    })
   })
 
   it('builds category SEO fallback metadata', async () => {
@@ -128,6 +171,12 @@ describe('public SEO resolution', () => {
 
     expect(result.title).toBe('Сукні купити онлайн | Marketplace')
     expect(result.source).toBe('generated')
+    expect(result.categoryHref).toBe('/catalog/women/sukni')
+    expect(result.canonicalUrl).toBe('https://marketplace.example.com/catalog/women/sukni')
+    expect(result.breadcrumbJsonLd.itemListElement[2]).toMatchObject({
+      name: 'Сукні',
+      item: 'https://marketplace.example.com/catalog/women/sukni',
+    })
   })
 
   it('lets explicit overrides win over generated fallback', async () => {
@@ -166,7 +215,14 @@ describe('public SEO resolution', () => {
 describe('sitemap and robots', () => {
   it('excludes non-public products from sitemap by only using repository public listings', async () => {
     mockRepo.listPublicCategoriesForSitemap.mockResolvedValue([
-      { slug: 'sukni', updatedAt: new Date('2026-06-08T12:00:00.000Z') },
+      {
+        id: 'category-1',
+        name: 'Сукні',
+        slug: 'sukni',
+        parentId: 'women',
+        position: 0,
+        updatedAt: new Date('2026-06-08T12:00:00.000Z'),
+      },
     ] as never)
     mockRepo.listPublicProductsForSitemap.mockResolvedValue([
       { id: 'product-1', updatedAt: new Date('2026-06-08T12:00:00.000Z') },
@@ -175,7 +231,8 @@ describe('sitemap and robots', () => {
     const entries = await getSitemapEntries()
 
     expect(entries.some((entry) => entry.loc.endsWith('/products/product-1'))).toBe(true)
-    expect(entries.some((entry) => entry.loc.endsWith('/products/category/sukni'))).toBe(true)
+    expect(entries.some((entry) => entry.loc.endsWith('/catalog/women/sukni'))).toBe(true)
+    expect(entries.some((entry) => entry.loc.endsWith('/products/category/sukni'))).toBe(false)
   })
 
   it('returns robots rules that disallow private routes', async () => {

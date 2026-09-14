@@ -59,11 +59,11 @@ function buildProductBreadcrumbItems(product: ProductDetailDto) {
       label: 'Каталог',
       href: '/catalog',
     },
-    ...(product.categoryName && product.categorySlug
+    ...(product.categoryName && product.categoryHref
       ? [
           {
             label: product.categoryName,
-            href: `/products/category/${product.categorySlug}`,
+            href: product.categoryHref,
           },
         ]
       : []),
@@ -129,11 +129,11 @@ export default async function ProductPage({ params }: Props) {
       const resolvedBreadcrumbJsonLd = buildBreadcrumbJsonLd([
         { name: 'Головна', item: buildCanonicalUrl('/') },
         { name: 'Каталог', item: buildCanonicalUrl('/catalog') },
-        ...(product.categoryName && product.categorySlug
+        ...(product.categoryName && product.categoryHref
           ? [
               {
                 name: product.categoryName,
-                item: buildCanonicalUrl(`/products/category/${product.categorySlug}`),
+                item: buildCanonicalUrl(product.categoryHref),
               },
             ]
           : []),

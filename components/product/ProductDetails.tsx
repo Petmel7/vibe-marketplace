@@ -99,9 +99,9 @@ export default function ProductDetails({ product, currentUser }: Props) {
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                {product.categoryName && product.categorySlug ? (
+                {product.categoryName && product.categoryHref ? (
                   <Link
-                    href={`/products/category/${product.categorySlug}`}
+                    href={product.categoryHref}
                     className="inline-flex items-center rounded-full border border-panelBorder bg-copy-base px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-copy-muted transition hover:border-brand-accent/40 hover:text-copy-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                   >
                     {product.categoryName}

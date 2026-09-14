@@ -1,3 +1,7 @@
+import { buildCategoryCatalogHref } from '@/lib/categories/catalog-hrefs'
+
+export { buildCategoryCatalogHref } from '@/lib/categories/catalog-hrefs'
+
 export interface CategoryListItem {
   id: string
   name: string
@@ -19,15 +23,6 @@ export interface CategoryTreeNode extends CategoryTreeApiNode {
   href: string
   pathSegments: string[]
   children: CategoryTreeNode[]
-}
-
-export function buildCategoryCatalogHref(pathSegments: readonly string[]) {
-  const safeSegments = pathSegments
-    .map((segment) => segment.trim())
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-
-  return safeSegments.length > 0 ? `/catalog/${safeSegments.join('/')}` : '/catalog'
 }
 
 export function decorateCategoryTree(

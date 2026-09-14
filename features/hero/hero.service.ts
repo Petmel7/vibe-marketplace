@@ -4,6 +4,7 @@ import {
   Prisma,
 } from '@/app/generated/prisma/client'
 import type { SessionUser } from '@/features/auth/auth.dto'
+import { getPublicCategoryCatalogPaths } from '@/features/categories/category.service'
 import { requireAdmin } from '@/lib/auth/guards'
 import { runServiceTransaction } from '@/lib/repository/context'
 import {
@@ -98,7 +99,10 @@ function toDate(value: string | Date | null | undefined, fallback?: Date) {
   return value instanceof Date ? value : new Date(value)
 }
 
-function toHeroBannerDto(banner: HeroBannerRecord): HeroBannerDto {
+function toHeroBannerDto(
+  banner: HeroBannerRecord,
+  categoryHrefById = new Map<string, string>(),
+): HeroBannerDto {
   return {
     id: banner.id,
     eyebrow: banner.eyebrow ?? null,
@@ -120,6 +124,7 @@ function toHeroBannerDto(banner: HeroBannerRecord): HeroBannerDto {
       type: banner.destinationType,
       categoryId: banner.categoryId ?? null,
       categorySlug: banner.category?.slug ?? null,
+      categoryHref: banner.categoryId ? categoryHrefById.get(banner.categoryId) ?? null : null,
       productId: banner.productId ?? null,
       storeId: banner.storeId ?? null,
       storeSlug: banner.store?.slug ?? null,
@@ -484,8 +489,15 @@ export async function getPublicHeroBanners(
   now = new Date(),
 ): Promise<PublicHeroBannerListDto> {
   const banners = await listActiveHeroBanners({ now, limit: query.limit })
+  const categoryCatalogPaths = banners.some((banner) => banner.categoryId)
+    ? await getPublicCategoryCatalogPaths()
+    : null
+  const categoryHrefById = new Map(
+    categoryCatalogPaths?.items.map((category) => [category.id, category.href]) ?? [],
+  )
+
   return {
-    items: banners.map(toHeroBannerDto),
+    items: banners.map((banner) => toHeroBannerDto(banner, categoryHrefById)),
   }
 }
 
@@ -501,7 +513,7 @@ export async function getAdminHeroBanners(
   ])
 
   return {
-    items: items.map(toHeroBannerDto),
+    items: items.map((banner) => toHeroBannerDto(banner)),
     total,
     page: query.page,
     limit: query.limit,
