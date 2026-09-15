@@ -2,8 +2,7 @@ import type { ProductCardGridVariant } from '@/components/product/ProductCardGri
 
 const skeletonGridClassByVariant: Record<ProductCardGridVariant, string> = {
   catalog: 'grid grid-cols-1 gap-4 min-[375px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
-  section:
-    'grid grid-cols-1 gap-4 min-[375px]:grid-cols-2 min-[768px]:max-[1099px]:grid-cols-3 min-[1100px]:grid-cols-4',
+  section: 'grid grid-cols-1 gap-4 min-[375px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
 }
 
 interface Props {

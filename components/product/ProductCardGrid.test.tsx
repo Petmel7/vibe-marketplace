@@ -14,13 +14,13 @@ describe('ProductCardGrid', () => {
     expect(markup).not.toContain('lg:grid-cols-4')
   })
 
-  it('uses a non-overlapping section grid range so Tailwind v4 cannot cascade 3 columns over 4 columns', () => {
+  it('uses the section/full-width grid variant with 4 columns from lg', () => {
     const markup = renderToStaticMarkup(<ProductCardGrid products={[]} />)
 
-    expect(markup).toContain('min-[768px]:max-[1099px]:grid-cols-3')
-    expect(markup).toContain('min-[1100px]:grid-cols-4')
-    expect(markup).not.toContain('md:grid-cols-3')
-    expect(markup).not.toContain('lg:grid-cols-4')
+    expect(markup).toContain('md:grid-cols-3')
+    expect(markup).toContain('lg:grid-cols-4')
+    expect(markup).not.toContain('min-[768px]:max-[1099px]:grid-cols-3')
+    expect(markup).not.toContain('min-[1100px]:grid-cols-4')
     expect(markup).not.toContain('xl:grid-cols-4')
   })
 })
@@ -35,13 +35,13 @@ describe('ProductCardSkeleton', () => {
     expect(markup).not.toContain('lg:grid-cols-4')
   })
 
-  it('matches the non-overlapping section grid range by default', () => {
+  it('matches the section/full-width grid variant by default', () => {
     const markup = renderToStaticMarkup(<ProductCardSkeleton />)
 
-    expect(markup).toContain('min-[768px]:max-[1099px]:grid-cols-3')
-    expect(markup).toContain('min-[1100px]:grid-cols-4')
-    expect(markup).not.toContain('md:grid-cols-3')
-    expect(markup).not.toContain('lg:grid-cols-4')
+    expect(markup).toContain('md:grid-cols-3')
+    expect(markup).toContain('lg:grid-cols-4')
+    expect(markup).not.toContain('min-[768px]:max-[1099px]:grid-cols-3')
+    expect(markup).not.toContain('min-[1100px]:grid-cols-4')
     expect(markup).not.toContain('xl:grid-cols-4')
   })
 })

@@ -6,7 +6,7 @@ export type VariantState = {
   size: string
   color: string
   price: string
-  stock: number
+  stock: string
   isSkuManual: boolean
 }
 

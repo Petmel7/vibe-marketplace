@@ -14,7 +14,7 @@ import {
 import type { SellerProductFieldErrors, VariantState } from './types'
 
 export function createVariantState(): VariantState {
-  return { sku: '', size: '', color: '', price: '', stock: 0, isSkuManual: false }
+  return { sku: '', size: '', color: '', price: '', stock: '0', isSkuManual: false }
 }
 
 export function createImageDraftId() {
@@ -90,8 +90,13 @@ export function toVariantPayload(variant: VariantState) {
     size: variant.size || null,
     color: variant.color || null,
     price: variant.price || null,
-    stock: variant.stock,
+    stock: parseVariantStock(variant.stock),
   }
+}
+
+export function parseVariantStock(stock: string) {
+  const trimmedStock = stock.trim()
+  return trimmedStock ? Number(trimmedStock) : 0
 }
 
 export function hasMeaningfulVariantData(variant: VariantState) {
@@ -99,7 +104,7 @@ export function hasMeaningfulVariantData(variant: VariantState) {
     variant.size
     || variant.color.trim()
     || variant.price.trim()
-    || variant.stock > 0
+    || parseVariantStock(variant.stock) > 0
     || (variant.isSkuManual && variant.sku.trim()),
   )
 }
@@ -264,11 +269,13 @@ export function validateModerationFormState(params: {
     let hasStock = false
 
     for (const variant of meaningfulVariants) {
-      if (variant.stock > 0) {
+      const parsedStock = parseVariantStock(variant.stock)
+
+      if (parsedStock > 0) {
         hasStock = true
       }
 
-      if (!Number.isInteger(variant.stock) || variant.stock < 0 || variant.stock > PRODUCT_VARIANT_STOCK_MAX) {
+      if (!Number.isInteger(parsedStock) || parsedStock < 0 || parsedStock > PRODUCT_VARIANT_STOCK_MAX) {
         addFieldError(
           fieldErrors,
           'variantStock',

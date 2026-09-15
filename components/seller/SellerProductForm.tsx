@@ -40,6 +40,7 @@ import {
   mapSchemaIssuesToFieldErrors,
   moveImageDraft,
   normalizeImageDrafts,
+  parseVariantStock,
   renderSizeValueLabel,
   revokePreviewUrl,
   serializeFormState,
@@ -102,7 +103,7 @@ export default function SellerProductForm({
     size: variant.size ?? '',
     color: variant.color ?? '',
     price: variant.price ?? '',
-    stock: variant.stock,
+    stock: String(variant.stock),
     isSkuManual: true,
   })) ?? []
   const [formState, setFormState] = useState(initialFormState)
@@ -239,7 +240,7 @@ export default function SellerProductForm({
     })
   }
 
-  function setCreateVariantField(index: number, field: keyof VariantState, value: string | number | boolean) {
+  function setCreateVariantField<K extends keyof VariantState>(index: number, field: K, value: VariantState[K]) {
     setCreateVariants((current) =>
       current.map((variant, currentIndex) => {
         if (currentIndex !== index) return variant
@@ -251,7 +252,7 @@ export default function SellerProductForm({
     )
   }
 
-  function setEditVariantField(index: number, field: keyof VariantState, value: string | number | boolean) {
+  function setEditVariantField<K extends keyof VariantState>(index: number, field: K, value: VariantState[K]) {
     setEditVariants((current) =>
       current.map((variant, currentIndex) => {
         if (currentIndex !== index) return variant
@@ -495,7 +496,7 @@ export default function SellerProductForm({
       size: variant.size || null,
       color: variant.color || null,
       price: variant.price || null,
-      stock: variant.stock,
+      stock: parseVariantStock(variant.stock),
     })
 
     if (!parsed.success) {
@@ -531,7 +532,7 @@ export default function SellerProductForm({
           size: saved.size ?? '',
           color: saved.color ?? '',
           price: saved.price ?? '',
-          stock: saved.stock,
+          stock: String(saved.stock),
           isSkuManual: true,
         }
         : entry,
@@ -574,7 +575,7 @@ export default function SellerProductForm({
       size: newVariant.size || null,
       color: newVariant.color || null,
       price: newVariant.price || null,
-      stock: newVariant.stock,
+      stock: parseVariantStock(newVariant.stock),
     })
 
     if (!parsed.success) {
@@ -610,7 +611,7 @@ export default function SellerProductForm({
         size: created.size ?? '',
         color: created.color ?? '',
         price: created.price ?? '',
-        stock: created.stock,
+        stock: String(created.stock),
         isSkuManual: true,
       },
     ]
@@ -901,11 +902,12 @@ export default function SellerProductForm({
                       <label className="space-y-2">
                         <span className="block text-sm font-medium text-copy-strong">Залишок</span>
                         <input
-                          type="number"
-                          min={0}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           className="ui-surface-input"
                           value={variant.stock}
-                          onChange={(event) => setCreateVariantField(index, 'stock', Number(event.target.value))}
+                          onChange={(event) => setCreateVariantField(index, 'stock', event.target.value)}
                         />
                       </label>
                       <div className="space-y-2">
@@ -1042,11 +1044,12 @@ export default function SellerProductForm({
                       <label className="space-y-2">
                         <span className="block text-sm font-medium text-copy-strong">Залишок</span>
                         <input
-                          type="number"
-                          min={0}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           className="ui-surface-input"
                           value={variant.stock}
-                          onChange={(event) => setEditVariantField(index, 'stock', Number(event.target.value))}
+                          onChange={(event) => setEditVariantField(index, 'stock', event.target.value)}
                         />
                       </label>
                       <div className="space-y-2">
@@ -1161,11 +1164,12 @@ export default function SellerProductForm({
                   <label className="space-y-2">
                     <span className="block text-sm font-medium text-copy-strong">Залишок</span>
                     <input
-                      type="number"
-                      min={0}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       className="ui-surface-input"
                       value={newVariant.stock}
-                      onChange={(event) => setNewVariant((current) => ({ ...current, stock: Number(event.target.value) }))}
+                      onChange={(event) => setNewVariant((current) => ({ ...current, stock: event.target.value }))}
                     />
                   </label>
                   <div className="space-y-2">

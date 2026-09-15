@@ -363,6 +363,40 @@ describe('SellerProductForm flow', () => {
     expect(routerReplace).toHaveBeenCalledWith('/seller/products/product-created-2')
   })
 
+  it('lets sellers clear and type variant stock while submitting a numeric value', async () => {
+    fetchMock.mockResolvedValue(createSuccessResponse({ id: 'product-created-stock' }, 201))
+
+    await act(async () => {
+      root.render(<SellerProductForm mode="create" storeSlug="maria" />)
+    })
+
+    const nameInput = getInputByLabel(container, 'Назва товару') as HTMLInputElement
+    const priceInput = getInputByLabel(container, 'Базова ціна') as HTMLInputElement
+    const stockInput = getInputByLabel(container, 'Залишок') as HTMLInputElement
+
+    expect(stockInput.value).toBe('0')
+
+    await setFieldValue(nameInput, 'Сукня міді')
+    await setFieldValue(priceInput, '2499')
+    await setFieldValue(stockInput, '')
+
+    expect(stockInput.value).toBe('')
+
+    await setFieldValue(stockInput, '47')
+
+    expect(stockInput.value).toBe('47')
+    expect(stockInput.value).not.toBe('047')
+
+    await submitForm(container)
+    await flushAsyncWork()
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      variants?: Array<{ stock?: number }>
+    }
+
+    expect(requestBody.variants?.[0]?.stock).toBe(47)
+  })
+
   it('submits an existing draft without calling the create endpoint', async () => {
     fetchMock.mockResolvedValue(createSuccessResponse({ id: 'product-1', status: 'PENDING_REVIEW' }))
 
