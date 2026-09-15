@@ -21,6 +21,40 @@ export interface ProductModerationQueueDto {
   limit: number
 }
 
+export interface ProductModerationImageDto {
+  id: string
+  url: string
+  altText: string | null
+  isPrimary: boolean
+  position: number
+}
+
+export interface ProductModerationVariantDto {
+  id: string
+  sku: string
+  size: string | null
+  color: string | null
+  price: string | null
+  stock: number
+}
+
+export interface ProductModerationDetailDto extends ProductModerationDto {
+  description: string | null
+  price: string
+  imageUrl: string | null
+  sku: string | null
+  categoryId: string | null
+  categoryName: string | null
+  categorySlug: string | null
+  storeSlug: string
+  storeOwnerId: string
+  storeOwnerEmail: string | null
+  sellerBusinessName: string | null
+  images: ProductModerationImageDto[]
+  variants: ProductModerationVariantDto[]
+  updatedAt: Date
+}
+
 export interface ProductModerationFilters {
   page: number
   limit: number

@@ -4,6 +4,7 @@ import { assertAdminAccess } from '@/lib/auth/adminGuards'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type {
   ProductModerationDto,
+  ProductModerationDetailDto,
   ProductModerationQueueDto,
   ProductModerationFilters,
 } from './product-moderation.dto'
@@ -11,8 +12,10 @@ import {
   findPendingProductApprovals,
   findRejectedProducts,
   findProductByIdWithStore,
+  findProductModerationDetailById,
   updateProductModerationStatus,
 } from './product-moderation.repository'
+import type { ProductModerationDetailRecord } from './product-moderation.repository'
 import type { Product, Store } from '@/app/generated/prisma/client'
 import { syncSystemNewBadgeForProduct } from '@/features/products/product-badge.service'
 import { scheduleProductMetricsRecalculation } from '@/features/products/product-metrics.jobs'
@@ -47,6 +50,56 @@ function toProductModerationDto(product: Product & { store: Store }): ProductMod
   }
 }
 
+function resolveModerationProductImageUrl(product: ProductModerationDetailRecord): string | null {
+  const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0]
+  return primaryImage?.url ?? product.imageUrl ?? null
+}
+
+function toProductModerationDetailDto(
+  product: ProductModerationDetailRecord,
+): ProductModerationDetailDto {
+  return {
+    id: product.id,
+    name: product.name,
+    storeId: product.storeId,
+    storeName: product.store.name,
+    status: product.status,
+    moderationReason: product.moderationReason,
+    rejectionReason: product.rejectionReason,
+    publishedAt: product.publishedAt,
+    moderatedAt: product.moderatedAt,
+    moderatedBy: product.moderatedBy,
+    createdAt: product.createdAt,
+    description: product.description ?? null,
+    price: product.price.toString(),
+    imageUrl: resolveModerationProductImageUrl(product),
+    sku: product.sku ?? null,
+    categoryId: product.categoryId ?? null,
+    categoryName: product.category?.name ?? null,
+    categorySlug: product.category?.slug ?? null,
+    storeSlug: product.store.slug,
+    storeOwnerId: product.store.ownerId,
+    storeOwnerEmail: product.store.owner.email ?? null,
+    sellerBusinessName: product.store.sellerProfile?.businessName ?? null,
+    images: product.images.map((image) => ({
+      id: image.id,
+      url: image.url,
+      altText: image.altText ?? null,
+      isPrimary: image.isPrimary,
+      position: image.position,
+    })),
+    variants: product.variants.map((variant) => ({
+      id: variant.id,
+      sku: variant.sku,
+      size: variant.size ?? null,
+      color: variant.color ?? null,
+      price: variant.price != null ? variant.price.toString() : null,
+      stock: variant.stock,
+    })),
+    updatedAt: product.updatedAt,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -77,6 +130,18 @@ export async function getRejectedProducts(
     page: filters.page,
     limit: filters.limit,
   }
+}
+
+export async function getProductModerationDetail(
+  admin: SessionUser,
+  productId: string,
+): Promise<ProductModerationDetailDto> {
+  assertAdminAccess(admin)
+
+  const product = await findProductModerationDetailById(productId)
+  if (!product) throw new ProductNotFoundError()
+
+  return toProductModerationDetailDto(product)
 }
 
 export async function approveProduct(

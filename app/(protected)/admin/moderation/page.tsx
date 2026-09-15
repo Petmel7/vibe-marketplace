@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import AdminDataTable from '@/components/admin/AdminDataTable'
 import AdminEmptyState from '@/components/admin/AdminEmptyState'
 import AdminProductModerationActions from '@/components/admin/AdminProductModerationActions'
@@ -106,7 +107,17 @@ export default async function AdminModerationPage() {
               <tbody>
                 {data.pendingProductQueue.items.map((product) => (
                   <TableRow key={product.id}>
-                    <TableMetaCell title={product.name} meta={new Date(product.createdAt).toLocaleDateString('uk-UA')} />
+                    <TableMetaCell
+                      title={
+                        <Link
+                          href={`/admin/moderation/products/${product.id}`}
+                          className="font-semibold text-copy-strong underline-offset-4 transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                        >
+                          {product.name}
+                        </Link>
+                      }
+                      meta={new Date(product.createdAt).toLocaleDateString('uk-UA')}
+                    />
                     <TableCell tone="secondary">{product.storeName}</TableCell>
                     <TableStatusCell>
                       <AdminStatusBadge

@@ -36,6 +36,7 @@ import {
 import * as riskService from '@/features/risk/risk.service'
 import {
   getPendingProductQueue,
+  getProductModerationDetail,
   approveProduct,
   rejectProduct,
   archiveProduct,
@@ -45,6 +46,7 @@ import { InvalidModerationTransitionError } from '@/lib/errors/admin'
 import { ProductNotFoundError } from '@/lib/errors/seller'
 import type { SessionUser } from '@/features/auth/auth.dto'
 import type { Product, ProductStatus, Store } from '@/app/generated/prisma/client'
+import type { ProductModerationDetailRecord } from '@/features/moderation/product/product-moderation.repository'
 
 const mockRepo = vi.mocked(repo)
 const mockGuards = vi.mocked(adminGuards)
@@ -114,6 +116,73 @@ function makeUpdatedProduct(overrides: Partial<Product & { store: Store }> = {})
   return makeProduct({ moderatedAt: new Date(), moderatedBy: ADMIN_ID, ...overrides })
 }
 
+function makeProductModerationDetail(
+  overrides: Partial<ProductModerationDetailRecord> = {},
+): ProductModerationDetailRecord {
+  const product = makeProduct()
+
+  return {
+    id: product.id,
+    storeId: product.storeId,
+    categoryId: 'category-uuid-0001',
+    name: product.name,
+    description: 'Detailed product description',
+    price: product.price,
+    imageUrl: 'https://example.com/legacy.jpg',
+    isActive: product.isActive,
+    sku: 'BASE-SKU',
+    isHit: false,
+    isNew: false,
+    status: product.status,
+    rejectionReason: product.rejectionReason,
+    publishedAt: product.publishedAt,
+    moderationReason: product.moderationReason,
+    moderatedAt: product.moderatedAt,
+    moderatedBy: product.moderatedBy,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+    store: {
+      id: mockStore.id,
+      name: mockStore.name,
+      slug: mockStore.slug,
+      ownerId: mockStore.ownerId,
+      owner: {
+        email: 'seller@test.com',
+      },
+      sellerProfile: {
+        businessName: 'Seller Business',
+      },
+    },
+    category: {
+      id: 'category-uuid-0001',
+      name: 'Dresses',
+      slug: 'dresses',
+    },
+    images: [
+      {
+        id: 'image-uuid-0001',
+        url: 'https://example.com/product.jpg',
+        altText: 'Product image',
+        isPrimary: true,
+        position: 0,
+        createdAt: new Date('2026-01-01'),
+      },
+    ],
+    variants: [
+      {
+        id: 'variant-uuid-0001',
+        sku: 'VARIANT-SKU',
+        size: 'M',
+        color: 'Black',
+        price: null,
+        stock: 7,
+        createdAt: new Date('2026-01-01'),
+      },
+    ],
+    ...overrides,
+  } as ProductModerationDetailRecord
+}
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
@@ -142,6 +211,81 @@ describe('getPendingProductQueue', () => {
     expect(mockRepo.findPendingProductApprovals).toHaveBeenCalledWith({ page: 1, limit: 20 })
     expect(result.items).toHaveLength(1)
     expect(result.items[0]?.status).toBe('PENDING_REVIEW')
+  })
+})
+
+describe('getProductModerationDetail', () => {
+  it('returns admin moderation details for a pending product', async () => {
+    const detail = makeProductModerationDetail()
+    mockRepo.findProductModerationDetailById.mockResolvedValue(detail)
+
+    const result = await getProductModerationDetail(mockAdmin, PRODUCT_ID)
+
+    expect(mockGuards.assertAdminAccess).toHaveBeenCalledWith(mockAdmin)
+    expect(mockRepo.findProductModerationDetailById).toHaveBeenCalledWith(PRODUCT_ID)
+    expect(result).toMatchObject({
+      id: PRODUCT_ID,
+      name: 'Test Product',
+      status: 'PENDING_REVIEW',
+      description: 'Detailed product description',
+      price: '99.99',
+      imageUrl: 'https://example.com/product.jpg',
+      sku: 'BASE-SKU',
+      categoryName: 'Dresses',
+      categorySlug: 'dresses',
+      storeName: 'Test Store',
+      storeSlug: 'test-store',
+      storeOwnerEmail: 'seller@test.com',
+      sellerBusinessName: 'Seller Business',
+    })
+    expect(result.images).toEqual([
+      {
+        id: 'image-uuid-0001',
+        url: 'https://example.com/product.jpg',
+        altText: 'Product image',
+        isPrimary: true,
+        position: 0,
+      },
+    ])
+    expect(result.variants).toEqual([
+      {
+        id: 'variant-uuid-0001',
+        sku: 'VARIANT-SKU',
+        size: 'M',
+        color: 'Black',
+        price: null,
+        stock: 7,
+      },
+    ])
+  })
+
+  it('falls back to the legacy image URL when no gallery images exist', async () => {
+    const detail = makeProductModerationDetail({ images: [] })
+    mockRepo.findProductModerationDetailById.mockResolvedValue(detail)
+
+    const result = await getProductModerationDetail(mockAdmin, PRODUCT_ID)
+
+    expect(result.imageUrl).toBe('https://example.com/legacy.jpg')
+    expect(result.images).toEqual([])
+  })
+
+  it('throws ProductNotFoundError when product does not exist', async () => {
+    mockRepo.findProductModerationDetailById.mockResolvedValue(null)
+
+    await expect(getProductModerationDetail(mockAdmin, PRODUCT_ID)).rejects.toThrow(
+      ProductNotFoundError,
+    )
+  })
+
+  it('checks admin access before loading product details', async () => {
+    mockGuards.assertAdminAccess.mockImplementation(() => {
+      throw new Error('Admin access required')
+    })
+
+    await expect(getProductModerationDetail(mockAdmin, PRODUCT_ID)).rejects.toThrow(
+      'Admin access required',
+    )
+    expect(mockRepo.findProductModerationDetailById).not.toHaveBeenCalled()
   })
 })
 
