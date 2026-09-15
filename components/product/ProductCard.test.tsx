@@ -198,6 +198,26 @@ describe('ProductCard', () => {
     expect(addToCartButton?.closest('a')).toBeNull()
   })
 
+  it('does not render customer-facing article or SKU text and clamps the product name', () => {
+    const container = renderProductCardDom({
+      averageRating: 4.2,
+      totalCount: 5,
+      rating1Count: 0,
+      rating2Count: 0,
+      rating3Count: 1,
+      rating4Count: 2,
+      rating5Count: 2,
+    })
+
+    const productNameLink = Array.from(container.querySelectorAll('a[href="/products/prod-1"]'))
+      .find((link) => link.textContent?.includes('Reviewed Product'))
+
+    expect(container.textContent).not.toContain('Арт.')
+    expect(container.textContent).not.toContain('SKU-001')
+    expect(productNameLink?.className).toContain('line-clamp-2')
+    expect(productNameLink?.getAttribute('title')).toBe('Reviewed Product')
+  })
+
   it('renders an active promotion badge, discount, and code when provided', () => {
     const markup = renderProductCard(
       {

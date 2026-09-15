@@ -23,17 +23,16 @@ export default function MobileHeader({
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 768px)')
-    const closeAtDesktop = (event: MediaQueryListEvent | MediaQueryList) => {
+    const closeAtTablet = (event: MediaQueryListEvent | MediaQueryList) => {
       if (event.matches) {
         setIsCategorySheetOpen(false)
       }
     }
 
-    closeAtDesktop(mediaQuery)
-    mediaQuery.addEventListener('change', closeAtDesktop)
+    mediaQuery.addEventListener('change', closeAtTablet)
 
     return () => {
-      mediaQuery.removeEventListener('change', closeAtDesktop)
+      mediaQuery.removeEventListener('change', closeAtTablet)
     }
   }, [])
 

@@ -60,7 +60,7 @@ export default function ProductCard({
   product,
 }: ProductCardProps) {
   const [imageFailed, setImageFailed] = useState(false)
-  const { price, sku, isAvailable } = getProductCardDisplayState(product)
+  const { price, isAvailable } = getProductCardDisplayState(product)
   const badgeChips = resolveProductBadgeChips({
     badges,
     badgeContext,
@@ -122,14 +122,14 @@ export default function ProductCard({
 
           <Link
             href={`/products/${id}`}
-            className="block text-base font-semibold leading-6 text-copy-strong transition group-hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+            title={name}
+            className="line-clamp-2 block text-base font-semibold leading-6 text-copy-strong transition group-hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
           >
             {name}
           </Link>
 
           <div className="flex min-h-6 flex-wrap items-center gap-2">
             {stockStatus ? <ProductStockBadge status={stockStatus} /> : null}
-            {sku ? <span className="ui-meta-text">Арт.: {sku}</span> : null}
           </div>
 
           {promotionSummary ? (

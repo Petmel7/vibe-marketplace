@@ -4,8 +4,10 @@ import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
 
 export const ICON_BADGE_ROOT_CLASS = 'relative flex items-center justify-center'
+export const ICON_BADGE_HEADER_ROOT_CLASS = `${ICON_BADGE_ROOT_CLASS} ui-icon-button rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`
 export const ICON_BADGE_DEFAULT_POSITION_CLASS = '-right-1.5 -top-1.5'
 export const ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS = '-right-1.5 -top-1'
+export const ICON_BADGE_TABLET_HEADER_POSITION_CLASS = 'right-0 top-0'
 export const ICON_BADGE_BOTTOM_NAV_POSITION_CLASS = '-right-1.5 -top-2'
 export const ICON_BADGE_DEFAULT_TEXT_OFFSET_CLASS = ''
 export const ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS = 'translate-y-px'
@@ -49,7 +51,7 @@ export default function IconWithBadge({
       href={href}
       aria-label={ariaLabel}
       aria-current={ariaCurrent}
-      className={className ?? ICON_BADGE_ROOT_CLASS}
+      className={className ?? ICON_BADGE_HEADER_ROOT_CLASS}
     >
       <Icon size={size} aria-hidden="true" className={iconClassName} />
       {shouldShowBadge && (

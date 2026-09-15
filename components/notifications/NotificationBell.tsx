@@ -11,7 +11,15 @@ import {
   ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS,
 } from '@/components/ui/IconWithBadge'
 
-export default function NotificationBell() {
+type NotificationBellProps = {
+  triggerClassName?: string
+  badgeClassName?: string
+}
+
+export default function NotificationBell({
+  triggerClassName,
+  badgeClassName = ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS,
+}: NotificationBellProps = {}) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const {
@@ -77,19 +85,22 @@ export default function NotificationBell() {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={label}
-        className={`ui-icon-button ${ICON_BADGE_ROOT_CLASS} rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`}
+        className={
+          triggerClassName ??
+          `ui-icon-button ${ICON_BADGE_ROOT_CLASS} rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`
+        }
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={24} color="#E8E9EA" aria-hidden="true" />
         {hasRecentRealtimeActivity ? (
           <span
-            className={`${ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS} h-3 w-3 rounded-full border-2 border-panel bg-emerald-400`}
+            className={`${badgeClassName} h-3 w-3 rounded-full border-2 border-panel bg-emerald-400`}
             aria-hidden="true"
           />
         ) : null}
         {unreadCount > 0 ? (
           <span
-            className={`${ICON_BADGE_COUNTER_CLASS} ${ICON_BADGE_DESKTOP_HEADER_POSITION_CLASS}`}
+            className={`${ICON_BADGE_COUNTER_CLASS} ${badgeClassName}`}
             aria-hidden="true"
           >
             <span className={ICON_BADGE_DESKTOP_HEADER_TEXT_OFFSET_CLASS}>

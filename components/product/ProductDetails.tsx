@@ -126,7 +126,9 @@ export default function ProductDetails({ product, currentUser }: Props) {
                 />
               </div>
 
-              <h1 className="ui-heading-product">{product.name}</h1>
+              <h1 className="ui-heading-product line-clamp-2" title={product.name}>
+                {product.name}
+              </h1>
             </div>
 
             <div className="shrink-0 pt-1">
@@ -206,7 +208,6 @@ export default function ProductDetails({ product, currentUser }: Props) {
 
           <div className="flex flex-wrap items-center gap-3">
             <ProductStockBadge status={presentation.stockStatus} />
-            {presentation.sku ? <span className="ui-meta-text"> Арт.: {presentation.sku}</span> : null}
           </div>
 
           {!presentation.isAvailable ? (
@@ -252,7 +253,7 @@ export default function ProductDetails({ product, currentUser }: Props) {
       <ProductInfoSection title="Деталі товару">
         <div className="space-y-4">
           <ProductDescription description={product.description} />
-          <ProductCharacteristics variants={product.variants} sku={presentation.sku ?? null} />
+          <ProductCharacteristics variants={product.variants} />
         </div>
       </ProductInfoSection>
     </div>

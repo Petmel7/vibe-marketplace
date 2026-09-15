@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import HeaderBase from './HeaderBase'
 import DesktopHeader from './DesktopHeader'
 import MobileHeader from './MobileHeader'
+import TabletHeader from './TabletHeader'
 
 export default function HeaderClient({ categories }: { categories: CategoryTreeNode[] }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -22,7 +23,15 @@ export default function HeaderClient({ categories }: { categories: CategoryTreeN
         />
       </HeaderBase>
 
-      <HeaderBase className="relative hidden md:block">
+      <HeaderBase className="hidden md:block lg:hidden">
+        <TabletHeader
+          categories={categories}
+          user={user}
+          onSearch={() => setIsSearchOpen(true)}
+        />
+      </HeaderBase>
+
+      <HeaderBase className="relative hidden lg:block">
         <DesktopHeader
           categories={categories}
           user={user}

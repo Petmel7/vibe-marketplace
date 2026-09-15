@@ -13,9 +13,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 type AuthUserMenuProps = {
   user: SessionUser | null
+  triggerClassName?: string
 }
 
-export default function AuthUserMenu({ user }: AuthUserMenuProps) {
+export default function AuthUserMenu({ user, triggerClassName }: AuthUserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const pathname = usePathname()
@@ -58,7 +59,10 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
           aria-expanded={isOpen}
           aria-haspopup="menu"
           aria-label="Відкрити меню акаунта"
-          className="ui-icon-button rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className={
+            triggerClassName ??
+            'ui-icon-button rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand'
+          }
           onClick={() => setIsOpen((current) => !current)}
         >
           <CircleUser
@@ -72,8 +76,9 @@ export default function AuthUserMenu({ user }: AuthUserMenuProps) {
         <Link
           aria-label={isLoading ? 'Завантаження акаунта' : 'Відкрити сторінку входу'}
           aria-busy={isLoading}
-          className={`ui-icon-button rounded-full ${isLoading ? 'cursor-not-allowed opacity-70' : ''
-            }`}
+          className={`${triggerClassName ?? 'ui-icon-button rounded-full'} ${
+            isLoading ? 'cursor-not-allowed opacity-70' : ''
+          }`}
           href={loginHref}
           onClick={(event) => {
             if (isLoading) {

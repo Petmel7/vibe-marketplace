@@ -221,6 +221,17 @@ describe('ProductDetails', () => {
     expect(markup).toContain('href="/catalog/outerwear"')
   })
 
+  it('does not render customer-facing article or SKU text and clamps the product name', () => {
+    const markup = renderToStaticMarkup(
+      <ProductDetails product={product} currentUser={null} />,
+    )
+
+    expect(markup).not.toContain('Арт.')
+    expect(markup).not.toContain('SKU-001')
+    expect(markup).toContain('ui-heading-product line-clamp-2')
+    expect(markup).toContain('title="Reviewed Product"')
+  })
+
   it('selects the first in-stock variant by default for products with multiple purchasable variants', () => {
     act(() => {
       root!.render(

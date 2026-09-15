@@ -6,22 +6,24 @@ export default function HeaderIconButton({
   children,
   onClick,
   href,
+  className,
 }: {
   label: string
   children: ReactNode
   onClick?: () => void
   href?: string
+  className?: string
 }) {
   if (href) {
     return (
-      <Link aria-label={label} className="ui-icon-button" href={href}>
+      <Link aria-label={label} className={className ?? 'ui-icon-button'} href={href}>
         {children}
       </Link>
     )
   }
 
   return (
-    <button aria-label={label} className="ui-icon-button" onClick={onClick}>
+    <button aria-label={label} className={className ?? 'ui-icon-button'} onClick={onClick}>
       {children}
     </button>
   )

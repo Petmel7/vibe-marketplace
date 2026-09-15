@@ -17,22 +17,88 @@ const { usePathnameMock } = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({
   usePathname: () => usePathnameMock(),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/useCurrentUser', () => ({
+  useCurrentUser: () => ({ user: null, isAuthLoading: false }),
 }))
 
 vi.mock('@/components/cart/CartIcon', () => ({
-  default: () => <span data-testid="cart-icon" />,
+  default: ({
+    className,
+    badgeClassName,
+    ariaLabel = 'Кошик',
+  }: {
+    className?: string
+    badgeClassName?: string
+    ariaLabel?: string
+  }) => (
+    <a
+      href="/cart"
+      className={className}
+      aria-label={ariaLabel}
+      data-badge-class={badgeClassName}
+      data-testid="cart-icon"
+    />
+  ),
 }))
 
 vi.mock('@/components/auth/AuthUserMenu', () => ({
-  default: () => <span data-testid="auth-user-menu" />,
+  default: ({
+    triggerClassName,
+  }: {
+    triggerClassName?: string
+  }) => (
+    <button
+      type="button"
+      className={triggerClassName}
+      aria-label="Відкрити меню акаунта"
+      data-testid="auth-user-menu"
+    />
+  ),
 }))
 
 vi.mock('@/components/notifications/NotificationBell', () => ({
-  default: () => <span data-testid="notification-bell" />,
+  default: ({
+    triggerClassName,
+    badgeClassName,
+  }: {
+    triggerClassName?: string
+    badgeClassName?: string
+  }) => (
+    <button
+      type="button"
+      className={triggerClassName}
+      aria-label="Сповіщення"
+      data-badge-class={badgeClassName}
+      data-testid="notification-bell"
+    />
+  ),
 }))
 
 vi.mock('@/components/wishlist/WishlistIcon', () => ({
-  default: () => <span data-testid="wishlist-icon" />,
+  default: ({
+    className,
+    badgeClassName,
+    ariaLabel = 'Обране',
+  }: {
+    className?: string
+    badgeClassName?: string
+    ariaLabel?: string
+  }) => (
+    <a
+      href="/wishlist"
+      className={className}
+      aria-label={ariaLabel}
+      data-badge-class={badgeClassName}
+      data-testid="wishlist-icon"
+    />
+  ),
 }))
 
 vi.mock('@/components/ui/Logo', () => ({
@@ -45,8 +111,11 @@ vi.mock('next/image', () => ({
 
 import BottomNav from '@/components/layout/BottomNav'
 import DesktopHeader from '@/components/layout/DesktopHeader'
+import HeaderClient from '@/components/layout/HeaderClient'
 import MobileHeader from '@/components/layout/MobileHeader'
+import TabletHeader from '@/components/layout/TabletHeader'
 import type { CategoryTreeNode } from '@/components/category/category.data'
+import type { SessionUser } from '@/types/auth'
 
 const categories: CategoryTreeNode[] = [
   {
@@ -108,15 +177,27 @@ const categories: CategoryTreeNode[] = [
   },
 ]
 
+const signedInUser: SessionUser = {
+  id: 'user-1',
+  email: 'buyer@example.com',
+  roles: ['BUYER'],
+}
+
 describe('Header navigation naming', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot> | null
-  let mediaQueryListeners: Set<(event: MediaQueryListEvent) => void>
+  let mediaQueryListeners: Map<string, Set<(event: MediaQueryListEvent) => void>>
+
+  const fireMediaQueryChange = (query: string, matches: boolean) => {
+    for (const listener of mediaQueryListeners.get(query) ?? []) {
+      listener({ matches } as MediaQueryListEvent)
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
     usePathnameMock.mockReturnValue('/')
-    mediaQueryListeners = new Set()
+    mediaQueryListeners = new Map()
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn((query: string) => ({
@@ -125,12 +206,14 @@ describe('Header navigation naming', () => {
         onchange: null,
         addEventListener: vi.fn((event: string, listener: (event: MediaQueryListEvent) => void) => {
           if (event === 'change') {
-            mediaQueryListeners.add(listener)
+            const listeners = mediaQueryListeners.get(query) ?? new Set()
+            listeners.add(listener)
+            mediaQueryListeners.set(query, listeners)
           }
         }),
         removeEventListener: vi.fn((event: string, listener: (event: MediaQueryListEvent) => void) => {
           if (event === 'change') {
-            mediaQueryListeners.delete(listener)
+            mediaQueryListeners.get(query)?.delete(listener)
           }
         }),
         addListener: vi.fn(),
@@ -193,6 +276,70 @@ describe('Header navigation naming', () => {
 
     expect(catalogLink?.getAttribute('href')).toBe('/catalog')
     expect(categoriesLink).toBeUndefined()
+  })
+
+  it('mounts mobile, tablet, and desktop headers at the intended breakpoints', () => {
+    act(() => {
+      root!.render(<HeaderClient categories={categories} />)
+    })
+
+    const headers = Array.from(container.querySelectorAll('header'))
+
+    expect(headers).toHaveLength(3)
+    expect(headers[0].className).toContain('md:hidden')
+    expect(headers[1].className).toContain('hidden md:block lg:hidden')
+    expect(headers[2].className).toContain('relative hidden lg:block')
+  })
+
+  it('renders a compact tablet catalog link and category drawer opener without desktop mega menu', async () => {
+    act(() => {
+      root!.render(
+        <TabletHeader
+          categories={categories}
+          user={signedInUser}
+          onSearch={vi.fn()}
+        />,
+      )
+    })
+
+    const catalogLink = Array.from(container.querySelectorAll('a'))
+      .find((link) => link.getAttribute('href') === '/catalog')
+    const categoriesButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Відкрити категорії"]',
+    )
+    const searchButton = container.querySelector<HTMLButtonElement>('button[aria-label="Пошук"]')
+    const wishlistIcon = container.querySelector<HTMLElement>('[data-testid="wishlist-icon"]')
+    const cartIcon = container.querySelector<HTMLElement>('[data-testid="cart-icon"]')
+    const notificationButton = container.querySelector<HTMLElement>('[data-testid="notification-bell"]')
+    const authButton = container.querySelector<HTMLElement>('[data-testid="auth-user-menu"]')
+
+    expect(catalogLink?.textContent).toContain('Каталог')
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
+    expect(categoriesButton?.getAttribute('aria-controls')).toBe('mobile-category-sheet')
+    expect(categoriesButton?.className).toContain('h-10')
+    expect(categoriesButton?.className).toContain('w-10')
+    expect(searchButton?.className).toContain('h-10')
+    expect(searchButton?.className).toContain('w-10')
+    expect(wishlistIcon?.className).toContain('h-10')
+    expect(wishlistIcon?.className).toContain('w-10')
+    expect(cartIcon?.className).toContain('h-10')
+    expect(cartIcon?.className).toContain('w-10')
+    expect(notificationButton?.className).toContain('h-10')
+    expect(notificationButton?.className).toContain('w-10')
+    expect(authButton?.className).toContain('h-10')
+    expect(authButton?.className).toContain('w-10')
+    expect(wishlistIcon?.getAttribute('data-badge-class')).toBe('right-0 top-0')
+    expect(cartIcon?.getAttribute('data-badge-class')).toBe('right-0 top-0')
+    expect(notificationButton?.getAttribute('data-badge-class')).toBe('right-0 top-0')
+    expect(container.querySelector('[aria-label="Категорії товарів"]')).toBeNull()
+
+    await act(async () => {
+      categoriesButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('true')
+    expect(document.body.querySelector('[role="dialog"]')?.id).toBe('mobile-category-sheet')
+    expect(document.body.textContent).toContain('Жіночі сукні')
   })
 
   it('opens a mobile categories drawer with canonical category links', async () => {
@@ -311,9 +458,37 @@ describe('Header navigation naming', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeTruthy()
 
     await act(async () => {
-      for (const listener of mediaQueryListeners) {
-        listener({ matches: true } as MediaQueryListEvent)
-      }
+      fireMediaQueryChange('(min-width: 768px)', true)
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('closes the tablet categories dialog when the viewport reaches the lg breakpoint', async () => {
+    act(() => {
+      root!.render(
+        <TabletHeader
+          categories={categories}
+          user={null}
+          onSearch={vi.fn()}
+        />,
+      )
+    })
+
+    const categoriesButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Відкрити категорії"]',
+    )
+
+    await act(async () => {
+      categoriesButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(categoriesButton?.getAttribute('aria-expanded')).toBe('true')
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy()
+
+    await act(async () => {
+      fireMediaQueryChange('(min-width: 1024px)', true)
     })
 
     expect(categoriesButton?.getAttribute('aria-expanded')).toBe('false')
