@@ -219,7 +219,7 @@ export default function SearchResultsPageClient({
 
             {visibleProducts.length > 0 ? (
               <>
-                <ProductCardGrid products={visibleProducts} />
+                <ProductCardGrid products={visibleProducts} variant="catalog" />
                 <SearchPagination
                   page={results.pagination.page}
                   totalPages={results.pagination.totalPages}

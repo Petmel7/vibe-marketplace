@@ -33,9 +33,9 @@ export default function InfiniteProductList({
 
   return (
     <div className="space-y-4">
-      <ProductCardGrid products={products} />
+      <ProductCardGrid products={products} variant="section" />
 
-      {isLoading ? <ProductCardSkeleton count={4} /> : null}
+      {isLoading ? <ProductCardSkeleton count={4} variant="section" /> : null}
 
       {hasNextPage ? <div ref={setObserverTarget} className="h-1 w-full" aria-hidden="true" /> : null}
     </div>

@@ -26,7 +26,7 @@ export default async function HomeProductSection({ type, title }: Props) {
       </div>
 
       {visibleProducts.length > 0 ? (
-        <ProductCardGrid products={visibleProducts} />
+        <ProductCardGrid products={visibleProducts} variant="section" />
       ) : (
         <p className="ui-body-muted">Товари поки що відсутні.</p>
       )}
